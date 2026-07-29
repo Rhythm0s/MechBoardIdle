@@ -1,0 +1,159 @@
+using System.Collections.Generic;
+using MBI.Core;
+using MBI.Data;
+using UnityEngine;
+using UnityEngine.InputSystem;
+
+namespace MBI.Logistics
+{
+    /// <summary>
+    /// 물류 보드 씬 글루(§5-3) — BoardRoot에 부착. 탭 입력을 셀로 판정해 배치/선택한다.
+    ///
+    /// 순수 격자 로직은 BoardGrid(MBI.Core)에 있고, 이 클래스는 씬 연동만 담당:
+    ///   - BoardConfig 치수로 중앙 정렬 격자 생성(origin = 파생값, 하드코딩 아님).
+    ///   - InputSystem 탭 → 화면→월드→셀 → 빈 셀 배치 / 점유 셀 선택 / 격자 밖 무시.
+    ///   - 배치 시 최소 플레이스홀더 마커 스폰(§5-4 아트 전 임시).
+    /// 벨트·면 연결(§5-4), 노드 팔레트·스텁 필터(§8)는 범위 밖.
+    /// </summary>
+    public sealed class BoardController : MonoBehaviour
+    {
+        [Header("설정")]
+        [Tooltip("격자 치수·셀 크기(§5-3 BoardConfig). 씬 생성기가 주입.")]
+        [SerializeField] private BoardConfig config;
+        [Tooltip("탭으로 배치할 노드(당장 1종). 팔레트 UI는 §8.")]
+        [SerializeField] private NodeDefinition placeTarget;
+        [Tooltip("좌표 변환 카메라. 비우면 Camera.main.")]
+        [SerializeField] private Camera boardCamera;
+
+        private BoardGrid _grid;
+        private InputAction _tap;
+        private readonly Dictionary<Vector2Int, GameObject> _markers = new Dictionary<Vector2Int, GameObject>();
+        private Vector2Int? _selected;
+
+        private static readonly Color PlacedColor = new Color(0.55f, 0.75f, 0.95f, 1f);
+        private static readonly Color SelectedColor = new Color(0.98f, 0.85f, 0.30f, 1f);
+        private static Sprite _unitSprite;
+
+        private void Awake()
+        {
+            if (config == null)
+            {
+                Debug.LogError("[MBI] BoardController: BoardConfig 미할당 — 격자 생성 불가.");
+                enabled = false;
+                return;
+            }
+            if (boardCamera == null) boardCamera = Camera.main;
+
+            Vector2 origin = ComputeOrigin(config, transform.position);
+            _grid = new BoardGrid(config.columns, config.rows, config.cellSize, origin);
+        }
+
+        private void OnEnable()
+        {
+            _tap = new InputAction("BoardTap", InputActionType.Button, "<Pointer>/press");
+            _tap.performed += OnTap;
+            _tap.Enable();
+        }
+
+        private void OnDisable()
+        {
+            if (_tap == null) return;
+            _tap.performed -= OnTap;
+            _tap.Disable();
+            _tap.Dispose();
+            _tap = null;
+        }
+
+        private void OnTap(InputAction.CallbackContext ctx)
+        {
+            if (_grid == null || Pointer.current == null) return;
+            if (boardCamera == null) boardCamera = Camera.main;
+            if (boardCamera == null) return;
+
+            Vector2 screen = Pointer.current.position.ReadValue();
+            // orthographic: z = 카메라→보드 평면(z=0) 거리 = -카메라 z.
+            Vector3 world = boardCamera.ScreenToWorldPoint(
+                new Vector3(screen.x, screen.y, -boardCamera.transform.position.z));
+
+            Vector2Int cell = _grid.WorldToCell(world);
+            if (!_grid.IsInside(cell)) return;
+
+            if (_grid.IsOccupied(cell)) Select(cell);
+            else Place(cell);
+        }
+
+        private void Place(Vector2Int cell)
+        {
+            if (placeTarget == null)
+            {
+                Debug.LogWarning("[MBI] BoardController: placeTarget 미할당 — 배치할 노드 없음.");
+                return;
+            }
+            if (!_grid.TryPlace(cell, placeTarget, out _)) return;
+
+            GameObject marker = new GameObject($"Node_{cell.x}_{cell.y}");
+            marker.transform.SetParent(transform, false);
+            marker.transform.position = _grid.CellToWorld(cell);
+            marker.transform.localScale = Vector3.one * (_grid.CellSize * 0.9f);
+            var sr = marker.AddComponent<SpriteRenderer>();
+            sr.sprite = UnitSprite();
+            sr.color = PlacedColor;
+            _markers[cell] = marker;
+
+            Debug.Log($"[MBI] 배치: {placeTarget.displayName} @ 셀({cell.x},{cell.y}) → 월드 {_grid.CellToWorld(cell)}.");
+        }
+
+        private void Select(Vector2Int cell)
+        {
+            // 이전 선택 색 복원.
+            if (_selected.HasValue && _markers.TryGetValue(_selected.Value, out GameObject prev) && prev != null)
+                prev.GetComponent<SpriteRenderer>().color = PlacedColor;
+
+            _selected = cell;
+            if (_markers.TryGetValue(cell, out GameObject cur) && cur != null)
+                cur.GetComponent<SpriteRenderer>().color = SelectedColor;
+
+            NodeInstance inst = _grid.GetAt(cell);
+            Debug.Log($"[MBI] 선택: {(inst != null ? inst.Definition.displayName : "?")} @ 셀({cell.x},{cell.y}).");
+        }
+
+        /// <summary>격자 좌하단 코너 월드 좌표 = 보드 위치 중심 정렬(파생값).</summary>
+        private static Vector2 ComputeOrigin(BoardConfig cfg, Vector3 boardPos)
+        {
+            return new Vector2(boardPos.x, boardPos.y)
+                   - new Vector2(cfg.columns * cfg.cellSize, cfg.rows * cfg.cellSize) * 0.5f;
+        }
+
+        private static Sprite UnitSprite()
+        {
+            if (_unitSprite != null) return _unitSprite;
+            var tex = new Texture2D(1, 1);
+            tex.SetPixel(0, 0, Color.white);
+            tex.Apply();
+            // ppu=1 → 1×1 텍스처가 1 월드 유닛(스케일로 cellSize 반영).
+            _unitSprite = Sprite.Create(tex, new Rect(0, 0, 1, 1), new Vector2(0.5f, 0.5f), 1f);
+            return _unitSprite;
+        }
+
+        // 씬 뷰 격자 시각화(아트 없이 스냅/치수 확인).
+        private void OnDrawGizmos()
+        {
+            if (config == null) return;
+            Vector2 origin = ComputeOrigin(config, transform.position);
+            float w = config.columns * config.cellSize;
+            float h = config.rows * config.cellSize;
+
+            Gizmos.color = new Color(0.4f, 0.9f, 0.6f, 0.5f);
+            for (int x = 0; x <= config.columns; x++)
+            {
+                float px = origin.x + x * config.cellSize;
+                Gizmos.DrawLine(new Vector3(px, origin.y, 0f), new Vector3(px, origin.y + h, 0f));
+            }
+            for (int y = 0; y <= config.rows; y++)
+            {
+                float py = origin.y + y * config.cellSize;
+                Gizmos.DrawLine(new Vector3(origin.x, py, 0f), new Vector3(origin.x + w, py, 0f));
+            }
+        }
+    }
+}

@@ -1,0 +1,18 @@
+{
+    "name": "MBI.Logistics",
+    "rootNamespace": "MBI.Logistics",
+    "references": [
+        "MBI.Data",
+        "MBI.Core",
+        "Unity.InputSystem"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

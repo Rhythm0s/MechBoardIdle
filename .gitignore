@@ -1,0 +1,48 @@
+# Unity generated / caches
+[Ll]ibrary/
+[Tt]emp/
+[Oo]bj/
+[Bb]uild/
+[Bb]uilds/
+[Ll]ogs/
+[Uu]ser[Ss]ettings/
+[Mm]emoryCaptures/
+[Rr]ecordings/
+
+# Asset meta data (keep .meta for tracked assets; ignore only under ignored dirs above)
+
+# IDE / project files
+.vs/
+.vscode/
+.idea/
+*.csproj
+*.unityproj
+*.sln
+*.suo
+*.user
+*.userprefs
+*.pidb
+*.booproj
+*.svd
+*.pdb
+*.mdb
+*.opendb
+*.VC.db
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Plastic SCM control (migrating off UVC — do not track Plastic metadata in git)
+.plastic/
+ignore.conf
+
+# Build outputs / packages
+*.apk
+*.aab
+*.unitypackage
+*.app
+
+# Crashlytics / misc
+crashlytics-build.properties
+sysinfo.txt

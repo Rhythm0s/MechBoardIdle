@@ -1,0 +1,163 @@
+using System.Collections.Generic;
+using System.IO;
+using MBI.Data;
+using UnityEditor;
+using UnityEngine;
+
+namespace MBI.Editor
+{
+    /// <summary>
+    /// balance_v4.json(1차 계약)을 읽어 BalanceConfig.asset + 노드 SO 6종을 생성/갱신한다.
+    /// 메뉴: MBI/Generate Balance + Nodes.
+    ///
+    /// - 수치 원천은 json(§9). 코드에 밸런스 리터럴을 두지 않는다(§3) — 앵커는 json에서 복사.
+    /// - 노드별 전력/탄약/발열 실측치는 아직 없음(balance.json은 합계 병목치만, 전부 TBD).
+    ///   → 단일 소유가 자연스러운 항목만 placeholder로 주입하고 전부 confirm=Tbd로 마킹(§7 오표기 방지).
+    /// - 재실행 시 같은 경로 자산을 덮어써 GUID를 보존(참조 안정).
+    /// </summary>
+    public static class BalanceAssetGenerator
+    {
+        private const string SoRoot = "Assets/_Project/ScriptableObjects";
+        private const string NodesDir = SoRoot + "/Nodes";
+        private const string ConfigPath = SoRoot + "/BalanceConfig.asset";
+
+        [MenuItem("MBI/Generate Balance + Nodes")]
+        public static void Generate()
+        {
+            BalanceJson json = BalanceJsonLoader.Load();
+
+            EnsureDir(SoRoot);
+            EnsureDir(NodesDir);
+
+            BalanceConfig config = BuildConfig(json);
+            BuildNodes(config, json);
+
+            AssetDatabase.SaveAssets();
+            AssetDatabase.Refresh();
+
+            Debug.Log($"[MBI] 밸런스/노드 자산 생성 완료 — 원천 {json.meta.schemaVersion} " +
+                      $"({json.meta.exportedAt}). BalanceConfig + 노드 6종(구현 5 + 쉴드 스텁).");
+        }
+
+        // ---- BalanceConfig: json 앵커의 단일 원천 미러 ----
+        private static BalanceConfig BuildConfig(BalanceJson json)
+        {
+            BalanceConfig c = LoadOrCreate<BalanceConfig>(ConfigPath);
+
+            c.schemaVersion = json.meta.schemaVersion;
+            c.exportedAt = json.meta.exportedAt;
+
+            c.origin = json.Param("origin");
+            c.ceil = json.Param("ceil");
+            c.enh = json.Param("enh");
+
+            c.enhBand = new Vector2(json.enhance.enhBand[0], json.enhance.enhBand[1]);
+            c.snapBand = json.enhance.snapBand;
+            c.s3Break = json.enhance.s3Break;
+            c.s4Band = new Vector2(json.enhance.s4Band[0], json.enhance.s4Band[1]);
+            c.s4Cost = json.enhance.s4Cost;
+
+            c.challengeTime = json.Stage("S1").challengeTime;
+
+            EditorUtility.SetDirty(c);
+            return c;
+        }
+
+        // ---- 노드 6종 ----
+        private static void BuildNodes(BalanceConfig config, BalanceJson json)
+        {
+            // 단일 소유가 자연스러운 병목 항목만 placeholder로 끌어온다(전부 Tbd).
+            float pwc = json.Param("pwc");    // 발전 용량 → 에너지
+            float capA = json.Param("capA");  // 소비 상한 → 군수 생산 placeholder
+            float heat = json.Param("heat");  // 발열 합 → 가공
+            float heatc = json.Param("heatc"); // 냉각 임계 → 가공
+            float pw = json.Param("pw");      // 전력 소비 합(집계) → 코어에 lumped placeholder
+
+            // 코어 — 물류 허브(탄약·전력 소비, 물류 산출)
+            WriteNode(config, "core", "코어", NodeType.Core, true,
+                new NodeResourceProfile { powerDraw = pw, confirm = ConfirmState.Tbd },
+                new List<NodePort>
+                {
+                    new NodePort(PortFace.West, PortIO.Input, FlowKind.Ammo),
+                    new NodePort(PortFace.South, PortIO.Input, FlowKind.Power),
+                    new NodePort(PortFace.North, PortIO.Output, FlowKind.Material),
+                });
+
+            // 가공 — 물류 품목 처리(발열 발생원)
+            WriteNode(config, "proc", "가공", NodeType.Processing, true,
+                new NodeResourceProfile { heatGenerate = heat, heatDissipate = heatc, confirm = ConfirmState.Tbd },
+                new List<NodePort>
+                {
+                    new NodePort(PortFace.West, PortIO.Input, FlowKind.Material),
+                    new NodePort(PortFace.East, PortIO.Output, FlowKind.Material),
+                });
+
+            // 군수 — 탄약 생산
+            WriteNode(config, "muni", "군수", NodeType.Munitions, true,
+                new NodeResourceProfile { ammoProduce = capA, confirm = ConfirmState.Tbd },
+                new List<NodePort>
+                {
+                    new NodePort(PortFace.West, PortIO.Input, FlowKind.Material),
+                    new NodePort(PortFace.East, PortIO.Output, FlowKind.Ammo),
+                });
+
+            // 에너지 — 발전(전력 공급)
+            WriteNode(config, "ener", "에너지", NodeType.Energy, true,
+                new NodeResourceProfile { powerSupply = pwc, confirm = ConfirmState.Tbd },
+                new List<NodePort>
+                {
+                    new NodePort(PortFace.East, PortIO.Output, FlowKind.Power),
+                });
+
+            // 저장 — 물류 버퍼
+            WriteNode(config, "stor", "저장", NodeType.Storage, true,
+                new NodeResourceProfile { confirm = ConfirmState.Tbd },
+                new List<NodePort>
+                {
+                    new NodePort(PortFace.West, PortIO.Input, FlowKind.Material),
+                    new NodePort(PortFace.East, PortIO.Output, FlowKind.Material),
+                });
+
+            // 쉴드 발생 — 스키마 자리만(구현 보류, §4). implemented=false, 포트 없음.
+            WriteNode(config, "shield", "쉴드 발생", NodeType.Shield, false,
+                new NodeResourceProfile { confirm = ConfirmState.Tbd },
+                new List<NodePort>());
+        }
+
+        private static void WriteNode(BalanceConfig config, string id, string display, NodeType type,
+            bool implemented, NodeResourceProfile resources, List<NodePort> ports)
+        {
+            string path = $"{NodesDir}/Node_{id}.asset";
+            NodeDefinition n = LoadOrCreate<NodeDefinition>(path);
+            n.nodeId = id;
+            n.displayName = display;
+            n.type = type;
+            n.implemented = implemented;
+            n.resources = resources;
+            n.ports = ports;
+            n.balanceRef = config;
+            EditorUtility.SetDirty(n);
+        }
+
+        // ---- 유틸 ----
+        private static T LoadOrCreate<T>(string path) where T : ScriptableObject
+        {
+            T asset = AssetDatabase.LoadAssetAtPath<T>(path);
+            if (asset == null)
+            {
+                asset = ScriptableObject.CreateInstance<T>();
+                AssetDatabase.CreateAsset(asset, path);
+            }
+            return asset;
+        }
+
+        private static void EnsureDir(string assetPath)
+        {
+            if (AssetDatabase.IsValidFolder(assetPath)) return;
+            string parent = Path.GetDirectoryName(assetPath).Replace('\\', '/');
+            string leaf = Path.GetFileName(assetPath);
+            if (!AssetDatabase.IsValidFolder(parent)) EnsureDir(parent);
+            AssetDatabase.CreateFolder(parent, leaf);
+        }
+    }
+}

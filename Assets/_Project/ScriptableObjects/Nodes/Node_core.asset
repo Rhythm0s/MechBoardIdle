@@ -1,0 +1,37 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d9289dc3b91bcd2438aaa0a9baec200b, type: 3}
+  m_Name: Node_core
+  m_EditorClassIdentifier: MBI.Data::MBI.Data.NodeDefinition
+  nodeId: core
+  displayName: "\uCF54\uC5B4"
+  type: 0
+  implemented: 1
+  resources:
+    powerDraw: 66
+    powerSupply: 0
+    ammoProduce: 0
+    ammoConsume: 0
+    heatGenerate: 0
+    heatDissipate: 0
+    confirm: 1
+  ports:
+  - face: 3
+    io: 0
+    kind: 1
+  - face: 2
+    io: 0
+    kind: 2
+  - face: 0
+    io: 1
+    kind: 0
+  balanceRef: {fileID: 11400000, guid: a00911652af86014e9b4ea1c7d0b41d5, type: 2}

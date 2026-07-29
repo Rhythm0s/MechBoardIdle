@@ -1,0 +1,20 @@
+{
+    "name": "MBI.Editor",
+    "rootNamespace": "MBI.Editor",
+    "references": [
+        "MBI.Data",
+        "MBI.Logistics",
+        "MBI.Combat"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}
