@@ -33,6 +33,32 @@ namespace MBI.Combat
 
         private const float RobotSize = 0.8f;
 
+        private static Sprite _circleSprite;
+
+        /// <summary>단위 원반 스프라이트(중심 옅은 채움 + 가장자리 밝은 링). 스케일로 아레나 지름 반영.</summary>
+        private static Sprite CircleSprite()
+        {
+            if (_circleSprite != null) return _circleSprite;
+            const int n = 128;
+            float r = n * 0.5f - 1f;      // 반경(px)
+            float ring = 3f;              // 테두리 링 두께(px)
+            var tex = new Texture2D(n, n, TextureFormat.RGBA32, false);
+            var c = new Vector2(n * 0.5f, n * 0.5f);
+            for (int y = 0; y < n; y++)
+            for (int x = 0; x < n; x++)
+            {
+                float dist = Vector2.Distance(new Vector2(x + 0.5f, y + 0.5f), c);
+                float a;
+                if (dist > r) a = 0f;                       // 밖 = 투명
+                else if (dist > r - ring) a = 0.85f;        // 가장자리 링 = 진하게
+                else a = 0.07f;                             // 내부 = 옅은 채움
+                tex.SetPixel(x, y, new Color(1f, 1f, 1f, a));
+            }
+            tex.Apply();
+            _circleSprite = Sprite.Create(tex, new Rect(0, 0, n, n), new Vector2(0.5f, 0.5f), n);
+            return _circleSprite;
+        }
+
         /// <summary>적 표시 크기(장갑/보스 크게). 뷰·충돌 반경이 공유하는 단일 규칙.</summary>
         private static float EnemySize(float maxHp) => maxHp >= 1000f ? 1.1f : 0.4f;
 
@@ -44,7 +70,22 @@ namespace MBI.Combat
                 enabled = false;
                 return;
             }
+            BuildArena(); // 이동 가능 범위 경계(§C-1) — 상수라 최초 1회만.
             Begin();
+        }
+
+        /// <summary>이동 가능 아레나 경계 시각화(§C-1): 반경 arenaRadiusTbd 원반 + 테두리 링. 최초 1회.</summary>
+        private void BuildArena()
+        {
+            var go = new GameObject("ArenaBounds");
+            go.transform.SetParent(transform, false);
+            go.transform.position = Vector3.zero;
+            float d = tuning.arenaRadiusTbd * 2f;
+            go.transform.localScale = new Vector3(d, d, 1f);
+            var sr = go.AddComponent<SpriteRenderer>();
+            sr.sprite = CircleSprite();          // 텍스처가 옅은 채움 + 밝은 테두리 링을 함께 담음
+            sr.color = new Color(0.35f, 0.75f, 1f); // 청록 톤(알파는 텍스처)
+            sr.sortingOrder = -10;               // 모든 엔티티 뒤
         }
 
         /// <summary>시뮬·뷰 구성(최초 및 재시작 공용).</summary>
@@ -269,9 +310,11 @@ namespace MBI.Combat
             var style = new GUIStyle(GUI.skin.label) { fontSize = 16 };
             var big = new GUIStyle(GUI.skin.label) { fontSize = 34, fontStyle = FontStyle.Bold };
 
-            GUILayout.BeginArea(new Rect(12, 10, 560, 220));
+            GUILayout.BeginArea(new Rect(12, 10, 560, 270));
             GUILayout.Label($"스테이지 {stage.stageId}  ·  {stage.topic}", style);
             GUILayout.Label($"물류 출력(전투력) {LogisticsOutputBridge.Output:F0}  /  요구 {ReqLabel()}  ·  마운트계수 {_mountCoef:F2}", style);
+            GUILayout.Label(AmmoLine(), style);
+            GUILayout.Label($"저장고(군수 생산) {LogisticsOutputBridge.AmmoProduce:F1} 발/초", style);
             GUILayout.Label($"적 {_sim.Remaining}/{_sim.TotalEnemies}   로봇 HP {_sim.Robot.hp:F0}/{_sim.Robot.maxHp:F0}", style);
             GUILayout.Label($"경과 {_sim.Elapsed:F1}s / {stage.challengeTime:F0}s", style);
             GUILayout.Label("이동 WASD / 화살표 (카이팅)", style);
@@ -279,12 +322,30 @@ namespace MBI.Combat
 
             if (_sim.Result != CombatResult.InProgress)
             {
-                GUILayout.BeginArea(new Rect(12, 240, 560, 160));
+                GUILayout.BeginArea(new Rect(12, 290, 560, 160));
                 GUILayout.Label(ResultText(), big);
                 if (GUILayout.Button("다시 (Restart)", GUILayout.Width(160), GUILayout.Height(34)))
                     Restart();
                 GUILayout.EndArea();
             }
+        }
+
+        /// <summary>탄약 표시(§C-2): 마운트 용량(종당) + 탄종별 현재 물류 공급율(발/초). 재고 변동은 물류연동 #1 이후.</summary>
+        private string AmmoLine()
+        {
+            float pierce = 0f, split = 0f, expl = 0f;
+            if (robot.weapons != null)
+                foreach (WeaponSpec w in robot.weapons)
+                {
+                    switch (w.kind)
+                    {
+                        case AmmoKind.Pierce: pierce += w.shotsPerSec; break;
+                        case AmmoKind.Split: split += w.shotsPerSec; break;
+                        case AmmoKind.Explosive: expl += w.shotsPerSec; break;
+                    }
+                }
+            int cap = tuning.mountAmmoCapTbd;
+            return $"탄약 마운트(용량 {cap}/종)  관통 {pierce:F0} · 분열 {split:F0} · 폭발 {expl:F0} 발/초";
         }
 
         private string ReqLabel()

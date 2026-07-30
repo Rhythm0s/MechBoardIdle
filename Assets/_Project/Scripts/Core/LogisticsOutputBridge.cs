@@ -8,5 +8,8 @@ namespace MBI.Core
     public static class LogisticsOutputBridge
     {
         public static float Output = 145f;
+
+        /// <summary>라이브 네트워크 군수 생산율(발/초). 전투 HUD의 저장고/탄약 표시용(라이브 없으면 0).</summary>
+        public static float AmmoProduce = 0f;
     }
 }

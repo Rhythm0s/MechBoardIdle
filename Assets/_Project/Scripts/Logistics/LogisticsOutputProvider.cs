@@ -32,6 +32,7 @@ namespace MBI.Logistics
             if (grid == null) return;
 
             NetworkAggregate agg = LogisticsNetwork.Aggregate(grid);
+            LogisticsOutputBridge.AmmoProduce = agg.ammoProduce; // 전투 HUD 저장고/탄약 표시(§C-2)
             if (!agg.hasCore)
             {
                 LogisticsOutputBridge.Output = 0f; // 물류 허브(코어) 없음 → 전투로 나가는 출력 없음
