@@ -1,0 +1,32 @@
+using UnityEngine;
+
+namespace MBI.Data
+{
+    /// <summary>
+    /// 물류 흐름 시뮬 병목 파라미터(§5-5). ⚠️ 전부 TBD placeholder — balance "병목" 그룹(confirmed:false).
+    ///
+    /// CLAUDE.md §3 역할 경계: 밸런스 계약과 분리(CombatTuning·BoardConfig 선례). balance_v4 병목 그룹에서
+    /// 시드하되 미확정 — 사용자 chat+Notion 확정 대상. LogisticsSimulation이 라이브 네트워크 집계와 함께 사용.
+    ///
+    /// 데이터흐름(§9): 전력=고정비 전용(강화 불가·긴장 영구화). 물류 무개입(효율은 물리에서만).
+    /// </summary>
+    [CreateAssetMenu(fileName = "LogisticsConfig", menuName = "MBI/Logistics Config (TBD)", order = 20)]
+    public sealed class LogisticsConfig : ScriptableObject
+    {
+        [Header("전력 (⚠️ TBD)")]
+        [Tooltip("TBD — 전 노드 가동 고정비 합. balance pw = 66. 효율 = min(1, 공급/소비).")]
+        public float powerDraw = 66f;
+        [Tooltip("TBD — 발전 공급 용량. balance pwc = 80. pwc<pw면 효율<1(전력 긴장).")]
+        public float powerSupply = 80f;
+
+        [Header("벨트 (⚠️ TBD)")]
+        [Tooltip("TBD — 벨트 처리 용량(/초). balance belt = 14. 필요<용량이면 무손실.")]
+        public float beltCapacity = 14f;
+
+        [Header("발열 (⚠️ TBD)")]
+        [Tooltip("TBD — 발열 발생(/초). balance heat = 8.")]
+        public float heatGenerate = 8f;
+        [Tooltip("TBD — 발열 임계. balance heatc = 12. heat>heatc면 감쇠.")]
+        public float heatThreshold = 12f;
+    }
+}

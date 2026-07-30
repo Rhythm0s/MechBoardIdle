@@ -53,7 +53,8 @@ namespace MBI.Combat
             // 마운트계수: 물류(S1~S3)=base, 그 외(강화/태그/버스트)=enhanced(1.45).
             _mountCoef = stage.powerModel == StagePowerModel.Logistics
                 ? robot.mountCoef : robot.enhancedMountCoef;
-            _output = MockLogisticsOutput.CurrentOutput(robot, _mountCoef, robot.moduleMult);
+            float ceiling = robot.balanceRef != null ? robot.balanceRef.LogisticsCeiling : 160f; // origin×ceil
+            _output = MockLogisticsOutput.CurrentOutput(robot, _mountCoef, robot.moduleMult, ceiling);
 
             // 발사 모델: 관통(싱글)→분열(멀티샷)→폭발(AoE) 한 발씩 로테이션.
             List<AllocatedShot> shots = ShotAllocator.RoundRobin(robot.weapons);
