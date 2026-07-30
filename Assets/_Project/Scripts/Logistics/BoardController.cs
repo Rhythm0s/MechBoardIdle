@@ -20,10 +20,15 @@ namespace MBI.Logistics
         [Header("설정")]
         [Tooltip("격자 치수·셀 크기(§5-3 BoardConfig). 씬 생성기가 주입.")]
         [SerializeField] private BoardConfig config;
-        [Tooltip("탭으로 배치할 노드(당장 1종). 팔레트 UI는 §8.")]
+        [Tooltip("팔레트가 비었을 때 폴백 배치 노드.")]
         [SerializeField] private NodeDefinition placeTarget;
+        [Tooltip("배치 가능한 노드 팔레트(조립 뷰에서 선택). 씬 생성기가 주입.")]
+        [SerializeField] private List<NodeDefinition> palette = new List<NodeDefinition>();
         [Tooltip("좌표 변환 카메라. 비우면 Camera.main.")]
         [SerializeField] private Camera boardCamera;
+
+        private int _selectedNode; // 팔레트에서 선택된 노드 인덱스
+        private bool _pointerOverPalette; // 팔레트 버튼 위 클릭은 보드 무시
 
         private BoardGrid _grid;
         private InputAction _press;
@@ -79,7 +84,8 @@ namespace MBI.Logistics
         private void OnPressStart(InputAction.CallbackContext ctx)
         {
             if (_grid == null) return;
-            if (GameLayerController.PointerOverButton) return; // 레이어 버튼 위 클릭은 보드 무시(오배치 방지).
+            // 레이어/팔레트 버튼 위 클릭, 또는 조립 뷰가 아닐 때는 보드 무시(오배치 방지).
+            if (GameLayerController.PointerOverButton || _pointerOverPalette) return;
             if (!TryCellUnderPointer(out Vector2Int cell) || !_grid.IsInside(cell)) return;
             _dragging = true;
             _dragCells.Clear();
@@ -147,14 +153,23 @@ namespace MBI.Logistics
             return true;
         }
 
+        /// <summary>현재 팔레트에서 선택된 배치 노드(비었으면 placeTarget 폴백).</summary>
+        private NodeDefinition CurrentNode()
+        {
+            if (palette != null && palette.Count > 0)
+                return palette[Mathf.Clamp(_selectedNode, 0, palette.Count - 1)];
+            return placeTarget;
+        }
+
         private void Place(Vector2Int cell)
         {
-            if (placeTarget == null)
+            NodeDefinition node = CurrentNode();
+            if (node == null)
             {
-                Debug.LogWarning("[MBI] BoardController: placeTarget 미할당 — 배치할 노드 없음.");
+                Debug.LogWarning("[MBI] BoardController: 배치할 노드 없음(팔레트/placeTarget 미할당).");
                 return;
             }
-            if (!_grid.TryPlace(cell, placeTarget, out _)) return;
+            if (!_grid.TryPlace(cell, node, out _)) return;
 
             GameObject marker = new GameObject($"Node_{cell.x}_{cell.y}");
             marker.transform.SetParent(transform, false);
@@ -166,7 +181,32 @@ namespace MBI.Logistics
             _markers[cell] = marker;
 
             RefreshConnections(); // 노드 추가로 인접 벨트 연결 상태 변화 반영.
-            Debug.Log($"[MBI] 배치: {placeTarget.displayName} @ 셀({cell.x},{cell.y}) → 월드 {_grid.CellToWorld(cell)}.");
+            Debug.Log($"[MBI] 배치: {node.displayName} @ 셀({cell.x},{cell.y}) → 월드 {_grid.CellToWorld(cell)}.");
+        }
+
+        // 조립 뷰에서만 노드 팔레트(우측 세로 버튼) — 선택으로 탭 배치 노드 변경.
+        private void OnGUI()
+        {
+            _pointerOverPalette = false;
+            if (!GameLayerController.BoardViewActive || palette == null || palette.Count == 0) return;
+
+            var style = new GUIStyle(GUI.skin.button) { fontSize = 14 };
+            const float w = 130f, h = 34f, pad = 6f;
+            float x = Screen.width - w - 12f;
+            float y0 = 90f;
+
+            GUI.Label(new Rect(x, y0 - 24f, w, 22f), "노드 팔레트");
+            for (int i = 0; i < palette.Count; i++)
+            {
+                if (palette[i] == null) continue;
+                var rect = new Rect(x, y0 + i * (h + pad), w, h);
+                if (rect.Contains(Event.current.mousePosition)) _pointerOverPalette = true;
+
+                bool sel = i == _selectedNode;
+                string label = (sel ? "● " : "") + palette[i].displayName;
+                if (GUI.Button(rect, label, style)) _selectedNode = i;
+            }
+            GUI.Label(new Rect(x, y0 + palette.Count * (h + pad) + 2f, w, 40f), "탭=노드 배치\n드래그=벨트");
         }
 
         private void Select(Vector2Int cell)

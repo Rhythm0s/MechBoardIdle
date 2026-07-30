@@ -115,6 +115,18 @@ namespace MBI.Editor
             so.FindProperty("config").objectReferenceValue = boardConfig;
             var coreNode = Load<NodeDefinition>($"{SoRoot}/Nodes/Node_core.asset");
             if (coreNode != null) so.FindProperty("placeTarget").objectReferenceValue = coreNode;
+
+            // 노드 팔레트(구현 5종 — 쉴드 스텁 제외).
+            SerializedProperty pal = so.FindProperty("palette");
+            pal.arraySize = 0;
+            foreach (string id in new[] { "core", "proc", "muni", "ener", "stor" })
+            {
+                var n = Load<NodeDefinition>($"{SoRoot}/Nodes/Node_{id}.asset");
+                if (n == null) continue;
+                int idx = pal.arraySize;
+                pal.arraySize = idx + 1;
+                pal.GetArrayElementAtIndex(idx).objectReferenceValue = n;
+            }
             so.ApplyModifiedPropertiesWithoutUndo();
         }
 

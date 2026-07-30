@@ -33,6 +33,9 @@ namespace MBI.Logistics
         /// <summary>레이어 버튼 위에 포인터가 있으면 true — BoardController가 보드 입력을 무시(오배치 방지).</summary>
         public static bool PointerOverButton { get; private set; }
 
+        /// <summary>조립(물류 보드) 레이어가 활성인가 — BoardController가 팔레트 표시 여부 판단.</summary>
+        public static bool BoardViewActive { get; private set; }
+
         private void Start()
         {
             if (cam == null) cam = Camera.main;
@@ -41,6 +44,7 @@ namespace MBI.Logistics
 
         private void Update()
         {
+            BoardViewActive = _boardView;
             if (cam == null) return;
             Vector2 tc = _boardView ? boardCenter : combatCenter;
             float ts = _boardView ? boardSize : combatSize;
