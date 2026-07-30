@@ -129,6 +129,20 @@ namespace MBI.Core
             return true;
         }
 
+        /// <summary>
+        /// 셀에 병합기/분류기 등 다중 면 벨트 요소를 설치(§5-4 L3). 경계 밖·노드/벨트 점유면 실패.
+        /// </summary>
+        public bool TryPlaceBeltElement(Vector2Int cell, BeltElementKind element,
+            PortFace[] inFaces, PortFace[] outFaces, FlowKind kind, out BeltInstance placed)
+        {
+            placed = null;
+            if (!IsFree(cell)) return false;
+
+            placed = new BeltInstance(cell, element, inFaces, outFaces, kind);
+            _belts[cell] = placed;
+            return true;
+        }
+
         /// <summary>셀 벨트 해제. 없었으면 false.</summary>
         public bool TryRemoveBelt(Vector2Int cell)
         {

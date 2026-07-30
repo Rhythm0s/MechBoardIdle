@@ -39,7 +39,8 @@ namespace MBI.Core
                 }
                 BeltInstance belt = grid.GetBeltAt(cell);
                 if (belt != null)
-                    TryLink(grid, links, cell, belt.OutFace, belt.Kind);
+                    foreach (PortFace outFace in belt.OutFaces) // 분류기: 다중 출력면
+                        TryLink(grid, links, cell, outFace, belt.Kind);
             }
             return links;
         }
@@ -60,8 +61,15 @@ namespace MBI.Core
             }
 
             BeltInstance nbBelt = grid.GetBeltAt(nb);
-            if (nbBelt != null && nbBelt.InFace == need && nbBelt.Kind == kind)
+            if (nbBelt != null && nbBelt.Kind == kind && HasInFace(nbBelt, need)) // 병합기: 다중 입력면 수용
                 links.Add(new BeltLink { fromCell = cell, toCell = nb, kind = kind });
+        }
+
+        /// <summary>벨트가 해당 면을 입력면으로 갖는가(병합기 다중 입력 포함).</summary>
+        private static bool HasInFace(BeltInstance belt, PortFace face)
+        {
+            foreach (PortFace f in belt.InFaces) if (f == face) return true;
+            return false;
         }
 
         private static bool HasInputPort(NodeDefinition def, PortFace face, FlowKind kind)
