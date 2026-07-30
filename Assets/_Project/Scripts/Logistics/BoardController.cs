@@ -34,10 +34,14 @@ namespace MBI.Logistics
         private bool _dragging;
         private readonly List<Vector2Int> _dragCells = new List<Vector2Int>();
 
+        // 벨트 방향 표시 SR(§5-4 L2 연결 상태 색 갱신용).
+        private readonly Dictionary<Vector2Int, SpriteRenderer> _beltArrows = new Dictionary<Vector2Int, SpriteRenderer>();
+
         private static readonly Color PlacedColor = new Color(0.55f, 0.75f, 0.95f, 1f);
         private static readonly Color SelectedColor = new Color(0.98f, 0.85f, 0.30f, 1f);
         private static readonly Color BeltColor = new Color(0.5f, 0.5f, 0.5f, 1f);
-        private static readonly Color BeltArrowColor = new Color(0.95f, 0.85f, 0.3f, 1f);
+        private static readonly Color BeltArrowColor = new Color(0.95f, 0.85f, 0.3f, 1f);       // 미연결(dangling)
+        private static readonly Color BeltConnectedColor = new Color(0.35f, 0.9f, 0.4f, 1f);    // 자동연결됨
         private static Sprite _unitSprite;
 
         private void Awake()
@@ -75,6 +79,7 @@ namespace MBI.Logistics
         private void OnPressStart(InputAction.CallbackContext ctx)
         {
             if (_grid == null) return;
+            if (GameLayerController.PointerOverButton) return; // 레이어 버튼 위 클릭은 보드 무시(오배치 방지).
             if (!TryCellUnderPointer(out Vector2Int cell) || !_grid.IsInside(cell)) return;
             _dragging = true;
             _dragCells.Clear();
@@ -123,6 +128,7 @@ namespace MBI.Logistics
                 SpawnBeltMarker(s.cell, s.outFace);
                 placed++;
             }
+            RefreshConnections();
             Debug.Log($"[MBI] 벨트 설치: 드래그 {cells.Count}칸 → 세그먼트 {segs.Count}, 신규 배치 {placed}.");
         }
 
@@ -159,6 +165,7 @@ namespace MBI.Logistics
             sr.color = PlacedColor;
             _markers[cell] = marker;
 
+            RefreshConnections(); // 노드 추가로 인접 벨트 연결 상태 변화 반영.
             Debug.Log($"[MBI] 배치: {placeTarget.displayName} @ 셀({cell.x},{cell.y}) → 월드 {_grid.CellToWorld(cell)}.");
         }
 
@@ -203,6 +210,19 @@ namespace MBI.Logistics
             asr.sprite = UnitSprite();
             asr.color = BeltArrowColor;
             asr.sortingOrder = 1;
+            _beltArrows[cell] = asr;
+        }
+
+        // §5-4 L2: 배치 후 연결 그래프 재계산 → 벨트 방향 표시 색(연결=초록/미연결=노랑).
+        private void RefreshConnections()
+        {
+            List<BeltLink> links = BeltRouting.BuildLinks(_grid);
+            var connected = new HashSet<Vector2Int>();
+            foreach (BeltLink l in links) connected.Add(l.fromCell);
+
+            foreach (KeyValuePair<Vector2Int, SpriteRenderer> kv in _beltArrows)
+                if (kv.Value != null)
+                    kv.Value.color = connected.Contains(kv.Key) ? BeltConnectedColor : BeltArrowColor;
         }
 
         private static Vector2 FaceOffset(PortFace face)
