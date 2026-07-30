@@ -30,6 +30,9 @@ namespace MBI.Logistics
         private int _selectedNode; // 팔레트에서 선택된 노드 인덱스
         private bool _pointerOverPalette; // 팔레트 버튼 위 클릭은 보드 무시
 
+        /// <summary>배치 상태 격자(§5-5 출력 집계용). Awake 후 유효.</summary>
+        public BoardGrid Grid => _grid;
+
         private BoardGrid _grid;
         private InputAction _press;
         private readonly Dictionary<Vector2Int, GameObject> _markers = new Dictionary<Vector2Int, GameObject>();
@@ -39,8 +42,11 @@ namespace MBI.Logistics
         private bool _dragging;
         private readonly List<Vector2Int> _dragCells = new List<Vector2Int>();
 
-        // 벨트 방향 표시 SR(§5-4 L2 연결 상태 색 갱신용).
+        // 벨트 마커 루트 + 방향 표시 SR(§5-4 L2 연결 색/제거용).
+        private readonly Dictionary<Vector2Int, GameObject> _beltMarkers = new Dictionary<Vector2Int, GameObject>();
         private readonly Dictionary<Vector2Int, SpriteRenderer> _beltArrows = new Dictionary<Vector2Int, SpriteRenderer>();
+
+        private bool _removeMode; // 제거 모드 — 탭으로 노드/벨트 삭제
 
         private static readonly Color PlacedColor = new Color(0.55f, 0.75f, 0.95f, 1f);
         private static readonly Color SelectedColor = new Color(0.98f, 0.85f, 0.30f, 1f);
@@ -111,9 +117,9 @@ namespace MBI.Logistics
 
             if (_dragCells.Count == 1)
             {
-                // 제자리 탭 = 노드 배치 / 선택(기존 동작).
                 Vector2Int cell = _dragCells[0];
-                if (_grid.IsOccupied(cell)) Select(cell);
+                if (_removeMode) RemoveAt(cell);         // 제거 모드 = 탭으로 삭제
+                else if (_grid.IsOccupied(cell)) Select(cell);
                 else Place(cell);
             }
             else if (_dragCells.Count > 1)
@@ -184,7 +190,30 @@ namespace MBI.Logistics
             Debug.Log($"[MBI] 배치: {node.displayName} @ 셀({cell.x},{cell.y}) → 월드 {_grid.CellToWorld(cell)}.");
         }
 
-        // 조립 뷰에서만 노드 팔레트(우측 세로 버튼) — 선택으로 탭 배치 노드 변경.
+        // 배치된 노드/벨트 제거(§5-4 제거 모드).
+        private void RemoveAt(Vector2Int cell)
+        {
+            if (_grid.IsOccupied(cell))
+            {
+                _grid.TryRemove(cell);
+                if (_markers.TryGetValue(cell, out GameObject m) && m != null) Destroy(m);
+                _markers.Remove(cell);
+                if (_selected.HasValue && _selected.Value == cell) _selected = null;
+            }
+            else if (_grid.HasBelt(cell))
+            {
+                _grid.TryRemoveBelt(cell);
+                if (_beltMarkers.TryGetValue(cell, out GameObject bm) && bm != null) Destroy(bm);
+                _beltMarkers.Remove(cell);
+                _beltArrows.Remove(cell);
+            }
+            else return;
+
+            RefreshConnections();
+            Debug.Log($"[MBI] 제거 @ 셀({cell.x},{cell.y}).");
+        }
+
+        // 조립 뷰에서만 노드 팔레트(우측 세로 버튼) — 선택으로 탭 배치 노드 변경 + 제거 모드.
         private void OnGUI()
         {
             _pointerOverPalette = false;
@@ -196,17 +225,28 @@ namespace MBI.Logistics
             float y0 = 90f;
 
             GUI.Label(new Rect(x, y0 - 24f, w, 22f), "노드 팔레트");
-            for (int i = 0; i < palette.Count; i++)
+            int i;
+            for (i = 0; i < palette.Count; i++)
             {
                 if (palette[i] == null) continue;
                 var rect = new Rect(x, y0 + i * (h + pad), w, h);
                 if (rect.Contains(Event.current.mousePosition)) _pointerOverPalette = true;
 
-                bool sel = i == _selectedNode;
-                string label = (sel ? "● " : "") + palette[i].displayName;
-                if (GUI.Button(rect, label, style)) _selectedNode = i;
+                bool sel = !_removeMode && i == _selectedNode;
+                if (GUI.Button(rect, (sel ? "● " : "") + palette[i].displayName, style))
+                {
+                    _selectedNode = i;
+                    _removeMode = false;
+                }
             }
-            GUI.Label(new Rect(x, y0 + palette.Count * (h + pad) + 2f, w, 40f), "탭=노드 배치\n드래그=벨트");
+
+            // 제거 토글.
+            var rmRect = new Rect(x, y0 + i * (h + pad) + 4f, w, h);
+            if (rmRect.Contains(Event.current.mousePosition)) _pointerOverPalette = true;
+            if (GUI.Button(rmRect, (_removeMode ? "● " : "") + "제거", style)) _removeMode = !_removeMode;
+
+            GUI.Label(new Rect(x, y0 + (i + 1) * (h + pad) + 8f, w, 56f),
+                _removeMode ? "제거 모드\n탭=노드/벨트 삭제" : "탭=노드 배치\n드래그=벨트");
         }
 
         private void Select(Vector2Int cell)
@@ -251,6 +291,7 @@ namespace MBI.Logistics
             asr.color = BeltArrowColor;
             asr.sortingOrder = 1;
             _beltArrows[cell] = asr;
+            _beltMarkers[cell] = m;
         }
 
         // §5-4 L2: 배치 후 연결 그래프 재계산 → 벨트 방향 표시 색(연결=초록/미연결=노랑).

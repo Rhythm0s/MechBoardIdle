@@ -55,6 +55,7 @@ namespace MBI.Combat
                 ? robot.mountCoef : robot.enhancedMountCoef;
             float ceiling = robot.balanceRef != null ? robot.balanceRef.LogisticsCeiling : 160f; // origin×ceil
             _output = MockLogisticsOutput.CurrentOutput(robot, _mountCoef, robot.moduleMult, ceiling);
+            LogisticsOutputBridge.Output = _output; // 초기값(격리 전투 씬). Game.unity는 Provider가 라이브로 덮어씀.
 
             // 발사 모델: 관통(싱글)→분열(멀티샷)→폭발(AoE) 한 발씩 로테이션.
             List<AllocatedShot> shots = ShotAllocator.RoundRobin(robot.weapons);
@@ -270,7 +271,7 @@ namespace MBI.Combat
 
             GUILayout.BeginArea(new Rect(12, 10, 560, 220));
             GUILayout.Label($"스테이지 {stage.stageId}  ·  {stage.topic}", style);
-            GUILayout.Label($"물류 출력(전투력) {_output:F0}  /  요구 {ReqLabel()}  ·  마운트계수 {_mountCoef:F2}", style);
+            GUILayout.Label($"물류 출력(전투력) {LogisticsOutputBridge.Output:F0}  /  요구 {ReqLabel()}  ·  마운트계수 {_mountCoef:F2}", style);
             GUILayout.Label($"적 {_sim.Remaining}/{_sim.TotalEnemies}   로봇 HP {_sim.Robot.hp:F0}/{_sim.Robot.maxHp:F0}", style);
             GUILayout.Label($"경과 {_sim.Elapsed:F1}s / {stage.challengeTime:F0}s", style);
             GUILayout.Label("이동 WASD / 화살표 (카이팅)", style);

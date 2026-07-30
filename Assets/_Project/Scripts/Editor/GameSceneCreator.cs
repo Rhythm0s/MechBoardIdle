@@ -128,6 +128,25 @@ namespace MBI.Editor
                 pal.GetArrayElementAtIndex(idx).objectReferenceValue = n;
             }
             so.ApplyModifiedPropertiesWithoutUndo();
+
+            // 라이브 네트워크 → 출력 반영(§5-6): 노드 집계 → 흐름시뮬 → LogisticsOutputBridge.
+            var provider = boardRoot.AddComponent<LogisticsOutputProvider>();
+            var pso = new SerializedObject(provider);
+            pso.FindProperty("board").objectReferenceValue = controller;
+            pso.FindProperty("config").objectReferenceValue = LoadOrCreateLogisticsConfig();
+            pso.ApplyModifiedPropertiesWithoutUndo();
+        }
+
+        private static LogisticsConfig LoadOrCreateLogisticsConfig()
+        {
+            const string path = SoRoot + "/LogisticsConfig.asset";
+            LogisticsConfig c = AssetDatabase.LoadAssetAtPath<LogisticsConfig>(path);
+            if (c == null)
+            {
+                c = ScriptableObject.CreateInstance<LogisticsConfig>();
+                AssetDatabase.CreateAsset(c, path);
+            }
+            return c;
         }
 
         private static T Load<T>(string path) where T : UnityEngine.Object =>
