@@ -26,12 +26,18 @@ namespace MBI.Logistics
         [SerializeField] private Camera boardCamera;
 
         private BoardGrid _grid;
-        private InputAction _tap;
+        private InputAction _press;
         private readonly Dictionary<Vector2Int, GameObject> _markers = new Dictionary<Vector2Int, GameObject>();
         private Vector2Int? _selected;
 
+        // 드래그 설치(§5-4 L1b): press→drag(경로 셀 누적)→release.
+        private bool _dragging;
+        private readonly List<Vector2Int> _dragCells = new List<Vector2Int>();
+
         private static readonly Color PlacedColor = new Color(0.55f, 0.75f, 0.95f, 1f);
         private static readonly Color SelectedColor = new Color(0.98f, 0.85f, 0.30f, 1f);
+        private static readonly Color BeltColor = new Color(0.5f, 0.5f, 0.5f, 1f);
+        private static readonly Color BeltArrowColor = new Color(0.95f, 0.85f, 0.3f, 1f);
         private static Sprite _unitSprite;
 
         private void Awake()
@@ -50,36 +56,89 @@ namespace MBI.Logistics
 
         private void OnEnable()
         {
-            _tap = new InputAction("BoardTap", InputActionType.Button, "<Pointer>/press");
-            _tap.performed += OnTap;
-            _tap.Enable();
+            _press = new InputAction("BoardPress", InputActionType.Button, "<Pointer>/press");
+            _press.started += OnPressStart;
+            _press.canceled += OnPressEnd;
+            _press.Enable();
         }
 
         private void OnDisable()
         {
-            if (_tap == null) return;
-            _tap.performed -= OnTap;
-            _tap.Disable();
-            _tap.Dispose();
-            _tap = null;
+            if (_press == null) return;
+            _press.started -= OnPressStart;
+            _press.canceled -= OnPressEnd;
+            _press.Disable();
+            _press.Dispose();
+            _press = null;
         }
 
-        private void OnTap(InputAction.CallbackContext ctx)
+        private void OnPressStart(InputAction.CallbackContext ctx)
         {
-            if (_grid == null || Pointer.current == null) return;
+            if (_grid == null) return;
+            if (!TryCellUnderPointer(out Vector2Int cell) || !_grid.IsInside(cell)) return;
+            _dragging = true;
+            _dragCells.Clear();
+            _dragCells.Add(cell);
+        }
+
+        private void Update()
+        {
+            if (!_dragging || _grid == null) return;
+            if (!TryCellUnderPointer(out Vector2Int cell) || !_grid.IsInside(cell)) return;
+
+            Vector2Int last = _dragCells[_dragCells.Count - 1];
+            if (cell == last) return;
+            // 직교 인접만 누적(빠른 드래그로 건너뛴 칸은 무시 — MVP).
+            if (Mathf.Abs(cell.x - last.x) + Mathf.Abs(cell.y - last.y) == 1)
+                _dragCells.Add(cell);
+        }
+
+        private void OnPressEnd(InputAction.CallbackContext ctx)
+        {
+            if (!_dragging) return;
+            _dragging = false;
+
+            if (_dragCells.Count == 1)
+            {
+                // 제자리 탭 = 노드 배치 / 선택(기존 동작).
+                Vector2Int cell = _dragCells[0];
+                if (_grid.IsOccupied(cell)) Select(cell);
+                else Place(cell);
+            }
+            else if (_dragCells.Count > 1)
+            {
+                LayBelts(_dragCells);
+            }
+            _dragCells.Clear();
+        }
+
+        // 드래그 경로 → 벨트 세그먼트 설치(§5-4). 점유(노드/기존벨트) 셀은 건너뜀.
+        private void LayBelts(List<Vector2Int> cells)
+        {
+            List<BeltSegmentSpec> segs = BeltPath.Build(cells);
+            int placed = 0;
+            foreach (BeltSegmentSpec s in segs)
+            {
+                if (!_grid.TryPlaceBelt(s.cell, s.inFace, s.outFace, FlowKind.Material, out _)) continue;
+                SpawnBeltMarker(s.cell, s.outFace);
+                placed++;
+            }
+            Debug.Log($"[MBI] 벨트 설치: 드래그 {cells.Count}칸 → 세그먼트 {segs.Count}, 신규 배치 {placed}.");
+        }
+
+        private bool TryCellUnderPointer(out Vector2Int cell)
+        {
+            cell = default;
+            if (Pointer.current == null) return false;
             if (boardCamera == null) boardCamera = Camera.main;
-            if (boardCamera == null) return;
+            if (boardCamera == null) return false;
 
             Vector2 screen = Pointer.current.position.ReadValue();
             // orthographic: z = 카메라→보드 평면(z=0) 거리 = -카메라 z.
             Vector3 world = boardCamera.ScreenToWorldPoint(
                 new Vector3(screen.x, screen.y, -boardCamera.transform.position.z));
-
-            Vector2Int cell = _grid.WorldToCell(world);
-            if (!_grid.IsInside(cell)) return;
-
-            if (_grid.IsOccupied(cell)) Select(cell);
-            else Place(cell);
+            cell = _grid.WorldToCell(world);
+            return true;
         }
 
         private void Place(Vector2Int cell)
@@ -122,6 +181,39 @@ namespace MBI.Logistics
         {
             return new Vector2(boardPos.x, boardPos.y)
                    - new Vector2(cfg.columns * cfg.cellSize, cfg.rows * cfg.cellSize) * 0.5f;
+        }
+
+        // 벨트 마커: 회색 셀 사각 + outFace 쪽 밝은 방향 표시(플레이스홀더).
+        private void SpawnBeltMarker(Vector2Int cell, PortFace outFace)
+        {
+            var m = new GameObject($"Belt_{cell.x}_{cell.y}");
+            m.transform.SetParent(transform, false);
+            m.transform.position = _grid.CellToWorld(cell);
+            m.transform.localScale = Vector3.one * (_grid.CellSize * 0.85f);
+            var sr = m.AddComponent<SpriteRenderer>();
+            sr.sprite = UnitSprite();
+            sr.color = BeltColor;
+
+            var arrow = new GameObject("dir");
+            arrow.transform.SetParent(m.transform, false);
+            Vector2 off = FaceOffset(outFace);
+            arrow.transform.localPosition = new Vector3(off.x * 0.32f, off.y * 0.32f, 0f);
+            arrow.transform.localScale = new Vector3(0.34f, 0.34f, 1f);
+            var asr = arrow.AddComponent<SpriteRenderer>();
+            asr.sprite = UnitSprite();
+            asr.color = BeltArrowColor;
+            asr.sortingOrder = 1;
+        }
+
+        private static Vector2 FaceOffset(PortFace face)
+        {
+            switch (face)
+            {
+                case PortFace.East: return new Vector2(1f, 0f);
+                case PortFace.West: return new Vector2(-1f, 0f);
+                case PortFace.North: return new Vector2(0f, 1f);
+                default: return new Vector2(0f, -1f); // South
+            }
         }
 
         private static Sprite UnitSprite()
