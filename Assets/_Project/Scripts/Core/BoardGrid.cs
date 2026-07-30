@@ -24,6 +24,7 @@ namespace MBI.Core
         public Vector2 Origin { get; }
 
         private readonly Dictionary<Vector2Int, NodeInstance> _occupancy = new Dictionary<Vector2Int, NodeInstance>();
+        private readonly Dictionary<Vector2Int, BeltInstance> _belts = new Dictionary<Vector2Int, BeltInstance>();
 
         public BoardGrid(int columns, int rows, float cellSize, Vector2 origin)
         {
@@ -63,11 +64,24 @@ namespace MBI.Core
             return cell.x >= 0 && cell.x < Columns && cell.y >= 0 && cell.y < Rows;
         }
 
-        // ---- 점유 ----
+        // ---- 점유 (노드 · 벨트 — 한 셀에 배타) ----
 
+        /// <summary>노드가 점유 중인가.</summary>
         public bool IsOccupied(Vector2Int cell)
         {
             return _occupancy.ContainsKey(cell);
+        }
+
+        /// <summary>벨트가 점유 중인가.</summary>
+        public bool HasBelt(Vector2Int cell)
+        {
+            return _belts.ContainsKey(cell);
+        }
+
+        /// <summary>격자 안이며 노드·벨트 모두 없는 빈 셀인가(배치 가능).</summary>
+        public bool IsFree(Vector2Int cell)
+        {
+            return IsInside(cell) && !IsOccupied(cell) && !HasBelt(cell);
         }
 
         public NodeInstance GetAt(Vector2Int cell)
@@ -75,15 +89,19 @@ namespace MBI.Core
             return _occupancy.TryGetValue(cell, out NodeInstance instance) ? instance : null;
         }
 
+        public BeltInstance GetBeltAt(Vector2Int cell)
+        {
+            return _belts.TryGetValue(cell, out BeltInstance belt) ? belt : null;
+        }
+
         /// <summary>
-        /// 셀에 노드를 배치. 경계 밖·이미 점유·def null 이면 실패(겹침 방지).
+        /// 셀에 노드를 배치. 경계 밖·노드/벨트 점유·def null 이면 실패(겹침 방지).
         /// </summary>
         public bool TryPlace(Vector2Int cell, NodeDefinition def, out NodeInstance placed)
         {
             placed = null;
             if (def == null) return false;
-            if (!IsInside(cell)) return false;
-            if (IsOccupied(cell)) return false;
+            if (!IsFree(cell)) return false;
             // TODO(§8): def.implemented==false(쉴드 스텁) 배치 차단 — 배치 가능 노드 필터링은 팔레트/검증 단계 소관.
 
             placed = new NodeInstance(def, cell);
@@ -91,10 +109,30 @@ namespace MBI.Core
             return true;
         }
 
-        /// <summary>셀 점유 해제. 비어 있었으면 false.</summary>
+        /// <summary>셀 노드 점유 해제. 비어 있었으면 false.</summary>
         public bool TryRemove(Vector2Int cell)
         {
             return _occupancy.Remove(cell);
+        }
+
+        /// <summary>
+        /// 셀에 벨트를 설치(§5-4). 경계 밖·노드/벨트 점유면 실패(겹침 방지, 노드와 배타).
+        /// </summary>
+        public bool TryPlaceBelt(Vector2Int cell, PortFace inFace, PortFace outFace, FlowKind kind,
+            out BeltInstance placed)
+        {
+            placed = null;
+            if (!IsFree(cell)) return false;
+
+            placed = new BeltInstance(cell, inFace, outFace, kind);
+            _belts[cell] = placed;
+            return true;
+        }
+
+        /// <summary>셀 벨트 해제. 없었으면 false.</summary>
+        public bool TryRemoveBelt(Vector2Int cell)
+        {
+            return _belts.Remove(cell);
         }
     }
 }

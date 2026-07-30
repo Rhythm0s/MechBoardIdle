@@ -38,13 +38,15 @@ namespace MBI.Data
         [Tooltip("TBD — 아레나 반경(유닛). 적은 이 반경 경계에서 스폰되어 중앙 로봇으로 접근.")]
         public float arenaRadiusTbd = 6f;
 
-        [Header("히트 패턴 (⚠️ TBD — 밸런스 소스 확정 대상)")]
-        [Tooltip("TBD — 멀티샷(분열탄) 표적 수(최근접 N기 직격). 소스 확정 필요.")]
-        public int multiShotCountTbd = 3;
-        [Tooltip("TBD — AoE(폭발탄) 스플래시 반경(유닛, 착탄점 기준). 소스 확정 필요.")]
+        [Header("히트 패턴 (로봇A 탄종 = 단일 표적)")]
+        // 07 5장(스테이징): 등가선은 단일 표적 기준, 표적 수/광역은 스펙트럼 밖 역할 축(드론 2종 한정).
+        // → 로봇A 관통/분열/폭발은 전부 단일 표적. 멀티샷/AoE 메커니즘(HitResolver)은 드론용으로 보존.
+        [Tooltip("멀티샷 표적 수. 로봇A 분열탄 = 1(단일). 다중은 드론 역할.")]
+        public int multiShotCountTbd = 1;
+        [Tooltip("AoE 스플래시 반경(유닛). 로봇A 폭발탄은 splashFactor 0이라 무효(드론용 보존).")]
         public float aoeRadiusTbd = 1.5f;
-        [Tooltip("TBD — AoE 스플래시 데미지 배율(직격 대비, 0~1). 1=풀, <1=감쇠. 소스 확정 필요.")]
-        public float aoeSplashFactorTbd = 0.5f;
+        [Tooltip("AoE 스플래시 배율. 로봇A 폭발탄 = 0(스플래시 없음, 단일 표적). 드론 광역형이 >0 사용.")]
+        public float aoeSplashFactorTbd = 0f;
 
         // 물류 출력(전투력 입력)은 별도 상수를 두지 않는다 — RobotDefinition.weapons의 mock 생산율(pA)에서
         // MockLogisticsOutput이 집계(ΣpA×dA=145). 실 물류 시뮬(§5-4·5-5) 완성 시 그쪽이 동적 산출.

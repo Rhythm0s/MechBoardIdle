@@ -58,6 +58,7 @@ namespace MBI.Core
                 case AmmoKind.Explosive: // AoE 스플래시 — 직격 + 착탄점 반경 내 주변
                 {
                     result.Add(new HitTarget(primary, 1f)); // 직격
+                    if (aoeSplashFactor <= 0f) break; // 스플래시 0 = 단일 표적(로봇A 폭발탄). 드론 광역형만 >0.
                     float r2 = aoeRadius * aoeRadius;
                     foreach (CombatEntity e in enemies)
                     {

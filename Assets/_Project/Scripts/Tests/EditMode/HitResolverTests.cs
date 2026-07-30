@@ -78,6 +78,21 @@ namespace MBI.Tests
         }
 
         [Test]
+        public void RobotAmmo_AllSingleTarget_WhenMultiShot1AndSplash0()
+        {
+            // 앵커(07 5장 스테이징): 등가선은 단일 표적 기준 → 로봇A 관통/분열/폭발 전부 단일 표적.
+            // multiShotCount=1, aoeSplashFactor=0 이면 세 탄종 모두 표적 1기만 타격.
+            var list = new List<CombatEntity> { Enemy(0, 0), Enemy(0.4f, 0), Enemy(0.8f, 0) };
+            foreach (AmmoKind kind in new[] { AmmoKind.Pierce, AmmoKind.Split, AmmoKind.Explosive })
+            {
+                var hits = HitResolver.Resolve(kind, list[0], list,
+                    multiShotCount: 1, aoeRadius: 1.5f, aoeSplashFactor: 0f);
+                Assert.AreEqual(1, hits.Count, $"{kind} = 단일 표적(로봇A)");
+                Assert.AreSame(list[0], hits[0].entity, $"{kind} 표적 = 착탄 대상");
+            }
+        }
+
+        [Test]
         public void SkipsDeadEnemies()
         {
             var dead = Enemy(0.3f, 0, hp: 0f);

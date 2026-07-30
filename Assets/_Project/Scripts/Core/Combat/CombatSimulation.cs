@@ -273,9 +273,9 @@ namespace MBI.Core
                     h.entity.hp -= dmg;
                 }
 
-                // 연출: AoE = 착탄점 탄선 1발 + 폭발 광역 원(스플래시엔 개별 빔 없음).
-                //        멀티샷/단일 = 표적별 탄선.
-                if (shot.kind == AmmoKind.Explosive)
+                // 연출: 실제 스플래시가 있는 폭발(드론 광역형)만 착탄점 탄선 1발 + 폭발 광역 원.
+                //        스플래시 0(로봇A 폭발=단일)·멀티샷·단일 = 표적별 탄선/플래시.
+                if (shot.kind == AmmoKind.Explosive && _robotSetup.aoeSplashFactor > 0f)
                 {
                     _shots.Add(new ShotEvent
                     {
