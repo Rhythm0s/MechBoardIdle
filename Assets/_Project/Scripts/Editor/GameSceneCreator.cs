@@ -3,6 +3,7 @@ using System.IO;
 using MBI.Combat;
 using MBI.Data;
 using MBI.Logistics;
+using MBI.UI;
 using UnityEditor;
 using UnityEditor.SceneManagement;
 using UnityEngine;
@@ -137,6 +138,9 @@ namespace MBI.Editor
             // 명목 출력·원점·천장·탄약 수요의 단일 원천(§5-6 커밋 A) — 리터럴 주입 금지.
             pso.FindProperty("robot").objectReferenceValue = Load<RobotDefinition>($"{SoRoot}/Robots/Robot_A.asset");
             pso.ApplyModifiedPropertiesWithoutUndo();
+
+            // 변수 패널(§5-6 커밋 C): 브릿지만 읽어 예상/실제/갭 + 갭 분해를 표시. 판정 없음.
+            boardRoot.AddComponent<VariablePanel>();
         }
 
         private static LogisticsConfig LoadOrCreateLogisticsConfig()

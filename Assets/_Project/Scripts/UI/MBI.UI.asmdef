@@ -1,15 +1,11 @@
 {
-    "name": "MBI.Editor",
-    "rootNamespace": "MBI.Editor",
+    "name": "MBI.UI",
+    "rootNamespace": "MBI.UI",
     "references": [
         "MBI.Data",
-        "MBI.Logistics",
-        "MBI.Combat",
-        "MBI.UI"
+        "MBI.Core"
     ],
-    "includePlatforms": [
-        "Editor"
-    ],
+    "includePlatforms": [],
     "excludePlatforms": [],
     "allowUnsafeCode": false,
     "overrideReferences": false,
