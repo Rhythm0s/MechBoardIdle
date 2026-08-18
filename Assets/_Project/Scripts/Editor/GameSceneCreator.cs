@@ -134,6 +134,8 @@ namespace MBI.Editor
             var pso = new SerializedObject(provider);
             pso.FindProperty("board").objectReferenceValue = controller;
             pso.FindProperty("config").objectReferenceValue = LoadOrCreateLogisticsConfig();
+            // 명목 출력·원점·천장·탄약 수요의 단일 원천(§5-6 커밋 A) — 리터럴 주입 금지.
+            pso.FindProperty("robot").objectReferenceValue = Load<RobotDefinition>($"{SoRoot}/Robots/Robot_A.asset");
             pso.ApplyModifiedPropertiesWithoutUndo();
         }
 

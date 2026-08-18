@@ -18,15 +18,9 @@ namespace MBI.Logistics
         public BoardController board;
         [Tooltip("병목 파라미터(TBD). 없으면 기본값.")]
         public LogisticsConfig config;
-        [Tooltip("로봇 명목 출력(전 공급 시). 대표 145.")]
-        public float baseOutput = 145f;
-        [Tooltip("원점 출력(요구치 분모). balance origin = 100.")]
-        public float origin = 100f;
-        [Tooltip("물류 상한 배율. balance ceil = 1.6. 명목 배율이 이를 넘으면 over-build 경고(클램프 아님).")]
-        public float ceilMult = 1.6f;
-        [Tooltip("마운트 탄약 수요(발/초). capA = 6.")]
-        public float ammoDemand = 6f;
-        [Tooltip("실측(actual) 롤링 창(초). '움직이는 거울' — 배치 변화가 이 시간에 걸쳐 반영됨.")]
+        [Tooltip("로봇. 명목 출력·원점·천장·탄약 수요의 단일 원천. 씬 생성기가 주입.")]
+        public RobotDefinition robot;
+        [Tooltip("실측(actual) 롤링 창(초). 밸런스 계약(CLAUDE.md §9 실측 60초 롤링) — 임의 변경 금지.")]
         public float rollingWindow = 60f;
 
         private readonly Queue<float> _sampleTimes = new Queue<float>();
@@ -36,9 +30,16 @@ namespace MBI.Logistics
 
         private void Update()
         {
-            if (board == null) return;
+            if (board == null || robot == null) return;
             BoardGrid grid = board.Grid;
             if (grid == null) return;
+
+            // 145·100·1.6·6은 인스펙터 리터럴이 아니라 전부 원천에서 온다(§3 수치 하드코딩 금지).
+            // 브릿지는 물류 단위 = 마운트계수 미적용(마운트계수는 판정식 내부 항 = 전투 측).
+            float baseOutput = RobotOutput.Nominal(robot.weapons, 1f, robot.moduleMult);
+            float origin = robot.balanceRef != null ? robot.balanceRef.origin : 100f;
+            float ceilMult = robot.balanceRef != null ? robot.balanceRef.ceil : 1.6f;
+            float ammoDemand = robot.consumptionCap;
 
             NetworkAggregate agg = LogisticsNetwork.Aggregate(grid);
             LogisticsOutputBridge.AmmoProduce = agg.ammoProduce; // 전투 HUD 저장고/탄약 표시(§C-2)
