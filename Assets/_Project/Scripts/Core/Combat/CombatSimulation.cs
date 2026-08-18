@@ -34,7 +34,7 @@ namespace MBI.Core
         public int multiShotCount;    // 멀티샷(분열) 표적 수(TBD). 1이면 단일.
         public float aoeRadius;       // AoE(폭발) 스플래시 반경(TBD). 0이면 직격만.
         public float aoeSplashFactor; // AoE 스플래시 데미지 배율(TBD). 1이면 풀 데미지.
-        public List<AllocatedShot> shots; // 1초분 사격(ShotAllocator 산출)
+        public List<AmmoLine> lines; // 탄종별 발사 라인(ShotAllocator.AllocateRates 산출)
     }
 
     /// <summary>적 스폰 스펙(순수 값). 위치는 시뮬이 결정론적으로 배치.</summary>
@@ -65,15 +65,16 @@ namespace MBI.Core
         private readonly Vector2[] _spawnPositions;
         private readonly List<ShotEvent> _shots = new List<ShotEvent>();
 
-        private readonly RobotSetup _robotSetup;
+        // 물류 출력이 바뀌면 라인이 교체되므로 readonly가 아니다(SetFireLines).
+        private RobotSetup _robotSetup;
         private readonly float _arenaRadius;
         private readonly float _challengeTime;
         private readonly float _spawnCadence;
 
         private int _spawnedCount;
-        private float _fireTimer;
-        private int _shotIndex;
-        private readonly float _fireInterval; // 1 / 초당 발수
+        // 라인별 발사 누산기(1.0 도달 = 1발). 라인마다 제 주기로 쏘므로 단일 간격이 없다.
+        private float[] _lineTimers = new float[0];
+        private const float FireEpsilon = 1e-4f; // float 누적 오차로 발사를 흘리지 않기 위한 허용오차
 
         public CombatResult Result { get; private set; } = CombatResult.InProgress;
         public float Elapsed { get; private set; }
@@ -105,8 +106,34 @@ namespace MBI.Core
             _spawnQueue = new List<EnemySpawn>(spawns ?? new List<EnemySpawn>());
             _spawnPositions = BuildSpawnPositions(_spawnQueue.Count, arenaRadius);
 
-            int shotsPerSec = robot.shots != null ? robot.shots.Count : 0;
-            _fireInterval = shotsPerSec > 0 ? 1f / shotsPerSec : float.PositiveInfinity;
+            ResizeLineTimers(robot.lines != null ? robot.lines.Count : 0);
+        }
+
+        /// <summary>
+        /// 발사 라인 교체(§5-6 D2). 물류 출력이 변하면 전투를 재시작하지 않고 이것만 갈아끼운다
+        /// (연속성 원칙 — 조립 중에도 전투는 멈추지 않는다).
+        ///
+        /// ⚠️ 누산기(_lineTimers)는 **보존한다.** 매 프레임 호출될 수 있는데 여기서 0으로 되돌리면
+        /// 누산이 1.0에 영영 도달하지 못해 영구 무발사가 된다.
+        /// </summary>
+        public void SetFireLines(IReadOnlyList<AmmoLine> lines)
+        {
+            if (_robotSetup.lines == null) _robotSetup.lines = new List<AmmoLine>();
+            _robotSetup.lines.Clear();
+            if (lines != null)
+                for (int i = 0; i < lines.Count; i++) _robotSetup.lines.Add(lines[i]);
+
+            ResizeLineTimers(_robotSetup.lines.Count);
+        }
+
+        // 라인 수가 변해도 기존 위상을 최대한 유지한다(길이가 줄면 잘리고, 늘면 0에서 시작).
+        private void ResizeLineTimers(int count)
+        {
+            if (_lineTimers.Length == count) return;
+            var next = new float[count];
+            int keep = _lineTimers.Length < count ? _lineTimers.Length : count;
+            for (int i = 0; i < keep; i++) next[i] = _lineTimers[i];
+            _lineTimers = next;
         }
 
         /// <summary>경계 원주에 균등 각도로 배치(결정론적, 난수 0).</summary>
@@ -245,59 +272,73 @@ namespace MBI.Core
 
         private void RobotFire(float dt)
         {
-            if (_robotSetup.shots == null || _robotSetup.shots.Count == 0) return;
+            List<AmmoLine> lines = _robotSetup.lines;
+            if (lines == null || lines.Count == 0) return;
 
             // 사거리 내 살아있는 적이 있을 때만 사격(공백 후 버스트 방지 위해 타겟 있을 때만 누적).
             CombatEntity target = NearestLivingEnemyInRange();
             if (target == null) return;
 
-            _fireTimer += dt;
-            while (_fireTimer >= _fireInterval)
+            // 라인마다 제 주기로 발사. 순회 순서 고정 = 결정론 유지(난수 0).
+            for (int li = 0; li < lines.Count && li < _lineTimers.Length; li++)
             {
-                _fireTimer -= _fireInterval;
+                AmmoLine shot = lines[li];
+                if (shot.shotsPerSec <= 0f) continue;
 
-                target = NearestLivingEnemyInRange();
-                if (target == null) break;
-
-                AllocatedShot shot = _robotSetup.shots[_shotIndex % _robotSetup.shots.Count];
-                _shotIndex++;
-
-                // 탄종 히트 패턴(단일/멀티샷/AoE) 해석 → 각 표적에 판정식(발당피해×배율) 적용.
-                List<HitTarget> hits = HitResolver.Resolve(shot.kind, target, _enemies,
-                    _robotSetup.multiShotCount, _robotSetup.aoeRadius, _robotSetup.aoeSplashFactor);
-
-                foreach (HitTarget h in hits)
+                _lineTimers[li] += shot.shotsPerSec * dt;
+                // 허용오차: dt를 잘게 더하면 1발/초가 정확히 1.0이 아니라 0.9999…로 끝나 그 발이 다음 틱으로 밀린다.
+                // 잔여가 이월되므로 장기 발사율은 맞지만, 초 경계에서 한 발이 늦어 "1초 피해 = 명목 출력"(§5-6 계약)이
+                // 딱 떨어지지 않는다. 계약을 경계에서도 성립시키기 위한 허용오차다.
+                while (_lineTimers[li] >= 1f - FireEpsilon)
                 {
-                    float dmg = DamageFormula.PerHit(shot.damagePerShot * h.damageFactor,
-                        _robotSetup.mountCoef, _robotSetup.moduleMult, h.entity.def);
-                    h.entity.hp -= dmg;
+                    _lineTimers[li] -= 1f;
+
+                    target = NearestLivingEnemyInRange();
+                    if (target == null) { _lineTimers[li] = 0f; break; }
+
+                    FireOne(shot, target);
                 }
+            }
+        }
 
-                // 연출: 실제 스플래시가 있는 폭발(드론 광역형)만 착탄점 탄선 1발 + 폭발 광역 원.
-                //        스플래시 0(로봇A 폭발=단일)·멀티샷·단일 = 표적별 탄선/플래시.
-                if (shot.kind == AmmoKind.Explosive && _robotSetup.aoeSplashFactor > 0f)
+        // 한 발 처리: 히트 패턴 해석 → 판정식 적용 → 연출 이벤트.
+        private void FireOne(AmmoLine shot, CombatEntity target)
+        {
+            // 탄종 히트 패턴(단일/멀티샷/AoE) 해석 → 각 표적에 판정식(발당피해×배율) 적용.
+            List<HitTarget> hits = HitResolver.Resolve(shot.kind, target, _enemies,
+                _robotSetup.multiShotCount, _robotSetup.aoeRadius, _robotSetup.aoeSplashFactor);
+
+            foreach (HitTarget h in hits)
+            {
+                float dmg = DamageFormula.PerHit(shot.damagePerShot * h.damageFactor,
+                    _robotSetup.mountCoef, _robotSetup.moduleMult, h.entity.def);
+                h.entity.hp -= dmg;
+            }
+
+            // 연출: 실제 스플래시가 있는 폭발(드론 광역형)만 착탄점 탄선 1발 + 폭발 광역 원.
+            //        스플래시 0(로봇A 폭발=단일)·멀티샷·단일 = 표적별 탄선/플래시.
+            if (shot.kind == AmmoKind.Explosive && _robotSetup.aoeSplashFactor > 0f)
+            {
+                _shots.Add(new ShotEvent
                 {
+                    from = _robot.position,
+                    to = target.position,
+                    kind = shot.kind,
+                    killed = !target.IsAlive,
+                    aoeRadius = _robotSetup.aoeRadius,
+                });
+            }
+            else
+            {
+                foreach (HitTarget h in hits)
                     _shots.Add(new ShotEvent
                     {
                         from = _robot.position,
-                        to = target.position,
+                        to = h.entity.position,
                         kind = shot.kind,
-                        killed = !target.IsAlive,
-                        aoeRadius = _robotSetup.aoeRadius,
+                        killed = !h.entity.IsAlive,
+                        aoeRadius = 0f,
                     });
-                }
-                else
-                {
-                    foreach (HitTarget h in hits)
-                        _shots.Add(new ShotEvent
-                        {
-                            from = _robot.position,
-                            to = h.entity.position,
-                            kind = shot.kind,
-                            killed = !h.entity.IsAlive,
-                            aoeRadius = 0f,
-                        });
-                }
             }
         }
 

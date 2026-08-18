@@ -12,16 +12,19 @@ namespace MBI.Tests
     /// </summary>
     public sealed class CombatSimulationTests
     {
-        // 대표 상태 물류 생산율(pA 1/1/2) → 폭발×2+분열×1+관통×1 = 145/초.
-        private static List<AllocatedShot> RepresentativeShots()
+        // 대표 상태 물류 생산율(pA 1/1/2) → 폭발2 + 분열1 + 관통1 발/초 = 145/초.
+        private static List<WeaponSpec> RepresentativeWeapons() => new List<WeaponSpec>
         {
-            var weapons = new List<WeaponSpec>
-            {
-                new WeaponSpec(AmmoKind.Pierce, 20f, 1f),
-                new WeaponSpec(AmmoKind.Split, 25f, 1f),
-                new WeaponSpec(AmmoKind.Explosive, 50f, 2f),
-            };
-            return ShotAllocator.AllocatePerSecond(weapons, 6f); // 145/초
+            new WeaponSpec(AmmoKind.Pierce, 20f, 1f),
+            new WeaponSpec(AmmoKind.Split, 25f, 1f),
+            new WeaponSpec(AmmoKind.Explosive, 50f, 2f),
+        };
+
+        private static List<AmmoLine> RepresentativeLines(float scale = 1f)
+        {
+            var lines = new List<AmmoLine>();
+            ShotAllocator.AllocateRates(RepresentativeWeapons(), 6f, scale, lines);
+            return lines;
         }
 
         private static RobotSetup Robot(float hp) => new RobotSetup
@@ -33,7 +36,7 @@ namespace MBI.Tests
             multiShotCount = 1, // 단일 타겟(이 테스트는 메커니즘 검증 — 패턴은 HitResolverTests)
             aoeRadius = 0f,
             aoeSplashFactor = 1f,
-            shots = RepresentativeShots(),
+            lines = RepresentativeLines(),
         };
 
         private static void Run(CombatSimulation sim, float seconds, float dt = 0.1f)
@@ -113,6 +116,66 @@ namespace MBI.Tests
             Assert.AreEqual(a.Result, b.Result, "결과 재현");
             Assert.AreEqual(a.Robot.hp, b.Robot.hp, 0.001f, "로봇 HP 재현");
             Assert.AreEqual(a.Remaining, b.Remaining, "잔존 수 재현");
+        }
+
+        // ---- 라인 기반 발사(§5-6 D1) ----
+
+        /// <summary>맞기만 하고 죽지 않는 샌드백 1기(def 0, 무공격).</summary>
+        private static List<EnemySpawn> Dummy(float hp) => new List<EnemySpawn>
+        {
+            new EnemySpawn { label = "샌드백", hp = hp, def = 0f, atk = 0f,
+                moveSpeed = 0f, attackRange = 0.5f, attackInterval = 1f },
+        };
+
+        /// <summary>
+        /// §5-6 계약: 1초 동안 준 피해 == 명목 출력(145). 라인별 주기로 쏘아도 총량은 같아야 한다.
+        /// </summary>
+        [Test]
+        public void FireLines_OneSecond_DealsNominalOutput()
+        {
+            var sim = new CombatSimulation(Robot(1000f), Dummy(100000f), 6f, 120f, 0f);
+            Run(sim, 1f, 0.02f);
+
+            float dealt = 100000f - sim.Enemies[0].hp;
+            Assert.AreEqual(145f, dealt, 0.5f, "1초 누적 피해 = Σ(발사율 × 발당피해)");
+        }
+
+        /// <summary>
+        /// 절반 공급이면 피해도 절반. 0.5발/초는 2초에 한 발이므로 2초를 돌려 145(=72.5×2)로 본다.
+        /// 정수 반올림 경로였다면 관통·분열이 0으로 접혀 100만 나온다.
+        /// </summary>
+        [Test]
+        public void FireLines_HalfSupply_HalvesDamage()
+        {
+            RobotSetup setup = Robot(1000f);
+            setup.lines = RepresentativeLines(0.5f);
+
+            var sim = new CombatSimulation(setup, Dummy(100000f), 6f, 120f, 0f);
+            Run(sim, 2f, 0.02f);
+
+            float dealt = 100000f - sim.Enemies[0].hp;
+            Assert.AreEqual(145f, dealt, 0.5f, "2초 누적 = 명목의 절반 × 2초");
+        }
+
+        /// <summary>
+        /// 전투 중 라인 교체가 DPS를 바꾸되, 매 프레임 교체해도 발사가 멈추지 않아야 한다.
+        /// (SetFireLines가 누산기를 리셋하면 1.0에 영영 도달하지 못해 영구 무발사가 된다 — 회귀 방지.)
+        /// </summary>
+        [Test]
+        public void SetFireLines_EveryFrame_DoesNotStallFiring()
+        {
+            var sim = new CombatSimulation(Robot(1000f), Dummy(100000f), 6f, 120f, 0f);
+            List<AmmoLine> half = RepresentativeLines(0.5f);
+
+            for (int i = 0; i < 100; i++) // 2초를 0.02초로 쪼개 매 스텝 교체
+            {
+                sim.SetFireLines(half);
+                sim.Tick(0.02f);
+            }
+
+            float dealt = 100000f - sim.Enemies[0].hp;
+            Assert.Greater(dealt, 0f, "매 프레임 교체해도 발사가 멈추면 안 된다");
+            Assert.AreEqual(145f, dealt, 0.5f, "교체 후에도 절반 공급 DPS가 그대로 나온다");
         }
     }
 }

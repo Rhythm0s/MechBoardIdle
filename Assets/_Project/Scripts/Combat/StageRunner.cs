@@ -28,6 +28,9 @@ namespace MBI.Combat
             new Dictionary<CombatEntity, CombatEntityView>();
 
         private float _output;      // 물류 출력(전투력) 표시값
+        private float _nominalOutput;                                   // 만공급 시 출력(라이브 스케일의 분모)
+        private float _lastScale = 1f;                                  // 마지막으로 반영한 물류 배율
+        private readonly List<AmmoLine> _lineBuffer = new List<AmmoLine>(); // 재배분 버퍼(프레임당 할당 0)
         private float _mountCoef;
         private bool _ready;
 
@@ -102,7 +105,10 @@ namespace MBI.Combat
             _output = LogisticsOutputBridge.Output;
 
             // 발사 배분(§L4-R #4): 물류 생산율(pA) 기반 고효율 우선, 소비 상한 = robot.consumptionCap(capA=6).
-            List<AllocatedShot> shots = ShotAllocator.AllocatePerSecond(robot.weapons, robot.consumptionCap);
+            // 명목 출력 = 물류 단위(마운트계수 1) — 라이브 스케일의 분모이므로 Begin에서 1회만 구한다.
+            _nominalOutput = RobotOutput.Nominal(robot.weapons, 1f, robot.moduleMult);
+            _lastScale = 1f;
+            ShotAllocator.AllocateRates(robot.weapons, robot.consumptionCap, _lastScale, _lineBuffer);
 
             var setup = new RobotSetup
             {
@@ -114,7 +120,7 @@ namespace MBI.Combat
                 multiShotCount = tuning.multiShotCountTbd,
                 aoeRadius = tuning.aoeRadiusTbd,
                 aoeSplashFactor = tuning.aoeSplashFactorTbd,
-                shots = shots,
+                lines = new List<AmmoLine>(_lineBuffer),
             };
 
             List<EnemySpawn> spawns = BuildSpawns();

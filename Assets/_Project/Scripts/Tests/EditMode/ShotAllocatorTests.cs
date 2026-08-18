@@ -29,40 +29,85 @@ namespace MBI.Tests
             new WeaponSpec(AmmoKind.Explosive, 50f, 2f),
         };
 
+        private readonly List<AmmoLine> _buf = new List<AmmoLine>();
+
+        private float RateOf(AmmoKind kind)
+        {
+            float r = 0f;
+            foreach (AmmoLine l in _buf) if (l.kind == kind) r += l.shotsPerSec;
+            return r;
+        }
+
+        /// <summary>라인 기준 출력 = Σ(초당 발사수 × 발당피해). 정수 발수가 아니라 발사율로 센다.</summary>
+        private float Output()
+        {
+            float total = 0f;
+            foreach (AmmoLine l in _buf) total += l.shotsPerSec * l.damagePerShot;
+            return total;
+        }
+
         [Test]
         public void Representative_UnderCap_FiresAll_Total145()
         {
-            List<AllocatedShot> shots = ShotAllocator.AllocatePerSecond(Representative(), 6f);
+            ShotAllocator.AllocateRates(Representative(), 6f, 1f, _buf);
 
-            Assert.AreEqual(4, shots.Count, "생산 합 4발 전량(상한 미만)");
-            Assert.AreEqual(2, shots.FindAll(s => s.kind == AmmoKind.Explosive).Count, "폭발 2");
-            Assert.AreEqual(1, shots.FindAll(s => s.kind == AmmoKind.Split).Count, "분열 1");
-            Assert.AreEqual(1, shots.FindAll(s => s.kind == AmmoKind.Pierce).Count, "관통 1");
-
-            float total = 0f;
-            foreach (AllocatedShot s in shots) total += s.damagePerShot;
-            Assert.AreEqual(145f, total, 0.001f, "폭발50×2 + 분열25 + 관통20 = 145 = s3Break");
+            Assert.AreEqual(3, _buf.Count, "탄종 3라인");
+            Assert.AreEqual(2f, RateOf(AmmoKind.Explosive), 0.001f, "폭발 2발/초");
+            Assert.AreEqual(1f, RateOf(AmmoKind.Split), 0.001f, "분열 1발/초");
+            Assert.AreEqual(1f, RateOf(AmmoKind.Pierce), 0.001f, "관통 1발/초");
+            Assert.AreEqual(145f, Output(), 0.001f, "폭발50×2 + 분열25 + 관통20 = 145 = s3Break");
         }
 
         [Test]
         public void OverCap_HighEfficiencyFirst_Total200()
         {
-            List<AllocatedShot> shots = ShotAllocator.AllocatePerSecond(OverCap(), 6f);
+            ShotAllocator.AllocateRates(OverCap(), 6f, 1f, _buf);
 
-            Assert.AreEqual(6, shots.Count, "상한 6발");
-            Assert.AreEqual(2, shots.FindAll(s => s.kind == AmmoKind.Explosive).Count, "폭발 2(고효율 우선)");
-            Assert.AreEqual(4, shots.FindAll(s => s.kind == AmmoKind.Split).Count, "분열 4(잔여)");
-            Assert.AreEqual(0, shots.FindAll(s => s.kind == AmmoKind.Pierce).Count, "관통 0(상한 소진)");
-
-            float total = 0f;
-            foreach (AllocatedShot s in shots) total += s.damagePerShot;
-            Assert.AreEqual(200f, total, 0.001f, "폭발50×2 + 분열25×4 = 200");
+            Assert.AreEqual(2f, RateOf(AmmoKind.Explosive), 0.001f, "폭발 2(고효율 우선)");
+            Assert.AreEqual(4f, RateOf(AmmoKind.Split), 0.001f, "분열 4(잔여)");
+            Assert.AreEqual(0f, RateOf(AmmoKind.Pierce), 0.001f, "관통 0(상한 소진)");
+            Assert.AreEqual(200f, Output(), 0.001f, "폭발50×2 + 분열25×4 = 200");
         }
 
         [Test]
-        public void ZeroCap_YieldsNoShots()
+        public void ZeroCap_YieldsNoLines()
         {
-            Assert.AreEqual(0, ShotAllocator.AllocatePerSecond(Representative(), 0f).Count);
+            ShotAllocator.AllocateRates(Representative(), 0f, 1f, _buf);
+            Assert.AreEqual(0, _buf.Count);
+        }
+
+        /// <summary>
+        /// 절반 공급에서 관통·분열이 사라지지 않는다. 정수 반올림 경로였다면
+        /// RoundToInt(0.5f)=0(half-to-even)이라 폭발만 남아 50이 됐다.
+        /// </summary>
+        [Test]
+        public void Scale_Half_HalvesRates_NoQuantizationLoss()
+        {
+            ShotAllocator.AllocateRates(Representative(), 6f, 0.5f, _buf);
+
+            Assert.AreEqual(3, _buf.Count, "라인이 사라지면 안 된다");
+            Assert.AreEqual(1f, RateOf(AmmoKind.Explosive), 0.001f);
+            Assert.AreEqual(0.5f, RateOf(AmmoKind.Split), 0.001f);
+            Assert.AreEqual(0.5f, RateOf(AmmoKind.Pierce), 0.001f);
+            Assert.AreEqual(72.5f, Output(), 0.001f, "출력도 정확히 절반");
+        }
+
+        [Test]
+        public void Scale_Zero_YieldsNoFire()
+        {
+            ShotAllocator.AllocateRates(Representative(), 6f, 0f, _buf);
+            Assert.AreEqual(0, _buf.Count);
+        }
+
+        [Test]
+        public void Scale_PreservesMixRatio_WhenCapNotBinding()
+        {
+            ShotAllocator.AllocateRates(Representative(), 6f, 0.25f, _buf);
+
+            // 상한이 안 걸리면 배합비(1:1:2)는 그대로여야 한다.
+            Assert.AreEqual(RateOf(AmmoKind.Pierce), RateOf(AmmoKind.Split), 0.001f);
+            Assert.AreEqual(2f * RateOf(AmmoKind.Pierce), RateOf(AmmoKind.Explosive), 0.001f);
+            Assert.AreEqual(36.25f, Output(), 0.001f, "145 × 0.25");
         }
 
         [Test]

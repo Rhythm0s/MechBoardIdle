@@ -4,7 +4,29 @@ using UnityEngine;
 
 namespace MBI.Core
 {
-    /// <summary>한 발의 배정 결과(탄종·발당피해). 시뮬이 순차 발사한다.</summary>
+    /// <summary>
+    /// 탄종별 발사 라인(탄종·발당피해·초당 발사수). 시뮬이 라인마다 제 주기로 쏜다.
+    ///
+    /// ⚠️ 왜 정수 발수 목록이 아니라 실수 발사율인가: 물류 산출이 절반으로 떨어지면 pA 1/1/2가
+    /// 0.5/0.5/1이 되는데, 정수로 반올림하면 Unity의 RoundToInt가 half-to-even이라 0.5 → 0이다.
+    /// 관통·분열이 통째로 사라져 HUD 72.5 / 실 DPS 50으로 갈린다. 실수로 들고 있으면
+    /// 0.5발/초 = 2초에 한 발로 정확히 표현된다.
+    /// </summary>
+    public struct AmmoLine
+    {
+        public AmmoKind kind;
+        public float damagePerShot;
+        public float shotsPerSec;
+
+        public AmmoLine(AmmoKind kind, float damagePerShot, float shotsPerSec)
+        {
+            this.kind = kind;
+            this.damagePerShot = damagePerShot;
+            this.shotsPerSec = shotsPerSec;
+        }
+    }
+
+    /// <summary>한 발의 배정 결과(탄종·발당피해). RoundRobin 전용(현재 미사용).</summary>
     public struct AllocatedShot
     {
         public AmmoKind kind;
@@ -54,27 +76,46 @@ namespace MBI.Core
             }
         }
 
-        /// <summary>1초분 사격 목록(물류 생산율 pA 기반 고효율 배분). 현재 발사엔 미사용 — 물류 시뮬 연동용.</summary>
-        public static List<AllocatedShot> AllocatePerSecond(IReadOnlyList<WeaponSpec> weapons, float cap)
+        /// <summary>
+        /// 탄종별 발사 라인 산출(§5-6). 물류 산출 배율을 무기 발사율에 곱한 뒤,
+        /// 발당피해가 큰 탄부터 소비 상한(capA=6발/초)까지 채운다 — 고효율 우선(밸런스 07 5장).
+        ///
+        /// productionScale = 라이브 물류 출력 / 명목 출력. 1이면 만공급, 0.5면 절반 공급.
+        /// 결과는 호출자 버퍼에 쓴다(매 프레임 경로 — 반환 리스트를 새로 만들지 않는다).
+        /// </summary>
+        public static void AllocateRates(IReadOnlyList<WeaponSpec> weapons, float cap,
+            float productionScale, List<AmmoLine> into)
         {
-            var shots = new List<AllocatedShot>();
-            if (weapons == null || cap <= 0f) return shots;
+            if (into == null) return;
+            into.Clear();
+            if (weapons == null || cap <= 0f || productionScale <= 0f) return;
 
-            // 발당피해 내림차순 정렬(원본 불변 — 복사 후 정렬).
-            var sorted = new List<WeaponSpec>(weapons);
-            sorted.Sort((a, b) => b.damagePerShot.CompareTo(a.damagePerShot));
+            // 발당피해 내림차순으로 훑되 원본을 건드리지 않고 복사도 하지 않는다.
+            // 무기는 마운트 A/B 붙박이라 수가 아주 작다(MVP 가드레일 §4) → 선택 정렬로 충분하고 할당이 0.
+            int n = weapons.Count;
+            if (n > 31) n = 31; // 비트마스크 한도. MVP 무기 수(≤3)와 무관한 안전장치.
+            int used = 0;
+            float remaining = cap;
 
-            int remaining = Mathf.RoundToInt(cap);
-            foreach (WeaponSpec w in sorted)
+            for (int picked = 0; picked < n && remaining > 0f; picked++)
             {
-                if (remaining <= 0) break;
-                int rate = Mathf.RoundToInt(w.shotsPerSec);
-                int take = rate < remaining ? rate : remaining;
-                for (int i = 0; i < take; i++)
-                    shots.Add(new AllocatedShot(w.kind, w.damagePerShot));
+                int best = -1;
+                for (int i = 0; i < n; i++)
+                {
+                    if ((used & (1 << i)) != 0) continue;
+                    if (best < 0 || weapons[i].damagePerShot > weapons[best].damagePerShot) best = i;
+                }
+                if (best < 0) break;
+                used |= 1 << best;
+
+                WeaponSpec w = weapons[best];
+                float take = w.shotsPerSec * productionScale;
+                if (take > remaining) take = remaining;
+                if (take <= 0f) continue;
+
+                into.Add(new AmmoLine(w.kind, w.damagePerShot, take));
                 remaining -= take;
             }
-            return shots;
         }
     }
 }
