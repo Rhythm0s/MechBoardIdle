@@ -369,7 +369,7 @@ namespace MBI.Combat
             float exp = LogisticsOutputBridge.Expected;
             float act = LogisticsOutputBridge.Output;
             float gap = LogisticsOutputBridge.Gap;
-            string line = $"물류 출력  예상 {exp:F0} · 실제 {act:F0} · 갭 {gap:F0}  /  요구 {ReqLabel()}  ·  마운트계수 {_mountCoef:F2}";
+            string line = $"물류 출력  예상 {exp:F0} · 실제 {act:F0} · 갭 {gap:F0}  /  요구 {ReqLabel()}{ReqBadge()}  ·  마운트계수 {_mountCoef:F2}";
             string badge = CauseBadge();
             return badge.Length > 0 ? line + "   " + badge : line;
         }
@@ -413,6 +413,23 @@ namespace MBI.Combat
                 case StageReqType.Fixed: return $"{stage.req:F0}";
                 case StageReqType.Band: return $"[{stage.reqBand.x:F0},{stage.reqBand.y:F0}]";
                 default: return stage.reqType.ToString();
+            }
+        }
+
+        /// <summary>
+        /// 요구치 대비 배지(§5-6 F). 판정은 StageRequirement(Core)가 하고 여기서는 문구만 붙인다.
+        /// 전투력 = 브릿지 출력(물류 단위) × 마운트계수 — 마운트계수는 판정식 내부 항이라 전투 측에서 곱한다.
+        /// 승패에는 관여하지 않는다(문서가 정한 통과 조건은 전원처치/보스형).
+        /// </summary>
+        private string ReqBadge()
+        {
+            float power = LogisticsOutputBridge.Output * _mountCoef;
+            switch (StageRequirement.Evaluate(stage.reqType, stage.req, stage.reqBand, power))
+            {
+                case ReqStatus.Below: return $"  [부족 {power:F0}]";
+                case ReqStatus.Met: return $"  [충족 {power:F0}]";
+                case ReqStatus.AboveBand: return $"  [밴드 초과 {power:F0}]";
+                default: return "";
             }
         }
 
