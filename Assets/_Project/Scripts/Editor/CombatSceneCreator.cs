@@ -76,6 +76,11 @@ namespace MBI.Editor
             }
             so.ApplyModifiedPropertiesWithoutUndo();
 
+            // 격리 씬 물류 소스(§5-6 D2): 보드가 없으므로 브릿지를 이 컴포넌트가 채운다.
+            // StageRunner는 두 씬 모두에서 브릿지만 읽는다 — 씬 구분 분기가 필요 없다.
+            var source = runnerGo.AddComponent<MockLogisticsSource>();
+            source.robot = robot;
+
             AssetDatabase.SaveAssets(); // 새 CombatTuning.asset을 씬 저장 전에 flush.
 
             EnsureFolder(ScenesDir);

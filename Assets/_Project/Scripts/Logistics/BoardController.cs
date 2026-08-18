@@ -6,6 +6,14 @@ using UnityEngine.InputSystem;
 
 namespace MBI.Logistics
 {
+    /// <summary>시작 배치 1건(셀 + 노드). 씬 생성기가 채운다.</summary>
+    [System.Serializable]
+    public struct InitialNode
+    {
+        public Vector2Int cell;
+        public NodeDefinition node;
+    }
+
     /// <summary>
     /// 물류 보드 씬 글루(§5-3) — BoardRoot에 부착. 탭 입력을 셀로 판정해 배치/선택한다.
     ///
@@ -26,6 +34,8 @@ namespace MBI.Logistics
         [SerializeField] private List<NodeDefinition> palette = new List<NodeDefinition>();
         [Tooltip("좌표 변환 카메라. 비우면 Camera.main.")]
         [SerializeField] private Camera boardCamera;
+        [Tooltip("시작 배치(온보딩). 빈 보드로 시작하면 플레이어가 무엇을 해야 할지 알 수 없다 — 거의 완성된 라인을 주고 한 칸만 비워 둔다(튜토리얼 10장 '왼팔만 비움'을 보드에 적용).")]
+        [SerializeField] private List<InitialNode> initialLayout = new List<InitialNode>();
 
         private int _selectedNode; // 팔레트에서 선택된 노드 인덱스
         private bool _pointerOverPalette; // 팔레트 버튼 위 클릭은 보드 무시
@@ -118,6 +128,20 @@ namespace MBI.Logistics
             _grid = new BoardGrid(config.columns, config.rows, config.cellSize, origin);
 
             BuildGridVisual(); // §C-4 설치 가능 그리드 영역 표시(런타임).
+            ApplyInitialLayout();
+        }
+
+        // 시작 배치를 깐다. 배치 경로는 플레이어 조작과 동일(TryPlace + 마커) — 별도 경로를 만들지 않는다.
+        private void ApplyInitialLayout()
+        {
+            if (initialLayout == null) return;
+            foreach (InitialNode item in initialLayout)
+            {
+                if (item.node == null) continue;
+                if (!_grid.TryPlace(item.cell, item.node, out _)) continue;
+                SpawnNodeMarker(item.cell);
+            }
+            RefreshConnections();
         }
 
         // §C-4: 노드/벨트 설치 가능 영역을 런타임에 표시 — 배경 + 셀 경계선 + 바깥 테두리(최초 1회).
@@ -270,19 +294,24 @@ namespace MBI.Logistics
             }
             if (!_grid.TryPlace(cell, node, out _)) return;
 
-            GameObject marker = new GameObject($"Node_{cell.x}_{cell.y}");
+            SpawnNodeMarker(cell);
+            RefreshConnections(); // 노드 추가로 인접 벨트 연결 상태 변화 반영.
+            Debug.Log($"[MBI] 배치: {node.displayName} @ 셀({cell.x},{cell.y}) → 월드 {_grid.CellToWorld(cell)}.");
+        }
+
+        // 노드 마커 스폰(플레이어 배치·시작 배치 공용).
+        private void SpawnNodeMarker(Vector2Int cell)
+        {
+            var marker = new GameObject($"Node_{cell.x}_{cell.y}");
             marker.transform.SetParent(transform, false);
             marker.transform.position = _grid.CellToWorld(cell);
             marker.transform.localScale = Vector3.one * (_grid.CellSize * 0.9f);
             var sr = marker.AddComponent<SpriteRenderer>();
             sr.sprite = UnitSprite();
-            Color c = SeverityColor(1f); // 초기 = 정상(초록). Game.unity의 Provider가 라이브 진단으로 갱신(§L4-R #5).
+            Color c = SeverityColor(1f); // 초기 = 정상(초록). Provider가 라이브 진단으로 갱신(§L4-R #5).
             sr.color = c;
             _markers[cell] = marker;
             _nodeColors[cell] = c;
-
-            RefreshConnections(); // 노드 추가로 인접 벨트 연결 상태 변화 반영.
-            Debug.Log($"[MBI] 배치: {node.displayName} @ 셀({cell.x},{cell.y}) → 월드 {_grid.CellToWorld(cell)}.");
         }
 
         // 배치된 노드/벨트 제거(§5-4 제거 모드).

@@ -31,6 +31,7 @@ namespace MBI.Combat
         private float _nominalOutput;                                   // 만공급 시 출력(라이브 스케일의 분모)
         private float _lastScale = 1f;                                  // 마지막으로 반영한 물류 배율
         private readonly List<AmmoLine> _lineBuffer = new List<AmmoLine>(); // 재배분 버퍼(프레임당 할당 0)
+        private const float ScaleEpsilon = 0.001f;                      // 이만큼 변해야 재배분
         private float _mountCoef;
         private bool _ready;
 
@@ -134,6 +135,27 @@ namespace MBI.Combat
             _ready = true;
         }
 
+        /// <summary>
+        /// 라이브 물류 → 발사율(§5-6 D2). 코어 명제가 코드에서 성립하는 지점이다:
+        /// 보드에서 노드를 빼면 브릿지 출력이 떨어지고, 그만큼 발사율이 줄어 전투가 실제로 약해진다.
+        ///
+        /// 배율이 의미 있게 변했을 때만 재배분한다(매 프레임 재할당은 낭비).
+        /// 전투를 재시작하지 않고 라인만 갈아끼운다 — 연속성 원칙(조립 중에도 전투는 안 멈춘다).
+        /// </summary>
+        private void RefreshFireRate()
+        {
+            if (_nominalOutput <= 0f) return;
+
+            float scale = LogisticsOutputBridge.Output / _nominalOutput;
+            if (scale < 0f) scale = 0f;
+            if (Mathf.Abs(scale - _lastScale) < ScaleEpsilon) return;
+
+            _lastScale = scale;
+            ShotAllocator.AllocateRates(robot.weapons, robot.consumptionCap, scale, _lineBuffer);
+            _sim.SetFireLines(_lineBuffer);
+            _output = LogisticsOutputBridge.Output;
+        }
+
         private List<EnemySpawn> BuildSpawns()
         {
             var byKey = new Dictionary<string, EnemyDefinition>();
@@ -169,6 +191,8 @@ namespace MBI.Combat
             if (!_ready) return;
 
             bool running = _sim.Result == CombatResult.InProgress;
+
+            if (running) RefreshFireRate();
 
             // 플레이어 이동(WASD/화살표) — 카이팅. 진행 중에만.
             if (running)

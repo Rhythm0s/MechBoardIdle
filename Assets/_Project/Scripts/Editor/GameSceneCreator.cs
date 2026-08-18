@@ -128,6 +128,14 @@ namespace MBI.Editor
                 pal.arraySize = idx + 1;
                 pal.GetArrayElementAtIndex(idx).objectReferenceValue = n;
             }
+            // 시작 배치(온보딩): 대표 라인에서 군수 한 칸만 비워 둔다.
+            // 빈 보드로 시작하면 출력 0 = 전투 정지라 "게임이 고장난 것"처럼 보이고, 반대로 완성된 라인을
+            // 주면 물류 보드를 열 이유가 사라진다. 한 칸만 비우면 부족 → 배치 → 출력 상승 → 클리어가 돈다.
+            // 배치 자체는 커밋 cea90d3(A2)에서 이미 '배치=145 / 제거=0'으로 증명된 구성이다.
+            SerializedProperty layout = so.FindProperty("initialLayout");
+            layout.arraySize = 0;
+            AddInitial(layout, new Vector2Int(3, 3), Load<NodeDefinition>($"{SoRoot}/Nodes/Node_core.asset"));
+            AddInitial(layout, new Vector2Int(2, 3), Load<NodeDefinition>($"{SoRoot}/Nodes/Node_ener.asset"));
             so.ApplyModifiedPropertiesWithoutUndo();
 
             // 라이브 네트워크 → 출력 반영(§5-6): 노드 집계 → 흐름시뮬 → LogisticsOutputBridge.
@@ -141,6 +149,17 @@ namespace MBI.Editor
 
             // 변수 패널(§5-6 커밋 C): 브릿지만 읽어 예상/실제/갭 + 갭 분해를 표시. 판정 없음.
             boardRoot.AddComponent<VariablePanel>();
+        }
+
+        // initialLayout 배열에 (셀, 노드) 1건 추가. 노드가 없으면 건너뛴다(생성기 미실행 상황).
+        private static void AddInitial(SerializedProperty layout, Vector2Int cell, NodeDefinition node)
+        {
+            if (node == null) return;
+            int idx = layout.arraySize;
+            layout.arraySize = idx + 1;
+            SerializedProperty item = layout.GetArrayElementAtIndex(idx);
+            item.FindPropertyRelative("cell").vector2IntValue = cell;
+            item.FindPropertyRelative("node").objectReferenceValue = node;
         }
 
         private static LogisticsConfig LoadOrCreateLogisticsConfig()
