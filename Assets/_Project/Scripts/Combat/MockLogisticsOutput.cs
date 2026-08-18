@@ -18,14 +18,15 @@ namespace MBI.Combat
         // over-build 경고 전이 추적(LogisticsOutputProvider와 동일 규약 — 매 호출 로그 스팸 방지).
         private static bool _wasOverCeiling;
 
-        /// <summary>물류 출력(전투력) = actual. baseOutput(대표 145)을 병목 없는 항등 입력으로 시뮬 통과.</summary>
-        public static float CurrentOutput(RobotDefinition robot, float mountCoef, float moduleMult, float origin, float ceilMult)
+        /// <summary>
+        /// 격리 씬용 물류 산출. 대표 출력을 병목 없는 항등 입력으로 시뮬에 통과시킨다(actual==expected).
+        /// 브릿지 게시 단위에 맞추려면 mountCoef=1(물류 단위)로 부른다 — 마운트계수는 전투 측 항이다.
+        /// </summary>
+        public static LogisticsResult Simulate(RobotDefinition robot, float mountCoef, float moduleMult, float origin, float ceilMult)
         {
-            if (robot == null || robot.weapons == null) return 0f;
+            if (robot == null || robot.weapons == null) return default;
 
-            float baseOutput = 0f;
-            foreach (WeaponSpec w in robot.weapons)
-                baseOutput += w.shotsPerSec * DamageFormula.PerHit(w.damagePerShot, mountCoef, moduleMult, 0f);
+            float baseOutput = RobotOutput.Nominal(robot.weapons, mountCoef, moduleMult);
 
             // 라이브 네트워크 미구현(격리 전투 씬) → 병목 없는 항등 입력으로 시뮬 통과(actual==expected==baseOutput).
             LogisticsResult r = LogisticsSimulation.Compute(
@@ -40,7 +41,7 @@ namespace MBI.Combat
                 Debug.LogWarning($"[MBI] 물류 명목 배율 {r.multiple:F2} > 천장 {ceilMult:F1} — over-build(물리 상한 초과). balance/보드 물리 상한 확인.");
             _wasOverCeiling = r.overCeiling;
 
-            return r.actual;
+            return r;
         }
     }
 }

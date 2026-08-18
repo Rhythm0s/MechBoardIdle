@@ -96,10 +96,10 @@ namespace MBI.Combat
                 ? robot.mountCoef : robot.enhancedMountCoef;
             float origin = robot.balanceRef != null ? robot.balanceRef.origin : 100f;
             float ceilMult = robot.balanceRef != null ? robot.balanceRef.ceil : 1.6f;
-            _output = MockLogisticsOutput.CurrentOutput(robot, _mountCoef, robot.moduleMult, origin, ceilMult);
-            LogisticsOutputBridge.Output = _output;   // 초기값(격리 전투 씬). Game.unity는 Provider가 라이브로 덮어씀.
-            LogisticsOutputBridge.Expected = _output; // 격리 씬: 병목 없음 → 예상=실제
-            LogisticsOutputBridge.Gap = 0f;
+            // 브릿지 게시 단위 = 물류 단위(마운트계수 미적용). 마운트계수는 판정식 내부 항이라 전투가 곱한다.
+            // 초기값(격리 전투 씬). Game.unity는 Provider가 라이브로 덮어쓴다.
+            LogisticsOutputBridge.Result = MockLogisticsOutput.Simulate(robot, 1f, robot.moduleMult, origin, ceilMult);
+            _output = LogisticsOutputBridge.Output;
 
             // 발사 배분(§L4-R #4): 물류 생산율(pA) 기반 고효율 우선, 소비 상한 = robot.consumptionCap(capA=6).
             List<AllocatedShot> shots = ShotAllocator.AllocatePerSecond(robot.weapons, robot.consumptionCap);

@@ -1,4 +1,3 @@
-using System.Collections.Generic;
 using MBI.Core;
 using MBI.Data;
 using UnityEngine;
@@ -23,10 +22,18 @@ namespace MBI.Logistics
         [Tooltip("실측(actual) 롤링 창(초). 밸런스 계약(CLAUDE.md §9 실측 60초 롤링) — 임의 변경 금지.")]
         public float rollingWindow = 60f;
 
-        private readonly Queue<float> _sampleTimes = new Queue<float>();
-        private readonly Queue<float> _sampleValues = new Queue<float>();
-        private float _rollingSum;
+        // 롤링 채널: 0 expected · 1 actual · 2 gapPower · 3 gapHeat · 4 gapBelt.
+        // 같은 샘플 집합을 쓰므로 롤링 후에도 분해합 == 총갭이 성립한다.
+        private const int ChExpected = 0, ChActual = 1, ChGapPower = 2, ChGapHeat = 3, ChGapBelt = 4;
+        private RollingWindow _roll;
+        private readonly float[] _sample = new float[5];
         private bool _wasOverCeiling;
+
+        private void Awake()
+        {
+            LogisticsOutputBridge.Reset(); // 도메인 리로드 비활성 시 이전 Play 값이 남는 것 방지
+            _roll = new RollingWindow(5, rollingWindow);
+        }
 
         private void Update()
         {
@@ -46,12 +53,10 @@ namespace MBI.Logistics
 
             if (!agg.hasCore)
             {
-                LogisticsOutputBridge.Output = 0f;   // 물류 허브(코어) 없음 → 전투로 나가는 출력 없음
-                LogisticsOutputBridge.Expected = 0f;
-                LogisticsOutputBridge.Gap = 0f;
+                LogisticsOutputBridge.Result = default; // 물류 허브(코어) 없음 → 전투로 나가는 출력 없음
                 LogisticsOutputBridge.GlobalCause = ConstraintCause.None;
                 board.ClearDiagnostics();
-                ResetRolling();
+                _roll.Reset();
                 return;
             }
 
@@ -73,10 +78,25 @@ namespace MBI.Logistics
                 Debug.LogWarning($"[MBI] 물류 명목 배율 {r.multiple:F2} > 천장 {ceilMult:F1} — over-build(물리 상한 초과). balance/보드 물리 상한 확인.");
             _wasOverCeiling = r.overCeiling;
 
-            float rolled = Rolling(r.actual);
-            LogisticsOutputBridge.Output = rolled;                          // 실측(60초 롤링)
-            LogisticsOutputBridge.Expected = r.expected;                    // 예상(명목, 즉시)
-            LogisticsOutputBridge.Gap = Mathf.Max(0f, r.expected - rolled); // 갭
+            // 크기값(예상·실제·갭 분해)은 전부 같은 창으로 굴린다 → 분해합 == 총갭이 유지된다.
+            // 배율·플래그(powerEfficiency/heatThrottle/beltThrottle/multiple/overCeiling)는 즉시값 그대로 —
+            // 비율을 평균내면 의미가 흐려지고, 원인 배지·경고는 지금 상태를 가리켜야 한다.
+            _sample[ChExpected] = r.expected;
+            _sample[ChActual] = r.actual;
+            _sample[ChGapPower] = r.gapPower;
+            _sample[ChGapHeat] = r.gapHeat;
+            _sample[ChGapBelt] = r.gapBelt;
+            _roll.TrySample(Time.time, _sample);
+
+            LogisticsResult pub = r;
+            pub.expected = _roll.Average(ChExpected);
+            pub.actual = _roll.Average(ChActual);
+            pub.gapPower = _roll.Average(ChGapPower);
+            pub.gapHeat = _roll.Average(ChGapHeat);
+            pub.gapBelt = _roll.Average(ChGapBelt);
+            pub.gap = pub.expected - pub.actual; // Max(0,…)로 덮지 않는다 — 음수가 나오면 그건 버그 신호다
+
+            LogisticsOutputBridge.Result = pub;
             LogisticsOutputBridge.GlobalCause = GlobalCause(r);
 
             board.ApplyDiagnostics(LogisticsDiagnostics.Evaluate(grid, r)); // 노드 상태색
@@ -90,26 +110,5 @@ namespace MBI.Logistics
             return ConstraintCause.None;
         }
 
-        /// <summary>actual의 롤링 평균(움직이는 거울) — 시간창 rollingWindow 내 샘플 평균.</summary>
-        private float Rolling(float actual)
-        {
-            float now = Time.time;
-            _sampleTimes.Enqueue(now);
-            _sampleValues.Enqueue(actual);
-            _rollingSum += actual;
-            while (_sampleTimes.Count > 0 && now - _sampleTimes.Peek() > rollingWindow)
-            {
-                _sampleTimes.Dequeue();
-                _rollingSum -= _sampleValues.Dequeue();
-            }
-            return _sampleValues.Count > 0 ? _rollingSum / _sampleValues.Count : actual;
-        }
-
-        private void ResetRolling()
-        {
-            _sampleTimes.Clear();
-            _sampleValues.Clear();
-            _rollingSum = 0f;
-        }
     }
 }
