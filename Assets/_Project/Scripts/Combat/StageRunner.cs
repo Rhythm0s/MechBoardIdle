@@ -94,12 +94,15 @@ namespace MBI.Combat
             // 마운트계수: 물류(S1~S3)=base, 그 외(강화/태그/버스트)=enhanced(1.45).
             _mountCoef = stage.powerModel == StagePowerModel.Logistics
                 ? robot.mountCoef : robot.enhancedMountCoef;
-            float ceiling = robot.balanceRef != null ? robot.balanceRef.LogisticsCeiling : 160f; // origin×ceil
-            _output = MockLogisticsOutput.CurrentOutput(robot, _mountCoef, robot.moduleMult, ceiling);
-            LogisticsOutputBridge.Output = _output; // 초기값(격리 전투 씬). Game.unity는 Provider가 라이브로 덮어씀.
+            float origin = robot.balanceRef != null ? robot.balanceRef.origin : 100f;
+            float ceilMult = robot.balanceRef != null ? robot.balanceRef.ceil : 1.6f;
+            _output = MockLogisticsOutput.CurrentOutput(robot, _mountCoef, robot.moduleMult, origin, ceilMult);
+            LogisticsOutputBridge.Output = _output;   // 초기값(격리 전투 씬). Game.unity는 Provider가 라이브로 덮어씀.
+            LogisticsOutputBridge.Expected = _output; // 격리 씬: 병목 없음 → 예상=실제
+            LogisticsOutputBridge.Gap = 0f;
 
-            // 발사 모델: 관통(싱글)→분열(멀티샷)→폭발(AoE) 한 발씩 로테이션.
-            List<AllocatedShot> shots = ShotAllocator.RoundRobin(robot.weapons);
+            // 발사 배분(§L4-R #4): 물류 생산율(pA) 기반 고효율 우선, 소비 상한 = robot.consumptionCap(capA=6).
+            List<AllocatedShot> shots = ShotAllocator.AllocatePerSecond(robot.weapons, robot.consumptionCap);
 
             var setup = new RobotSetup
             {
@@ -312,7 +315,7 @@ namespace MBI.Combat
 
             GUILayout.BeginArea(new Rect(12, 10, 560, 270));
             GUILayout.Label($"스테이지 {stage.stageId}  ·  {stage.topic}", style);
-            GUILayout.Label($"물류 출력(전투력) {LogisticsOutputBridge.Output:F0}  /  요구 {ReqLabel()}  ·  마운트계수 {_mountCoef:F2}", style);
+            GUILayout.Label(OutputLine(), style);
             GUILayout.Label(AmmoLine(), style);
             GUILayout.Label($"저장고(군수 생산) {LogisticsOutputBridge.AmmoProduce:F1} 발/초", style);
             GUILayout.Label($"적 {_sim.Remaining}/{_sim.TotalEnemies}   로봇 HP {_sim.Robot.hp:F0}/{_sim.Robot.maxHp:F0}", style);
@@ -330,6 +333,31 @@ namespace MBI.Combat
             }
         }
 
+        /// <summary>물류 출력 이중표시(예상/실제/갭) + 전역 원인(전력/발열) 점멸(§L4-R #1·#5 변수패널 1차 표시자).</summary>
+        private string OutputLine()
+        {
+            float exp = LogisticsOutputBridge.Expected;
+            float act = LogisticsOutputBridge.Output;
+            float gap = LogisticsOutputBridge.Gap;
+            string line = $"물류 출력  예상 {exp:F0} · 실제 {act:F0} · 갭 {gap:F0}  /  요구 {ReqLabel()}  ·  마운트계수 {_mountCoef:F2}";
+            string badge = CauseBadge();
+            return badge.Length > 0 ? line + "   " + badge : line;
+        }
+
+        /// <summary>전역 병목 원인 배지 — Power→Heat 우선, 점멸(변수패널 1차 표시자). 아이콘 에셋 전 텍스트 placeholder.</summary>
+        private static string CauseBadge()
+        {
+            if (!Blink()) return "";
+            switch (LogisticsOutputBridge.GlobalCause)
+            {
+                case ConstraintCause.Power: return "[전력 부족]";
+                case ConstraintCause.Heat: return "[발열 초과]";
+                default: return "";
+            }
+        }
+
+        private static bool Blink() => ((int)(Time.unscaledTime * 2.5f) & 1) == 0;
+
         /// <summary>탄약 표시(§C-2): 마운트 용량(종당) + 탄종별 현재 물류 공급율(발/초). 재고 변동은 물류연동 #1 이후.</summary>
         private string AmmoLine()
         {
@@ -344,7 +372,7 @@ namespace MBI.Combat
                         case AmmoKind.Explosive: expl += w.shotsPerSec; break;
                     }
                 }
-            int cap = tuning.mountAmmoCapTbd;
+            int cap = Mathf.RoundToInt(robot.consumptionCap); // capA — RobotDefinition 단일 소스(§3, CombatTuning 중복 정리)
             return $"탄약 마운트(용량 {cap}/종)  관통 {pierce:F0} · 분열 {split:F0} · 폭발 {expl:F0} 발/초";
         }
 

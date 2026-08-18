@@ -36,6 +36,7 @@ namespace MBI.Logistics
         private BoardGrid _grid;
         private InputAction _press;
         private readonly Dictionary<Vector2Int, GameObject> _markers = new Dictionary<Vector2Int, GameObject>();
+        private readonly Dictionary<Vector2Int, Color> _nodeColors = new Dictionary<Vector2Int, Color>(); // 현재 상태색(선택 복원용)
         private Vector2Int? _selected;
 
         // 드래그 설치(§5-4 L1b): press→drag(경로 셀 누적)→release.
@@ -45,30 +46,61 @@ namespace MBI.Logistics
         // 벨트 마커 루트 + 방향 표시 SR(§5-4 L2 연결 색/제거용).
         private readonly Dictionary<Vector2Int, GameObject> _beltMarkers = new Dictionary<Vector2Int, GameObject>();
         private readonly Dictionary<Vector2Int, SpriteRenderer> _beltArrows = new Dictionary<Vector2Int, SpriteRenderer>();
+        // 미연결 경고 아이콘(§5-4 ⑤). 마커의 자식이라 마커 파괴 시 함께 사라진다.
+        private readonly Dictionary<Vector2Int, SpriteRenderer> _beltWarnings = new Dictionary<Vector2Int, SpriteRenderer>();
 
         private bool _removeMode; // 제거 모드 — 탭으로 노드/벨트 삭제
 
-        private static readonly Color PlacedColor = new Color(0.55f, 0.75f, 0.95f, 1f);
         private static readonly Color SelectedColor = new Color(0.98f, 0.85f, 0.30f, 1f);
         private static readonly Color BeltColor = new Color(0.5f, 0.5f, 0.5f, 1f);
         private static readonly Color BeltArrowColor = new Color(0.95f, 0.85f, 0.3f, 1f);       // 미연결(dangling)
         private static readonly Color BeltConnectedColor = new Color(0.35f, 0.9f, 0.4f, 1f);    // 자동연결됨
+        private static readonly Color BeltWarningColor = new Color(0.98f, 0.45f, 0.25f, 1f);   // 끝단 미연결 경고
         private static readonly Color GridBgColor = new Color(0.11f, 0.13f, 0.17f, 0.55f);      // 설치 영역 배경
         private static readonly Color GridLineColor = new Color(0.40f, 0.85f, 0.60f, 0.35f);    // 셀 경계선
         private static readonly Color GridBorderColor = new Color(0.45f, 0.9f, 0.65f, 0.85f);   // 바깥 테두리
+        private static readonly Color StatusNormal = new Color(0.40f, 0.85f, 0.50f);  // 초록 = 정상(산출률 1.0)
+        private static readonly Color StatusSlow = new Color(0.95f, 0.80f, 0.25f);    // 노랑 = 감속·유휴(0<산출률<1)
+        private static readonly Color StatusStopped = new Color(0.90f, 0.30f, 0.30f); // 빨강 = 정지(산출률 0)
         private static Sprite _unitSprite;
 
-        /// <summary>노드 타입별 색(§C-3). 스텁(쉴드)은 회색.</summary>
-        private static Color NodeTypeColor(NodeType t)
+        /// <summary>
+        /// 노드 상태색(§L4-R #5 — C-③ 타입색 대체). 색 = 산출률(actualRate/targetRate):
+        /// 초록=1.0(정상) / 노랑=0<x<1(감속·유휴) / 빨강=0(정지). 4번째 색 없음(모듈 과부하는 MVP 밖·문서 이월).
+        /// UI 문서 13 §3-4-1이 원천 — UI는 판정 없이 매핑만.
+        /// </summary>
+        private static Color SeverityColor(float ratio)
         {
-            switch (t)
+            if (ratio <= 0.0001f) return StatusStopped;   // 완전 정지
+            if (ratio < 0.999f) return StatusSlow;        // 깎여서 돌아감
+            return StatusNormal;                          // 설계대로
+        }
+
+        /// <summary>노드 상태색 적용(§L4-R #5). 진단은 Provider(LogisticsDiagnostics)가 공급 — UI는 색 매핑만.
+        /// 선택 중인 셀은 선택 하이라이트 유지.</summary>
+        public void ApplyDiagnostics(IReadOnlyList<NodeDiagnostic> diags)
+        {
+            if (diags == null) return;
+            foreach (NodeDiagnostic d in diags)
             {
-                case NodeType.Core: return new Color(0.95f, 0.45f, 0.35f);        // 코어 = 주홍
-                case NodeType.Processing: return new Color(0.72f, 0.50f, 0.95f);  // 가공 = 보라
-                case NodeType.Munitions: return new Color(0.95f, 0.62f, 0.20f);   // 군수 = 주황
-                case NodeType.Energy: return new Color(0.40f, 0.85f, 0.50f);      // 에너지 = 초록
-                case NodeType.Storage: return new Color(0.40f, 0.70f, 0.95f);     // 저장 = 파랑
-                default: return new Color(0.60f, 0.60f, 0.62f);                   // 쉴드(스텁) = 회색
+                float ratio = d.targetRate > 0f ? d.actualRate / d.targetRate : 1f;
+                Color c = SeverityColor(ratio);
+                _nodeColors[d.cell] = c;
+                if (_selected.HasValue && _selected.Value == d.cell) continue; // 선택 하이라이트 유지
+                if (_markers.TryGetValue(d.cell, out GameObject m) && m != null)
+                    m.GetComponent<SpriteRenderer>().color = c;
+            }
+        }
+
+        /// <summary>진단 없음(코어 미배치 등) → 노드를 정상색으로.</summary>
+        public void ClearDiagnostics()
+        {
+            foreach (KeyValuePair<Vector2Int, GameObject> kv in _markers)
+            {
+                if (kv.Value == null) continue;
+                _nodeColors[kv.Key] = StatusNormal;
+                if (_selected.HasValue && _selected.Value == kv.Key) continue;
+                kv.Value.GetComponent<SpriteRenderer>().color = StatusNormal;
             }
         }
 
@@ -244,8 +276,10 @@ namespace MBI.Logistics
             marker.transform.localScale = Vector3.one * (_grid.CellSize * 0.9f);
             var sr = marker.AddComponent<SpriteRenderer>();
             sr.sprite = UnitSprite();
-            sr.color = NodeTypeColor(node.type); // §C-3 노드 타입별 색
+            Color c = SeverityColor(1f); // 초기 = 정상(초록). Game.unity의 Provider가 라이브 진단으로 갱신(§L4-R #5).
+            sr.color = c;
             _markers[cell] = marker;
+            _nodeColors[cell] = c;
 
             RefreshConnections(); // 노드 추가로 인접 벨트 연결 상태 변화 반영.
             Debug.Log($"[MBI] 배치: {node.displayName} @ 셀({cell.x},{cell.y}) → 월드 {_grid.CellToWorld(cell)}.");
@@ -259,6 +293,7 @@ namespace MBI.Logistics
                 _grid.TryRemove(cell);
                 if (_markers.TryGetValue(cell, out GameObject m) && m != null) Destroy(m);
                 _markers.Remove(cell);
+                _nodeColors.Remove(cell);
                 if (_selected.HasValue && _selected.Value == cell) _selected = null;
             }
             else if (_grid.HasBelt(cell))
@@ -267,6 +302,7 @@ namespace MBI.Logistics
                 if (_beltMarkers.TryGetValue(cell, out GameObject bm) && bm != null) Destroy(bm);
                 _beltMarkers.Remove(cell);
                 _beltArrows.Remove(cell);
+                _beltWarnings.Remove(cell); // 아이콘 GameObject는 마커의 자식이라 위 Destroy로 함께 사라짐
             }
             else return;
 
@@ -312,12 +348,11 @@ namespace MBI.Logistics
 
         private void Select(Vector2Int cell)
         {
-            // 이전 선택 색 복원(해당 노드 타입 색으로, §C-3).
+            // 이전 선택 색 복원(현재 상태색으로, §L4-R #5).
             if (_selected.HasValue && _markers.TryGetValue(_selected.Value, out GameObject prev) && prev != null)
             {
-                NodeInstance prevInst = _grid.GetAt(_selected.Value);
                 prev.GetComponent<SpriteRenderer>().color =
-                    prevInst != null ? NodeTypeColor(prevInst.Definition.type) : PlacedColor;
+                    _nodeColors.TryGetValue(_selected.Value, out Color pc) ? pc : StatusNormal;
             }
 
             _selected = cell;
@@ -355,20 +390,45 @@ namespace MBI.Logistics
             asr.sprite = UnitSprite();
             asr.color = BeltArrowColor;
             asr.sortingOrder = 1;
+
+            // 끝단 미연결 경고(§5-4 ⑤): 셀 위쪽 모서리에 작은 표식. 기본 off — RefreshConnections가 켠다.
+            var warn = new GameObject("warn");
+            warn.transform.SetParent(m.transform, false);
+            warn.transform.localPosition = new Vector3(0f, 0.30f, 0f);
+            warn.transform.localScale = new Vector3(0.26f, 0.26f, 1f);
+            var wsr = warn.AddComponent<SpriteRenderer>();
+            wsr.sprite = UnitSprite();
+            wsr.color = BeltWarningColor;
+            wsr.sortingOrder = 2;
+            wsr.enabled = false;
+
             _beltArrows[cell] = asr;
+            _beltWarnings[cell] = wsr;
             _beltMarkers[cell] = m;
         }
 
-        // §5-4 L2: 배치 후 연결 그래프 재계산 → 벨트 방향 표시 색(연결=초록/미연결=노랑).
+        // §5-4 L2: 배치 후 연결 그래프 재계산 → 벨트 방향 표시 색(연결=초록/미연결=노랑) + 끝단 경고(⑤).
+        // 설치 확정 시점(설치·배치·제거)에만 호출된다 → 드래그 중에는 판정하지 않는다는 사양이 자동 충족.
         private void RefreshConnections()
         {
             List<BeltLink> links = BeltRouting.BuildLinks(_grid);
             var connected = new HashSet<Vector2Int>();
-            foreach (BeltLink l in links) connected.Add(l.fromCell);
+            foreach (BeltLink l in links)
+            {
+                // 양방향으로 센다. fromCell만 담으면 입력이 없는 시작단이 초록으로 잘못 표시된다.
+                connected.Add(l.fromCell);
+                connected.Add(l.toCell);
+            }
 
             foreach (KeyValuePair<Vector2Int, SpriteRenderer> kv in _beltArrows)
                 if (kv.Value != null)
                     kv.Value.color = connected.Contains(kv.Key) ? BeltConnectedColor : BeltArrowColor;
+
+            // 판정은 전부 Core(BeltRouting) — 여기서는 켜고 끄기만 한다(§3 UI는 매핑만).
+            var warn = new HashSet<Vector2Int>(BeltRouting.DanglingWarningCells(_grid));
+            foreach (KeyValuePair<Vector2Int, SpriteRenderer> kv in _beltWarnings)
+                if (kv.Value != null)
+                    kv.Value.enabled = warn.Contains(kv.Key);
         }
 
         private static Vector2 FaceOffset(PortFace face)

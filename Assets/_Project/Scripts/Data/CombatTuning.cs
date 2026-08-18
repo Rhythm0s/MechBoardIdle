@@ -48,10 +48,8 @@ namespace MBI.Data
         [Tooltip("AoE 스플래시 배율. 로봇A 폭발탄 = 0(스플래시 없음, 단일 표적). 드론 광역형이 >0 사용.")]
         public float aoeSplashFactorTbd = 0f;
 
-        [Header("탄약 표시 (⚠️ TBD — 표시용, 재고 소비/보충은 물류연동 #1 이후)")]
-        [Tooltip("TBD — 마운트 탄약 용량(종당). balance capA=6 미러. 실 재고 변동은 물류 연동(#1) 이후.")]
-        public int mountAmmoCapTbd = 6;
-
+        // 마운트 탄약 용량(capA=6)은 RobotDefinition.consumptionCap 단일 소스로 통합(§3 한 파일=한 책임, L4-R).
+        //   — 중복 미러(mountAmmoCapTbd) 제거. HUD/발사 배분은 robot.consumptionCap을 읽는다.
         // 물류 출력(전투력 입력)은 별도 상수를 두지 않는다 — RobotDefinition.weapons의 mock 생산율(pA)에서
         // MockLogisticsOutput이 집계(ΣpA×dA=145). 실 물류 시뮬(§5-4·5-5) 완성 시 그쪽이 동적 산출.
     }
