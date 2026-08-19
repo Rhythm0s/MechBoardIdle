@@ -1,5 +1,6 @@
 {
   "meta": {
+    "deprecatedNote": "2026-07-23 실측 기준 역사 기록. 오프라인 공식은 2026-08-19 폐기됨 — 현행은 balance_v4.json",
     "schemaVersion": "3.1",
     "project": "MECH BOARD IDLE",
     "role": "Tier-1 밸런스/경제 페이싱 검증 계약 (판정식·무기 스펙트럼 반영)",
