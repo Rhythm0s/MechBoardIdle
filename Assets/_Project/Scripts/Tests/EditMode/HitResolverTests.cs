@@ -80,7 +80,7 @@ namespace MBI.Tests
         [Test]
         public void RobotAmmo_AllSingleTarget_WhenMultiShot1AndSplash0()
         {
-            // 앵커(07 5장 스테이징): 등가선은 단일 표적 기준 → 로봇A 관통/분열/폭발 전부 단일 표적.
+            // 앵커(플레이어블 로봇 기획서「무기 스펙트럼」 스테이징): 등가선은 단일 표적 기준 → 로봇A 관통/분열/폭발 전부 단일 표적.
             // multiShotCount=1, aoeSplashFactor=0 이면 세 탄종 모두 표적 1기만 타격.
             var list = new List<CombatEntity> { Enemy(0, 0), Enemy(0.4f, 0), Enemy(0.8f, 0) };
             foreach (AmmoKind kind in new[] { AmmoKind.Pierce, AmmoKind.Split, AmmoKind.Explosive })
