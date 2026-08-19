@@ -42,9 +42,10 @@
     { "key": "gaugeFull", "label": "게이지 만충(초)", "group": "합체·버스트", "value": 90, "confirmed": true, "basis": "공통 게이지 1개(전투 수행 충전·스테이지당 1회) — 그리드 15×6, 제약 만충≤100초 충족", "intent": "합체·버스트 동시 발동 조건", "docRef": "밸런스 5-1 (2026-07-23)" },
     { "key": "bc", "label": "버스트 계수 %", "group": "합체·버스트", "value": 300, "confirmed": true, "basis": "순간 1회 = 발동 순간 스냅샷 × 300% ≈ 852 — 예산 밖 마진 항", "intent": "오프닝 필살 스파이크 (등장 특공과 동렬)", "docRef": "밸런스 5-3 (2026-07-23)" },
 
-    { "key": "scrapPerKill", "label": "마리당 고철", "group": "경제(고철)", "value": 2, "confirmed": false, "basis": "처치당 고철(TBD — 노드 가격 카탈로그와 결합 확정)", "intent": "고철=킬 기반", "docRef": "09 5장" },
-    { "key": "offlineHours", "label": "오프라인 시간(h,상한36)", "group": "경제(고철)", "value": 8, "confirmed": false, "basis": "꺼둔 시간(상한 36h만 확정)", "intent": "오프라인 창", "docRef": "09 6장" },
-    { "key": "offlineCoef", "label": "오프라인 계수", "group": "경제(고철)", "value": 0.5, "confirmed": false, "basis": "수입 계수(TBD 밴드)", "intent": "수입=실측×시간×계수", "docRef": "09 6장" }
+    { "key": "scrapPerKill", "label": "마리당 고철", "group": "경제(고철)", "value": 2, "confirmed": false, "basis": "처치당 고철(TBD — 노드 가격 카탈로그와 결합 확정)", "intent": "고철=킬 기반", "docRef": "스테이지 기획서「파밍 규칙」" },
+    { "key": "offlineHours", "label": "오프라인 시간(h,상한36)", "group": "경제(고철)", "value": 8, "confirmed": false, "basis": "꺼둔 시간(상한 36h만 확정)", "intent": "오프라인 창", "docRef": "스테이지 기획서「오프라인 보상」" },
+    { "key": "offlineCoef", "label": "오프라인 계수", "group": "경제(고철)", "value": 0.5, "confirmed": false, "basis": "수입 계수(TBD 밴드 — 1 미만이어야 꺼두는 편이 이득이 되지 않음)", "intent": "수입 = 상주 스테이지 최고 파밍 시급 × min(꺼둔 시간, 36h) × 계수", "docRef": "스테이지 기획서「오프라인 보상」" },
+    { "key": "offlineBaseRate", "label": "오프라인 기본 시급(고철/h)", "group": "경제(고철)", "value": 0, "confirmed": false, "basis": "상주 스테이지에 파밍 기록이 없을 때 쓰는 값(TBD). 0 = 미측정 센티넬", "intent": "기록 없음 폴백", "docRef": "스테이지 기획서「오프라인 보상」" }
   ],
   "enemies": [
     { "key": "infantry", "label": "보병", "role": "중거리 교전", "atk": 6, "confirmed": false },
@@ -53,25 +54,43 @@
     { "key": "boss", "label": "강적(보스)", "role": "단일 대형(체력+방어 복합)", "atk": 20, "confirmed": false }
   ],
   "stages": [
-    { "id": "S1", "topic": "벨트 연결(온보딩)", "reqType": "fixed", "req": 90, "reqConfirmed": true, "challengeTime": 120, "powerModel": "logistics", "enhMaterialReward": 30, "compConfirmed": true, "monsterDir": "체력 낮은 다수·느린 등장·저방어",
+    { "id": "S1", "topic": "벨트 연결(온보딩)", "reqType": "fixed", "req": 90, "reqConfirmed": true, "challengeTime": 120, "powerModel": "logistics", "enhMaterialReward": 30, "spawnCap": 0, "spawnInterval": 0, "spawnConfirmed": false, "compConfirmed": true, "monsterDir": "체력 낮은 다수·느린 등장·저방어",
       "composition": [ { "enemy": "infantry", "count": 40, "hp": 270, "def": 1 } ] },
-    { "id": "S2", "topic": "모듈 배치(M/R/F)", "reqType": "fixed", "req": 105, "reqConfirmed": true, "challengeTime": 120, "powerModel": "logistics", "enhMaterialReward": 33, "compConfirmed": true, "monsterDir": "체력 조금 상승·저방어",
+    { "id": "S2", "topic": "모듈 배치(M/R/F)", "reqType": "fixed", "req": 105, "reqConfirmed": true, "challengeTime": 120, "powerModel": "logistics", "enhMaterialReward": 33, "spawnCap": 0, "spawnInterval": 0, "spawnConfirmed": false, "compConfirmed": true, "monsterDir": "체력 조금 상승·저방어",
       "composition": [ { "enemy": "infantry", "count": 40, "hp": 250, "def": 1 }, { "enemy": "artillery", "count": 10, "hp": 260, "def": 3 } ] },
-    { "id": "S3", "topic": "물류 재설계(영상B)", "reqType": "fixed", "req": 130, "reqConfirmed": true, "challengeTime": 120, "powerModel": "logistics", "enhMaterialReward": 37, "compConfirmed": true, "monsterDir": "점점 빨리 등장(지속 DPS)·방어 낮음",
+    { "id": "S3", "topic": "물류 재설계(영상B)", "reqType": "fixed", "req": 130, "reqConfirmed": true, "challengeTime": 120, "powerModel": "logistics", "enhMaterialReward": 37, "spawnCap": 0, "spawnInterval": 0, "spawnConfirmed": false, "compConfirmed": true, "monsterDir": "점점 빨리 등장(지속 DPS)·방어 낮음",
       "composition": [ { "enemy": "infantry", "count": 40, "hp": 230, "def": 2 }, { "enemy": "artillery", "count": 15, "hp": 280, "def": 3 }, { "enemy": "armor", "count": 5, "hp": 440, "def": 6 } ] },
-    { "id": "S4", "topic": "마운트 강화(벽)", "reqType": "band", "reqBand": [ 186, 215 ], "reqConfirmed": true, "challengeTime": 120, "powerModel": "enhanced", "enhMaterialReward": 0, "compConfirmed": true, "monsterDir": "체력 급증(물류 천장 초과 유일 벽)",
+    { "id": "S4", "topic": "마운트 강화(벽)", "reqType": "band", "reqBand": [ 186, 215 ], "reqConfirmed": true, "challengeTime": 120, "powerModel": "enhanced", "enhMaterialReward": 0, "spawnCap": 0, "spawnInterval": 0, "spawnConfirmed": false, "compConfirmed": true, "monsterDir": "체력 급증(물류 천장 초과 유일 벽)",
       "composition": [ { "enemy": "infantry", "count": 40, "hp": 280, "def": 3 }, { "enemy": "artillery", "count": 20, "hp": 310, "def": 5 }, { "enemy": "armor", "count": 12, "hp": 410, "def": 8 } ] },
-    { "id": "S5", "topic": "태그 학습", "reqType": "formula", "reqConfirmed": true, "challengeTime": 120, "powerModel": "tag", "enhMaterialReward": 0, "compConfirmed": true, "monsterDir": "강력한 소수·고방어(def 45 = 분열 36.25 < 45 < 폭발 72.5 경계 — A 단독 289.5초 실패 / A+B 109.3초)",
+    { "id": "S5", "topic": "태그 학습", "reqType": "formula", "reqConfirmed": true, "challengeTime": 120, "powerModel": "tag", "enhMaterialReward": 0, "spawnCap": 0, "spawnInterval": 0, "spawnConfirmed": false, "compConfirmed": true, "monsterDir": "강력한 소수·고방어(def 45 = 분열 36.25 < 45 < 폭발 72.5 경계 — A 단독 289.5초 실패 / A+B 109.3초)",
       "composition": [ { "enemy": "armor", "count": 15, "hp": 1100, "def": 45 } ] },
-    { "id": "S6", "topic": "합체·버스트(영상C)", "reqType": "budget", "reqConfirmed": true, "challengeTime": 120, "powerModel": "burst", "enhMaterialReward": 0, "compConfirmed": true, "monsterDir": "강적 1기 — 합체 필연 밴드 34,067 < HP ≤ 39,018 · 실효 109.4초", "bossHp": 36000,
+    { "id": "S6", "topic": "합체·버스트(영상C)", "reqType": "budget", "reqConfirmed": true, "challengeTime": 120, "powerModel": "burst", "enhMaterialReward": 0, "spawnCap": 0, "spawnInterval": 0, "spawnConfirmed": false, "compConfirmed": true, "monsterDir": "강적 1기 — 합체 필연 밴드 34,067 < HP ≤ 39,018 · 실효 109.4초", "bossHp": 36000,
       "composition": [ { "enemy": "boss", "count": 1, "hp": 36000, "def": 12 } ] }
   ],
   "economy": {
     "enhMaterialSource": "clearRewardOnly",
     "scrapSource": "farming + challenge + offline",
     "twoCurrencySeparation": true,
-    "farmingRule": "시간당 고철 = min(스폰속도, 잡는능력) × 마리당고철 (스폰속도 TBD)",
-    "offline": { "formula": "실측전투력 × 시간 × 오프라인계수", "capHours": 36, "currency": "scrap only", "note": "강화재료 미지급(닫힌 곡선 보호)" }
+    "farmingRule": "시간당 고철 = min(스폰속도, 잡는능력) × 마리당고철 (스폰속도 = 정원 ÷ 스폰간격)",
+    "spawnRule": {
+      "applies": "상주 파밍 층에만 적용(돌파 도전 층 제외)",
+      "rule": "N초마다 스폰 수 = 정원(M) − 현재 생존 몬스터 수",
+      "spawnRate": "정원 ÷ 스폰간격 (마리/초)",
+      "farmSaturationPower": "(정원 × 몬스터 체력) ÷ 스폰간격 — 파밍 수입을 100% 뽑는 데 필요한 화력. 넘어도 수입은 안 늘어난다(잡을 몬스터가 더 안 나오므로)",
+      "openQuestion": "정원 보충이 한 틱 전량인지 순차인지 미규정 — 바퀴 길이가 달라짐(설계 세션 회신 대기)",
+      "docRef": "스테이지 기획서「파밍 규칙」"
+    },
+    "offline": {
+      "formula": "상주 스테이지의 최고 파밍 시급 × min(꺼둔 시간, 36h) × 오프라인계수",
+      "hourlyRate": "한 바퀴 시급 = (그 바퀴 처치수 × 마리당고철) ÷ 바퀴 소요초 × 3600",
+      "lap": "한 바퀴 = 맵이 정원까지 찬 순간부터 다음에 정원까지 찬 순간까지. 다 잡고 기다리는 빈 시간도 포함(빼면 실제로 벌 수 없는 속도가 기록되어 '꺼두는 편이 이득'인 지점이 생긴다)",
+      "record": "스테이지별로 따로 보관. 돌파 도전 중에는 기록하지 않음. 이번 바퀴 시급 > 기존 기록이면 교체",
+      "payoutKey": "게임을 끈 시점의 상주 스테이지 기록 한 곳만 사용(여러 기록 중 최댓값을 고르지 않음). 기록 없으면 offlineBaseRate",
+      "capHours": 36,
+      "currency": "scrap only",
+      "note": "강화재료 미지급(닫힌 곡선 보호 — 꺼둔 시간으로 S4 벽을 우회할 수 없게)",
+      "docRef": "스테이지 기획서「오프라인 보상」"
+    }
   },
   "enhance": {
     "s4Cost": 100,

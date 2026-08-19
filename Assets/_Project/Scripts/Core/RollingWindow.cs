@@ -3,7 +3,7 @@ using UnityEngine;
 namespace MBI.Core
 {
     /// <summary>
-    /// 다채널 시간창 롤링 평균(순수 — EditMode 검증 가능). "움직이는 거울"(밸런스 10장, 실측 60초 롤링).
+    /// 다채널 시간창 롤링 평균(순수 — EditMode 검증 가능). "움직이는 거울"(밸런스 문서「예상 전투력 공식」, 실측 60초 롤링).
     ///
     /// 왜 다채널인가: 예상·실제·갭 분해 3항을 **같은 샘플 집합**으로 굴려야
     /// `roll(gapPower)+roll(gapHeat)+roll(gapBelt) == roll(expected)−roll(actual)` 가 성립한다.

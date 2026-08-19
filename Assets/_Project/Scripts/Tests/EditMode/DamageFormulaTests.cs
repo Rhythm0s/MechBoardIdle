@@ -4,7 +4,7 @@ using NUnit.Framework;
 namespace MBI.Tests
 {
     /// <summary>
-    /// 판정식(07 1장): 실피해 = max(1, 발당피해 × 마운트계수 × 모듈배율 − 방어). 난수 0.
+    /// 판정식(플레이어블 로봇 기획서「판정식」): 실피해 = max(1, 발당피해 × 마운트계수 × 모듈배율 − 방어). 난수 0.
     /// 경계: 방어 히트당 뺄셈 / 하한 1 클램프 / 강화·모듈 곱. 순수 로직(자산 불필요).
     /// </summary>
     public sealed class DamageFormulaTests
