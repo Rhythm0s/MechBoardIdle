@@ -120,6 +120,65 @@ namespace MBI.Tests
 
         // ---- 라인 기반 발사(§5-6 D1) ----
 
+        // ---- 처치 집계(§5-7 고철 적립의 유일한 입력) ----
+
+        /// <summary>정지·무공격 약한 적 n기.</summary>
+        private static List<EnemySpawn> Fodder(int n)
+        {
+            var list = new List<EnemySpawn>();
+            for (int i = 0; i < n; i++)
+                list.Add(new EnemySpawn { label = $"약졸{i}", hp = 1f, def = 0f, atk = 0f,
+                    moveSpeed = 0f, attackRange = 0.5f, attackInterval = 1f });
+            return list;
+        }
+
+        /// <summary>
+        /// AoE 한 발이 여러 기를 죽여도 처치 수는 죽은 개체 수와 같다.
+        /// 데미지를 준 지점에서 셌다면 히트마다 세어 수입이 부풀려졌을 것이다.
+        /// </summary>
+        [Test]
+        public void KillsThisTick_CountsEachDeathOnce_EvenWithAoe()
+        {
+            RobotSetup setup = Robot(1000f);
+            setup.aoeRadius = 10f;        // 아레나 전체를 덮는 폭발
+            setup.aoeSplashFactor = 1f;
+            setup.lines = new List<AmmoLine> { new AmmoLine(AmmoKind.Explosive, 50f, 2f) };
+
+            var sim = new CombatSimulation(setup, Fodder(3), arenaRadius: 1f, challengeTime: 120f, spawnCadence: 0f);
+            Run(sim, 1f, 0.02f);
+
+            Assert.AreEqual(3, sim.TotalKills, "죽은 개체 수 = 3. 히트 수로 세면 3보다 커진다");
+            Assert.AreEqual(0, sim.Remaining);
+        }
+
+        /// <summary>
+        /// 전투가 끝나면 Tick이 즉시 반환하므로 KillsThisTick이 마지막 값에 멈춘다.
+        /// 그 값을 매 프레임 더하면 승리 화면에서 고철이 무한히 불어난다 —
+        /// ConsumeKills가 가져가며 비우므로 두 번째부터는 0이다.
+        /// </summary>
+        [Test]
+        public void ConsumeKills_DrainsOnce_NoDoubleCountAfterWin()
+        {
+            var sim = new CombatSimulation(Robot(1000f), Fodder(1), 1f, 120f, 0f);
+            Run(sim, 1f, 0.02f);
+            Assert.AreEqual(CombatResult.Win, sim.Result);
+
+            Assert.AreEqual(1, sim.ConsumeKills(), "죽은 만큼 한 번 가져간다");
+            Assert.AreEqual(0, sim.ConsumeKills(), "두 번째 읽기는 0 — 무한 적립 차단");
+
+            sim.Tick(0.02f); // 종료 후 틱은 무동작
+            Assert.AreEqual(0, sim.ConsumeKills());
+            Assert.AreEqual(1, sim.TotalKills, "누적 집계는 유지된다");
+        }
+
+        [Test]
+        public void TotalKills_StartsAtZero()
+        {
+            var sim = new CombatSimulation(Robot(1000f), Fodder(2), 1f, 120f, 0f);
+            Assert.AreEqual(0, sim.TotalKills);
+            Assert.AreEqual(0, sim.KillsThisTick);
+        }
+
         /// <summary>맞기만 하고 죽지 않는 샌드백 1기(def 0, 무공격).</summary>
         private static List<EnemySpawn> Dummy(float hp) => new List<EnemySpawn>
         {

@@ -84,6 +84,26 @@ namespace MBI.Core
         public int TotalEnemies => _spawnQueue.Count;
         public int Remaining => _enemies.Count;
 
+        /// <summary>이번 Tick에 죽은 수(관찰용). 적립에 쓸 때는 <see cref="ConsumeKills"/>로 가져간다.</summary>
+        public int KillsThisTick { get; private set; }
+
+        /// <summary>
+        /// 이번 틱 처치 수를 **가져가며 0으로 비운다.** 고철 적립은 반드시 이 경로로만 읽는다.
+        ///
+        /// 왜 그냥 읽으면 안 되는가: 전투가 끝나면 Tick이 즉시 반환하므로 KillsThisTick이 마지막 값에
+        /// 그대로 멈춰 있다. 매 프레임 그 값을 더하면 승리 화면에서 고철이 무한히 불어난다.
+        /// 가져가며 비우면 두 번 읽어도 두 번 세지 않는다.
+        /// </summary>
+        public int ConsumeKills()
+        {
+            int k = KillsThisTick;
+            KillsThisTick = 0;
+            return k;
+        }
+
+        /// <summary>이 전투에서 누적 처치 수.</summary>
+        public int TotalKills { get; private set; }
+
         public CombatSimulation(RobotSetup robot, IReadOnlyList<EnemySpawn> spawns,
             float arenaRadius, float challengeTime, float spawnCadence)
         {
@@ -153,6 +173,7 @@ namespace MBI.Core
             if (Result != CombatResult.InProgress || dt <= 0f) return;
 
             _shots.Clear();
+            KillsThisTick = 0;
             Elapsed += dt;
 
             SpawnDue();
@@ -360,10 +381,18 @@ namespace MBI.Core
             return best;
         }
 
+        // 처치 집계는 **여기 한 곳**에서만 늘린다(§5-7 고철 적립의 유일한 입력).
+        // 데미지를 준 지점에서 세면 AoE 한 발이 여러 번 카운트되어 수입이 부풀려진다 —
+        // 제거는 개체당 정확히 한 번뿐이므로 이 자리가 중복이 구조적으로 불가능한 지점이다.
         private void CleanupDead()
         {
             for (int i = _enemies.Count - 1; i >= 0; i--)
-                if (!_enemies[i].IsAlive) _enemies.RemoveAt(i);
+            {
+                if (_enemies[i].IsAlive) continue;
+                _enemies.RemoveAt(i);
+                KillsThisTick++;
+                TotalKills++;
+            }
         }
 
         private void Evaluate()
