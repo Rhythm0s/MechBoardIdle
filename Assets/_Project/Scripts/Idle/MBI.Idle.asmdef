@@ -1,16 +1,11 @@
 {
-    "name": "MBI.Editor",
-    "rootNamespace": "MBI.Editor",
+    "name": "MBI.Idle",
+    "rootNamespace": "MBI.Idle",
     "references": [
         "MBI.Data",
-        "MBI.Logistics",
-        "MBI.Combat",
-        "MBI.UI",
-        "MBI.Idle"
+        "MBI.Core"
     ],
-    "includePlatforms": [
-        "Editor"
-    ],
+    "includePlatforms": [],
     "excludePlatforms": [],
     "allowUnsafeCode": false,
     "overrideReferences": false,

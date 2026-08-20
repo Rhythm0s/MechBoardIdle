@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using System.IO;
 using MBI.Combat;
 using MBI.Data;
+using MBI.Idle;
 using MBI.Logistics;
 using MBI.UI;
 using UnityEditor;
@@ -55,6 +56,12 @@ namespace MBI.Editor
             var layerSo = new SerializedObject(layer);
             layerSo.FindProperty("cam").objectReferenceValue = cam;
             layerSo.ApplyModifiedPropertiesWithoutUndo();
+
+            // 방치 런타임(§5-7): 세이브 로드·주기 저장. 실행 순서가 앞서므로 다른 컴포넌트가
+            // Start에서 세이브를 읽어도 이미 로드가 끝나 있다.
+            var idleGo = new GameObject("IdleRuntime");
+            EditorSceneManager.MoveGameObjectToScene(idleGo, scene);
+            idleGo.AddComponent<IdleRuntime>();
 
             BuildCombat(scene);
             BuildBoard(scene);

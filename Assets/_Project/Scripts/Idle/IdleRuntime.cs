@@ -1,0 +1,79 @@
+using MBI.Core;
+using UnityEngine;
+
+namespace MBI.Idle
+{
+    /// <summary>
+    /// 방치 런타임(§5-7) — 세이브를 읽고, 지갑을 들고, 주기적으로 저장한다.
+    ///
+    /// 순수 로직(<see cref="SaveDataV1"/>·<see cref="CurrencyWallet"/>·<see cref="ISaveStore"/>)은
+    /// 전부 MBI.Core에 있고 여기는 **얇은 어댑터**다 — 씬 수명주기와 시간만 붙인다.
+    /// MBI.Idle은 Combat/Logistics를 참조하지 않는다. 결합이 필요하면 static 채널로 연결한다.
+    ///
+    /// 실행 순서를 앞으로 당겨 둔다: 다른 컴포넌트가 Start에서 세이브를 읽을 때
+    /// 이미 로드가 끝나 있어야 "첫 프레임엔 값이 비어 있다"는 종류의 버그가 안 생긴다.
+    /// </summary>
+    [DefaultExecutionOrder(-100)]
+    public sealed class IdleRuntime : MonoBehaviour
+    {
+        [Tooltip("자동 저장 주기(초). 밸런스가 아니라 운영치 — 웹빌드엔 원자적 쓰기가 없어 너무 잦으면 손상 위험만 커진다.")]
+        [SerializeField] private float autosaveIntervalSeconds = 30f;
+
+        /// <summary>현재 세이브 데이터. 다른 시스템은 이걸 읽고 쓴 뒤 저장은 이 클래스에 맡긴다.</summary>
+        public SaveDataV1 Data { get; private set; }
+
+        /// <summary>재화 지갑(고철/강화재료 분리 — E2).</summary>
+        public CurrencyWallet Wallet { get; private set; }
+
+        private ISaveStore _store;
+        private IClock _clock;
+        private ResourceTicker _autosave;
+
+        private void Awake()
+        {
+            _store = new PlayerPrefsSaveStore();
+            _clock = new SystemClock();
+            _autosave = new ResourceTicker(autosaveIntervalSeconds);
+
+            // 파싱 실패·첫 실행은 둘 다 "기록 없음"으로 같게 다룬다(예외로 게임을 죽이지 않는다).
+            Data = _store.TryLoad(out SaveDataV1 loaded) ? loaded : new SaveDataV1();
+            Wallet = new CurrencyWallet(Data.scrap, Data.enhMaterial);
+        }
+
+        private void Update()
+        {
+            if (_autosave.TryConsume(Time.unscaledDeltaTime, out _)) Save();
+        }
+
+        // 웹빌드에서 탭 전환·최소화가 여기로 온다. 종료(OnApplicationQuit)는 브라우저에서 보장되지
+        // 않으므로 의존하지 않고, 이 두 지점 + 주기 저장으로 커버한다.
+        private void OnApplicationPause(bool paused)
+        {
+            if (paused) Save();
+        }
+
+        private void OnApplicationFocus(bool focused)
+        {
+            if (!focused) Save();
+        }
+
+        /// <summary>지갑·접속 시각을 세이브에 반영해 저장한다.</summary>
+        public void Save()
+        {
+            if (Data == null || _store == null) return;
+
+            Data.scrap = Wallet.Scrap;
+            Data.enhMaterial = Wallet.EnhMaterial;
+            Data.lastSeenUtcTicks = _clock.UtcNow.Ticks; // 꺼둔 시간 계산의 기준점
+            _store.Save(Data);
+        }
+
+        /// <summary>세이브 삭제 후 초기 상태로. 시연·디버그용.</summary>
+        public void ResetSave()
+        {
+            _store.Delete();
+            Data = new SaveDataV1();
+            Wallet = new CurrencyWallet();
+        }
+    }
+}
