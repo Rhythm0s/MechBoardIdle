@@ -104,6 +104,40 @@ namespace MBI.Core
         /// <summary>이 전투에서 누적 처치 수.</summary>
         public int TotalKills { get; private set; }
 
+        /// <summary>
+        /// 상주 파밍 층 여부. true면 승리·시간초과 판정을 하지 않는다(로봇 파괴만 남는다).
+        /// 스폰은 <see cref="FarmSpawner"/>가 밖에서 몰고 <see cref="SpawnBatch"/>로 넣는다 —
+        /// 도전 층의 유한 큐 스포너(SpawnDue)와 **한 엔진 안에서도 경로는 분리**된다.
+        /// </summary>
+        public bool Endless { get; set; }
+
+        /// <summary>
+        /// 적 배치를 즉시 투입한다(상주 파밍 보충용). 아레나 경계에 균등 배치 — 결정론, 난수 0.
+        /// 도전 층은 이 경로를 쓰지 않는다.
+        /// </summary>
+        public void SpawnBatch(IReadOnlyList<EnemySpawn> batch)
+        {
+            if (batch == null) return;
+            for (int i = 0; i < batch.Count; i++)
+            {
+                EnemySpawn s = batch[i];
+                _enemies.Add(new CombatEntity
+                {
+                    faction = Faction.Enemy,
+                    label = s.label,
+                    position = FarmSpawnRule.RingPosition(i, batch.Count, _arenaRadius),
+                    hp = s.hp,
+                    maxHp = s.hp,
+                    def = s.def,
+                    atk = s.atk,
+                    moveSpeed = s.moveSpeed,
+                    attackRange = s.attackRange,
+                    attackInterval = s.attackInterval,
+                    radius = s.radius,
+                });
+            }
+        }
+
         public CombatSimulation(RobotSetup robot, IReadOnlyList<EnemySpawn> spawns,
             float arenaRadius, float challengeTime, float spawnCadence)
         {
@@ -403,6 +437,11 @@ namespace MBI.Core
                 Result = CombatResult.LoseDead;
                 return;
             }
+            // 상주 파밍 층은 끝나지 않는다 — 전멸(승리)도 제한시간(패배)도 적용하지 않는다.
+            // 스포너가 계속 보충하므로 "전원 스폰 후 전멸"이 성립할 수 없고, 도전 층의 120초 제한도
+            // 파밍에는 없다(스테이지 기획서「이층 구조」). 로봇 파괴만 남는다.
+            if (Endless) return;
+
             if (_spawnedCount >= _spawnQueue.Count && _enemies.Count == 0)
             {
                 Result = CombatResult.Win;
