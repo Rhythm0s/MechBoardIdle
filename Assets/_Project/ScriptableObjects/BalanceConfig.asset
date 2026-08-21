@@ -24,3 +24,4 @@ MonoBehaviour:
   s4Cost: 100
   challengeTime: 120
   offlineCapHours: 36
+  storeCapacity: 40

@@ -27,8 +27,8 @@ MonoBehaviour:
   ports:
   - face: 3
     io: 0
-    kind: 0
+    kind: 1
   - face: 1
     io: 1
-    kind: 0
+    kind: 1
   balanceRef: {fileID: 11400000, guid: a00911652af86014e9b4ea1c7d0b41d5, type: 2}

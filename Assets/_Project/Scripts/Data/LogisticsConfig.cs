@@ -28,5 +28,8 @@ namespace MBI.Data
         public float heatGenerate = 8f;
         [Tooltip("TBD — 발열 임계. balance heatc = 12. heat>heatc면 감쇠.")]
         public float heatThreshold = 12f;
+
+        [Tooltip("⚠️ TBD — 저장 노드 1개가 더하는 재고 용량(발). 0 = 미확정 센티넬. 40발이 어디에 붙는 용량인지(저장 노드 없이도 40인지, 노드 하나가 40인지, 기본 재고에 얹는지)가 문서에서 갈리지 않았다 — 검증 대장 이월.")]
+        public float storageCapacityPerNodeTbd = 0f;
     }
 }

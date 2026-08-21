@@ -111,6 +111,7 @@ namespace MBI.Combat
             _mountCoef = stage.powerModel == StagePowerModel.Logistics
                 ? robot.mountCoef : robot.enhancedMountCoef;
             float origin = robot.balanceRef != null ? robot.balanceRef.origin : 100f;
+            float ammoCapacity = robot.balanceRef != null ? robot.balanceRef.storeCapacity : 40f;
             // 브릿지 게시 단위 = 물류 단위(마운트계수 미적용). 마운트계수는 판정식 내부 항이라 전투가 곱한다.
             // 초기값(격리 전투 씬). Game.unity는 Provider가 라이브로 덮어쓴다.
             LogisticsOutputBridge.Result = MockLogisticsOutput.Simulate(robot, 1f, robot.moduleMult, origin);
@@ -133,6 +134,10 @@ namespace MBI.Combat
                 aoeRadius = tuning.aoeRadiusTbd,
                 aoeSplashFactor = tuning.aoeSplashFactorTbd,
                 lines = new List<AmmoLine>(_lineBuffer),
+                // 재고는 단일 층(마운트 적재 = 창고 비축). 용량은 확정치 40(balance store).
+                // ⚠️ 전투 시작 재고는 원천 미규정 — 만재로 둔다(보고 대상).
+                ammoCapacity = ammoCapacity,
+                ammoInitialStock = ammoCapacity,
             };
 
             List<EnemySpawn> spawns = BuildSpawns();
@@ -203,7 +208,12 @@ namespace MBI.Combat
 
             bool running = _sim.Result == CombatResult.InProgress;
 
-            if (running) RefreshFireRate();
+            if (running)
+            {
+                RefreshFireRate();
+                // 창고 유입 = 라이브 군수 생산율. 재고가 마르면 발사가 멈춘다(탄약 소진 = 공격 정지).
+                _sim.AmmoSupplyRate = LogisticsOutputBridge.AmmoProduce;
+            }
 
             // 이동: 수동 입력이 있으면 수동이 우선, 없으면 유예 후 자동 조종이 맡는다.
             // 영상 시나리오의 수동 카이팅 연출과 방치 진행이 한 빌드에서 공존해야 하므로 둘 다 살린다.

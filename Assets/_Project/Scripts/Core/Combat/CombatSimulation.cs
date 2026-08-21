@@ -35,6 +35,8 @@ namespace MBI.Core
         public float aoeRadius;       // AoE(폭발) 스플래시 반경(TBD). 0이면 직격만.
         public float aoeSplashFactor; // AoE 스플래시 데미지 배율(TBD). 1이면 풀 데미지.
         public List<AmmoLine> lines; // 탄종별 발사 라인(ShotAllocator.AllocateRates 산출)
+        public float ammoCapacity;   // 재고 용량(발). 확정치 40 — 재고는 단일 층
+        public float ammoInitialStock; // 전투 시작 재고. ⚠️ 초기값은 원천 미규정 — 러너가 만재로 둔다
     }
 
     /// <summary>적 스폰 스펙(순수 값). 위치는 시뮬이 결정론적으로 배치.</summary>
@@ -75,6 +77,16 @@ namespace MBI.Core
         // 라인별 발사 누산기(1.0 도달 = 1발). 라인마다 제 주기로 쏘므로 단일 간격이 없다.
         private float[] _lineTimers = new float[0];
         private const float FireEpsilon = 1e-4f; // float 누적 오차로 발사를 흘리지 않기 위한 허용오차
+
+        // 탄약 재고(단일 층). 밸런스 확정 원칙: 탄약 소진 = 공격 정지, 대체 수단 없음.
+        private readonly AmmoInventory _ammo;
+
+        /// <summary>창고로 들어오는 생산율(발/초). 러너가 라이브 물류에서 매 프레임 주입한다.</summary>
+        public float AmmoSupplyRate { get; set; }
+
+        /// <summary>재고 잔량·적재율(HUD·만충 트리거용).</summary>
+        public float AmmoStock => _ammo.Stock;
+        public float AmmoFillRatio => _ammo.FillRatio;
 
         public CombatResult Result { get; private set; } = CombatResult.InProgress;
         public float Elapsed { get; private set; }
@@ -160,6 +172,8 @@ namespace MBI.Core
             _spawnQueue = new List<EnemySpawn>(spawns ?? new List<EnemySpawn>());
             _spawnPositions = BuildSpawnPositions(_spawnQueue.Count, arenaRadius);
 
+            _ammo = new AmmoInventory(robot.ammoCapacity, robot.ammoInitialStock);
+
             ResizeLineTimers(robot.lines != null ? robot.lines.Count : 0);
         }
 
@@ -209,6 +223,8 @@ namespace MBI.Core
             _shots.Clear();
             KillsThisTick = 0;
             Elapsed += dt;
+
+            _ammo.Produce(dt, AmmoSupplyRate); // 군수 → 창고 유입(용량 초과분은 버려진다)
 
             SpawnDue();
             MoveAndAttackEnemies(dt);
@@ -350,6 +366,9 @@ namespace MBI.Core
 
                     target = NearestLivingEnemyInRange();
                     if (target == null) { _lineTimers[li] = 0f; break; }
+
+                    // 탄약 소진 = 공격 정지(밸런스 확정 원칙). 재고가 없으면 그 발은 나가지 않는다.
+                    if (!_ammo.TryConsume(1f)) { _lineTimers[li] = 0f; break; }
 
                     FireOne(shot, target);
                 }

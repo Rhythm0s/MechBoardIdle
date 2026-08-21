@@ -67,6 +67,8 @@ namespace MBI.Editor
             if (json.economy != null && json.economy.offline != null && json.economy.offline.capHours > 0f)
                 c.offlineCapHours = json.economy.offline.capHours;
 
+            c.storeCapacity = json.Param("store"); // 확정치 40 — 재고 단일 층의 용량
+
             EditorUtility.SetDirty(c);
             return c;
         }
@@ -117,13 +119,16 @@ namespace MBI.Editor
                     new NodePort(PortFace.East, PortIO.Output, FlowKind.Power),
                 });
 
-            // 저장 — 물류 버퍼
+            // 저장 — 창고(버퍼). 군수 → 벨트 → 저장 → 벨트 → 마운트 소비.
+            // ⚠️ 2026-08-21 정정: 포트 kind가 Material이라 군수(Ammo) 출력과 FlowKind가 안 맞아
+            // 벨트 연결 자체가 성립하지 않았다. 조립 시스템 문서「노드 종류」표의 저장노드 행이
+            // 변환 노드 틀에 맞춰져 있어 "입력 없음"으로 읽힌 데서 온 결함이다.
             WriteNode(config, "stor", "저장", NodeType.Storage, true,
                 new NodeResourceProfile { confirm = ConfirmState.Tbd },
                 new List<NodePort>
                 {
-                    new NodePort(PortFace.West, PortIO.Input, FlowKind.Material),
-                    new NodePort(PortFace.East, PortIO.Output, FlowKind.Material),
+                    new NodePort(PortFace.West, PortIO.Input, FlowKind.Ammo),
+                    new NodePort(PortFace.East, PortIO.Output, FlowKind.Ammo),
                 });
 
             // 쉴드 발생 — 스키마 자리만(구현 보류, §4). implemented=false, 포트 없음.
