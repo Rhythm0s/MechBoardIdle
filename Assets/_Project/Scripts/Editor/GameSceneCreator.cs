@@ -61,7 +61,13 @@ namespace MBI.Editor
             // Start에서 세이브를 읽어도 이미 로드가 끝나 있다.
             var idleGo = new GameObject("IdleRuntime");
             EditorSceneManager.MoveGameObjectToScene(idleGo, scene);
-            idleGo.AddComponent<IdleRuntime>();
+            var idle = idleGo.AddComponent<IdleRuntime>();
+            var iso = new SerializedObject(idle);
+            iso.FindProperty("economy").objectReferenceValue =
+                Load<EconomyConfig>($"{SoRoot}/EconomyConfig.asset");
+            iso.FindProperty("balance").objectReferenceValue =
+                Load<BalanceConfig>($"{SoRoot}/BalanceConfig.asset");
+            iso.ApplyModifiedPropertiesWithoutUndo();
 
             BuildCombat(scene);
             BuildBoard(scene);

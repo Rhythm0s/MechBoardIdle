@@ -1,4 +1,5 @@
 using MBI.Core;
+using MBI.Data;
 using UnityEngine;
 
 namespace MBI.Idle
@@ -18,6 +19,10 @@ namespace MBI.Idle
     {
         [Tooltip("자동 저장 주기(초). 밸런스가 아니라 운영치 — 웹빌드엔 원자적 쓰기가 없어 너무 잦으면 손상 위험만 커진다.")]
         [SerializeField] private float autosaveIntervalSeconds = 30f;
+        [Tooltip("경제 미확정치(마리당 고철·오프라인 계수·기본 시급). 씬 생성기가 주입.")]
+        [SerializeField] private EconomyConfig economy;
+        [Tooltip("밸런스 계약 미러(오프라인 상한 36h). 씬 생성기가 주입.")]
+        [SerializeField] private BalanceConfig balance;
 
         /// <summary>현재 세이브 데이터. 다른 시스템은 이걸 읽고 쓴 뒤 저장은 이 클래스에 맡긴다.</summary>
         public SaveDataV1 Data { get; private set; }
@@ -25,12 +30,16 @@ namespace MBI.Idle
         /// <summary>재화 지갑(고철/강화재료 분리 — E2).</summary>
         public CurrencyWallet Wallet { get; private set; }
 
+        /// <summary>이번 접속에서 지급된 오프라인 보상(표시용). 없으면 scrap 0.</summary>
+        public OfflineRewardResult LastOfflineReward { get; private set; }
+
         private ISaveStore _store;
         private IClock _clock;
         private ResourceTicker _autosave;
 
         private void Awake()
         {
+            IdleSignals.Reset(); // 도메인 리로드 비활성 시 이전 Play의 신호가 남는 것 방지
             _store = new PlayerPrefsSaveStore();
             _clock = new SystemClock();
             _autosave = new ResourceTicker(autosaveIntervalSeconds);
@@ -38,11 +47,53 @@ namespace MBI.Idle
             // 파싱 실패·첫 실행은 둘 다 "기록 없음"으로 같게 다룬다(예외로 게임을 죽이지 않는다).
             Data = _store.TryLoad(out SaveDataV1 loaded) ? loaded : new SaveDataV1();
             Wallet = new CurrencyWallet(Data.scrap, Data.enhMaterial);
+
+            SettleOffline();
         }
 
         private void Update()
         {
+            CreditSignals();
             if (_autosave.TryConsume(Time.unscaledDeltaTime, out _)) Save();
+        }
+
+        /// <summary>
+        /// 전투가 놓고 간 신호를 재화로 바꾼다. **적립 규칙이 사는 유일한 자리다** —
+        /// 전투 코드가 지갑을 직접 만지면 규칙이 두 곳으로 흩어진다.
+        /// 신호는 가져가며 비우므로 같은 처치·클리어를 두 번 세지 않는다.
+        /// </summary>
+        private void CreditSignals()
+        {
+            int kills = IdleSignals.DrainKills();
+            if (kills > 0)
+            {
+                double perKill = economy != null ? economy.scrapPerKillTbd : 0d;
+                Wallet.AddScrap(KillRewardRule.Scrap(kills, perKill));
+                Data.totalKills += kills;
+            }
+
+            if (IdleSignals.TryDrainClear(out ClearReport clear))
+            {
+                // 최초 클리어에만 강화재료. 재지급하면 Σ(S1~S3)=s4Cost인 닫힌 곡선이 무너진다.
+                if (Data.MarkCleared(clear.stageId))
+                    Wallet.AddEnhMaterial(clear.enhMaterialReward);
+            }
+        }
+
+        /// <summary>
+        /// 꺼둔 동안의 보상을 지급한다(§5-7). 상주 스테이지 기록 한 곳만 쓰고, 고철만 준다.
+        /// 계수·기본 시급이 TBD(0)면 지급이 0이 된다 — 미확정을 기본값으로 덮어 감추지 않는다.
+        /// </summary>
+        private void SettleOffline()
+        {
+            double coef = economy != null ? economy.offlineCoefTbd : 0d;
+            double baseRate = economy != null ? economy.offlineBaseRateTbd : 0d;
+            double capHours = balance != null ? balance.offlineCapHours : 36d;
+
+            OfflineRewardResult r = OfflineRewardCalculator.FromSave(Data, _clock, coef, capHours, baseRate);
+            LastOfflineReward = r;
+
+            if (r.scrap > 0d) Wallet.AddScrap(r.scrap);
         }
 
         // 웹빌드에서 탭 전환·최소화가 여기로 온다. 종료(OnApplicationQuit)는 브라우저에서 보장되지
