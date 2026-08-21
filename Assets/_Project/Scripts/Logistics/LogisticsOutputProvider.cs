@@ -17,7 +17,7 @@ namespace MBI.Logistics
         public BoardController board;
         [Tooltip("병목 파라미터(TBD). 없으면 기본값.")]
         public LogisticsConfig config;
-        [Tooltip("로봇. 명목 출력·원점·천장·탄약 수요의 단일 원천. 씬 생성기가 주입.")]
+        [Tooltip("로봇. 명목 출력·원점·탄약 수요의 단일 원천. 씬 생성기가 주입.")]
         public RobotDefinition robot;
         [Tooltip("실측(actual) 롤링 창(초). 밸런스 계약(CLAUDE.md §9 실측 60초 롤링) — 임의 변경 금지.")]
         public float rollingWindow = 60f;
@@ -27,7 +27,6 @@ namespace MBI.Logistics
         private const int ChExpected = 0, ChActual = 1, ChGapPower = 2, ChGapHeat = 3, ChGapBelt = 4;
         private RollingWindow _roll;
         private readonly float[] _sample = new float[5];
-        private bool _wasOverCeiling;
 
         private void Awake()
         {
@@ -41,11 +40,10 @@ namespace MBI.Logistics
             BoardGrid grid = board.Grid;
             if (grid == null) return;
 
-            // 145·100·1.6·6은 인스펙터 리터럴이 아니라 전부 원천에서 온다(§3 수치 하드코딩 금지).
+            // 145·100·6은 인스펙터 리터럴이 아니라 전부 원천에서 온다(§3 수치 하드코딩 금지).
             // 브릿지는 물류 단위 = 마운트계수 미적용(마운트계수는 판정식 내부 항 = 전투 측).
             float baseOutput = RobotOutput.Nominal(robot.weapons, 1f, robot.moduleMult);
             float origin = robot.balanceRef != null ? robot.balanceRef.origin : 100f;
-            float ceilMult = robot.balanceRef != null ? robot.balanceRef.ceil : 1.6f;
             float ammoDemand = robot.consumptionCap;
 
             NetworkAggregate agg = LogisticsNetwork.Aggregate(grid);
@@ -71,15 +69,10 @@ namespace MBI.Logistics
                 agg.powerSupply, agg.powerDraw,
                 agg.heatGenerate, agg.heatDissipate, heatThreshold,
                 beltCapacity, agg.ammoProduce, // 운송 필요 proxy = 탄약 생산량
-                origin, ceilMult);
-
-            // over-build 경고(전이 시 1회): 물류 단독 명목 배율이 물리 상한 초과 = 설계 오류 신호(클램프 삭제 §L4-R #2).
-            if (r.overCeiling && !_wasOverCeiling)
-                Debug.LogWarning($"[MBI] 물류 명목 배율 {r.multiple:F2} > 천장 {ceilMult:F1} — over-build(물리 상한 초과). balance/보드 물리 상한 확인.");
-            _wasOverCeiling = r.overCeiling;
+                origin);
 
             // 크기값(예상·실제·갭 분해)은 전부 같은 창으로 굴린다 → 분해합 == 총갭이 유지된다.
-            // 배율·플래그(powerEfficiency/heatThrottle/beltThrottle/multiple/overCeiling)는 즉시값 그대로 —
+            // 배율·플래그(powerEfficiency/heatThrottle/beltThrottle/multiple)는 즉시값 그대로 —
             // 비율을 평균내면 의미가 흐려지고, 원인 배지·경고는 지금 상태를 가리켜야 한다.
             _sample[ChExpected] = r.expected;
             _sample[ChActual] = r.actual;

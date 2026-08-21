@@ -48,13 +48,13 @@ namespace MBI.Tests
         }
 
         private static LogisticsResult NoBottleneck() =>
-            LogisticsSimulation.Compute(145f, 80f, 66f, 8f, 0f, 12f, 14f, 10f, 100f, 1.6f);
+            LogisticsSimulation.Compute(145f, 80f, 66f, 8f, 0f, 12f, 14f, 10f, 100f);
 
         private static LogisticsResult PowerStarved() =>
-            LogisticsSimulation.Compute(145f, 33f, 66f, 8f, 0f, 12f, 14f, 10f, 100f, 1.6f); // eff 0.5
+            LogisticsSimulation.Compute(145f, 33f, 66f, 8f, 0f, 12f, 14f, 10f, 100f); // eff 0.5
 
         private static LogisticsResult HeatThrottled() =>
-            LogisticsSimulation.Compute(145f, 80f, 66f, 24f, 0f, 12f, 14f, 10f, 100f, 1.6f); // 전력 정상 · 발열 0.5
+            LogisticsSimulation.Compute(145f, 80f, 66f, 24f, 0f, 12f, 14f, 10f, 100f); // 전력 정상 · 발열 0.5
 
         [Test]
         public void Diagnose_StructuralAndGlobalCauses()

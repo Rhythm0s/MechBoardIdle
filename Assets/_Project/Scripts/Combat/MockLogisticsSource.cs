@@ -26,9 +26,8 @@ namespace MBI.Combat
             if (robot == null) return;
 
             float origin = robot.balanceRef != null ? robot.balanceRef.origin : 100f;
-            float ceilMult = robot.balanceRef != null ? robot.balanceRef.ceil : 1.6f;
 
-            LogisticsOutputBridge.Result = MockLogisticsOutput.Simulate(robot, 1f, robot.moduleMult, origin, ceilMult);
+            LogisticsOutputBridge.Result = MockLogisticsOutput.Simulate(robot, 1f, robot.moduleMult, origin);
             LogisticsOutputBridge.AmmoProduce = robot.consumptionCap; // 격리 씬 = 수요만큼 공급된다고 본다
             LogisticsOutputBridge.GlobalCause = ConstraintCause.None;
         }

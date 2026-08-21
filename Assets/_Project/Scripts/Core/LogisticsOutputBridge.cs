@@ -16,7 +16,7 @@ namespace MBI.Core
     /// </summary>
     public static class LogisticsOutputBridge
     {
-        /// <summary>롤링 적용된 물류 산출 결과 일체(expected/actual/gap + 분해 3항 + 배율·overCeiling).</summary>
+        /// <summary>롤링 적용된 물류 산출 결과 일체(expected/actual/gap + 분해 3항 + 배율).</summary>
         public static LogisticsResult Result;
 
         /// <summary>라이브 네트워크 군수 생산율(발/초). 전투 HUD의 저장고 표시용(라이브 없으면 0).</summary>

@@ -43,8 +43,6 @@ namespace MBI.UI
             GUILayout.Space(4f);
 
             GUILayout.Label($"명목 배율 ×{r.multiple:F2}", _label);
-            if (r.overCeiling)
-                GUILayout.Label("⚠ 물리 상한 초과(over-build)", Warn(_label));
 
             string cause = CauseText(LogisticsOutputBridge.GlobalCause);
             if (cause != null && Blink())

@@ -7,8 +7,12 @@ namespace MBI.Core
     ///
     /// expected = 위상+노드레이트 명목(병목 미적용) / actual = 병목 효율 곱 / gap = expected−actual(총 손실).
     /// 클램프 없음: 물류 천장(×ceil)은 물리의 *결과*지 시스템 캡이 아니다(밸런스 "시스템 개입 안 함").
-    /// 명목 배율 multiple=expected/origin이 ceilMult를 넘으면 overCeiling(=over-build 경고·검증 RED 신호).
     /// actual은 병목상 항상 expected 이하라 별도 클램프가 필요 없다.
+    ///
+    /// ⚠️ 2026-08-21: 145 기준 overCeiling 판정을 **제거**했다. 145는 천장이 아니라 S3 돌파 실측선이고,
+    /// 물류 단독 상한 160은 탄종 조합의 이론 최대치(폭발만 채우면 50×6=300)를 규칙으로 막는 값이 아니다.
+    /// 천장 담보는 **보드 물리 상한(그리드 크기·라인 수)** 이 지며 그 설계는 검증 대장 이월 항목이다 —
+    /// 물리가 막아야 할 것을 규칙이 막던 구조였다. `multiple`은 표시용으로 남긴다.
     /// </summary>
     public struct LogisticsResult
     {
@@ -25,8 +29,7 @@ namespace MBI.Core
         public float heatThrottle;     // 발열 감쇠 배율
         public float beltThrottle;     // 벨트 용량 감쇠 배율
 
-        public float multiple;    // expected / origin (명목 물리 배율)
-        public bool overCeiling;  // multiple > ceilMult(+ε) → 물리 상한 초과(over-build). 경고·검증 RED
+        public float multiple;    // expected / origin (명목 물리 배율 — 표시용, 판정 아님)
         public bool bottlenecked; // 어느 배율이라도 <1
     }
 
@@ -38,19 +41,17 @@ namespace MBI.Core
     ///   - 벨트: 필요 ≤ 용량이면 무손실, 초과 시 용량/필요로 감쇠.
     ///   - 발열: (발생−냉각) > 임계면 임계/순발열로 감쇠.
     ///   - 물류 무개입: 별도 수치 보너스 없음 — 효율은 물리(처리율)에서만.
-    ///   - 물류 천장: 물류 단독 명목 배율은 origin×ceil(=160)을 초과할 수 없어야 함 → 초과 시 overCeiling(설계 오류 신호).
+    ///   - 물류 천장: 담보는 보드 물리 상한(그리드·라인 수)이 진다. 여기서 규칙으로 막지 않는다(2026-08-21).
     /// baseOutput = 병목 없을 때의 명목 출력(대표 상태 = 관통1+분열1+폭발2 = 145).
     /// </summary>
     public static class LogisticsSimulation
     {
-        private const float CeilEpsilon = 1e-4f;
-
         public static LogisticsResult Compute(
             float baseOutput,
             float powerSupply, float powerDraw,
             float heatGenerate, float heatDissipate, float heatThreshold,
             float beltCapacity, float beltDemand,
-            float origin, float ceilMult)
+            float origin)
         {
             float powerEff = powerDraw > 0f ? Mathf.Clamp01(powerSupply / powerDraw) : 1f;
 
@@ -68,7 +69,6 @@ namespace MBI.Core
             float actual = afterHeat * beltThrottle;
 
             float multiple = origin > 0f ? expected / origin : 0f;
-            bool overCeiling = ceilMult > 0f && multiple > ceilMult + CeilEpsilon;
 
             return new LogisticsResult
             {
@@ -82,7 +82,6 @@ namespace MBI.Core
                 heatThrottle = heatThrottle,
                 beltThrottle = beltThrottle,
                 multiple = multiple,
-                overCeiling = overCeiling,
                 bottlenecked = powerEff < 1f || heatThrottle < 1f || beltThrottle < 1f,
             };
         }

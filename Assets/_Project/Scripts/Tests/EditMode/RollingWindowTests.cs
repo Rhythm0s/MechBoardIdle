@@ -72,10 +72,10 @@ namespace MBI.Tests
             var w = new RollingWindow(5, 60f, 0f); // 솎기 없이 전부 담아 검증
             LogisticsResult[] frames =
             {
-                LogisticsSimulation.Compute(145f, 80f, 66f, 8f, 0f, 12f, 14f, 10f, 100f, 1.6f),  // 병목 없음
-                LogisticsSimulation.Compute(145f, 33f, 66f, 8f, 0f, 12f, 14f, 10f, 100f, 1.6f),  // 전력 0.5
-                LogisticsSimulation.Compute(145f, 33f, 66f, 24f, 0f, 12f, 14f, 10f, 100f, 1.6f), // 전력·발열
-                LogisticsSimulation.Compute(145f, 80f, 66f, 8f, 0f, 12f, 14f, 28f, 100f, 1.6f),  // 벨트 초과
+                LogisticsSimulation.Compute(145f, 80f, 66f, 8f, 0f, 12f, 14f, 10f, 100f),  // 병목 없음
+                LogisticsSimulation.Compute(145f, 33f, 66f, 8f, 0f, 12f, 14f, 10f, 100f),  // 전력 0.5
+                LogisticsSimulation.Compute(145f, 33f, 66f, 24f, 0f, 12f, 14f, 10f, 100f), // 전력·발열
+                LogisticsSimulation.Compute(145f, 80f, 66f, 8f, 0f, 12f, 14f, 28f, 100f),  // 벨트 초과
             };
 
             for (int i = 0; i < frames.Length; i++)
