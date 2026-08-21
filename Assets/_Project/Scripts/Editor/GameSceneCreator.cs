@@ -84,6 +84,12 @@ namespace MBI.Editor
 
             RobotDefinition robot = Load<RobotDefinition>($"{SoRoot}/Robots/Robot_A.asset");
             StageDefinition stage = Load<StageDefinition>($"{SoRoot}/Stages/Stage_S1.asset");
+            var stageList = new List<StageDefinition>();
+            foreach (string id in new[] { "S1", "S2", "S3", "S4", "S5", "S6" })
+            {
+                StageDefinition sd = Load<StageDefinition>($"{SoRoot}/Stages/Stage_{id}.asset");
+                if (sd != null) stageList.Add(sd);
+            }
             EnemyDefinition[] enemies =
             {
                 Load<EnemyDefinition>($"{SoRoot}/Enemies/Enemy_infantry.asset"),
@@ -108,6 +114,18 @@ namespace MBI.Editor
                 cat.GetArrayElementAtIndex(idx).objectReferenceValue = e;
             }
             so.ApplyModifiedPropertiesWithoutUndo();
+
+            // 자동 전투 진행(§5-7): 전투가 끝나면 스스로 다음 판을 건다.
+            // 사람이 "다시"를 눌러야 이어지면 방치형이 아니다.
+            var auto = go.AddComponent<AutoBattleController>();
+            var aso = new SerializedObject(auto);
+            aso.FindProperty("runner").objectReferenceValue = runner;
+            aso.FindProperty("tuning").objectReferenceValue = LoadOrCreateTuning();
+            SerializedProperty sl = aso.FindProperty("stages");
+            sl.arraySize = stageList.Count;
+            for (int i = 0; i < stageList.Count; i++)
+                sl.GetArrayElementAtIndex(i).objectReferenceValue = stageList[i];
+            aso.ApplyModifiedPropertiesWithoutUndo();
         }
 
         // 레이어2 — 물류 보드(하단 오프셋). LogisticsSceneCreator와 동일한 주입.

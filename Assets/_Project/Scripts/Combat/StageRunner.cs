@@ -21,6 +21,17 @@ namespace MBI.Combat
         public CombatTuning tuning;
         [Tooltip("적 카탈로그(atk 조회용). Enemy_infantry/artillery/armor/boss.")]
         public List<EnemyDefinition> enemyCatalog = new List<EnemyDefinition>();
+        [Tooltip("자동 조종(방치). 수동 입력이 들어오면 잠시 양보한다.")]
+        public bool autoPilot = true;
+
+        /// <summary>전투 시뮬(자동 전투 컨트롤러가 결과·처치를 읽는다). Begin 전에는 null.</summary>
+        public CombatSimulation Sim => _sim;
+
+        /// <summary>현재 전투 결과. 시뮬이 없으면 진행 중으로 본다.</summary>
+        public CombatResult CurrentResult => _sim != null ? _sim.Result : CombatResult.InProgress;
+
+        /// <summary>현재 스테이지 SO.</summary>
+        public StageDefinition CurrentStage => stage;
 
         private CombatSimulation _sim;
         private CombatEntityView _robotView;
@@ -32,6 +43,7 @@ namespace MBI.Combat
         private float _lastScale = 1f;                                  // 마지막으로 반영한 물류 배율
         private readonly List<AmmoLine> _lineBuffer = new List<AmmoLine>(); // 재배분 버퍼(프레임당 할당 0)
         private const float ScaleEpsilon = 0.001f;                      // 이만큼 변해야 재배분
+        private float _manualHoldUntil;                                 // 이 시각까지는 수동 우선(자동 정지)
         private float _mountCoef;
         private bool _ready;
 
@@ -194,11 +206,27 @@ namespace MBI.Combat
 
             if (running) RefreshFireRate();
 
-            // 플레이어 이동(WASD/화살표) — 카이팅. 진행 중에만.
+            // 이동: 수동 입력이 있으면 수동이 우선, 없으면 유예 후 자동 조종이 맡는다.
+            // 영상 시나리오의 수동 카이팅 연출과 방치 진행이 한 빌드에서 공존해야 하므로 둘 다 살린다.
             if (running)
             {
                 Vector2 mv = MoveInput();
-                if (mv != Vector2.zero)
+                if (mv != Vector2.zero) _manualHoldUntil = Time.time + tuning.manualOverrideGraceTbd;
+
+                if (mv == Vector2.zero && autoPilot && Time.time >= _manualHoldUntil)
+                {
+                    var ctx = new AutoPilotContext
+                    {
+                        robotPos = _sim.Robot.position,
+                        enemies = _sim.Enemies,
+                        arenaRadius = tuning.arenaRadiusTbd,
+                        desiredGap = tuning.autoPilotDesiredGapTbd,
+                        moveSpeed = tuning.robotMoveSpeedTbd,
+                        dt = Time.deltaTime,
+                    };
+                    _sim.Robot.position = AutoPilotPolicy.NextPosition(ctx);
+                }
+                else if (mv != Vector2.zero)
                 {
                     Vector2 pos = _sim.Robot.position + mv.normalized * tuning.robotMoveSpeedTbd * Time.deltaTime;
                     float maxR = tuning.arenaRadiusTbd;
@@ -208,6 +236,9 @@ namespace MBI.Combat
             }
 
             _sim.Tick(Time.deltaTime);
+
+            // 처치를 방치 런타임으로 흘린다. 가져가며 비우는 API라 같은 처치를 두 번 세지 않는다.
+            IdleSignals.AddKills(_sim.ConsumeKills());
 
             // 이번 틱 사격 연출(탄선 + 피격). 실제 틱이 돈 경우만(종료 후 스테일 재생성 방지).
             if (running)
@@ -324,7 +355,19 @@ namespace MBI.Combat
         }
 
         /// <summary>씬 리로드 없이 전투를 재시작(뷰 정리 후 재구성). Build Settings 비의존.</summary>
-        private void Restart()
+        /// <summary>
+        /// 스테이지를 갈아끼우고 재시작한다(자동 전투 진행용). 씬 리로드 없음 — 연속성 원칙.
+        /// null이면 무시한다(생성기 미실행 등으로 SO가 비어 있을 때 조용히 죽지 않게).
+        /// </summary>
+        public void LoadStage(StageDefinition next)
+        {
+            if (next == null) return;
+            stage = next;
+            Restart();
+        }
+
+        /// <summary>뷰만 정리하고 전투를 다시 구성한다. 씬 리로드 없음.</summary>
+        public void Restart()
         {
             _ready = false;
             foreach (KeyValuePair<CombatEntity, CombatEntityView> kv in _enemyViews)

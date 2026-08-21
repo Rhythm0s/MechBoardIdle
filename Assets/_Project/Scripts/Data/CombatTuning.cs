@@ -38,6 +38,14 @@ namespace MBI.Data
         [Tooltip("TBD — 아레나 반경(유닛). 적은 이 반경 경계에서 스폰되어 중앙 로봇으로 접근.")]
         public float arenaRadiusTbd = 6f;
 
+        [Header("자동 전투 (⚠️ TBD — 밸런스 아님, 연출·조작감)")]
+        [Tooltip("TBD — 자동 조종이 유지하려는 거리(유닛). 이보다 가까우면 물러난다.")]
+        public float autoPilotDesiredGapTbd = 3f;
+        [Tooltip("TBD — 수동 입력 후 자동 조종이 다시 잡기까지의 유예(초). 조작 중 자동이 끼어들지 않게.")]
+        public float manualOverrideGraceTbd = 2f;
+        [Tooltip("TBD — 전투 종료 후 자동 재시작까지 대기(초). 승리 연출을 볼 시간 vs 방치 효율.")]
+        public float autoRestartDelayTbd = 1.5f;
+
         [Header("히트 패턴 (로봇A 탄종 = 단일 표적)")]
         // 플레이어블 로봇 기획서「무기 스펙트럼」(스테이징): 등가선은 단일 표적 기준, 표적 수/광역은 스펙트럼 밖 역할 축(드론 2종 한정).
         // → 로봇A 관통/분열/폭발은 전부 단일 표적. 멀티샷/AoE 메커니즘(HitResolver)은 드론용으로 보존.
