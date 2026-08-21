@@ -32,6 +32,9 @@ namespace MBI.Editor
             BalanceConfig config = BuildConfig(json);
             BuildNodes(config, json);
 
+            // 미확정치 SO는 만들기만 하고 값은 덮어쓰지 않는다 — 생성기 재실행이 조정값을 지우면 안 된다.
+            LoadOrCreate<EconomyConfig>(SoRoot + "/EconomyConfig.asset");
+
             AssetDatabase.SaveAssets();
             AssetDatabase.Refresh();
 
@@ -58,6 +61,11 @@ namespace MBI.Editor
             c.s4Cost = json.enhance.s4Cost;
 
             c.challengeTime = json.Stage("S1").challengeTime;
+
+            // 경제 항목 중 확정치는 상한 하나뿐. 계수·기본 시급은 confirmed:false라 여기 두지 않는다
+            // (생성기가 덮어써서 인스펙터 조정이 날아가는 것을 막는다 — EconomyConfig 참조).
+            if (json.economy != null && json.economy.offline != null && json.economy.offline.capHours > 0f)
+                c.offlineCapHours = json.economy.offline.capHours;
 
             EditorUtility.SetDirty(c);
             return c;

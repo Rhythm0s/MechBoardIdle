@@ -23,3 +23,4 @@ MonoBehaviour:
   s4Band: {x: 186, y: 215}
   s4Cost: 100
   challengeTime: 120
+  offlineCapHours: 36

@@ -20,6 +20,9 @@ MonoBehaviour:
   powerModel: 0
   challengeTime: 120
   enhMaterialReward: 37
+  spawnCap: 0
+  spawnInterval: 0
+  spawnConfirmed: 0
   composition:
   - enemyKey: infantry
     count: 40

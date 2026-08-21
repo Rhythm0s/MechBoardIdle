@@ -70,6 +70,14 @@ namespace MBI.Data
         [Tooltip("클리어 강화재료 보상(도전 한정 재화, E2). S1 30 / S2 33 / S3 37 / S4~ 0.")]
         public float enhMaterialReward;
 
+        [Header("상주 파밍 (⚠️ TBD — 스테이지 기획서「파밍 규칙」)")]
+        [Tooltip("TBD — 맵 정원 M(동시 생존 상한). N초마다 이 수까지 한 번에 보충한다. 0 = 미확정(파밍 미가동).")]
+        public int spawnCap;
+        [Tooltip("TBD — 스폰 간격 N(초, 15/20/30 격자). 한 바퀴 길이와 같다. 0 = 미확정.")]
+        public float spawnInterval;
+        [Tooltip("정원·간격이 검증 대장에서 확정됐는가. false면 위 두 값은 placeholder다.")]
+        public bool spawnConfirmed;
+
         [Header("몬스터 구성 (§9 곡선)")]
         [Tooltip("등장 몬스터 인스턴스. hp/def/수 확정치.")]
         public List<StageComposition> composition = new List<StageComposition>();

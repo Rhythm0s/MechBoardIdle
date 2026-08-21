@@ -120,6 +120,12 @@ namespace MBI.Editor
                 d.enhMaterialReward = s.enhMaterialReward;
                 d.bossHp = s.bossHp;
 
+                // 상주 파밍 정원·간격(둘 다 TBD 0). 0이면 FarmSpawner가 돌지 않는다 —
+                // 미확정 상태를 기본값으로 덮어 감추지 않는다.
+                d.spawnCap = s.spawnCap;
+                d.spawnInterval = s.spawnInterval;
+                d.spawnConfirmed = s.spawnConfirmed;
+
                 var comp = new List<StageComposition>();
                 if (s.composition != null)
                 {

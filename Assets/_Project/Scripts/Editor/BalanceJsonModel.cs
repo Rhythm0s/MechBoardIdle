@@ -17,6 +17,7 @@ namespace MBI.Editor
         public EnemyEntry[] enemies;   // v4: 몬스터 카탈로그(atk만; hp/def는 스테이지 composition)
         public StageEntry[] stages;
         public EnhanceBlock enhance;
+        public EconomyBlock economy;   // 경제 계약. 확정치는 capHours 하나뿐(나머지는 params의 TBD)
 
         /// <summary>params 배열에서 key로 value 조회(없으면 예외 — 앵커 누락을 조기 노출).</summary>
         public float Param(string key)
@@ -84,6 +85,9 @@ namespace MBI.Editor
         public float challengeTime;
         public string powerModel;  // logistics | enhanced | tag | burst
         public float enhMaterialReward;
+        public int spawnCap;        // 상주 파밍 정원 M (TBD, 0 = 미확정)
+        public float spawnInterval; // 상주 파밍 스폰 간격 N초 (TBD, 0 = 미확정)
+        public bool spawnConfirmed; // 위 둘이 검증 대장에서 확정됐는가
         public float bossHp;       // S6만 유효(그 외 0)
         public CompEntry[] composition; // 스테이지별 몬스터 인스턴스(enemy·count·hp·def)
     }
@@ -104,5 +108,16 @@ namespace MBI.Editor
         public float[] s4Band;
         public float[] enhBand;
         public float snapBand;
+    }
+
+    /// <summary>경제 계약. 문자열 서술 필드는 미러하지 않고 계약 수치만 가져온다.</summary>
+    [Serializable] public sealed class EconomyBlock
+    {
+        public OfflineBlock offline;
+    }
+
+    [Serializable] public sealed class OfflineBlock
+    {
+        public float capHours;     // 확정치 36. 계수·기본 시급은 params의 TBD라 여기 없다
     }
 }

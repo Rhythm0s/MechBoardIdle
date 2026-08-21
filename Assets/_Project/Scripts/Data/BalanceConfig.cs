@@ -46,6 +46,10 @@ namespace MBI.Data
         [Tooltip("도전 제한시간(초). stages[].challengeTime.")]
         public float challengeTime = 120f;
 
+        [Header("경제")]
+        [Tooltip("오프라인 보상 인정 상한(시간). economy.offline.capHours = 36 — 경제 항목 중 유일한 확정치. 계수·기본 시급은 TBD라 EconomyConfig에 있다.")]
+        public float offlineCapHours = 36f;
+
         /// <summary>물류 단독 천장 = origin * ceil. S3req &lt; 천장 &lt; S4밴드 (S4가 강화-only 벽).</summary>
         public float LogisticsCeiling => origin * ceil;
     }

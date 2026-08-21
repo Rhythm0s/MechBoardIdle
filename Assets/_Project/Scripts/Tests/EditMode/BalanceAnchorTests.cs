@@ -120,5 +120,49 @@ namespace MBI.Tests
             Assert.GreaterOrEqual(enhanced, _config.s4Band.x, "강화 결과 ≥ S4 밴드 하한");
             Assert.LessOrEqual(enhanced, _config.s4Band.y, "강화 결과 ≤ S4 밴드 상한");
         }
+
+        // ---- 6. 오프라인 상한 = 36시간 (경제 항목 중 유일한 확정치) ----
+        [Test]
+        public void Anchor6_OfflineCapHours_Is36_MirrorsSource()
+        {
+            float src = _json.economy != null && _json.economy.offline != null ? _json.economy.offline.capHours : 0f;
+            TestContext.WriteLine($"[재현] economy.offline.capHours = {src} → BalanceConfig {_config.offlineCapHours}");
+
+            Assert.AreEqual(36f, src, Delta, "원천 계약값");
+            Assert.AreEqual(36f, _config.offlineCapHours, Delta, "SO 미러");
+        }
+
+        // ---- 드리프트 트립와이어: 경제 TBD가 확정되면 여기서 실패해 승격 판단을 강제한다 ----
+        [Test]
+        public void EconomyTbdParams_StillUnconfirmed()
+        {
+            foreach (string key in new[] { "scrapPerKill", "offlineCoef", "offlineBaseRate" })
+            {
+                bool confirmed = ParamConfirmed(key);
+                TestContext.WriteLine($"[재현] {key}.confirmed = {confirmed}");
+                Assert.IsFalse(confirmed,
+                    $"{key}가 확정됐다 — EconomyConfig의 TBD 필드를 계약 미러(BalanceConfig)로 승격할지 판단할 것");
+            }
+        }
+
+        // ---- 상주 파밍 정원·간격도 아직 미확정 ----
+        [Test]
+        public void StageSpawnParams_StillUnconfirmed()
+        {
+            foreach (string id in new[] { "S1", "S2", "S3", "S4", "S5", "S6" })
+            {
+                StageEntry s = _json.Stage(id);
+                TestContext.WriteLine($"[재현] {id} spawnCap={s.spawnCap} spawnInterval={s.spawnInterval} confirmed={s.spawnConfirmed}");
+                Assert.IsFalse(s.spawnConfirmed, $"{id} 정원·간격이 확정됐다 — 값을 검증 대장에서 SO로 반영할 것");
+            }
+        }
+
+        private bool ParamConfirmed(string key)
+        {
+            if (_json.paramList == null) return false;
+            foreach (ParamEntry p in _json.paramList)
+                if (p.key == key) return p.confirmed;
+            return false; // 없는 키는 확정된 적이 없다
+        }
     }
 }
