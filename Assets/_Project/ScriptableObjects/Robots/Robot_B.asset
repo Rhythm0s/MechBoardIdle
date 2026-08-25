@@ -10,24 +10,15 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 6211a04f247545c41a99f62812b1ffac, type: 3}
-  m_Name: Robot_A
+  m_Name: Robot_B
   m_EditorClassIdentifier: MBI.Data::MBI.Data.RobotDefinition
-  robotId: robotA
-  displayName: "\uB85C\uBD07A"
-  weapons:
-  - kind: 0
-    damagePerShot: 20
-    shotsPerSec: 1
-  - kind: 1
-    damagePerShot: 25
-    shotsPerSec: 1
-  - kind: 2
-    damagePerShot: 50
-    shotsPerSec: 2
+  robotId: robotB
+  displayName: "\uB85C\uBD07B"
+  weapons: []
   consumptionCap: 6
   mountCoef: 1
   enhancedMountCoef: 1.45
   moduleMult: 1
-  sprite: {fileID: 21300000, guid: 1ec5f881b40e26a46a276539ad4f59ca, type: 3}
-  droneSprite: {fileID: 0}
+  sprite: {fileID: 21300000, guid: 393d0154d47ad864184358334eca27d8, type: 3}
+  droneSprite: {fileID: 21300000, guid: 13ca7213fc01dc8488790a7f830323cb, type: 3}
   balanceRef: {fileID: 11400000, guid: a00911652af86014e9b4ea1c7d0b41d5, type: 2}

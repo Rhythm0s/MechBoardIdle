@@ -16,18 +16,32 @@ namespace MBI.Combat
 
         public CombatEntity Entity => _entity;
 
-        public void Bind(CombatEntity entity, Color color, float size, int sortingOrder)
+        public void Bind(CombatEntity entity, Color color, float size, int sortingOrder, Sprite art = null)
         {
             _entity = entity;
-            _size = size;
+            _size = size; // HP 바 치수는 실제 아트 여부와 무관하게 이 값을 쓴다
 
             // 본체
             var bodyGo = new GameObject("Body");
             bodyGo.transform.SetParent(transform, false);
-            bodyGo.transform.localScale = new Vector3(size, size, 1f);
             var body = bodyGo.AddComponent<SpriteRenderer>();
-            body.sprite = PlaceholderSprite.White();
-            body.color = color;
+
+            if (art != null)
+            {
+                // 크기는 **캔버스가 결정한다**(ArtSpec, PPU 192). localScale로 다시 곱하면
+                // 256px 스프라이트가 1.333칸 × 1.333배 = 1.78칸이 되어 두 번 커진다.
+                body.sprite = art;
+                bodyGo.transform.localScale = Vector3.one;
+                body.color = Color.white; // 도트에 색을 입히면 팔레트가 뭉개진다
+            }
+            else
+            {
+                // 아트 미투입 폴백: 1×1 흰 사각을 크기만큼 늘리고 색으로 구분한다.
+                body.sprite = PlaceholderSprite.White();
+                bodyGo.transform.localScale = new Vector3(size, size, 1f);
+                body.color = color;
+            }
+
             body.sortingOrder = sortingOrder;
 
             // HP 배경(어두움)

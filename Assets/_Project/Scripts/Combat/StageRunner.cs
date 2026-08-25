@@ -151,7 +151,8 @@ namespace MBI.Combat
 
             // 로봇 뷰(중앙, 파랑)
             _robotView = NewView("Robot");
-            _robotView.Bind(_sim.Robot, new Color(0.3f, 0.6f, 1f), RobotSize, 10);
+            // 아트가 있으면 그것을, 없으면 색 플레이스홀더로 폴백한다(교체 지점 §8).
+            _robotView.Bind(_sim.Robot, new Color(0.3f, 0.6f, 1f), RobotSize, 10, robot != null ? robot.sprite : null);
 
             _ready = true;
         }

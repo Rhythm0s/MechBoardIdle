@@ -77,7 +77,28 @@ namespace MBI.Editor
             r.enhancedMountCoef = enh;    // S4+ 강화 = 1.45
             r.moduleMult = moduleMult;    // 1.0
             r.balanceRef = config;
+            r.sprite = LoadArt("robot_a");
             EditorUtility.SetDirty(r);
+
+            // 로봇 B — 드론 운용기(밸런스 params pB/dB). 전투 등장은 MVP 이후지만
+            // 아트가 들어왔으므로 SO 자리를 만들어 둔다. 무기 스펙은 A와 축이 달라 비워 둔다.
+            RobotDefinition b = LoadOrCreate<RobotDefinition>($"{RobotsDir}/Robot_B.asset");
+            b.robotId = "robotB";
+            b.displayName = "로봇B";
+            b.mountCoef = 1f;
+            b.enhancedMountCoef = enh;
+            b.moduleMult = moduleMult;
+            b.balanceRef = config;
+            b.sprite = LoadArt("robot_b");
+            b.droneSprite = LoadArt("drone_n"); // 누적형 = 기본 프리셋(params pB 1.0 × dB 100)
+            EditorUtility.SetDirty(b);
+        }
+
+        // Art/Units에서 스프라이트를 읽는다. 없으면 null — 뷰가 플레이스홀더로 폴백한다.
+        // 경로가 여기 한 곳에만 있고 런타임 코드에는 SO 참조만 남는다(§8 명명 규칙).
+        private static Sprite LoadArt(string fileName)
+        {
+            return AssetDatabase.LoadAssetAtPath<Sprite>($"Assets/_Project/Art/Units/{fileName}.png");
         }
 
         // ---- 적 4종: atk 카탈로그(hp/def는 스테이지) ----

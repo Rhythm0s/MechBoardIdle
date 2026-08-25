@@ -37,6 +37,12 @@ namespace MBI.Data
         [Tooltip("모듈배율. params.moduleMult = 1.0.")]
         public float moduleMult = 1f;
 
+        [Header("아트")]
+        [Tooltip("본체 스프라이트(캔버스 256px = 1.333칸). 비면 플레이스홀더로 폴백한다. 씬 생성기가 Art/Units에서 주입 — 경로 문자열을 코드에 두지 않는다.")]
+        public Sprite sprite;
+        [Tooltip("드론 스프라이트(캔버스 64px = 0.333칸). 로봇 B만 사용. 드론은 아직 전투에 등장하지 않아 자리만 둔다.")]
+        public Sprite droneSprite;
+
         [Header("참조")]
         [Tooltip("전역 밸런스 앵커 단일 원천.")]
         public BalanceConfig balanceRef;
