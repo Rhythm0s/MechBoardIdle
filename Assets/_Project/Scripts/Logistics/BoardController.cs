@@ -106,21 +106,24 @@ namespace MBI.Logistics
         private static readonly Color GridLineColor = new Color(0.40f, 0.85f, 0.60f, 0.35f);    // 셀 경계선
         private static readonly Color GridBorderColor = new Color(0.45f, 0.9f, 0.65f, 0.85f);   // 바깥 테두리
         private static readonly Color PanDimColor = new Color(0.03f, 0.05f, 0.08f, 0.55f);     // 이동 모드 흐림 막
-        private static readonly Color StatusNormal = new Color(0.40f, 0.85f, 0.50f);  // 초록 = 정상(산출률 1.0)
-        private static readonly Color StatusSlow = new Color(0.95f, 0.80f, 0.25f);    // 노랑 = 감속·유휴(0<산출률<1)
-        private static readonly Color StatusStopped = new Color(0.90f, 0.30f, 0.30f); // 빨강 = 정지(산출률 0)
+        // 종류별 배색은 **아트 자체의 색**이다(V02 §1). 코드는 밝기만 곱한다.
+        // 아트 투입 전 플레이스홀더는 흰 사각이라 세 단계가 흰색/회색/짙은 회색으로 나온다 —
+        // 상태는 구분되고 종류는 아직 구분되지 않는 것이 맞는 상태다.
+        private static readonly Color NodeBaseColor = Color.white;
         private static Sprite _unitSprite;
 
         /// <summary>
-        /// 노드 상태색(§L4-R #5 — C-③ 타입색 대체). 색 = 산출률(actualRate/targetRate):
-        /// 초록=1.0(정상) / 노랑=0<x<1(감속·유휴) / 빨강=0(정지). 4번째 색 없음(모듈 과부하는 MVP 밖·문서 이월).
-        /// UI 문서 13 §3-4-1이 원천 — UI는 판정 없이 매핑만.
+        /// 노드 표시색 = **기본색 × 산출률 밝기 배율**(UI 문서「노드 상태 표시」· V02 §1 개정).
+        /// 기본색은 아트 자체의 색이고 코드는 밝기만 곱한다 — 한 노드에 색 축이 둘 겹치면
+        /// 빨간 노드가 「정지」인지 「군수 노드」인지 구분되지 않아 진단 체계가 무너진다.
+        /// 판정 규칙 자체는 NodeStatusTint(MBI.Core)에 있다 — UI는 판정 없이 매핑만.
         /// </summary>
         private static Color SeverityColor(float ratio)
         {
-            if (ratio <= 0.0001f) return StatusStopped;   // 완전 정지
-            if (ratio < 0.999f) return StatusSlow;        // 깎여서 돌아감
-            return StatusNormal;                          // 설계대로
+            float tint = NodeStatusTint.Of(ratio);
+            Color c = NodeBaseColor * tint;
+            c.a = NodeBaseColor.a; // 알파는 밝기 축이 아니다 — 곱하면 노드가 투명해진다
+            return c;
         }
 
         /// <summary>노드 상태색 적용(§L4-R #5). 진단은 Provider(LogisticsDiagnostics)가 공급 — UI는 색 매핑만.
@@ -145,9 +148,9 @@ namespace MBI.Logistics
             foreach (KeyValuePair<Vector2Int, GameObject> kv in _markers)
             {
                 if (kv.Value == null) continue;
-                _nodeColors[kv.Key] = StatusNormal;
+                _nodeColors[kv.Key] = NodeBaseColor;
                 if (_selected.HasValue && _selected.Value == kv.Key) continue;
-                kv.Value.GetComponent<SpriteRenderer>().color = StatusNormal;
+                kv.Value.GetComponent<SpriteRenderer>().color = NodeBaseColor;
             }
         }
 
@@ -593,7 +596,7 @@ namespace MBI.Logistics
             if (_selected.HasValue && _markers.TryGetValue(_selected.Value, out GameObject prev) && prev != null)
             {
                 prev.GetComponent<SpriteRenderer>().color =
-                    _nodeColors.TryGetValue(_selected.Value, out Color pc) ? pc : StatusNormal;
+                    _nodeColors.TryGetValue(_selected.Value, out Color pc) ? pc : NodeBaseColor;
             }
 
             _selected = cell;
