@@ -78,15 +78,18 @@ namespace MBI.Core
         private float[] _lineTimers = new float[0];
         private const float FireEpsilon = 1e-4f; // float 누적 오차로 발사를 흘리지 않기 위한 허용오차
 
-        // 탄약 재고(단일 층). 밸런스 확정 원칙: 탄약 소진 = 공격 정지, 대체 수단 없음.
+        // 탄약 재고(단일 층, 탄종별 스택 · 총량 캡 공유). 밸런스 확정 원칙: 탄약 소진 = 공격 정지, 대체 수단 없음.
         private readonly AmmoInventory _ammo;
 
-        /// <summary>창고로 들어오는 생산율(발/초). 러너가 라이브 물류에서 매 프레임 주입한다.</summary>
+        /// <summary>창고로 들어오는 생산율(발/초, 전 탄종 합). 러너가 라이브 물류에서 매 프레임 주입한다.</summary>
         public float AmmoSupplyRate { get; set; }
 
-        /// <summary>재고 잔량·적재율(HUD·만충 트리거용).</summary>
-        public float AmmoStock => _ammo.Stock;
+        /// <summary>재고 잔량(전 탄종 합)·적재율(HUD·만충 트리거용).</summary>
+        public float AmmoStock => _ammo.Total;
         public float AmmoFillRatio => _ammo.FillRatio;
+
+        /// <summary>탄종별 잔량(발). 탄종별 창고 표시·진단용.</summary>
+        public float AmmoStockOf(AmmoKind kind) => _ammo.StockOf(kind);
 
         public CombatResult Result { get; private set; } = CombatResult.InProgress;
         public float Elapsed { get; private set; }
@@ -172,9 +175,54 @@ namespace MBI.Core
             _spawnQueue = new List<EnemySpawn>(spawns ?? new List<EnemySpawn>());
             _spawnPositions = BuildSpawnPositions(_spawnQueue.Count, arenaRadius);
 
-            _ammo = new AmmoInventory(robot.ammoCapacity, robot.ammoInitialStock);
+            _ammo = new AmmoInventory(robot.ammoCapacity);
+            LoadInitialStock(robot.ammoInitialStock);
 
             ResizeLineTimers(robot.lines != null ? robot.lines.Count : 0);
+        }
+
+        // ── 탄종별 배분 (§1 배선 전 과도 규칙) ────────────────────────────────
+        // 창고로 들어오는 생산은 본래 **어느 군수 노드가 어느 탄종을 만드는가**로 갈린다
+        // (260824_V02 §1: 노드 1개 = 1발/초, 라인 가동률 = min(1, 보유 노드 ÷ 필요 노드)).
+        // 그 배정이 아직 물류 쪽에 없으므로 그때까지는 **라인 수요 비율**로 나눈다.
+        // 수요 비율 = 소비 비율이므로 단일 풀이던 종전 거동을 그대로 재현한다(회귀 없음).
+        // §1 배선이 들어오면 이 두 메서드는 노드 배정 기반으로 교체된다.
+
+        /// <summary>라인 i가 전체 수요에서 차지하는 몫(0~1).</summary>
+        private float DemandShare(int lineIndex)
+        {
+            List<AmmoLine> lines = _robotSetup.lines;
+            if (lines == null || lineIndex < 0 || lineIndex >= lines.Count) return 0f;
+
+            float total = 0f;
+            for (int i = 0; i < lines.Count; i++) total += Mathf.Max(0f, lines[i].shotsPerSec);
+            if (total <= 0f) return 0f;
+
+            return Mathf.Max(0f, lines[lineIndex].shotsPerSec) / total;
+        }
+
+        /// <summary>전투 시작 재고를 탄종별로 적재한다. 총량 캡을 넘는 분은 버려진다.</summary>
+        private void LoadInitialStock(float rounds)
+        {
+            if (rounds <= 0f) return;
+
+            List<AmmoLine> lines = _robotSetup.lines;
+            if (lines == null || lines.Count == 0) return;
+
+            for (int i = 0; i < lines.Count; i++)
+                _ammo.Add(lines[i].kind, rounds * DemandShare(i));
+        }
+
+        /// <summary>군수 → 창고 유입을 탄종별로 넣는다. 용량은 셋이 나눠 쓴다(잠식).</summary>
+        private void ProduceAmmo(float dt)
+        {
+            if (AmmoSupplyRate <= 0f) return;
+
+            List<AmmoLine> lines = _robotSetup.lines;
+            if (lines == null || lines.Count == 0) return;
+
+            for (int i = 0; i < lines.Count; i++)
+                _ammo.Produce(lines[i].kind, dt, AmmoSupplyRate * DemandShare(i));
         }
 
         /// <summary>
@@ -224,7 +272,7 @@ namespace MBI.Core
             KillsThisTick = 0;
             Elapsed += dt;
 
-            _ammo.Produce(dt, AmmoSupplyRate); // 군수 → 창고 유입(용량 초과분은 버려진다)
+            ProduceAmmo(dt); // 군수 → 창고 유입(총량 캡 초과분은 버려진다)
 
             SpawnDue();
             MoveAndAttackEnemies(dt);
@@ -367,8 +415,9 @@ namespace MBI.Core
                     target = NearestLivingEnemyInRange();
                     if (target == null) { _lineTimers[li] = 0f; break; }
 
-                    // 탄약 소진 = 공격 정지(밸런스 확정 원칙). 재고가 없으면 그 발은 나가지 않는다.
-                    if (!_ammo.TryConsume(1f)) { _lineTimers[li] = 0f; break; }
+                    // 탄약 소진 = 공격 정지(밸런스 확정 원칙). **그 탄종의** 재고가 없으면 그 발은 나가지 않는다
+                    // — 다른 탄종이 창고에 쌓여 있어도 대신 쏘지 않는다.
+                    if (!_ammo.TryConsume(shot.kind, 1f)) { _lineTimers[li] = 0f; break; }
 
                     FireOne(shot, target);
                 }

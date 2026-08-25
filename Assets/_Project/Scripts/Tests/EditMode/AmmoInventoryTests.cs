@@ -14,47 +14,107 @@ namespace MBI.Tests
     {
         private const float D = 0.001f;
 
-        // ---- 재고 자체 ----
+        // ---- 재고 자체 (탄종별 스택 · 총량 캡 공유 — 260824_V02 §2) ----
 
         [Test]
-        public void Produce_AccumulatesUpToCapacity()
+        public void Produce_AccumulatesUpToSharedCapacity()
         {
-            var inv = new AmmoInventory(40f, 0f);
-            inv.Produce(1f, 6f);
-            Assert.AreEqual(6f, inv.Stock, D);
+            var inv = new AmmoInventory(40f);
+            inv.Produce(AmmoKind.Pierce, 1f, 6f);
+            Assert.AreEqual(6f, inv.StockOf(AmmoKind.Pierce), D);
+            Assert.AreEqual(6f, inv.Total, D);
 
-            inv.Produce(100f, 6f); // 한참 생산
-            Assert.AreEqual(40f, inv.Stock, D, "용량을 넘는 분은 버려진다");
+            inv.Produce(AmmoKind.Pierce, 100f, 6f); // 한참 생산
+            Assert.AreEqual(40f, inv.Total, D, "총량 캡을 넘는 분은 버려진다");
             Assert.IsTrue(inv.IsFull, "만재 — 태그·과부하 트리거의 기준");
         }
 
         [Test]
         public void TryConsume_FailsWhenInsufficient_AndDoesNotGoNegative()
         {
-            var inv = new AmmoInventory(40f, 1f);
-            Assert.IsTrue(inv.TryConsume(1f));
+            var inv = new AmmoInventory(40f);
+            inv.Add(AmmoKind.Pierce, 1f);
+
+            Assert.IsTrue(inv.TryConsume(AmmoKind.Pierce, 1f));
             Assert.IsTrue(inv.IsEmpty);
 
-            Assert.IsFalse(inv.TryConsume(1f), "모자라면 실패");
-            Assert.AreEqual(0f, inv.Stock, D, "실패해도 음수로 내려가지 않는다");
+            Assert.IsFalse(inv.TryConsume(AmmoKind.Pierce, 1f), "모자라면 실패");
+            Assert.AreEqual(0f, inv.StockOf(AmmoKind.Pierce), D, "실패해도 음수로 내려가지 않는다");
+        }
+
+        /// <summary>
+        /// 탄종별 스택의 핵심 계약: 폭발이 창고를 채워도 **관통은 나가지 않는다.**
+        /// 단일 스칼라였다면 폭발 재고로 관통을 쏘게 되어 「관통 3발 남았는데 폭발을 쏜다」가 표현되지 않는다.
+        /// </summary>
+        [Test]
+        public void TryConsume_DoesNotBorrowFromAnotherKind()
+        {
+            var inv = new AmmoInventory(40f);
+            inv.Add(AmmoKind.Explosive, 40f);
+
+            Assert.IsFalse(inv.TryConsume(AmmoKind.Pierce, 1f), "관통 재고가 0이면 폭발로 대신 쏘지 않는다");
+            Assert.AreEqual(40f, inv.StockOf(AmmoKind.Explosive), D, "실패가 남의 스택을 깎지 않는다");
+            Assert.IsTrue(inv.TryConsume(AmmoKind.Explosive, 1f), "제 탄종은 나간다");
+        }
+
+        /// <summary>
+        /// **잠식 허용**(V02 §2): 용량 40은 셋이 나눠 쓴다. 한 탄종이 다 채우면 다른 탄종은 쌓을 자리가 없다.
+        /// 무엇을 비축할지가 판단이 되는 지점이 여기다.
+        /// </summary>
+        [Test]
+        public void Encroachment_OneKindFillsCapacity_OthersGetNoSpace()
+        {
+            var inv = new AmmoInventory(40f);
+            inv.Add(AmmoKind.Explosive, 40f);
+            Assert.AreEqual(0f, inv.FreeSpace, D);
+
+            inv.Produce(AmmoKind.Pierce, 10f, 5f); // 50발어치 생산 시도
+            Assert.AreEqual(0f, inv.StockOf(AmmoKind.Pierce), D, "자리가 없으면 한 발도 안 쌓인다");
+            Assert.AreEqual(40f, inv.Total, D, "총량은 캡을 넘지 않는다");
+        }
+
+        /// <summary>
+        /// 만충 분모는 **총합**이다. 탄종마다 따로 세면 태그 주기가 탄종 수만큼 늘어나
+        /// 「주기 10초 = 저장 40 ÷ 대표 생산 4발/초」(밸런스 문서「태그 시스템 수치」)가 깨진다.
+        /// </summary>
+        [Test]
+        public void IsFull_CountsTotalAcrossKinds_NotPerKind()
+        {
+            var inv = new AmmoInventory(40f);
+            inv.Add(AmmoKind.Pierce, 10f);
+            inv.Add(AmmoKind.Split, 10f);
+            inv.Add(AmmoKind.Explosive, 20f);
+
+            Assert.AreEqual(40f, inv.Total, D);
+            Assert.IsTrue(inv.IsFull, "어느 탄종도 단독 40이 아니지만 총합이 40이면 만충이다");
+            Assert.AreEqual(1f, inv.FillRatio, D);
         }
 
         [Test]
-        public void FillRatio_IsStockOverCapacity()
+        public void FillRatio_IsTotalOverCapacity()
         {
-            var inv = new AmmoInventory(40f, 10f);
+            var inv = new AmmoInventory(40f);
+            inv.Add(AmmoKind.Split, 10f);
             Assert.AreEqual(0.25f, inv.FillRatio, D);
-            inv.Fill();
+
+            inv.Fill(AmmoKind.Split);
             Assert.AreEqual(1f, inv.FillRatio, D);
+
             inv.Drain();
             Assert.AreEqual(0f, inv.FillRatio, D);
+            Assert.AreEqual(0f, inv.StockOf(AmmoKind.Split), D, "비우면 전 탄종이 비워진다");
         }
 
         [Test]
-        public void InitialStock_IsClampedToCapacity()
+        public void Add_IsClampedToCapacity_AndIgnoresNegative()
         {
-            Assert.AreEqual(40f, new AmmoInventory(40f, 999f).Stock, D);
-            Assert.AreEqual(0f, new AmmoInventory(40f, -5f).Stock, D);
+            var inv = new AmmoInventory(40f);
+            inv.Add(AmmoKind.Pierce, 999f);
+            Assert.AreEqual(40f, inv.Total, D);
+
+            var other = new AmmoInventory(40f);
+            other.Add(AmmoKind.Pierce, -5f);
+            Assert.AreEqual(0f, other.Total, D);
         }
 
         // ---- 전투 연동: 재고가 마르면 발사가 멈춘다 ----
