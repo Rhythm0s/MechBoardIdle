@@ -55,6 +55,40 @@ namespace MBI.Logistics
         private bool _dragging;
         private readonly List<Vector2Int> _dragCells = new List<Vector2Int>();
 
+        // ---- 조작 모드(UI 문서 9장) ----
+        // 벨트 설치도 화면 이동도 「터치 후 드래그」다. 한 동작에 두 뜻이 붙으면 기계가 구분할 수
+        // 없으므로 모드로 가른다. 기본은 **이동** — 처음 보는 사람이 실수로 벨트를 깔지 않게.
+        private BoardMode _mode = BoardMode.Pan;
+        private BoardPan _pan;
+        private bool _panning;
+        private Vector2 _panLastWorld;
+        private Vector3 _baseWorldPosition;
+        private GameObject _dimOverlay;
+
+        [Tooltip("화면에 보이는 보드 범위(월드 유닛). UI 문서 9-3 기준 가로 7.5칸 · 세로 약 7칸.")]
+        [SerializeField] private Vector2 viewSizeCells = new Vector2(7.5f, 7f);
+
+        /// <summary>현재 조작 모드. 모드 버튼이 토글한다.</summary>
+        public BoardMode Mode
+        {
+            get => _mode;
+            set
+            {
+                if (_mode == value) return;
+                _mode = value;
+                _panning = false;
+                _dragging = false;
+                _dragCells.Clear();
+                ApplyModeVisual();
+            }
+        }
+
+        /// <summary>모드 토글(UI 문서 9-2: 버튼 하나를 탭할 때마다 번갈아 바뀐다).</summary>
+        public void ToggleMode() => Mode = _mode == BoardMode.Pan ? BoardMode.Build : BoardMode.Pan;
+
+        /// <summary>스크롤 상태(미니맵·테스트용).</summary>
+        public BoardPan Pan => _pan;
+
         // 벨트 마커 루트 + 방향 표시 SR(§5-4 L2 연결 색/제거용).
         private readonly Dictionary<Vector2Int, GameObject> _beltMarkers = new Dictionary<Vector2Int, GameObject>();
         private readonly Dictionary<Vector2Int, SpriteRenderer> _beltArrows = new Dictionary<Vector2Int, SpriteRenderer>();
@@ -71,6 +105,7 @@ namespace MBI.Logistics
         private static readonly Color GridBgColor = new Color(0.11f, 0.13f, 0.17f, 0.55f);      // 설치 영역 배경
         private static readonly Color GridLineColor = new Color(0.40f, 0.85f, 0.60f, 0.35f);    // 셀 경계선
         private static readonly Color GridBorderColor = new Color(0.45f, 0.9f, 0.65f, 0.85f);   // 바깥 테두리
+        private static readonly Color PanDimColor = new Color(0.03f, 0.05f, 0.08f, 0.55f);     // 이동 모드 흐림 막
         private static readonly Color StatusNormal = new Color(0.40f, 0.85f, 0.50f);  // 초록 = 정상(산출률 1.0)
         private static readonly Color StatusSlow = new Color(0.95f, 0.80f, 0.25f);    // 노랑 = 감속·유휴(0<산출률<1)
         private static readonly Color StatusStopped = new Color(0.90f, 0.30f, 0.30f); // 빨강 = 정지(산출률 0)
@@ -131,7 +166,14 @@ namespace MBI.Logistics
             _grid = new BoardGrid(config.columns, config.rows, config.cellSize, origin,
                 config.usePartLayout ? PartLayout.BuildMask() : null);
 
+            _baseWorldPosition = transform.position;
+            _pan = new BoardPan(
+                new Vector2(config.columns * config.cellSize, config.rows * config.cellSize),
+                new Vector2(viewSizeCells.x * config.cellSize, viewSizeCells.y * config.cellSize));
+
             BuildGridVisual(); // §C-4 설치 가능 그리드 영역 표시(런타임).
+            BuildDimOverlay(); // 이동 모드 표시(UI 문서 9-2)
+            ApplyModeVisual();
             ApplyInitialLayout();
         }
 
@@ -203,6 +245,24 @@ namespace MBI.Logistics
             SpawnQuad(root.transform, o.x + w, cy, b, h, GridBorderColor, -2);   // 우
         }
 
+        // 이동 모드에서 보드를 덮는 반투명 막. 실루엣 전체를 덮되 노드보다 위에 그린다.
+        private void BuildDimOverlay()
+        {
+            Vector2 o = _grid.Origin;
+            float w = config.columns * config.cellSize;
+            float h = config.rows * config.cellSize;
+
+            _dimOverlay = new GameObject("PanDim");
+            _dimOverlay.transform.SetParent(transform, false);
+            _dimOverlay.transform.position = new Vector3(o.x + w * 0.5f, o.y + h * 0.5f, 0f);
+            _dimOverlay.transform.localScale = new Vector3(w, h, 1f);
+
+            var sr = _dimOverlay.AddComponent<SpriteRenderer>();
+            sr.sprite = UnitSprite();
+            sr.color = PanDimColor;
+            sr.sortingOrder = 50; // 노드·벨트·경고 아이콘보다 위
+        }
+
         // 중심(cx,cy)·크기(w,h)의 단색 사각 스프라이트 하나.
         private void SpawnQuad(Transform parent, float cx, float cy, float w, float h, Color col, int order)
         {
@@ -239,6 +299,16 @@ namespace MBI.Logistics
             if (_grid == null) return;
             // 레이어/팔레트 버튼 위 클릭, 또는 조립 뷰가 아닐 때는 보드 무시(오배치 방지).
             if (GameLayerController.PointerOverButton || _pointerOverPalette) return;
+
+            // 이동 모드: 같은 드래그가 스크롤이 된다(UI 문서 9-1 제스처 충돌 해소).
+            if (Mode == BoardMode.Pan)
+            {
+                if (!TryPointerWorld(out Vector2 world)) return;
+                _panning = true;
+                _panLastWorld = world;
+                return;
+            }
+
             if (!TryCellUnderPointer(out Vector2Int cell) || !_grid.IsInside(cell)) return;
             _dragging = true;
             _dragCells.Clear();
@@ -247,6 +317,19 @@ namespace MBI.Logistics
 
         private void Update()
         {
+            if (_panning)
+            {
+                if (TryPointerWorld(out Vector2 world))
+                {
+                    // 손가락을 끈 만큼 보드가 따라온다. 카메라를 옮기지 않고 보드를 옮기는 이유는
+                    // 전투 화면이 같은 카메라에 상단 30%로 병존하기 때문이다(UI 문서 9-5).
+                    _pan.Drag(world - _panLastWorld);
+                    ApplyPan();
+                    _panLastWorld = world;
+                }
+                return;
+            }
+
             if (!_dragging || _grid == null) return;
             if (!TryCellUnderPointer(out Vector2Int cell) || !_grid.IsInside(cell)) return;
 
@@ -259,6 +342,7 @@ namespace MBI.Logistics
 
         private void OnPressEnd(InputAction.CallbackContext ctx)
         {
+            if (_panning) { _panning = false; return; }
             if (!_dragging) return;
             _dragging = false;
 
@@ -294,16 +378,50 @@ namespace MBI.Logistics
         private bool TryCellUnderPointer(out Vector2Int cell)
         {
             cell = default;
+            if (!TryPointerWorld(out Vector2 world)) return false;
+            // 스크롤한 만큼 보드가 밀려 있으므로 되돌린 뒤 셀을 구한다 —
+            // 안 빼면 스크롤 후 탭이 엉뚱한 칸에 꽂힌다.
+            cell = _grid.WorldToCell(world - PanOffset);
+            return true;
+        }
+
+        /// <summary>포인터의 월드 좌표(보드 평면 z=0).</summary>
+        private bool TryPointerWorld(out Vector2 world)
+        {
+            world = default;
             if (Pointer.current == null) return false;
             if (boardCamera == null) boardCamera = Camera.main;
             if (boardCamera == null) return false;
 
             Vector2 screen = Pointer.current.position.ReadValue();
             // orthographic: z = 카메라→보드 평면(z=0) 거리 = -카메라 z.
-            Vector3 world = boardCamera.ScreenToWorldPoint(
+            Vector3 w = boardCamera.ScreenToWorldPoint(
                 new Vector3(screen.x, screen.y, -boardCamera.transform.position.z));
-            cell = _grid.WorldToCell(world);
+            world = new Vector2(w.x, w.y);
             return true;
+        }
+
+        private Vector2 PanOffset => _pan != null ? _pan.Offset : Vector2.zero;
+
+        /// <summary>셀 중심의 화면상 월드 좌표(스크롤 반영). 마커 배치는 전부 이걸 쓴다.</summary>
+        private Vector3 CellWorld(Vector2Int cell) => (Vector3)(Vector2)_grid.CellToWorld(cell) + (Vector3)PanOffset;
+
+        // 보드 전체를 스크롤한다. 카메라를 옮기지 않는 이유는 같은 카메라에 전투 화면이
+        // 상단 30%로 병존하기 때문이다(UI 문서 9-5 연속성 원칙).
+        private void ApplyPan()
+        {
+            transform.position = _baseWorldPosition + (Vector3)_pan.Offset;
+        }
+
+        // 이동 모드에서는 보드를 흐리게, 조립 모드에서는 또렷하게(UI 문서 9-2).
+        // 색이나 문구가 아니라 보드 자체의 선명도로 지금 무엇을 할 수 있는지 알린다.
+        //
+        // 렌더러마다 알파를 건드리지 않고 반투명 막 하나를 덮는다 — 마커는 배치할 때마다 새로 생기므로
+        // 개별 알파를 추적하면 원래 값이 어긋나고, 상태색(진단)까지 흐려져 판독이 망가진다.
+        private void ApplyModeVisual()
+        {
+            if (_dimOverlay == null) return;
+            _dimOverlay.SetActive(_mode == BoardMode.Pan);
         }
 
         /// <summary>현재 팔레트에서 선택된 배치 노드(비었으면 placeTarget 폴백).</summary>
@@ -334,7 +452,7 @@ namespace MBI.Logistics
         {
             var marker = new GameObject($"Node_{cell.x}_{cell.y}");
             marker.transform.SetParent(transform, false);
-            marker.transform.position = _grid.CellToWorld(cell);
+            marker.transform.position = CellWorld(cell);
             // 한 칸 가득. 노드 타일 아트가 192px = 정확히 한 칸이므로(ArtSpec, V02 §4)
             // 플레이스홀더도 같은 자리를 차지해야 교체 때 밀도가 안 바뀐다. 칸 경계는 격자선이 그린다.
             marker.transform.localScale = Vector3.one * (_grid.CellSize * ArtSpec.TileSize);
@@ -375,12 +493,20 @@ namespace MBI.Logistics
         private void OnGUI()
         {
             _pointerOverPalette = false;
-            if (!GameLayerController.BoardViewActive || palette == null || palette.Count == 0) return;
+            if (!GameLayerController.BoardViewActive) return;
+
+            DrawModeButton();
+            DrawMiniMap();
+
+            if (palette == null || palette.Count == 0) return;
 
             var style = new GUIStyle(GUI.skin.button) { fontSize = 14 };
             const float w = 130f, h = 34f, pad = 6f;
             float x = Screen.width - w - 12f;
             float y0 = 90f;
+
+            // 이동 모드에서는 팔레트를 흐리게 — 지금은 놓을 수 없다는 것을 버튼 상태로 알린다.
+            GUI.enabled = _mode == BoardMode.Build;
 
             GUI.Label(new Rect(x, y0 - 24f, w, 22f), "노드 팔레트");
             int i;
@@ -405,6 +531,60 @@ namespace MBI.Logistics
 
             GUI.Label(new Rect(x, y0 + (i + 1) * (h + pad) + 8f, w, 56f),
                 _removeMode ? "제거 모드\n탭=노드/벨트 삭제" : "탭=노드 배치\n드래그=벨트");
+
+            GUI.enabled = true;
+        }
+
+        // 모드 버튼 — 화면 우측 하단 1개(UI 문서 9-2).
+        // **버튼이 표시를 겸한다.** 문구가 현재 모드를 그대로 나타내므로 별도 모드 표시를 두지 않는다.
+        // 모드를 바꾸는 곳과 확인하는 곳이 같은 자리가 되고, 화면 요소도 하나 아낀다.
+        private void DrawModeButton()
+        {
+            var style = new GUIStyle(GUI.skin.button) { fontSize = 16 };
+            var rect = new Rect(Screen.width - 152f, Screen.height - 78f, 140f, 46f);
+            if (rect.Contains(Event.current.mousePosition)) _pointerOverPalette = true;
+
+            string label = _mode == BoardMode.Pan ? "이동 모드" : "조립 모드";
+            if (GUI.Button(rect, label, style)) ToggleMode();
+        }
+
+        // 미니맵 — 부유 요소 띠 좌측(UI 문서 2장). 실루엣 전체 + 현재 보고 있는 범위.
+        // 보드가 화면 밖으로 나가는 것은 허용된 설계이므로, 지금 어디를 보는지는 이것이 알린다(9-3).
+        private void DrawMiniMap()
+        {
+            if (_pan == null || config == null) return;
+
+            const float mapW = 96f;
+            float mapH = mapW * config.rows / Mathf.Max(1, config.columns);
+            var box = new Rect(12f, Screen.height - mapH - 32f, mapW, mapH);
+            if (box.Contains(Event.current.mousePosition)) _pointerOverPalette = true;
+
+            GUI.Box(box, GUIContent.none);
+
+            // 유효 셀만 찍어 실루엣 형태가 드러나게 한다 — 직사각형을 그리면 못 놓는 칸이 감춰진다.
+            float cw = box.width / config.columns, ch = box.height / config.rows;
+            foreach (PartRect p in PartLayout.Parts)
+            {
+                var r = new Rect(
+                    box.x + p.origin.x * cw,
+                    box.y + box.height - (p.origin.y + p.size.y) * ch, // GUI는 y가 아래로 증가
+                    p.size.x * cw, p.size.y * ch);
+                GUI.Box(r, GUIContent.none);
+            }
+
+            // 현재 뷰포트 위치.
+            Vector2 c01 = _pan.ViewportCenter01;
+            float vw = Mathf.Clamp01(viewSizeCells.x / config.columns) * box.width;
+            float vh = Mathf.Clamp01(viewSizeCells.y / config.rows) * box.height;
+            var view = new Rect(
+                box.x + (box.width - vw) * c01.x,
+                box.y + (box.height - vh) * (1f - c01.y),
+                vw, vh);
+
+            Color prev = GUI.color;
+            GUI.color = new Color(0.98f, 0.85f, 0.30f, 0.5f);
+            GUI.Box(view, GUIContent.none);
+            GUI.color = prev;
         }
 
         private void Select(Vector2Int cell)
@@ -436,7 +616,7 @@ namespace MBI.Logistics
         {
             var m = new GameObject($"Belt_{cell.x}_{cell.y}");
             m.transform.SetParent(transform, false);
-            m.transform.position = _grid.CellToWorld(cell);
+            m.transform.position = CellWorld(cell);
             m.transform.localScale = Vector3.one * (_grid.CellSize * 0.85f);
             var sr = m.AddComponent<SpriteRenderer>();
             sr.sprite = UnitSprite();
