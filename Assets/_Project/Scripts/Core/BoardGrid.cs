@@ -26,13 +26,30 @@ namespace MBI.Core
         private readonly Dictionary<Vector2Int, NodeInstance> _occupancy = new Dictionary<Vector2Int, NodeInstance>();
         private readonly Dictionary<Vector2Int, BeltInstance> _belts = new Dictionary<Vector2Int, BeltInstance>();
 
+        /// <summary>
+        /// 유효 셀 마스크. null이면 직사각 전체가 유효(구 동작).
+        /// 로봇 실루엣은 직사각형이 아니라 팔·다리 사이가 비어 있다(조립 문서 11장) —
+        /// 그 빈칸을 여기서 배제한다. 파츠별 그리드 8개를 따로 두지 않고 단일 격자 + 마스크로 두는 이유는
+        /// 11-3이 **벨트의 파츠 경계 통과를 허용**하기 때문이다 — 경계 인접 규칙이 따로 필요 없다.
+        /// </summary>
+        private readonly HashSet<Vector2Int> _validCells;
+
         public BoardGrid(int columns, int rows, float cellSize, Vector2 origin)
+            : this(columns, rows, cellSize, origin, null)
+        {
+        }
+
+        public BoardGrid(int columns, int rows, float cellSize, Vector2 origin, HashSet<Vector2Int> validCells)
         {
             Columns = Mathf.Max(1, columns);
             Rows = Mathf.Max(1, rows);
             CellSize = Mathf.Max(0.0001f, cellSize);
             Origin = origin;
+            _validCells = validCells != null && validCells.Count > 0 ? validCells : null;
         }
+
+        /// <summary>배치 가능한 칸 수. 마스크가 없으면 Columns × Rows.</summary>
+        public int ValidCellCount => _validCells?.Count ?? Columns * Rows;
 
         // ---- 좌표 변환 ----
 
@@ -58,8 +75,18 @@ namespace MBI.Core
             return CellToWorld(WorldToCell(world));
         }
 
-        /// <summary>셀이 격자 유효 범위 안인가.</summary>
+        /// <summary>
+        /// 셀이 배치 가능한 칸인가. 실루엣 사각형 안이어도 **파츠에 속하지 않으면 무효**다
+        /// (팔·다리 사이 빈 공간). 마스크가 없으면 종전처럼 직사각 경계만 본다.
+        /// </summary>
         public bool IsInside(Vector2Int cell)
+        {
+            if (cell.x < 0 || cell.x >= Columns || cell.y < 0 || cell.y >= Rows) return false;
+            return _validCells == null || _validCells.Contains(cell);
+        }
+
+        /// <summary>실루엣 직사각 경계 안인가(마스크 무시). 그리드 시각화·스크롤 범위 계산용.</summary>
+        public bool IsInBounds(Vector2Int cell)
         {
             return cell.x >= 0 && cell.x < Columns && cell.y >= 0 && cell.y < Rows;
         }

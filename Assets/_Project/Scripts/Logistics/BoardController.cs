@@ -127,7 +127,9 @@ namespace MBI.Logistics
             if (boardCamera == null) boardCamera = Camera.main;
 
             Vector2 origin = ComputeOrigin(config, transform.position);
-            _grid = new BoardGrid(config.columns, config.rows, config.cellSize, origin);
+            // 실루엣 마스크: 팔·다리 사이 빈칸을 배치 불가로 만든다(조립 문서 11장, 유효 117칸).
+            _grid = new BoardGrid(config.columns, config.rows, config.cellSize, origin,
+                config.usePartLayout ? PartLayout.BuildMask() : null);
 
             BuildGridVisual(); // §C-4 설치 가능 그리드 영역 표시(런타임).
             ApplyInitialLayout();
@@ -157,19 +159,44 @@ namespace MBI.Logistics
 
             var root = new GameObject("GridVisual");
             root.transform.SetParent(transform, false);
-
-            // 배경 패널(설치 영역).
-            SpawnQuad(root.transform, cx, cy, w, h, GridBgColor, -3);
-
-            // 셀 경계선(세로/가로).
             float t = Mathf.Max(config.cellSize * 0.03f, 0.01f);
+            float b = t * 1.8f;
+
+            if (config.usePartLayout)
+            {
+                // 실루엣은 직사각형이 아니다 — 파츠 단위로 배경과 테두리를 그린다.
+                // 팔·다리 사이 빈칸에는 아무것도 그리지 않아 "여기는 못 놓는다"가 그림으로 보인다.
+                foreach (PartRect p in PartLayout.Parts)
+                {
+                    float pw = p.size.x * config.cellSize;
+                    float ph = p.size.y * config.cellSize;
+                    float px = o.x + (p.origin.x + p.size.x * 0.5f) * config.cellSize;
+                    float py = o.y + (p.origin.y + p.size.y * 0.5f) * config.cellSize;
+
+                    SpawnQuad(root.transform, px, py, pw, ph, GridBgColor, -3);
+
+                    // 파츠 안쪽 셀선.
+                    for (int x = 1; x < p.size.x; x++)
+                        SpawnQuad(root.transform, o.x + (p.origin.x + x) * config.cellSize, py, t, ph, GridLineColor, -2);
+                    for (int y = 1; y < p.size.y; y++)
+                        SpawnQuad(root.transform, px, o.y + (p.origin.y + y) * config.cellSize, pw, t, GridLineColor, -2);
+
+                    // 파츠 경계(진하게) — UI 문서 9-2 「조립 모드에서 격자와 파츠 경계가 또렷해진다」.
+                    SpawnQuad(root.transform, px, py - ph * 0.5f, pw, b, GridBorderColor, -2);
+                    SpawnQuad(root.transform, px, py + ph * 0.5f, pw, b, GridBorderColor, -2);
+                    SpawnQuad(root.transform, px - pw * 0.5f, py, b, ph, GridBorderColor, -2);
+                    SpawnQuad(root.transform, px + pw * 0.5f, py, b, ph, GridBorderColor, -2);
+                }
+                return;
+            }
+
+            // 마스크 없음 = 직사각 전체가 유효(구 동작).
+            SpawnQuad(root.transform, cx, cy, w, h, GridBgColor, -3);
             for (int x = 0; x <= config.columns; x++)
                 SpawnQuad(root.transform, o.x + x * config.cellSize, cy, t, h, GridLineColor, -2);
             for (int y = 0; y <= config.rows; y++)
                 SpawnQuad(root.transform, cx, o.y + y * config.cellSize, w, t, GridLineColor, -2);
 
-            // 바깥 테두리(진하게) — 상/하/좌/우.
-            float b = t * 1.8f;
             SpawnQuad(root.transform, cx, o.y, w, b, GridBorderColor, -2);       // 하
             SpawnQuad(root.transform, cx, o.y + h, w, b, GridBorderColor, -2);   // 상
             SpawnQuad(root.transform, o.x, cy, b, h, GridBorderColor, -2);       // 좌

@@ -37,6 +37,16 @@ namespace MBI.Editor
                 cfg = ScriptableObject.CreateInstance<BoardConfig>();
                 AssetDatabase.CreateAsset(cfg, ConfigPath);
             }
+
+            // 실루엣 치수는 조립 시스템 문서 11장 확정값이라 인스펙터 조정 대상이 아니다.
+            // 직렬화 기본값은 **새 자산에만** 적용되므로, 구 8×8 자산이 남아 있으면 파츠 레이아웃
+            // (12×13)과 어긋나 유효 셀 마스크가 실루엣 밖으로 잘린다 — 기존 자산은 여기서 맞춘다.
+            if (cfg.columns != PartLayout.Columns || cfg.rows != PartLayout.Rows)
+            {
+                cfg.columns = PartLayout.Columns;
+                cfg.rows = PartLayout.Rows;
+                EditorUtility.SetDirty(cfg);
+            }
             return cfg;
         }
 

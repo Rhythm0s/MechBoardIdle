@@ -170,12 +170,13 @@ namespace MBI.Editor
             NodeDefinition muni = Load<NodeDefinition>($"{SoRoot}/Nodes/Node_muni.asset");
             SerializedProperty layout = so.FindProperty("initialLayout");
             layout.arraySize = 0;
-            AddInitial(layout, new Vector2Int(3, 3), Load<NodeDefinition>($"{SoRoot}/Nodes/Node_core.asset"));
-            AddInitial(layout, new Vector2Int(2, 3), Load<NodeDefinition>($"{SoRoot}/Nodes/Node_ener.asset"));
-            AddInitial(layout, new Vector2Int(4, 3), muni, AmmoKind.Pierce);
-            AddInitial(layout, new Vector2Int(4, 2), muni, AmmoKind.Split);
-            AddInitial(layout, new Vector2Int(4, 1), muni, AmmoKind.Explosive);
-            // (4, 0) 폭발 두 번째 = 비워 둔 칸.
+            // 좌표는 몸통(x 3~8, y 4~9) 안이다 — 몸통이 생산 허브라는 11-3 결론을 배치로 지킨다.
+            AddInitial(layout, new Vector2Int(4, 7), Load<NodeDefinition>($"{SoRoot}/Nodes/Node_core.asset"));
+            AddInitial(layout, new Vector2Int(3, 7), Load<NodeDefinition>($"{SoRoot}/Nodes/Node_ener.asset"));
+            AddInitial(layout, new Vector2Int(5, 7), muni, AmmoKind.Pierce);
+            AddInitial(layout, new Vector2Int(5, 6), muni, AmmoKind.Split);
+            AddInitial(layout, new Vector2Int(5, 5), muni, AmmoKind.Explosive);
+            // (5, 4) 폭발 두 번째 = 비워 둔 칸.
             so.ApplyModifiedPropertiesWithoutUndo();
 
             // 라이브 네트워크 → 출력 반영(§5-6): 노드 집계 → 흐름시뮬 → LogisticsOutputBridge.
