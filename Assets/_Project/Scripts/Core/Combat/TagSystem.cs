@@ -91,24 +91,16 @@ namespace MBI.Core
             TotalTags = 0;
         }
 
-        // ---- 등장 특공 ----
+        // ---- 등장 특공 (경로 ① 태그 인) ----
 
         /// <summary>
-        /// 등장 특공 피해. **비축 100% 조건 한정**이며 부분 발동이 없다 —
-        /// 조건을 맞추거나 못 맞추거나다(밸런스 문서, 만재 단일 기준).
+        /// 이 태그에서 특공이 나가는가. 만재 등장에서만 나간다 —
+        /// 소진 트리거는 활성 로봇이 마른 것이지 대기 로봇이 만재라는 뜻이 아니다.
         ///
-        /// 식 확정: **비축 발수 × 강화 평균 발당피해** (대표 40 × 52.6 ≈ 2,103).
-        ///
-        /// 지위는 요구치 **예산 밖 마진 항**이다. 물류가 빠르면 만재가 자주 차서 발동 빈도가
-        /// 오를 뿐 계수가 얹히지는 않으므로, 물류 무개입 원칙과 정합하고 요구치 곡선을 건드리지 않는다.
+        /// ⚠️ **피해 계산식은 여기 없다.** 특공은 태그 전용이 아니라 합체 발동에서도 같은 식으로
+        /// 나가므로(전투 문서 9-1, 경로 ②), 식은 GrandEntrance에 독립으로 두었다.
+        /// 이 메서드는 **태그 경로의 발동 조건**만 판정한다.
         /// </summary>
-        public static float GrandEntranceDamage(bool stockFull, float stockedRounds, float avgDamagePerShot)
-        {
-            if (!stockFull || stockedRounds <= 0f || avgDamagePerShot <= 0f) return 0f;
-            return stockedRounds * avgDamagePerShot;
-        }
-
-        /// <summary>등장 특공이 나가는 태그인가. 만재 등장에서만 나간다.</summary>
         public static bool HasGrandEntrance(TagEntry reason, bool stockFull) =>
             stockFull && (reason == TagEntry.Full || reason == TagEntry.Manual);
     }

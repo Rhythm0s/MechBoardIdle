@@ -113,7 +113,7 @@ namespace MBI.Tests
         [Test]
         public void GrandEntrance_MatchesConfirmedFormula()
         {
-            float dmg = TagSystem.GrandEntranceDamage(stockFull: true, stockedRounds: 40f, avgDamagePerShot: 52.6f);
+            float dmg = GrandEntrance.Damage(stockFull: true, stockedRounds: 40f, avgDamagePerShot: 52.6f);
 
             Assert.AreEqual(2104f, dmg, 1f, "40 × 52.6 — params tagspec 2103과 대조");
         }
@@ -125,9 +125,9 @@ namespace MBI.Tests
         [Test]
         public void GrandEntrance_DoesNotScaleWithPartialStock()
         {
-            Assert.AreEqual(0f, TagSystem.GrandEntranceDamage(stockFull: false, stockedRounds: 39.9f, avgDamagePerShot: 52.6f), D,
+            Assert.AreEqual(0f, GrandEntrance.Damage(stockFull: false, stockedRounds: 39.9f, avgDamagePerShot: 52.6f), D,
                 "만재가 아니면 한 발도 나가지 않는다");
-            Assert.Greater(TagSystem.GrandEntranceDamage(true, 40f, 52.6f), 0f);
+            Assert.Greater(GrandEntrance.Damage(true, 40f, 52.6f), 0f);
         }
 
         /// <summary>약한 등장(소진 트리거)에는 특공이 없다 — 미완충의 물리적 처벌이 유지돼야 한다.</summary>
@@ -146,9 +146,27 @@ namespace MBI.Tests
         [Test]
         public void GrandEntrance_IsZeroForDegenerateInputs()
         {
-            Assert.AreEqual(0f, TagSystem.GrandEntranceDamage(true, 0f, 52.6f), D);
-            Assert.AreEqual(0f, TagSystem.GrandEntranceDamage(true, 40f, 0f), D);
-            Assert.AreEqual(0f, TagSystem.GrandEntranceDamage(true, -5f, 52.6f), D);
+            Assert.AreEqual(0f, GrandEntrance.Damage(true, 0f, 52.6f), D);
+            Assert.AreEqual(0f, GrandEntrance.Damage(true, 40f, 0f), D);
+            Assert.AreEqual(0f, GrandEntrance.Damage(true, -5f, 52.6f), D);
+        }
+
+        /// <summary>
+        /// **특공은 태그 전용이 아니다.** 발동 경로가 둘이고 식이 같다(전투 문서 9-1):
+        ///   ① 태그 인 — 대기 로봇 비축 100%
+        ///   ② 합체 발동 — 창고 100% (구 「과부하 특공」)
+        /// 식이 TagSystem 안에 있으면 합체 쪽이 태그를 거쳐 부르게 되어 의존이 거꾸로 선다.
+        /// 이 테스트는 **합체 경로가 TagEntry 없이도 같은 값을 얻는다**는 것을 고정한다.
+        /// </summary>
+        [Test]
+        public void GrandEntrance_IsCallableWithoutTagContext_ForMergePath()
+        {
+            // 합체 발동 시점 — 태그 사유가 없다. 창고 만재만 본다.
+            float viaMerge = GrandEntrance.Damage(stockFull: true, stockedRounds: 40f, avgDamagePerShot: 52.6f);
+            float viaTag = GrandEntrance.Damage(stockFull: true, stockedRounds: 40f, avgDamagePerShot: 52.6f);
+
+            Assert.AreEqual(viaTag, viaMerge, D, "두 경로가 같은 식을 쓴다");
+            Assert.Greater(viaMerge, 0f);
         }
 
         // ---- 태그 리듬 ----
