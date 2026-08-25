@@ -47,7 +47,9 @@ namespace MBI.Combat
         private float _mountCoef;
         private bool _ready;
 
-        private const float RobotSize = 0.8f;
+        // 크기는 아트 캔버스가 결정한다(ArtSpec, PPU 192 — V02 §4). 플레이스홀더도 실물과 같은 자리를
+        // 차지하게 해서 스프라이트 교체 때 레이아웃이 흔들리지 않게 한다.
+        private static float RobotSize => ArtSpec.RobotSize; // 256px → 1.333칸
 
         private static Sprite _circleSprite;
 
@@ -75,8 +77,11 @@ namespace MBI.Combat
             return _circleSprite;
         }
 
-        /// <summary>적 표시 크기(장갑/보스 크게). 뷰·충돌 반경이 공유하는 단일 규칙.</summary>
-        private static float EnemySize(float maxHp) => maxHp >= 1000f ? 1.1f : 0.4f;
+        /// <summary>
+        /// 적 표시 크기(보스 크게). 뷰·충돌 반경이 공유하는 단일 규칙.
+        /// 아트 캔버스 규격에서 온다 — 보스 512px(2.667칸) / 몬스터 128px(0.667칸).
+        /// </summary>
+        private static float EnemySize(float maxHp) => maxHp >= 1000f ? ArtSpec.LargeSize : ArtSpec.MonsterSize;
 
         private void Start()
         {

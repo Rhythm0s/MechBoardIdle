@@ -308,7 +308,9 @@ namespace MBI.Logistics
             var marker = new GameObject($"Node_{cell.x}_{cell.y}");
             marker.transform.SetParent(transform, false);
             marker.transform.position = _grid.CellToWorld(cell);
-            marker.transform.localScale = Vector3.one * (_grid.CellSize * 0.9f);
+            // 한 칸 가득. 노드 타일 아트가 192px = 정확히 한 칸이므로(ArtSpec, V02 §4)
+            // 플레이스홀더도 같은 자리를 차지해야 교체 때 밀도가 안 바뀐다. 칸 경계는 격자선이 그린다.
+            marker.transform.localScale = Vector3.one * (_grid.CellSize * ArtSpec.TileSize);
             var sr = marker.AddComponent<SpriteRenderer>();
             sr.sprite = UnitSprite();
             Color c = SeverityColor(1f); // 초기 = 정상(초록). Provider가 라이브 진단으로 갱신(§L4-R #5).
