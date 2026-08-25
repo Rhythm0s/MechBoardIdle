@@ -55,18 +55,41 @@ namespace MBI.Tests
             }
         }
 
-        // ---- (c) 구현 노드는 포트를 갖고, 노드별 수치는 Tbd로 표기 ----
+        // ---- (c) 구현 노드는 포트를 갖고, 노드별 수치는 확정분 외에는 Tbd로 표기 ----
         [Test]
         public void ImplementedNodes_HavePorts_AndValuesAreTbd()
         {
             foreach (NodeDefinition n in _nodes)
             {
-                Assert.AreEqual(ConfirmState.Tbd, n.resources.confirm,
-                    $"{n.displayName}: 노드별 수치는 미확정 → Tbd 표기 필요(§7)");
+                // 군수만 확정: 노드 1개당 생산 1발/초(params muniPerNode, 2026-08-25 확정).
+                // 나머지 5종의 전력·발열은 노드 카탈로그와 함께 확정되므로 아직 Tbd다.
+                ConfirmState expected = n.type == NodeType.Munitions
+                    ? ConfirmState.Confirmed
+                    : ConfirmState.Tbd;
+
+                Assert.AreEqual(expected, n.resources.confirm,
+                    $"{n.displayName}: 확정분 외 노드별 수치는 Tbd 표기 필요(§7)");
 
                 if (n.implemented)
                     Assert.Greater(n.ports.Count, 0, $"{n.displayName}: 구현 노드는 포트 필요");
             }
+        }
+
+        /// <summary>
+        /// 군수 노드 생산량은 **소비 상한(capA 6)이 아니라** 노드당 생산(muniPerNode 1)이다.
+        /// capA를 여기에 넣던 시기에는 노드 1개가 상한을 다 채워 두 번째 노드부터 출력 영향이
+        /// 0이었고, 격자를 넓혀도 출력이 상수였다(CLAUDE.md §7 등재분의 회귀 방지).
+        /// </summary>
+        [Test]
+        public void MunitionsNode_ProducesOneRoundPerSecond_NotConsumptionCap()
+        {
+            NodeDefinition muni = AssetDatabase.LoadAssetAtPath<NodeDefinition>(MuniPath);
+            Assert.NotNull(muni, "군수 자산");
+
+            Assert.AreEqual(1f, muni.resources.ammoProduce, 0.001f,
+                "군수 노드 1개 = 1발/초 (params muniPerNode)");
+            Assert.AreNotEqual(6f, muni.resources.ammoProduce,
+                "6은 마운트 소비 상한(capA)이다 — 생산 자리에 들어가면 안 된다");
         }
 
         // ---- (d) 연결 규칙: 군수 출력(Ammo) → 코어 입력(Ammo) 대칭 성립 ----

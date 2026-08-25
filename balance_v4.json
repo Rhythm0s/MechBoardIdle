@@ -21,6 +21,10 @@
     { "key": "dA1", "label": "분열탄 발당피해", "group": "로봇A 탄약(스펙트럼)", "value": 25, "confirmed": true, "basis": "스펙트럼 중앙 — 25×4=등가선 100", "intent": "중피해·중빈도", "docRef": "07 5장 (2026-07-17)" },
     { "key": "pA2", "label": "폭발탄 발사/초 (대표 상태)", "group": "로봇A 탄약(스펙트럼)", "value": 2, "confirmed": true, "basis": "대표 상태 구성 — 표준 발사수 스펙과 동일 2발/초", "intent": "단발형: 방어에 덜 깎임", "docRef": "밸런스 2장 · 07 5장" },
     { "key": "dA2", "label": "폭발탄 발당피해", "group": "로봇A 탄약(스펙트럼)", "value": 50, "confirmed": true, "basis": "스펙트럼 우단 — 50×2=등가선 100", "intent": "고피해·저빈도", "docRef": "07 5장 (2026-07-17)" },
+    { "key": "specA0", "label": "관통탄 발사수 스펙(발/초)", "group": "로봇A 탄약(스펙트럼)", "value": 5, "confirmed": true, "basis": "pA0 intent 「표준 발사수 스펙은 5발/초」 · spectrum 좌표 관통 20×5", "intent": "라인 100% 가동 발사율 — 필요 노드 5개", "docRef": "밸런스 문서「라인 가동률과 군수 노드 생산 단위」 · 07 5장" },
+    { "key": "specA1", "label": "분열탄 발사수 스펙(발/초)", "group": "로봇A 탄약(스펙트럼)", "value": 4, "confirmed": true, "basis": "pA1 intent 「표준 발사수 스펙은 4발/초」 · spectrum 좌표 분열 25×4", "intent": "라인 100% 가동 발사율 — 필요 노드 4개", "docRef": "밸런스 문서「라인 가동률과 군수 노드 생산 단위」 · 07 5장" },
+    { "key": "specA2", "label": "폭발탄 발사수 스펙(발/초)", "group": "로봇A 탄약(스펙트럼)", "value": 2, "confirmed": true, "basis": "pA2 intent 「표준 발사수 스펙과 동일 2발/초」 · spectrum 좌표 폭발 50×2", "intent": "라인 100% 가동 발사율 — 필요 노드 2개", "docRef": "밸런스 문서「라인 가동률과 군수 노드 생산 단위」 · 07 5장" },
+    { "key": "muniPerNode", "label": "군수 노드 1개당 생산(발/초)", "group": "로봇A 탄약(스펙트럼)", "value": 1, "confirmed": true, "basis": "노드 1개 = 1발/초. 라인 100% 가동 필요 노드 = 관통 5 / 분열 4 / 폭발 2 → 비용 배수 1 : 1.25 : 2.5가 등가선에서 도출된다 (2026-08-25 확정)", "intent": "라인 가동률 = min(1, 보유 노드 ÷ 필요 노드) — capA(소비 천장)와 별개의 축", "docRef": "밸런스 문서「라인 가동률과 군수 노드 생산 단위」" },
     { "key": "capA", "label": "마운트 소비 상한(발/초)", "group": "로봇A 탄약(스펙트럼)", "value": 6, "confirmed": true, "basis": "소비 천장(상수) — 고효율 탄 우선 배분", "intent": "생산>소비 시 병목", "docRef": "07 5장 (2026-07-17)" },
 
     { "key": "pB", "label": "드론 유입(기/초) — 누적형 기본 프리셋", "group": "로봇B 드론", "value": 1.0, "confirmed": true, "basis": "누적형 100×1.0 (등가선 100). 광역형 50×2.0은 스펙트럼 대안(시뮬 단일 슬롯 — override로 교체 검증)", "intent": "유입=생산", "docRef": "07 5장 (2026-07-23)" },

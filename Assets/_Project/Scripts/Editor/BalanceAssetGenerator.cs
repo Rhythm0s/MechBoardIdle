@@ -78,7 +78,10 @@ namespace MBI.Editor
         {
             // 단일 소유가 자연스러운 병목 항목만 placeholder로 끌어온다(전부 Tbd).
             float pwc = json.Param("pwc");    // 발전 용량 → 에너지
-            float capA = json.Param("capA");  // 소비 상한 → 군수 생산 placeholder
+            // 군수 노드 1개당 생산(발/초) — 확정치 1 (2026-08-25).
+            // ⚠️ 여기에 capA(마운트 소비 상한 6)를 넣던 시기가 있었다. capA는 **소비 천장**이라
+            // 노드 하나가 상한을 다 채워 두 번째 노드부터 출력 영향이 0이 됐다(CLAUDE.md §7 등재).
+            float muniPerNode = json.Param("muniPerNode");
             float heat = json.Param("heat");  // 발열 합 → 가공
             float heatc = json.Param("heatc"); // 냉각 임계 → 가공
             float pw = json.Param("pw");      // 전력 소비 합(집계) → 코어에 lumped placeholder
@@ -104,7 +107,7 @@ namespace MBI.Editor
 
             // 군수 — 탄약 생산
             WriteNode(config, "muni", "군수", NodeType.Munitions, true,
-                new NodeResourceProfile { ammoProduce = capA, confirm = ConfirmState.Tbd },
+                new NodeResourceProfile { ammoProduce = muniPerNode, confirm = ConfirmState.Confirmed },
                 new List<NodePort>
                 {
                     new NodePort(PortFace.West, PortIO.Input, FlowKind.Material),

@@ -19,11 +19,11 @@ MonoBehaviour:
   resources:
     powerDraw: 0
     powerSupply: 0
-    ammoProduce: 6
+    ammoProduce: 1
     ammoConsume: 0
     heatGenerate: 0
     heatDissipate: 0
-    confirm: 1
+    confirm: 0
   ports:
   - face: 3
     io: 0
