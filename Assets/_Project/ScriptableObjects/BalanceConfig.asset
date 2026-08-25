@@ -25,3 +25,5 @@ MonoBehaviour:
   challengeTime: 120
   offlineCapHours: 36
   storeCapacity: 40
+  muniPerNode: 1
+  lineSpecShots: {x: 5, y: 4, z: 2}

@@ -6,12 +6,14 @@ using UnityEngine.InputSystem;
 
 namespace MBI.Logistics
 {
-    /// <summary>시작 배치 1건(셀 + 노드). 씬 생성기가 채운다.</summary>
+    /// <summary>시작 배치 1건(셀 + 노드 + 탄종). 씬 생성기가 채운다.</summary>
     [System.Serializable]
     public struct InitialNode
     {
         public Vector2Int cell;
         public NodeDefinition node;
+        /// <summary>군수 노드가 만드는 탄종(§1). 군수가 아니면 무시된다.</summary>
+        public AmmoKind ammoKind;
     }
 
     /// <summary>
@@ -138,7 +140,8 @@ namespace MBI.Logistics
             foreach (InitialNode item in initialLayout)
             {
                 if (item.node == null) continue;
-                if (!_grid.TryPlace(item.cell, item.node, out _)) continue;
+                if (!_grid.TryPlace(item.cell, item.node, out NodeInstance placed)) continue;
+                placed.AmmoKind = item.ammoKind; // 군수 노드가 만드는 탄종(§1). 다른 타입에서는 읽히지 않는다.
                 SpawnNodeMarker(item.cell);
             }
             RefreshConnections();

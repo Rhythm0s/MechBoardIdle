@@ -69,6 +69,11 @@ namespace MBI.Editor
 
             c.storeCapacity = json.Param("store"); // 확정치 40 — 재고 단일 층의 용량
 
+            // 탄종별 생산(V02 §1 확정). 노드당 생산과 라인 스펙은 별개 축이다 —
+            // 소비 상한 capA는 여기 오지 않는다.
+            c.muniPerNode = json.Param("muniPerNode");
+            c.lineSpecShots = new Vector3(json.Param("specA0"), json.Param("specA1"), json.Param("specA2"));
+
             EditorUtility.SetDirty(c);
             return c;
         }

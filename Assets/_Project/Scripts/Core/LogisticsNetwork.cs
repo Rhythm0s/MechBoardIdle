@@ -12,7 +12,23 @@ namespace MBI.Core
         public float powerDraw;    // Σ 고정비(전 노드)
         public float heatGenerate; // Σ 발열(가공)
         public float heatDissipate;
-        public float ammoProduce;  // Σ 탄약 생산(군수)
+        public float ammoProduce;  // Σ 탄약 생산(군수) — 벨트 운송 필요량 proxy
+
+        // 탄종별 군수 노드 수. **출력은 이 셋에서 나온다**(§1: 라인 생산량 = min(스펙, 노드 수)).
+        // 합계 ammoProduce만으로는 「무엇을 몇 발 만드는가」가 표현되지 않는다.
+        public int muniPierce;
+        public int muniSplit;
+        public int muniExplosive;
+
+        public int MuniCountOf(AmmoKind kind)
+        {
+            switch (kind)
+            {
+                case AmmoKind.Pierce: return muniPierce;
+                case AmmoKind.Split: return muniSplit;
+                default: return muniExplosive;
+            }
+        }
     }
 
     /// <summary>
@@ -42,6 +58,16 @@ namespace MBI.Core
                 a.heatGenerate += r.heatGenerate;
                 a.heatDissipate += r.heatDissipate;
                 a.ammoProduce += r.ammoProduce;
+
+                if (node.Definition.type == NodeType.Munitions)
+                {
+                    switch (node.AmmoKind)
+                    {
+                        case AmmoKind.Pierce: a.muniPierce++; break;
+                        case AmmoKind.Split: a.muniSplit++; break;
+                        default: a.muniExplosive++; break;
+                    }
+                }
             }
             return a;
         }

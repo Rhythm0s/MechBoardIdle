@@ -159,14 +159,23 @@ namespace MBI.Editor
                 pal.arraySize = idx + 1;
                 pal.GetArrayElementAtIndex(idx).objectReferenceValue = n;
             }
-            // 시작 배치(온보딩): 대표 라인에서 군수 한 칸만 비워 둔다.
+            // 시작 배치(온보딩): 대표 배치에서 군수 한 칸만 비워 둔다.
             // 빈 보드로 시작하면 출력 0 = 전투 정지라 "게임이 고장난 것"처럼 보이고, 반대로 완성된 라인을
             // 주면 물류 보드를 열 이유가 사라진다. 한 칸만 비우면 부족 → 배치 → 출력 상승 → 클리어가 돈다.
-            // 배치 자체는 커밋 cea90d3(A2)에서 이미 '배치=145 / 제거=0'으로 증명된 구성이다.
+            //
+            // 대표 배치 = 군수 4개(관통1 · 분열1 · 폭발2) → 20 + 25 + 100 = 145(§9 s3Break).
+            // 노드 1개 = 1발/초이므로 노드 수가 곧 pA다(260824_V02 §1).
+            // 폭발 하나를 비워 두면 20 + 25 + 50 = 95로 시작하고, 그 칸을 채우면 145가 된다 —
+            // "배치가 출력을 올린다"가 보드 위에서 눈에 보이는 구성이다.
+            NodeDefinition muni = Load<NodeDefinition>($"{SoRoot}/Nodes/Node_muni.asset");
             SerializedProperty layout = so.FindProperty("initialLayout");
             layout.arraySize = 0;
             AddInitial(layout, new Vector2Int(3, 3), Load<NodeDefinition>($"{SoRoot}/Nodes/Node_core.asset"));
             AddInitial(layout, new Vector2Int(2, 3), Load<NodeDefinition>($"{SoRoot}/Nodes/Node_ener.asset"));
+            AddInitial(layout, new Vector2Int(4, 3), muni, AmmoKind.Pierce);
+            AddInitial(layout, new Vector2Int(4, 2), muni, AmmoKind.Split);
+            AddInitial(layout, new Vector2Int(4, 1), muni, AmmoKind.Explosive);
+            // (4, 0) 폭발 두 번째 = 비워 둔 칸.
             so.ApplyModifiedPropertiesWithoutUndo();
 
             // 라이브 네트워크 → 출력 반영(§5-6): 노드 집계 → 흐름시뮬 → LogisticsOutputBridge.
@@ -182,8 +191,10 @@ namespace MBI.Editor
             boardRoot.AddComponent<VariablePanel>();
         }
 
-        // initialLayout 배열에 (셀, 노드) 1건 추가. 노드가 없으면 건너뛴다(생성기 미실행 상황).
-        private static void AddInitial(SerializedProperty layout, Vector2Int cell, NodeDefinition node)
+        // initialLayout 배열에 (셀, 노드, 탄종) 1건 추가. 노드가 없으면 건너뛴다(생성기 미실행 상황).
+        // 탄종은 군수 노드에만 의미가 있다 — 기본 관통(origin basis「관통탄 20×5발 기본 라인」).
+        private static void AddInitial(SerializedProperty layout, Vector2Int cell, NodeDefinition node,
+            AmmoKind ammoKind = AmmoKind.Pierce)
         {
             if (node == null) return;
             int idx = layout.arraySize;
@@ -191,6 +202,7 @@ namespace MBI.Editor
             SerializedProperty item = layout.GetArrayElementAtIndex(idx);
             item.FindPropertyRelative("cell").vector2IntValue = cell;
             item.FindPropertyRelative("node").objectReferenceValue = node;
+            item.FindPropertyRelative("ammoKind").enumValueIndex = (int)ammoKind;
         }
 
         private static LogisticsConfig LoadOrCreateLogisticsConfig()

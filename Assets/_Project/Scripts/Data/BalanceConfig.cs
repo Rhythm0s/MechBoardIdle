@@ -54,6 +54,24 @@ namespace MBI.Data
         [Tooltip("탄약 재고 용량(발). params.store = 40 확정치. 재고는 단일 층 — 마운트 적재와 창고 비축이 별개가 아니다. 저장 노드 배치에 따른 증가 규칙은 TBD(LogisticsConfig).")]
         public float storeCapacity = 40f;
 
+        [Header("탄종별 생산 — 260824_V02 §1 확정")]
+        [Tooltip("군수 노드 1개당 생산(발/초). params.muniPerNode = 1 확정치. ⚠️ 소비 상한(capA 6)과 혼동 금지 — 여기에 6을 넣으면 노드 하나가 상한을 다 채워 보드가 출력을 못 바꾼다.")]
+        public float muniPerNode = 1f;
+
+        [Tooltip("라인 100% 가동 발사율(발/초). params.specA0/1/2 = 관통 5 / 분열 4 / 폭발 2. 등가선: 스펙 × 발당피해 = 100.")]
+        public Vector3 lineSpecShots = new Vector3(5f, 4f, 2f);
+
+        /// <summary>탄종별 라인 스펙(발/초). 성분 순서 = AmmoKind(Pierce · Split · Explosive).</summary>
+        public float LineSpecOf(AmmoKind kind)
+        {
+            switch (kind)
+            {
+                case AmmoKind.Pierce: return lineSpecShots.x;
+                case AmmoKind.Split: return lineSpecShots.y;
+                default: return lineSpecShots.z;
+            }
+        }
+
         /// <summary>물류 단독 천장 = origin * ceil. S3req &lt; 천장 &lt; S4밴드 (S4가 강화-only 벽).</summary>
         public float LogisticsCeiling => origin * ceil;
     }
