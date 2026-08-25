@@ -46,6 +46,7 @@ namespace MBI.Combat
         private float _manualHoldUntil;                                 // 이 시각까지는 수동 우선(자동 정지)
         private float _mountCoef;
         private bool _ready;
+        private float _lastRobotHp; // 피격 점멸 트리거 — HP가 줄어든 프레임을 잡는다
 
         // 크기는 아트 캔버스가 결정한다(ArtSpec, PPU 192 — V02 §4). 플레이스홀더도 실물과 같은 자리를
         // 차지하게 해서 스프라이트 교체 때 레이아웃이 흔들리지 않게 한다.
@@ -153,6 +154,7 @@ namespace MBI.Combat
             _robotView = NewView("Robot");
             // 아트가 있으면 그것을, 없으면 색 플레이스홀더로 폴백한다(교체 지점 §8).
             _robotView.Bind(_sim.Robot, new Color(0.3f, 0.6f, 1f), RobotSize, 10, robot != null ? robot.sprite : null);
+            _lastRobotHp = _sim.Robot.hp;
 
             _ready = true;
         }
@@ -258,7 +260,20 @@ namespace MBI.Combat
             // 이번 틱 사격 연출(탄선 + 피격). 실제 틱이 돈 경우만(종료 후 스테일 재생성 방지).
             if (running)
                 foreach (ShotEvent s in _sim.ShotsThisTick)
+                {
                     SpawnShotFx(s);
+                    // 발사 반동 — 스프라이트를 늘리지 않고 로봇 전체를 표적 반대로 밀었다 복귀(V01 §3).
+                    if (_robotView != null) _robotView.Recoil(s.to - s.from);
+                }
+
+            // 피격 점멸 — 로봇 HP가 줄어든 프레임에 한 번. 세기는 일정하다(V01 §3):
+            // 로봇에 방어력 항목이 없어 받는 피해가 몬스터 공격력 그대로이므로,
+            // 세기로 정도를 표현하면 없는 정보를 지어내는 것이 된다.
+            if (running && _sim.Robot != null)
+            {
+                if (_sim.Robot.hp < _lastRobotHp - 0.0001f && _robotView != null) _robotView.FlashHit();
+                _lastRobotHp = _sim.Robot.hp;
+            }
 
             // 스폰/사망에 따른 적 뷰 수명 관리
             var live = new HashSet<CombatEntity>(_sim.Enemies);

@@ -14,7 +14,25 @@ namespace MBI.Combat
         private float _size;
         private Transform _hpFill;
 
+        // 본체 — 반동(위치)·피격 점멸(색)이 여기에 걸린다. 스프라이트를 갈아끼우지 않는다.
+        private Transform _body;
+        private SpriteRenderer _bodyRenderer;
+        private Color _bodyBaseColor = Color.white;
+        private Vector2 _recoilDirection;
+        private float _recoilElapsed = float.MaxValue;
+        private float _flashElapsed = float.MaxValue;
+
         public CombatEntity Entity => _entity;
+
+        /// <summary>발사 반동 시작(UI 문서「연출 표현 규칙」). 표적 방향을 주면 반대로 밀린다.</summary>
+        public void Recoil(Vector2 fireDirection)
+        {
+            _recoilDirection = fireDirection;
+            _recoilElapsed = 0f;
+        }
+
+        /// <summary>피격 점멸 시작. 세기는 일정 — 맞았는지 아닌지만 알린다.</summary>
+        public void FlashHit() => _flashElapsed = 0f;
 
         public void Bind(CombatEntity entity, Color color, float size, int sortingOrder, Sprite art = null)
         {
@@ -43,6 +61,21 @@ namespace MBI.Combat
             }
 
             body.sortingOrder = sortingOrder;
+            _body = bodyGo.transform;
+            _bodyRenderer = body;
+            _bodyBaseColor = body.color;
+
+            // 바닥 그림자 — 탑뷰에는 높이가 없어 크기와 그림자로 위조한다(V01 §3).
+            // 본체보다 뒤에 깔고, 반동으로 본체가 밀려도 그림자는 제자리에 둔다(발이 붙어 있어야 한다).
+            Vector2 shadow = EffectTiming.ShadowSize(size);
+            var shadowGo = new GameObject("Shadow");
+            shadowGo.transform.SetParent(transform, false);
+            shadowGo.transform.localPosition = new Vector3(0f, EffectTiming.ShadowFootOffset(size), 0f);
+            shadowGo.transform.localScale = new Vector3(shadow.x, shadow.y, 1f);
+            var shadowSr = shadowGo.AddComponent<SpriteRenderer>();
+            shadowSr.sprite = PlaceholderSprite.SoftDisc();
+            shadowSr.color = new Color(0f, 0f, 0f, 0.45f);
+            shadowSr.sortingOrder = sortingOrder - 1;
 
             // HP 배경(어두움)
             float barW = size;
@@ -79,6 +112,25 @@ namespace MBI.Combat
             float ratio = _entity.maxHp > 0f ? Mathf.Clamp01(_entity.hp / _entity.maxHp) : 0f;
             if (_hpFill != null)
                 _hpFill.localScale = new Vector3(_size * ratio, _size * 0.14f, 1f);
+        }
+
+        // 반동과 점멸은 시뮬 틱이 아니라 실시간으로 흐른다 — 판정에 영향을 주지 않는 순수 연출이다.
+        private void Update()
+        {
+            float dt = Time.deltaTime;
+
+            if (_body != null && _recoilElapsed < EffectTiming.RecoilDuration)
+            {
+                _recoilElapsed += dt;
+                Vector2 off = EffectTiming.RecoilOffset(_recoilDirection, _recoilElapsed);
+                _body.localPosition = new Vector3(off.x, off.y, 0f);
+            }
+
+            if (_bodyRenderer != null && _flashElapsed < EffectTiming.HitFlashDuration)
+            {
+                _flashElapsed += dt;
+                _bodyRenderer.color = EffectTiming.HitFlashColor(_bodyBaseColor, _flashElapsed);
+            }
         }
     }
 }
