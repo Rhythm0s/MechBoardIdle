@@ -237,7 +237,9 @@ namespace MBI.Combat
                         robotPos = _sim.Robot.position,
                         enemies = _sim.Enemies,
                         arenaRadius = tuning.arenaRadiusTbd,
-                        desiredGap = tuning.autoPilotDesiredGapTbd,
+                        // 사거리 안이면 제자리 사격 — 카이팅 폐기(2026-08-26 판정)로
+                        // desiredGap(후퇴 개시 거리)은 더 이상 쓰지 않는다.
+                        attackRange = tuning.robotAttackRangeTbd,
                         moveSpeed = tuning.robotMoveSpeedTbd,
                         dt = Time.deltaTime,
                     };

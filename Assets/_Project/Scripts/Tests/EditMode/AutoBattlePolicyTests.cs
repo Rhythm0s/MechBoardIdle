@@ -6,7 +6,7 @@ using UnityEngine;
 namespace MBI.Tests
 {
     /// <summary>
-    /// 자동 전투 정책(§5-7) — 카이팅과 스테이지 진행. 둘 다 순수 함수라 전투 없이 검증한다.
+    /// 자동 전투 정책 — 접근 이동과 스테이지 진행. 둘 다 순수 함수라 전투 없이 검증한다.
     /// 거리·속도는 CombatTuning TBD라 여기 값은 규칙 확인용이며 밸런스 단정이 아니다.
     /// </summary>
     public sealed class AutoBattlePolicyTests
@@ -19,93 +19,105 @@ namespace MBI.Tests
         };
 
         private static AutoPilotContext Ctx(Vector2 pos, List<CombatEntity> enemies,
-            float gap = 3f, float speed = 4f, float dt = 0.1f, float radius = 6f) => new AutoPilotContext
+            float range = 3f, float speed = 4f, float dt = 0.1f, float radius = 6f) => new AutoPilotContext
         {
             robotPos = pos, enemies = enemies, arenaRadius = radius,
-            desiredGap = gap, moveSpeed = speed, dt = dt,
+            attackRange = range, moveSpeed = speed, dt = dt,
         };
 
-        // ---- 카이팅 ----
+        // ---- 이동: 접근만 (카이팅 폐기 — 2026-08-26 판정) ----
 
+        /// <summary>
+        /// **사거리 안이면 제자리 사격.** 물러나지 않는다.
+        /// 카이팅은 회피 시스템(부스터 노드)과 중복이고, 자원을 쓰지 않아 추진제의 존재 이유를
+        /// 없애며, 전투력 출처를 물류에서 이동 로직으로 옮긴다.
+        /// </summary>
         [Test]
-        public void MovesAwayFromNearestEnemy()
+        public void InRange_HoldsPosition_DoesNotRetreat()
         {
-            // 적이 오른쪽 가까이 → 왼쪽으로 물러난다.
-            var enemies = new List<CombatEntity> { Enemy(1f, 0f) };
+            var enemies = new List<CombatEntity> { Enemy(1f, 0f) }; // 사거리 3 안
+
             Vector2 next = AutoPilotPolicy.NextPosition(Ctx(Vector2.zero, enemies));
 
-            Assert.Less(next.x, 0f, "위협 반대 방향으로 이동");
-            Assert.AreEqual(0f, next.y, D);
+            Assert.AreEqual(Vector2.zero, next, "적이 코앞이어도 물러나지 않는다");
         }
 
+        /// <summary>사거리 밖이면 최근접 적을 향해 **다가간다.**</summary>
         [Test]
-        public void DoesNotMoveWhenThreatIsFarEnough()
+        public void OutOfRange_ApproachesNearestEnemy()
         {
-            var enemies = new List<CombatEntity> { Enemy(5f, 0f) }; // gap 3보다 멀다
+            var enemies = new List<CombatEntity> { Enemy(5f, 0f) }; // 사거리 3 밖
+
             Vector2 next = AutoPilotPolicy.NextPosition(Ctx(Vector2.zero, enemies));
 
-            Assert.AreEqual(Vector2.zero, next, "충분히 멀면 굳이 움직이지 않는다");
+            Assert.Greater(next.x, 0f, "적 쪽으로 간다");
+            Assert.AreEqual(0f, next.y, D, "4방향 — 대각선으로 가지 않는다");
+        }
+
+        /// <summary>이동은 4방향이다. 대각선 표적에도 한 축씩만 민다.</summary>
+        [Test]
+        public void Approach_IsFourDirectional()
+        {
+            var enemies = new List<CombatEntity> { Enemy(5f, 5f) };
+
+            Vector2 next = AutoPilotPolicy.NextPosition(Ctx(Vector2.zero, enemies));
+
+            bool movedX = Mathf.Abs(next.x) > D;
+            bool movedY = Mathf.Abs(next.y) > D;
+            Assert.IsTrue(movedX ^ movedY, "한 축으로만 움직인다");
         }
 
         [Test]
         public void PicksNearestAmongMany_Deterministically()
         {
-            var enemies = new List<CombatEntity> { Enemy(4f, 0f), Enemy(1f, 0f), Enemy(3f, 0f) };
+            var enemies = new List<CombatEntity> { Enemy(5f, 0f), Enemy(2f, 0f), Enemy(9f, 0f) };
+
             Vector2 dir = AutoPilotPolicy.ThreatDirection(Vector2.zero, enemies);
 
-            Assert.AreEqual(Vector2.right, dir, "가장 가까운 (1,0) 방향");
+            Assert.AreEqual(Vector2.right, dir, "가장 가까운 (2,0)을 고른다");
             Assert.AreEqual(dir, AutoPilotPolicy.ThreatDirection(Vector2.zero, enemies), "같은 입력 = 같은 결과");
         }
 
         [Test]
         public void IgnoresDeadEnemies()
         {
-            var enemies = new List<CombatEntity> { Enemy(1f, 0f, hp: 0f), Enemy(5f, 0f) };
+            var enemies = new List<CombatEntity> { Enemy(1f, 0f, hp: 0f), Enemy(0f, 5f) };
+
             Vector2 dir = AutoPilotPolicy.ThreatDirection(Vector2.zero, enemies);
 
-            Assert.AreEqual(Vector2.right, dir);
-            Assert.AreEqual(1f, dir.magnitude, D, "죽은 적은 위협이 아니다");
+            Assert.AreEqual(Vector2.up, dir, "죽은 적은 위협이 아니다");
         }
 
+        /// <summary>적이 없으면 **가만히 있는다.** 원점 복귀도 이동 판단이므로 넣지 않는다.</summary>
         [Test]
-        public void SlidesAlongBoundary_InsteadOfSticking()
+        public void NoEnemies_HoldsPosition()
         {
-            // 경계에 붙어 있고 적이 안쪽에서 밀어붙이는 상황 — 밖으로 나갈 수 없다.
-            var enemies = new List<CombatEntity> { Enemy(5f, 0f) };
-            Vector2 start = new Vector2(6f, 0f); // 반경 6 경계
-            Vector2 next = AutoPilotPolicy.NextPosition(Ctx(start, enemies));
+            var start = new Vector2(3f, 0f);
 
-            Assert.LessOrEqual(next.magnitude, 6f + D, "아레나 밖으로 나가지 않는다");
-            Assert.Greater(Mathf.Abs(next.y), D, "접선 방향으로 미끄러진다 — 제자리에 박히지 않는다");
+            Vector2 next = AutoPilotPolicy.NextPosition(Ctx(start, new List<CombatEntity>()));
+
+            Assert.AreEqual(start, next);
         }
 
         [Test]
         public void StaysInsideArena()
         {
-            var enemies = new List<CombatEntity> { Enemy(0f, 0f) };
+            var enemies = new List<CombatEntity> { Enemy(20f, 0f) }; // 아레나 밖 표적
             Vector2 pos = new Vector2(5.9f, 0f);
+
             for (int i = 0; i < 50; i++)
                 pos = AutoPilotPolicy.NextPosition(Ctx(pos, enemies));
 
-            Assert.LessOrEqual(pos.magnitude, 6f + D, "반복해도 경계를 넘지 않는다");
-        }
-
-        [Test]
-        public void NoEnemies_ReturnsTowardOrigin()
-        {
-            Vector2 next = AutoPilotPolicy.NextPosition(Ctx(new Vector2(3f, 0f), new List<CombatEntity>()));
-
-            Assert.Less(next.x, 3f, "원점 쪽으로 돌아온다");
-            Assert.GreaterOrEqual(next.x, 0f);
+            Assert.LessOrEqual(pos.magnitude, 6f + D, "아레나를 벗어나지 않는다");
         }
 
         [Test]
         public void Deterministic_SameInputSameResult()
         {
-            var enemies = new List<CombatEntity> { Enemy(1f, 1f) };
+            var enemies = new List<CombatEntity> { Enemy(4f, 1f), Enemy(-3f, 2f) };
             AutoPilotContext c = Ctx(new Vector2(0.5f, -0.2f), enemies);
 
-            Assert.AreEqual(AutoPilotPolicy.NextPosition(c), AutoPilotPolicy.NextPosition(c), "난수 0");
+            Assert.AreEqual(AutoPilotPolicy.NextPosition(c), AutoPilotPolicy.NextPosition(c));
         }
 
         // ---- 스테이지 진행 ----
