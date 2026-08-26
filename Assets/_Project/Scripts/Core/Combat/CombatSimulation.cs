@@ -276,7 +276,8 @@ namespace MBI.Core
 
             SpawnDue();
             MoveAndAttackEnemies(dt);
-            ResolveSeparation();
+            // ResolveSeparation(밀어내기) 폐기 — 구현 사양이 "밀어내지 않음 · 막히면 멈춤"으로 확정됐다.
+            // 겹침은 이동 시점에 IsBlocked로 막으므로 사후 보정이 필요 없다.
             RobotFire(dt);
             CleanupDead();
             Evaluate();
@@ -320,9 +321,14 @@ namespace MBI.Core
 
                 if (dist > e.attackRange)
                 {
-                    float step = e.moveSpeed * dt;
-                    if (step >= dist) e.position = _robot.position; // 오버슛 방지
-                    else e.position += toRobot / dist * step;
+                    // 4방향 이동(구현 사양). 대각선은 두 축을 번갈아 낸다.
+                    Vector2 next = GridMovement.Step(e.position, _robot.position, e.moveSpeed * dt);
+
+                    // 막히면 **멈춘다** — 통과하지도, 밀어내지도, 돌아가지도 않는다.
+                    // 경로 탐색을 넣으면 장갑형 길막이 사라지므로 우회는 금지다.
+                    if (!GridMovement.IsBlocked(next, e.radius, e, _enemies, _robot))
+                        e.position = next;
+
                     e.attackCooldown = 0f; // 접근 중엔 즉시 타격 준비
                 }
                 else
@@ -334,58 +340,6 @@ namespace MBI.Core
                         e.attackCooldown += Mathf.Max(0.0001f, e.attackInterval);
                     }
                 }
-            }
-        }
-
-        /// <summary>
-        /// 반경 기반 겹침 해소(결정론적). 적-적은 대칭으로, 적-로봇은 적만 밀어낸다(로봇=플레이어 조작).
-        /// 리스트 순서 고정 → 재현 가능. radius 0(테스트 기본)이면 아무 것도 안 함.
-        /// </summary>
-        private void ResolveSeparation()
-        {
-            // 적-적
-            for (int i = 0; i < _enemies.Count; i++)
-            {
-                CombatEntity a = _enemies[i];
-                if (!a.IsAlive) continue;
-                for (int j = i + 1; j < _enemies.Count; j++)
-                {
-                    CombatEntity b = _enemies[j];
-                    if (!b.IsAlive) continue;
-                    float min = a.radius + b.radius;
-                    if (min <= 0f) continue;
-                    Vector2 delta = b.position - a.position;
-                    float d = delta.magnitude;
-                    if (d >= min) continue;
-                    if (d > 1e-5f)
-                    {
-                        float push = (min - d) * 0.5f;
-                        Vector2 n = delta / d;
-                        a.position -= n * push;
-                        b.position += n * push;
-                    }
-                    else
-                    {
-                        // 완전 동일 좌표: 인덱스 순 고정 축으로 분리(결정론).
-                        float push = min * 0.5f;
-                        a.position -= new Vector2(push, 0f);
-                        b.position += new Vector2(push, 0f);
-                    }
-                }
-            }
-
-            // 적-로봇 (적만 경계 밖으로)
-            foreach (CombatEntity e in _enemies)
-            {
-                if (!e.IsAlive) continue;
-                float min = e.radius + _robot.radius;
-                if (min <= 0f) continue;
-                Vector2 delta = e.position - _robot.position;
-                float d = delta.magnitude;
-                if (d >= min) continue;
-                e.position = d > 1e-5f
-                    ? _robot.position + delta / d * min
-                    : _robot.position + new Vector2(min, 0f);
             }
         }
 
@@ -473,9 +427,10 @@ namespace MBI.Core
             {
                 if (!e.IsAlive) continue;
                 float sqr = (e.position - _robot.position).sqrMagnitude;
-                if (sqr <= bestSqr)
+                // 엄격 부등호 — 동률이면 **먼저 등장한 쪽**이 이긴다(구현 사양 확정).
+                // <= 로 두면 나중에 스폰된 쪽이 표적을 빼앗아 표적이 계속 흔들린다.
+                if (sqr < bestSqr)
                 {
-                    // 가장 가까운 적 우선. bestSqr을 갱신하며 최근접 추적.
                     bestSqr = sqr;
                     best = e;
                 }
