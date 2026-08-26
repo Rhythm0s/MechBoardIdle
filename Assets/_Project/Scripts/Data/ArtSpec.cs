@@ -39,6 +39,26 @@ namespace MBI.Data
         public static float MonsterSize => WorldSize(MonsterCanvas);  // 0.667
         public static float DroneSize => WorldSize(DroneCanvas);      // 0.333
 
+        // ---- 이펙트 규격(260826_V01 §C 확정) ----
+
+        /// <summary>
+        /// 이펙트 최대 프레임 수. **1회 재생 후 소멸, 반복 없음.**
+        /// 상한을 두는 이유는 이펙트가 애니메이션이 아니라 사건의 표시이기 때문이다 —
+        /// 길어지면 다음 사건과 겹쳐 무엇이 일어났는지 읽히지 않는다.
+        /// </summary>
+        public const int EffectMaxFrames = 6;
+
+        /// <summary>
+        /// 이펙트는 **1방향만 생성하고 회전은 코드가 준다.**
+        /// 방향마다 그리면 자산이 방향 수만큼 늘고, 각도가 어긋나면 그 방향만 틀어진다.
+        /// 회전 적용 지점 = 이 함수 하나 — 탄선·피격·폭발이 전부 여기를 통과한다.
+        /// </summary>
+        public static float EffectRotationDegrees(UnityEngine.Vector2 direction)
+        {
+            if (direction.sqrMagnitude < 1e-8f) return 0f;
+            return UnityEngine.Mathf.Atan2(direction.y, direction.x) * UnityEngine.Mathf.Rad2Deg;
+        }
+
         /// <summary>보드용 스프라이트인가(캔버스가 타일 규격의 배수여야 하는 폴더).</summary>
         public static bool IsBoardArtPath(string assetPath)
         {

@@ -107,7 +107,7 @@ namespace MBI.Combat
             var sr = go.AddComponent<SpriteRenderer>();
             sr.sprite = CircleSprite();          // 텍스처가 옅은 채움 + 밝은 테두리 링을 함께 담음
             sr.color = new Color(0.35f, 0.75f, 1f); // 청록 톤(알파는 텍스처)
-            sr.sortingOrder = -10;               // 모든 엔티티 뒤
+            sr.sortingOrder = SortingLayers.Background; // 아레나 바닥
         }
 
         /// <summary>시뮬·뷰 구성(최초 및 재시작 공용).</summary>
@@ -153,7 +153,8 @@ namespace MBI.Combat
             // 로봇 뷰(중앙, 파랑)
             _robotView = NewView("Robot");
             // 아트가 있으면 그것을, 없으면 색 플레이스홀더로 폴백한다(교체 지점 §8).
-            _robotView.Bind(_sim.Robot, new Color(0.3f, 0.6f, 1f), RobotSize, 10, robot != null ? robot.sprite : null);
+            _robotView.Bind(_sim.Robot, new Color(0.3f, 0.6f, 1f), RobotSize, SortingLayers.Actor,
+                robot != null ? robot.sprite : null);
             _lastRobotHp = _sim.Robot.hp;
 
             _ready = true;
@@ -294,7 +295,7 @@ namespace MBI.Combat
                     float size = EnemySize(e.maxHp);
                     Color col = big ? new Color(0.9f, 0.35f, 0.2f) : new Color(0.9f, 0.3f, 0.3f);
                     view = NewView($"Enemy_{e.label}");
-                    view.Bind(e, col, size, 5);
+                    view.Bind(e, col, size, SortingLayers.Actor);
                     _enemyViews[e] = view;
                 }
                 view.Sync();
@@ -332,7 +333,8 @@ namespace MBI.Combat
             Vector2 from = s.from, to = s.to;
             Vector2 mid = (from + to) * 0.5f;
             float dist = Vector2.Distance(from, to);
-            float ang = Mathf.Atan2(to.y - from.y, to.x - from.x) * Mathf.Rad2Deg;
+            // 이펙트는 1방향만 그리고 회전은 코드가 준다(V01 §C) — 회전 적용 지점은 ArtSpec 하나다.
+            float ang = ArtSpec.EffectRotationDegrees(to - from);
 
             var tracer = new GameObject("Tracer");
             tracer.transform.SetParent(transform, false);
@@ -342,7 +344,7 @@ namespace MBI.Combat
             var tsr = tracer.AddComponent<SpriteRenderer>();
             tsr.sprite = PlaceholderSprite.White();
             tsr.color = c;
-            tsr.sortingOrder = 20;
+            tsr.sortingOrder = SortingLayers.EffectOver; // 탄선
             Destroy(tracer, 0.05f);
 
             if (s.aoeRadius > 0f)
@@ -356,7 +358,7 @@ namespace MBI.Combat
                 var bsr = boom.AddComponent<SpriteRenderer>();
                 bsr.sprite = PlaceholderSprite.White();
                 bsr.color = new Color(1f, 0.5f, 0.15f, 0.35f);
-                bsr.sortingOrder = 8; // 적 위, 로봇 아래
+                bsr.sortingOrder = SortingLayers.EffectOver - 1; // 폭발 — 탄선보다 아래
                 Destroy(boom, 0.14f);
             }
             else
@@ -370,7 +372,7 @@ namespace MBI.Combat
                 var hsr = flash.AddComponent<SpriteRenderer>();
                 hsr.sprite = PlaceholderSprite.White();
                 hsr.color = s.killed ? new Color(1f, 0.92f, 0.55f) : c;
-                hsr.sortingOrder = 21;
+                hsr.sortingOrder = SortingLayers.EffectOver + 1; // 피격 플래시 — 탄선 위
                 Destroy(flash, s.killed ? 0.12f : 0.06f);
             }
         }

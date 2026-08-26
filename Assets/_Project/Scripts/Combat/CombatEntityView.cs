@@ -1,4 +1,5 @@
 using MBI.Core;
+using MBI.Data;
 using UnityEngine;
 
 namespace MBI.Combat
@@ -75,7 +76,8 @@ namespace MBI.Combat
             var shadowSr = shadowGo.AddComponent<SpriteRenderer>();
             shadowSr.sprite = PlaceholderSprite.SoftDisc();
             shadowSr.color = new Color(0f, 0f, 0f, 0.45f);
-            shadowSr.sortingOrder = sortingOrder - 1;
+            // 하단 이펙트 층 — 액터보다 아래. 그림자가 위로 올라가면 높이 위조가 뒤집힌다.
+            shadowSr.sortingOrder = SortingLayers.EffectUnder;
 
             // HP 배경(어두움)
             float barW = size;
@@ -88,7 +90,7 @@ namespace MBI.Combat
             var bg = bgGo.AddComponent<SpriteRenderer>();
             bg.sprite = PlaceholderSprite.White();
             bg.color = new Color(0.1f, 0.1f, 0.1f, 0.85f);
-            bg.sortingOrder = sortingOrder + 1;
+            bg.sortingOrder = SortingLayers.Hud;      // 체력바는 HUD 층
 
             // HP 채움(초록)
             var fillGo = new GameObject("HpFill");
@@ -98,7 +100,7 @@ namespace MBI.Combat
             var fill = fillGo.AddComponent<SpriteRenderer>();
             fill.sprite = PlaceholderSprite.White();
             fill.color = new Color(0.2f, 0.85f, 0.3f, 1f);
-            fill.sortingOrder = sortingOrder + 2;
+            fill.sortingOrder = SortingLayers.Hud + 1; // 배경 위 채움(같은 층 안 미세 조정)
             _hpFill = fillGo.transform;
 
             Sync();

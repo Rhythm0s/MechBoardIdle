@@ -263,7 +263,7 @@ namespace MBI.Logistics
             var sr = _dimOverlay.AddComponent<SpriteRenderer>();
             sr.sprite = UnitSprite();
             sr.color = PanDimColor;
-            sr.sortingOrder = 50; // 노드·벨트·경고 아이콘보다 위
+            sr.sortingOrder = SortingLayers.Hud; // 이동 모드 흐림 막 — 보드 요소 전부보다 위
         }
 
         // 중심(cx,cy)·크기(w,h)의 단색 사각 스프라이트 하나.
@@ -633,7 +633,7 @@ namespace MBI.Logistics
             var asr = arrow.AddComponent<SpriteRenderer>();
             asr.sprite = UnitSprite();
             asr.color = BeltArrowColor;
-            asr.sortingOrder = 1;
+            asr.sortingOrder = SortingLayers.Tile + 1; // 벨트 방향 표시 — 타일 층 안
 
             // 끝단 미연결 경고(§5-4 ⑤): 셀 위쪽 모서리에 작은 표식. 기본 off — RefreshConnections가 켠다.
             var warn = new GameObject("warn");
@@ -643,7 +643,7 @@ namespace MBI.Logistics
             var wsr = warn.AddComponent<SpriteRenderer>();
             wsr.sprite = UnitSprite();
             wsr.color = BeltWarningColor;
-            wsr.sortingOrder = 2;
+            wsr.sortingOrder = SortingLayers.Tile + 2; // 미연결 경고 아이콘
             wsr.enabled = false;
 
             _beltArrows[cell] = asr;
