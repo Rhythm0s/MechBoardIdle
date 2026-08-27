@@ -105,6 +105,38 @@ namespace MBI.Tests
             Assert.AreEqual(1, bay.Launch(1f), "합쳐서 1기");
         }
 
+        /// <summary>
+        /// 회귀 방지: **작은 dt를 반복해도 드론이 나간다.**
+        /// 방출 허용량을 틱마다 버리면 처리량 3기/초에 dt 0.02일 때 틱당 0.06기가 되고,
+        /// 정수로 내리면 언제나 0이라 영영 못 나간다 — 실제로 그 상태였고 전투 테스트가 잡았다.
+        /// </summary>
+        [Test]
+        public void SmallTicks_StillLaunch_AllowanceCarriesOver()
+        {
+            DroneBay bay = Bay(); // 처리량 3기/초
+            int launched = 0;
+
+            for (int i = 0; i < 50; i++) // 1초를 0.02초로 쪼갠다
+            {
+                bay.Produce(0.02f, 1f);
+                launched += bay.Launch(0.02f);
+            }
+
+            Assert.AreEqual(1, launched, "유입 1기/초 × 1초 = 1기");
+        }
+
+        /// <summary>허용량이 무한히 쌓여 한꺼번에 터지지 않는다 — 쓴 만큼만 깎인다.</summary>
+        [Test]
+        public void Allowance_DoesNotStockpileIntoABurst()
+        {
+            DroneBay bay = Bay(slots: 3, rate: 1f);
+
+            for (int i = 0; i < 100; i++) bay.Launch(0.1f); // 유입 없이 10초 — 허용량만 흐른다
+            bay.Produce(10f, 1f);                            // 이제 10기가 대기
+
+            Assert.LessOrEqual(bay.Launch(0.1f), 3, "슬롯 3을 넘어 한꺼번에 나가지 않는다");
+        }
+
         // ---- 수명: 충전량 = 피해 총량 (§5-3 회신분) ----
 
         /// <summary>

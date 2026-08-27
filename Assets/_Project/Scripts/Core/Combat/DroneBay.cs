@@ -16,7 +16,13 @@ namespace MBI.Core
     /// </summary>
     public sealed class DroneBay
     {
-        private float _pending; // 만들어졌지만 아직 못 나간 드론(소수 누적 포함)
+        private float _pending;   // 만들어졌지만 아직 못 나간 드론(소수 누적 포함)
+        private float _allowance;  // 방출률이 허용한 몫(소수 누적) — 아래 주석 참조
+
+        // dt를 잘게 더하면 1기가 정확히 1.0이 아니라 0.9999…로 끝나 그 기체가 다음 틱으로 밀린다.
+        // 잔여가 이월되므로 장기 방출률은 맞지만 초 경계에서 한 기가 늦는다 —
+        // 발사 누산기(CombatSimulation.FireEpsilon)와 같은 뿌리이고 같은 방식으로 푼다.
+        private const float LaunchEpsilon = 1e-4f;
 
         public DroneBay(int slots, float releaseRatePerSlot, float chargePerDrone)
         {
@@ -65,14 +71,19 @@ namespace MBI.Core
         {
             if (dt <= 0f || Slots <= 0) return 0;
 
+            // 방출 허용량은 **누적한다.** 틱마다 버리면 dt가 작을 때 영영 못 나간다 —
+            // 처리량 3기/초에 dt 0.02면 틱당 0.06기이고, 정수로 내리면 언제나 0이다.
+            // 탄약 재고의 소수 이월과 같은 문제이고 같은 방식으로 푼다.
+            _allowance += SlotThroughput * dt;
+
             int freeSlots = Slots - Active;
             if (freeSlots <= 0) return 0;
 
-            float allowedByRate = SlotThroughput * dt;
-            int count = Mathf.FloorToInt(Mathf.Min(_pending, Mathf.Min(freeSlots, allowedByRate)));
+            int count = Mathf.FloorToInt(Mathf.Min(_pending, Mathf.Min(freeSlots, _allowance)) + LaunchEpsilon);
             if (count <= 0) return 0;
 
             _pending -= count;
+            _allowance -= count;
             Active += count;
             return count;
         }
@@ -91,6 +102,7 @@ namespace MBI.Core
         {
             Active = 0;
             _pending = 0f;
+            _allowance = 0f;
         }
     }
 

@@ -37,6 +37,13 @@ namespace MBI.Core
         public List<AmmoLine> lines; // 탄종별 발사 라인(ShotAllocator.AllocateRates 산출)
         public float ammoCapacity;   // 재고 용량(발). 확정치 40 — 재고는 단일 층
         public float ammoInitialStock; // 전투 시작 재고. ⚠️ 초기값은 원천 미규정 — 러너가 만재로 둔다
+
+        // ---- 드론(로봇 B) ----
+        // 실효 방출량 = min(유입, 슬롯 × 방출률). 유입은 보드의 「드론 몸체」 조합표가 만든다.
+        public int droneSlots;          // params slot = 3 (강화 비대상 상수)
+        public float droneReleaseRate;  // params r = 1.0 (기/초/슬롯)
+        public float droneCharge;       // params dB = 100. **1기 = 1회 타격 = 충전량 전량**
+        public float droneAttackRange;  // 본체와 동일하게 둔다(C-3 확정)
     }
 
     /// <summary>적 스폰 스펙(순수 값). 위치는 시뮬이 결정론적으로 배치.</summary>
@@ -90,6 +97,22 @@ namespace MBI.Core
 
         /// <summary>탄종별 잔량(발). 탄종별 창고 표시·진단용.</summary>
         public float AmmoStockOf(AmmoKind kind) => _ammo.StockOf(kind);
+
+        // ---- 드론(로봇 B) ----
+        private readonly DroneBay _droneBay;
+        private readonly List<DroneUnit> _drones = new List<DroneUnit>();
+
+        /// <summary>드론 몸체 유입(기/초). 러너가 보드 산출에서 매 프레임 주입한다.</summary>
+        public float DroneInflowRate { get; set; }
+
+        /// <summary>필드에 나가 있는 드론.</summary>
+        public IReadOnlyList<DroneUnit> Drones => _drones;
+
+        /// <summary>드론 사출대(진단·HUD용).</summary>
+        public DroneBay Drones_Bay => _droneBay;
+
+        /// <summary>이번 전투에서 드론이 낸 누적 피해(검산용).</summary>
+        public float DroneDamageDealt { get; private set; }
 
         public CombatResult Result { get; private set; } = CombatResult.InProgress;
         public float Elapsed { get; private set; }
@@ -177,6 +200,7 @@ namespace MBI.Core
 
             _ammo = new AmmoInventory(robot.ammoCapacity);
             LoadInitialStock(robot.ammoInitialStock);
+            _droneBay = new DroneBay(robot.droneSlots, robot.droneReleaseRate, robot.droneCharge);
 
             ResizeLineTimers(robot.lines != null ? robot.lines.Count : 0);
         }
@@ -279,6 +303,7 @@ namespace MBI.Core
             // ResolveSeparation(밀어내기) 폐기 — 구현 사양이 "밀어내지 않음 · 막히면 멈춤"으로 확정됐다.
             // 겹침은 이동 시점에 IsBlocked로 막으므로 사후 보정이 필요 없다.
             RobotFire(dt);
+            DroneTick(dt);
             CleanupDead();
             Evaluate();
         }
@@ -341,6 +366,77 @@ namespace MBI.Core
                     }
                 }
             }
+        }
+
+        // ── 드론(로봇 B) ─────────────────────────────────────────────────────
+        // 유입 = 생산이고, 실효 방출량 = min(유입, 슬롯 × 방출률)이다.
+        // **1기 = 1회 타격 = 충전량 전량** — 등가선이 그렇게 맞는다:
+        //   초당 1기(pB) × 기당 100(dB) = DPS 100. 나눠 쏘면 등가선을 벗어난다.
+        // 「단발 고밀도(관통형)」라는 밸런스 표현이 이 구조를 가리킨다.
+        private void DroneTick(float dt)
+        {
+            if (_droneBay == null) return;
+
+            _droneBay.Produce(dt, DroneInflowRate);
+
+            int launched = _droneBay.Launch(dt);
+            for (int i = 0; i < launched; i++)
+                _drones.Add(new DroneUnit(DroneStation(_drones.Count),
+                    _robotSetup.droneCharge, _robotSetup.droneCharge, _robotSetup.droneAttackRange));
+
+            // 사격 — 표적은 본체와 같은 최근접 규칙이되 **기준점이 드론 자신**이라
+            // 본체와 다른 적을 칠 수 있다(자동 전투 구현 사양).
+            for (int i = _drones.Count - 1; i >= 0; i--)
+            {
+                DroneUnit d = _drones[i];
+                CombatEntity target = NearestLivingEnemyWithin(d.Position, d.AttackRange);
+                if (target == null) continue;
+
+                float dealt = d.Fire();
+                if (dealt <= 0f) continue;
+
+                // 판정식을 다시 만들지 않는다 — 본체 사격과 같은 식을 탄다.
+                float applied = DamageFormula.PerHit(dealt, _robotSetup.mountCoef, _robotSetup.moduleMult, target.def);
+                target.hp -= applied;
+                DroneDamageDealt += applied;
+
+                _shots.Add(new ShotEvent
+                {
+                    from = d.Position, to = target.position,
+                    kind = AmmoKind.Pierce, // 드론 = 단발 고밀도(관통형)
+                    killed = target.hp <= 0f, aoeRadius = 0f,
+                });
+
+                // 충전량을 다 썼으면 소멸 — 슬롯은 즉시 빈다.
+                if (!d.IsAlive)
+                {
+                    _drones.RemoveAt(i);
+                    _droneBay.Retire();
+                }
+            }
+        }
+
+        /// <summary>드론 정박 위치(로봇 주변 고정 오프셋). 결정론 — 난수 0.</summary>
+        private Vector2 DroneStation(int index)
+        {
+            int slots = Mathf.Max(1, _robotSetup.droneSlots);
+            float angle = Mathf.PI * 2f * (index % slots) / slots;
+            float ring = Mathf.Max(0.35f, _robotSetup.radius * 1.5f);
+            return _robot.position + new Vector2(Mathf.Cos(angle), Mathf.Sin(angle)) * ring;
+        }
+
+        /// <summary>주어진 기준점에서 사거리 안 최근접 생존 적. 동률은 먼저 등장한 쪽.</summary>
+        private CombatEntity NearestLivingEnemyWithin(Vector2 origin, float range)
+        {
+            CombatEntity best = null;
+            float bestSqr = range * range;
+            foreach (CombatEntity e in _enemies)
+            {
+                if (!e.IsAlive) continue;
+                float sqr = (e.position - origin).sqrMagnitude;
+                if (sqr < bestSqr) { bestSqr = sqr; best = e; }
+            }
+            return best;
         }
 
         private void RobotFire(float dt)
