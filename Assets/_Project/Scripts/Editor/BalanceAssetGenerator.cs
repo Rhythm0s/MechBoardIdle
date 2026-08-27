@@ -87,6 +87,8 @@ namespace MBI.Editor
             // ⚠️ 여기에 capA(마운트 소비 상한 6)를 넣던 시기가 있었다. capA는 **소비 천장**이라
             // 노드 하나가 상한을 다 채워 두 번째 노드부터 출력 영향이 0이 됐다(CLAUDE.md §7 등재).
             float muniPerNode = json.Param("muniPerNode");
+            // 드론 유입(기/초). params pB = 1.0 확정치 — 드론 몸체 조합표의 산출 속도.
+            float droneInflow = json.Param("pB");
             float heat = json.Param("heat");  // 발열 합 → 가공
             float heatc = json.Param("heatc"); // 냉각 임계 → 가공
             float pw = json.Param("pw");      // 전력 소비 합(집계) → 코어에 lumped placeholder
@@ -110,13 +112,32 @@ namespace MBI.Editor
                     new NodePort(PortFace.East, PortIO.Output, FlowKind.Material),
                 });
 
-            // 군수 — 탄약 생산
+            // 군수 — 조합표 4종 중 **하나**를 돌린다(260827_V01 §3).
+            // 갈래를 늘리는 방법은 노드를 더 놓는 것이지 노드 하나를 넓히는 것이 아니므로,
+            // 출력 포트는 단일이고 산출 종류는 선택된 조합표가 정한다.
+            // 스택 상한은 미확정(조립 「품목과 재고」 신설 중) — 0 = 미설정 센티넬로 두고 하드코딩하지 않는다.
             WriteNode(config, "muni", "군수", NodeType.Munitions, true,
                 new NodeResourceProfile { ammoProduce = muniPerNode, confirm = ConfirmState.Confirmed },
                 new List<NodePort>
                 {
                     new NodePort(PortFace.West, PortIO.Input, FlowKind.Material),
                     new NodePort(PortFace.East, PortIO.Output, FlowKind.Ammo),
+                },
+                new List<NodeRecipe>
+                {
+                    new NodeRecipe { kind = RecipeKind.Ammo, displayName = "탄약",
+                        output = FlowKind.Ammo, outputPerSec = muniPerNode,
+                        stackLimitTbd = 0f, implemented = true },
+                    new NodeRecipe { kind = RecipeKind.DroneBody, displayName = "드론 몸체",
+                        output = FlowKind.Drone, outputPerSec = droneInflow,
+                        stackLimitTbd = 0f, implemented = true },
+                    // 아래 둘은 자리만 — 쉴드는 범위 밖, 추진제는 노드 6종→7종 개편이 선행(§E 착수 금지).
+                    new NodeRecipe { kind = RecipeKind.ShieldMaterial, displayName = "쉴드 재료",
+                        output = FlowKind.Material, outputPerSec = 0f,
+                        stackLimitTbd = 0f, implemented = false },
+                    new NodeRecipe { kind = RecipeKind.Propellant, displayName = "추진제",
+                        output = FlowKind.Material, outputPerSec = 0f,
+                        stackLimitTbd = 0f, implemented = false },
                 });
 
             // 에너지 — 발전(전력 공급)
@@ -146,7 +167,8 @@ namespace MBI.Editor
         }
 
         private static void WriteNode(BalanceConfig config, string id, string display, NodeType type,
-            bool implemented, NodeResourceProfile resources, List<NodePort> ports)
+            bool implemented, NodeResourceProfile resources, List<NodePort> ports,
+            List<NodeRecipe> recipes = null)
         {
             string path = $"{NodesDir}/Node_{id}.asset";
             NodeDefinition n = LoadOrCreate<NodeDefinition>(path);
@@ -156,6 +178,8 @@ namespace MBI.Editor
             n.implemented = implemented;
             n.resources = resources;
             n.ports = ports;
+            // 조합표를 안 주는 노드는 빈 목록 — 「레시피 선택」이 없는 노드도 있다(코어·에너지·저장).
+            n.recipes = recipes ?? new List<NodeRecipe>();
             n.balanceRef = config;
             EditorUtility.SetDirty(n);
         }

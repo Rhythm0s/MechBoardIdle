@@ -40,8 +40,8 @@ namespace MBI.Data
         Material, // 물류 품목(가공 대상)
         Ammo,     // 탄약
         Power,    // 전력
-        Heat      // 발열
-        // Drone 등은 확장 규칙(§4 MVP 미등장) — 필요 시 추가.
+        Heat,     // 발열
+        Drone     // 드론 몸체 — 군수 노드 「드론 몸체」 레시피 산출 (2026-08-27)
     }
 
     /// <summary>

@@ -24,6 +24,7 @@ MonoBehaviour:
     heatGenerate: 0
     heatDissipate: 0
     confirm: 1
+  recipes: []
   ports:
   - face: 3
     io: 0

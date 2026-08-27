@@ -28,6 +28,10 @@ namespace MBI.Data
         [Header("공통 변수 — 전력 / 탄약 / 발열")]
         public NodeResourceProfile resources;
 
+        [Header("조합표 — 이 종류의 노드가 고를 수 있는 레시피 후보")]
+        [Tooltip("노드 한 대는 이 중 **하나만** 돌린다(260827_V01 §3). 레시피 추가는 여기 한 행을 늘리는 것이고 노드 코드는 건드리지 않는다.")]
+        public List<NodeRecipe> recipes = new List<NodeRecipe>();
+
         [Header("연결 — 면별 입출력 포트")]
         [Tooltip("각 면(N/E/S/W)의 입력/출력과 흐르는 자원 종류. NodeConnectionRules가 사용.")]
         public List<NodePort> ports = new List<NodePort>();

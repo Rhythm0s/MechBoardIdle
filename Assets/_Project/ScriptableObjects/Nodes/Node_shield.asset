@@ -24,5 +24,6 @@ MonoBehaviour:
     heatGenerate: 0
     heatDissipate: 0
     confirm: 1
+  recipes: []
   ports: []
   balanceRef: {fileID: 11400000, guid: a00911652af86014e9b4ea1c7d0b41d5, type: 2}
