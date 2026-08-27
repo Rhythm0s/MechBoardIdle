@@ -28,10 +28,14 @@ namespace MBI.Tests
             _created.Clear();
         }
 
+        // 산출 종류는 조합표마다 다르다 — 드론 몸체가 탄약을 뱉으면 잔여물 판정이 성립하지 않는다.
+        private static FlowKind OutputOf(RecipeKind kind) =>
+            kind == RecipeKind.DroneBody ? FlowKind.Drone : FlowKind.Ammo;
+
         private static NodeRecipe Recipe(RecipeKind kind, float rate, float stack, bool impl = true) =>
             new NodeRecipe
             {
-                kind = kind, displayName = kind.ToString(), output = FlowKind.Ammo,
+                kind = kind, displayName = kind.ToString(), output = OutputOf(kind),
                 outputPerSec = rate, stackLimitTbd = stack, implemented = impl,
             };
 
@@ -191,6 +195,64 @@ namespace MBI.Tests
             Assert.AreEqual(0f, after2, D);
 
             Assert.AreEqual(0f, NodeProduction.Withdraw(0f, 5f, out _), D);
+        }
+
+        // ---- 정지 사유 구분(§2-1) ----
+
+        /// <summary>
+        /// 같은 「정지」인데 의미가 다르다. 출력 막힘은 **물류 실패의 신호**이고,
+        /// 교체 잔여물은 **방금 자기가 한 조작의 정상적 결과**다.
+        /// 둘을 똑같이 보여주면 레시피를 바꿀 때마다 공장이 고장 난 줄 안다 —
+        /// 그리고 레시피 교체는 상시 조작이다.
+        /// </summary>
+        [Test]
+        public void StallReason_DistinguishesBlockedFromResidue()
+        {
+            NodeRecipe ammo = Recipe(RecipeKind.Ammo, rate: 1f, stack: 10f);
+
+            Assert.AreEqual(NodeStallReason.OutputBlocked,
+                NodeProduction.StallReason(ammo, bufferNow: 10f, bufferKind: FlowKind.Ammo),
+                "지금 조합표의 산출물이 가득 참 = 가져가는 쪽이 없다");
+
+            Assert.AreEqual(NodeStallReason.RecipeChangedResidue,
+                NodeProduction.StallReason(ammo, bufferNow: 3f, bufferKind: FlowKind.Drone),
+                "이전 조합표의 산출물이 남아 있음 = 방금 바꿨다");
+        }
+
+        /// <summary>잔여물은 **가득 차지 않아도** 정지 사유다 — 다른 품목을 섞을 수 없다.</summary>
+        [Test]
+        public void Residue_StallsEvenWhenBufferHasRoom()
+        {
+            NodeRecipe ammo = Recipe(RecipeKind.Ammo, rate: 1f, stack: 100f);
+
+            Assert.AreEqual(NodeStallReason.RecipeChangedResidue,
+                NodeProduction.StallReason(ammo, bufferNow: 1f, bufferKind: FlowKind.Drone));
+        }
+
+        [Test]
+        public void StallReason_IsNoneWhenRunningNormally()
+        {
+            NodeRecipe ammo = Recipe(RecipeKind.Ammo, rate: 1f, stack: 10f);
+
+            Assert.AreEqual(NodeStallReason.None,
+                NodeProduction.StallReason(ammo, bufferNow: 0f, bufferKind: FlowKind.Ammo), "빈 버퍼");
+            Assert.AreEqual(NodeStallReason.None,
+                NodeProduction.StallReason(ammo, bufferNow: 5f, bufferKind: FlowKind.Ammo), "여유 있음");
+        }
+
+        /// <summary>노드 인스턴스가 사유를 들고 있어야 UI가 구분해 그릴 수 있다.</summary>
+        [Test]
+        public void NodeInstance_ExposesStallReason()
+        {
+            var inst = new NodeInstance(Node(Recipe(RecipeKind.Ammo, 1f, 10f),
+                                             Recipe(RecipeKind.DroneBody, 1f, 10f)), Vector2Int.zero)
+            { OutputBuffer = 4f, BufferKind = FlowKind.Ammo };
+
+            inst.SelectRecipe(RecipeKind.Ammo);
+            Assert.AreEqual(NodeStallReason.None, inst.StallReason);
+
+            inst.SelectRecipe(RecipeKind.DroneBody); // 버퍼엔 아직 탄약이 남아 있다
+            Assert.AreEqual(NodeStallReason.RecipeChangedResidue, inst.StallReason);
         }
 
         // ---- §3-3 재고 층위 ----

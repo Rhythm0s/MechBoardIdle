@@ -46,6 +46,28 @@ namespace MBI.Core
         }
 
         /// <summary>
+        /// **왜** 멈췄는가(260827_V02 §2-1). 플레이어가 할 행동은 같아도 읽히는 의미가 다르다:
+        ///   출력 막힘   = 가져가는 쪽이 없다 → **물류 실패의 신호**
+        ///   교체 잔여물 = 방금 자기가 바꿨다 → **조작의 정상적 결과**
+        ///
+        /// 둘을 똑같이 「정지」로 보여주면 레시피를 바꿀 때마다 공장이 고장 난 줄 안다.
+        /// 그리고 레시피 교체는 상시 조작이다 — 회피가 모자라면 추진제로, 화력이 모자라면 드론으로.
+        ///
+        /// 구분 기준은 **버퍼에 든 것이 지금 조합표의 산출물인가**다.
+        /// </summary>
+        public static NodeStallReason StallReason(in NodeRecipe recipe, float bufferNow, FlowKind bufferKind)
+        {
+            if (!recipe.IsRunnable || bufferNow <= 0f) return NodeStallReason.None;
+
+            // 버퍼에 이전 조합표의 산출물이 남아 있다 — 가득 차지 않았어도 새 산출물을 섞을 수 없다.
+            if (bufferKind != recipe.output) return NodeStallReason.RecipeChangedResidue;
+
+            return FreeSpace(recipe, bufferNow) <= 0f
+                ? NodeStallReason.OutputBlocked
+                : NodeStallReason.None;
+        }
+
+        /// <summary>
         /// 하류가 가져간다. 버퍼에 있는 만큼만 나가고, 없으면 0이 나간다.
         /// </summary>
         public static float Withdraw(float bufferNow, float requested, out float bufferAfter)

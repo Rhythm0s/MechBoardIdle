@@ -39,6 +39,15 @@ namespace MBI.Core
         /// </summary>
         public float OutputBuffer { get; set; }
 
+        /// <summary>
+        /// 버퍼에 든 것의 종류. 조합표를 바꿔도 이전 산출물은 남으므로, 지금 조합표의 산출과
+        /// 다를 수 있다 — 그 차이가 「정지 사유」를 가른다(§2-1).
+        /// </summary>
+        public FlowKind BufferKind { get; set; }
+
+        /// <summary>지금 왜 멈춰 있는가. 멈추지 않았으면 None.</summary>
+        public NodeStallReason StallReason => NodeProduction.StallReason(CurrentRecipe, OutputBuffer, BufferKind);
+
         /// <summary>현재 조합표. 고르지 않았으면 후보 첫 줄(돌릴 수 있는 것)로 본다.</summary>
         public NodeRecipe CurrentRecipe
         {
