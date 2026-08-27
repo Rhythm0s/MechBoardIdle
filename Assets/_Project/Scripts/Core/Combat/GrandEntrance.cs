@@ -1,11 +1,12 @@
 namespace MBI.Core
 {
     /// <summary>
-    /// 등장 특공(밸런스 문서「태그 시스템 수치」· 전투 시스템 문서 2-1장 · 9-1장).
+    /// 태그 스킬(구 「등장 특공」/「과부하 특공」 — 260827_V03 §4 개명). 밸런스 문서「태그 시스템 수치」· 전투 시스템 문서 2-1장 · 9-1장).
     ///
     /// **발동 경로가 둘이다.** 태그 전용이 아니다 —
-    ///   ① 태그 인 시점 — 대기 로봇 비축 100%
-    ///   ② 합체 발동 시점 — 창고 100% (구 「과부하 특공」)
+    ///   ① 태그 인 시점 — 대기 로봇 **마운트 만충**
+    ///   ② 합체 발동 시점 — **마운트 만충**
+    /// 구 「창고 100%」는 폐기됐다 — 판정 주체가 저장 노드에서 마운트로 옮겨졌다(V03 §2).
     /// ②는 신규 메커니즘이 아니라 본 항의 두 번째 발동 경로이며 **식이 동일하다**.
     /// 그래서 이 식은 TagSystem 안이 아니라 여기 독립으로 있다 — 합체 쪽이 같은 함수를 부른다.
     ///
@@ -18,12 +19,12 @@ namespace MBI.Core
         /// 특공 피해. **만재 단일 기준이며 부분 발동이 없다** — 99%에서 99%만큼 나가지 않는다.
         /// 조건을 맞추거나 못 맞추거나다.
         ///
-        /// 식 확정: **비축 발수 × 강화 평균 발당피해** (대표 40 × 52.6 ≈ 2,103 — params tagspec).
+        /// 식 확정: **적재 발수 × 강화 평균 발당피해** (대표 40 × 52.6 ≈ 2,103 — params tagspec).
         /// </summary>
-        public static float Damage(bool stockFull, float stockedRounds, float avgDamagePerShot)
+        public static float Damage(bool mountFull, float loadedRounds, float avgDamagePerShot)
         {
-            if (!stockFull || stockedRounds <= 0f || avgDamagePerShot <= 0f) return 0f;
-            return stockedRounds * avgDamagePerShot;
+            if (!mountFull || loadedRounds <= 0f || avgDamagePerShot <= 0f) return 0f;
+            return loadedRounds * avgDamagePerShot;
         }
     }
 }

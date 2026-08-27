@@ -63,9 +63,11 @@ namespace MBI.Core
         /// 같은 순간에 약한 등장을 고를 이유가 없다.
         /// 쿨다운·잠금은 여기서 보지 않는다(판정과 발동을 분리해야 「조건은 됐는데 쿨다운이라 못 나감」이 표현된다).
         /// </summary>
-        public static TagEntry EvaluateAuto(bool standbyFull, bool activeDepleted)
+        /// <param name="standbyMountFull">대기 로봇의 **마운트**가 만충인가(V03 §2 — 창고가 아니다).</param>
+        /// <param name="activeDepleted">활성 로봇의 마운트가 소진됐는가.</param>
+        public static TagEntry EvaluateAuto(bool standbyMountFull, bool activeDepleted)
         {
-            if (standbyFull) return TagEntry.Full;
+            if (standbyMountFull) return TagEntry.Full;
             if (activeDepleted) return TagEntry.Depleted;
             return TagEntry.None;
         }
@@ -91,17 +93,22 @@ namespace MBI.Core
             TotalTags = 0;
         }
 
-        // ---- 등장 특공 (경로 ① 태그 인) ----
+        // ---- 태그 스킬 (구 「등장 특공」/「과부하 특공」 — 260827_V03 §4 개명) ----
 
         /// <summary>
-        /// 이 태그에서 특공이 나가는가. 만재 등장에서만 나간다 —
-        /// 소진 트리거는 활성 로봇이 마른 것이지 대기 로봇이 만재라는 뜻이 아니다.
+        /// 이 태그에서 **태그 스킬**이 발동하는가.
         ///
-        /// ⚠️ **피해 계산식은 여기 없다.** 특공은 태그 전용이 아니라 합체 발동에서도 같은 식으로
-        /// 나가므로(전투 문서 9-1, 경로 ②), 식은 GrandEntrance에 독립으로 두었다.
-        /// 이 메서드는 **태그 경로의 발동 조건**만 판정한다.
+        /// 조건은 **마운트 만충**이다(V03 §2·§4). 구 「창고 100%」는 폐기됐다 —
+        /// 2026-08-27 개정으로 만충 판정 주체가 저장 노드에서 마운트로 옮겨졌다.
+        /// 효과는 **마운트 재고 전량을 소진하는 공격 1회**이고, 저장 노드는 남는다.
+        ///
+        /// 만재 등장에서만 나간다 — 소진 트리거는 활성 로봇이 마른 것이지
+        /// 대기 로봇의 마운트가 찼다는 뜻이 아니다.
+        ///
+        /// ⚠️ **피해 계산식은 여기 없다.** 태그 전용이 아니라 합체 발동에서도 같은 식으로
+        /// 나가므로 식은 GrandEntrance에 독립으로 두었다. 여기는 **태그 경로의 발동 조건**만 본다.
         /// </summary>
-        public static bool HasGrandEntrance(TagEntry reason, bool stockFull) =>
-            stockFull && (reason == TagEntry.Full || reason == TagEntry.Manual);
+        public static bool HasTagSkill(TagEntry reason, bool mountFull) =>
+            mountFull && (reason == TagEntry.Full || reason == TagEntry.Manual);
     }
 }

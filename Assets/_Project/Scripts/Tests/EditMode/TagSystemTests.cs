@@ -5,7 +5,7 @@ namespace MBI.Tests
 {
     /// <summary>
     /// 태그 시스템(전투 시스템 문서 2-1장 · 밸런스 문서「태그 시스템 수치」).
-    /// 확정치: 쿨다운 5초 · 만충 기준 저장 40발(총합 판정) · 등장 특공 = 비축 발수 × 강화 평균 발당피해.
+    /// 확정치: 쿨다운 5초 · **만충 판정 주체 = 마운트**(V03 §2 개정) · 태그 스킬 = 적재 발수 × 강화 평균 발당피해.
     /// </summary>
     public sealed class TagSystemTests
     {
@@ -20,7 +20,7 @@ namespace MBI.Tests
         [Test]
         public void FullTrigger_WinsOverDepleted()
         {
-            Assert.AreEqual(TagEntry.Full, TagSystem.EvaluateAuto(standbyFull: true, activeDepleted: true));
+            Assert.AreEqual(TagEntry.Full, TagSystem.EvaluateAuto(standbyMountFull: true, activeDepleted: true));
             Assert.AreEqual(TagEntry.Full, TagSystem.EvaluateAuto(true, false));
             Assert.AreEqual(TagEntry.Depleted, TagSystem.EvaluateAuto(false, true));
             Assert.AreEqual(TagEntry.None, TagSystem.EvaluateAuto(false, false));
@@ -113,7 +113,7 @@ namespace MBI.Tests
         [Test]
         public void GrandEntrance_MatchesConfirmedFormula()
         {
-            float dmg = GrandEntrance.Damage(stockFull: true, stockedRounds: 40f, avgDamagePerShot: 52.6f);
+            float dmg = GrandEntrance.Damage(mountFull: true, loadedRounds: 40f, avgDamagePerShot: 52.6f);
 
             Assert.AreEqual(2104f, dmg, 1f, "40 × 52.6 — params tagspec 2103과 대조");
         }
@@ -125,7 +125,7 @@ namespace MBI.Tests
         [Test]
         public void GrandEntrance_DoesNotScaleWithPartialStock()
         {
-            Assert.AreEqual(0f, GrandEntrance.Damage(stockFull: false, stockedRounds: 39.9f, avgDamagePerShot: 52.6f), D,
+            Assert.AreEqual(0f, GrandEntrance.Damage(mountFull: false, loadedRounds: 39.9f, avgDamagePerShot: 52.6f), D,
                 "만재가 아니면 한 발도 나가지 않는다");
             Assert.Greater(GrandEntrance.Damage(true, 40f, 52.6f), 0f);
         }
@@ -134,13 +134,13 @@ namespace MBI.Tests
         [Test]
         public void GrandEntrance_OnlyOnFullEntry()
         {
-            Assert.IsTrue(TagSystem.HasGrandEntrance(TagEntry.Full, stockFull: true));
-            Assert.IsTrue(TagSystem.HasGrandEntrance(TagEntry.Manual, stockFull: true), "수동이라도 만재면 나간다");
+            Assert.IsTrue(TagSystem.HasTagSkill(TagEntry.Full, mountFull: true));
+            Assert.IsTrue(TagSystem.HasTagSkill(TagEntry.Manual, mountFull: true), "수동이라도 만재면 나간다");
 
-            Assert.IsFalse(TagSystem.HasGrandEntrance(TagEntry.Depleted, stockFull: true),
+            Assert.IsFalse(TagSystem.HasTagSkill(TagEntry.Depleted, mountFull: true),
                 "소진 트리거는 활성 로봇이 마른 것이지 대기 로봇이 만재라는 뜻이 아니다");
-            Assert.IsFalse(TagSystem.HasGrandEntrance(TagEntry.Full, stockFull: false));
-            Assert.IsFalse(TagSystem.HasGrandEntrance(TagEntry.None, true));
+            Assert.IsFalse(TagSystem.HasTagSkill(TagEntry.Full, mountFull: false));
+            Assert.IsFalse(TagSystem.HasTagSkill(TagEntry.None, true));
         }
 
         [Test]
@@ -162,8 +162,8 @@ namespace MBI.Tests
         public void GrandEntrance_IsCallableWithoutTagContext_ForMergePath()
         {
             // 합체 발동 시점 — 태그 사유가 없다. 창고 만재만 본다.
-            float viaMerge = GrandEntrance.Damage(stockFull: true, stockedRounds: 40f, avgDamagePerShot: 52.6f);
-            float viaTag = GrandEntrance.Damage(stockFull: true, stockedRounds: 40f, avgDamagePerShot: 52.6f);
+            float viaMerge = GrandEntrance.Damage(mountFull: true, loadedRounds: 40f, avgDamagePerShot: 52.6f);
+            float viaTag = GrandEntrance.Damage(mountFull: true, loadedRounds: 40f, avgDamagePerShot: 52.6f);
 
             Assert.AreEqual(viaTag, viaMerge, D, "두 경로가 같은 식을 쓴다");
             Assert.Greater(viaMerge, 0f);
