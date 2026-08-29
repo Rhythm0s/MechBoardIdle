@@ -150,10 +150,12 @@ namespace MBI.Editor
             var coreNode = Load<NodeDefinition>($"{SoRoot}/Nodes/Node_core.asset");
             if (coreNode != null) so.FindProperty("placeTarget").objectReferenceValue = coreNode;
 
-            // 노드 팔레트(구현 5종 — 쉴드 스텁 제외).
+            // 노드 팔레트(구현 6종 — 쉴드 스텁만 제외).
+            // ⚠️ 부스터가 빠져 있던 동안에는 **회피를 Play에서 켤 방법이 아예 없었다** —
+            // 상한이 부스터 대수의 파생값이라 한 대도 못 놓으면 상한이 영영 0이다.
             SerializedProperty pal = so.FindProperty("palette");
             pal.arraySize = 0;
-            foreach (string id in new[] { "core", "proc", "muni", "ener", "stor" })
+            foreach (string id in new[] { "core", "proc", "muni", "ener", "stor", "boost" })
             {
                 var n = Load<NodeDefinition>($"{SoRoot}/Nodes/Node_{id}.asset");
                 if (n == null) continue;
