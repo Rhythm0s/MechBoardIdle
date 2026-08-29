@@ -107,9 +107,83 @@ namespace MBI.Logistics
         private static readonly Color GridBorderColor = new Color(0.45f, 0.9f, 0.65f, 0.85f);   // 바깥 테두리
         private static readonly Color PanDimColor = new Color(0.03f, 0.05f, 0.08f, 0.55f);     // 이동 모드 흐림 막
         // 종류별 배색은 **아트 자체의 색**이다(V02 §1). 코드는 밝기만 곱한다.
-        // 아트 투입 전 플레이스홀더는 흰 사각이라 세 단계가 흰색/회색/짙은 회색으로 나온다 —
-        // 상태는 구분되고 종류는 아직 구분되지 않는 것이 맞는 상태다.
+        // 아트가 아직 없어 전 노드가 흰 사각으로 나왔고, 그래서 보드에서 코어와 군수를 못 갈랐다.
+        // 아래는 **아트가 들어오면 아트가 이기는 플레이스홀더 색상**이다 —
+        // 색 축은 종류, 밝기 축은 상태로 그대로 유지된다(한 축에 둘을 겹치지 않는다).
         private static readonly Color NodeBaseColor = Color.white;
+
+        /// <summary>노드 종류별 플레이스홀더 색. 아트 투입 시 이 표가 사라지고 스프라이트 색이 대신한다.</summary>
+        private static Color NodeTypeColor(NodeType type)
+        {
+            switch (type)
+            {
+                case NodeType.Core: return new Color(0.98f, 0.85f, 0.35f);       // 코어 — 금색(허브)
+                case NodeType.Processing: return new Color(0.60f, 0.70f, 0.95f); // 가공 — 청색
+                case NodeType.Munitions: return new Color(0.95f, 0.50f, 0.45f);  // 군수 — 적색
+                case NodeType.Energy: return new Color(0.55f, 0.90f, 0.60f);     // 에너지 — 녹색
+                case NodeType.Storage: return new Color(0.75f, 0.72f, 0.66f);    // 저장 — 회백
+                case NodeType.Booster: return new Color(0.80f, 0.55f, 0.95f);    // 부스터 — 보라
+                default: return new Color(0.45f, 0.48f, 0.52f);                  // 쉴드(스텁) — 흐린 회색
+            }
+        }
+
+        /// <summary>
+        /// 벨트가 나르는 품목의 색. 비어 있으면(상류 없음) 짙은 회색 —
+        /// 「깔았는데 아무것도 안 흐른다」가 색으로 먼저 보인다.
+        /// </summary>
+        private static Color FlowColor(FlowKind kind)
+        {
+            switch (kind)
+            {
+                case FlowKind.Material: return new Color(0.70f, 0.68f, 0.62f);   // 물류 품목 — 베이지
+                case FlowKind.Ammo: return new Color(0.95f, 0.55f, 0.40f);       // 탄약 — 주황
+                case FlowKind.Power: return new Color(0.55f, 0.85f, 0.98f);      // 전력 — 하늘
+                case FlowKind.Heat: return new Color(0.95f, 0.40f, 0.30f);       // 발열 — 적
+                case FlowKind.Drone: return new Color(0.60f, 0.95f, 0.70f);      // 드론 몸체 — 연두
+                case FlowKind.Propellant: return new Color(0.82f, 0.60f, 0.96f); // 추진제 — 보라(부스터와 짝)
+                default: return new Color(0.32f, 0.34f, 0.38f);                  // None — 비어 있다
+            }
+        }
+
+        /// <summary>품목 라벨(벨트 위 표시). 색만으로는 색각 이상에서 안 갈린다.</summary>
+        private static string FlowLabel(FlowKind kind)
+        {
+            switch (kind)
+            {
+                case FlowKind.Material: return "품";
+                case FlowKind.Ammo: return "탄";
+                case FlowKind.Power: return "전";
+                case FlowKind.Heat: return "열";
+                case FlowKind.Drone: return "드";
+                case FlowKind.Propellant: return "추";
+                default: return "";
+            }
+        }
+
+        /// <summary>
+        /// 노드 라벨. 군수 노드는 **종류가 아니라 지금 만드는 것**을 적는다 —
+        /// 넷 다 「군수」라고 적혀 있으면 보드에서 갈리지 않는다.
+        /// </summary>
+        private static string NodeLabel(NodeInstance inst)
+        {
+            if (inst == null || inst.Definition == null) return "";
+            if (inst.Definition.type != NodeType.Munitions) return inst.Definition.displayName;
+
+            switch (inst.CurrentRecipe.kind)
+            {
+                case RecipeKind.DroneBody: return "군수:드론";
+                case RecipeKind.Propellant: return "군수:추진";
+                case RecipeKind.ShieldMaterial: return "군수:쉴드";
+                default: return "군수:" + AmmoLabel(inst.AmmoKind);
+            }
+        }
+
+        // 보드 지역 그리기 순서. 격자 배경 -3 · 셀선 -2 아래에 맞춘 같은 축이다
+        // (전역 SortingLayers와 섞지 않는다 — 섞었더니 화살표가 벨트 뒤로 사라졌다).
+        private const int MarkerOrder = 0;
+        private const int BeltArrowOrder = 1;
+        private const int BeltWarningOrder = 2;
+
         private static Sprite _unitSprite;
 
         /// <summary>
@@ -118,11 +192,16 @@ namespace MBI.Logistics
         /// 빨간 노드가 「정지」인지 「군수 노드」인지 구분되지 않아 진단 체계가 무너진다.
         /// 판정 규칙 자체는 NodeStatusTint(MBI.Core)에 있다 — UI는 판정 없이 매핑만.
         /// </summary>
-        private static Color SeverityColor(float ratio)
+        private Color SeverityColor(Vector2Int cell, float ratio)
         {
+            NodeInstance inst = _grid != null ? _grid.GetAt(cell) : null;
+            Color baseColor = inst != null && inst.Definition != null
+                ? NodeTypeColor(inst.Definition.type)
+                : NodeBaseColor;
+
             float tint = NodeStatusTint.Of(ratio);
-            Color c = NodeBaseColor * tint;
-            c.a = NodeBaseColor.a; // 알파는 밝기 축이 아니다 — 곱하면 노드가 투명해진다
+            Color c = baseColor * tint;
+            c.a = baseColor.a; // 알파는 밝기 축이 아니다 — 곱하면 노드가 투명해진다
             return c;
         }
 
@@ -134,7 +213,7 @@ namespace MBI.Logistics
             foreach (NodeDiagnostic d in diags)
             {
                 float ratio = d.targetRate > 0f ? d.actualRate / d.targetRate : 1f;
-                Color c = SeverityColor(ratio);
+                Color c = SeverityColor(d.cell, ratio);
                 _nodeColors[d.cell] = c;
                 if (_selected.HasValue && _selected.Value == d.cell) continue; // 선택 하이라이트 유지
                 if (_markers.TryGetValue(d.cell, out GameObject m) && m != null)
@@ -148,9 +227,10 @@ namespace MBI.Logistics
             foreach (KeyValuePair<Vector2Int, GameObject> kv in _markers)
             {
                 if (kv.Value == null) continue;
-                _nodeColors[kv.Key] = NodeBaseColor;
+                Color c = SeverityColor(kv.Key, 1f); // 진단이 없어도 **종류색은 남는다**
+                _nodeColors[kv.Key] = c;
                 if (_selected.HasValue && _selected.Value == kv.Key) continue;
-                kv.Value.GetComponent<SpriteRenderer>().color = NodeBaseColor;
+                kv.Value.GetComponent<SpriteRenderer>().color = c;
             }
         }
 
@@ -461,7 +541,8 @@ namespace MBI.Logistics
             marker.transform.localScale = Vector3.one * (_grid.CellSize * ArtSpec.TileSize);
             var sr = marker.AddComponent<SpriteRenderer>();
             sr.sprite = UnitSprite();
-            Color c = SeverityColor(1f); // 초기 = 정상(초록). Provider가 라이브 진단으로 갱신(§L4-R #5).
+            sr.sortingOrder = MarkerOrder;
+            Color c = SeverityColor(cell, 1f); // 초기 = 정상 밝기. Provider가 라이브 진단으로 갱신(§L4-R #5).
             sr.color = c;
             _markers[cell] = marker;
             _nodeColors[cell] = c;
@@ -498,6 +579,7 @@ namespace MBI.Logistics
             _pointerOverPalette = false;
             if (!GameLayerController.BoardViewActive) return;
 
+            DrawCellLabels(); // 버튼보다 먼저 — 팔레트/모드 버튼이 라벨 위에 온다
             DrawModeButton();
             DrawMiniMap();
 
@@ -541,6 +623,62 @@ namespace MBI.Logistics
         }
 
         /// <summary>
+        /// 보드 위 글자 라벨. **색만으로는 안 갈린다** — 색각 이상도 있고, 회색조 캡처에서도
+        /// 종류가 읽혀야 한다. 그래서 색과 글자를 같이 건다(UI 문서: 정보는 두 감각으로).
+        ///
+        /// 마커의 실제 월드 좌표를 쓴다 — 셀에서 다시 계산하면 스크롤 보정을 두 곳에서 하게 된다.
+        /// </summary>
+        private void DrawCellLabels()
+        {
+            Camera cam = boardCamera != null ? boardCamera : Camera.main;
+            if (cam == null) return;
+
+            var nodeStyle = new GUIStyle(GUI.skin.label)
+            {
+                fontSize = 12,
+                alignment = TextAnchor.MiddleCenter,
+                fontStyle = FontStyle.Bold,
+            };
+            var beltStyle = new GUIStyle(GUI.skin.label)
+            {
+                fontSize = 11,
+                alignment = TextAnchor.MiddleCenter,
+            };
+
+            foreach (KeyValuePair<Vector2Int, GameObject> kv in _markers)
+            {
+                if (kv.Value == null) continue;
+                DrawLabelAt(cam, kv.Value.transform.position, NodeLabel(_grid.GetAt(kv.Key)),
+                    nodeStyle, Color.black, 84f);
+            }
+
+            foreach (KeyValuePair<Vector2Int, GameObject> kv in _beltMarkers)
+            {
+                if (kv.Value == null) continue;
+                string label = FlowLabel(BeltFlow.KindAt(_grid, kv.Key));
+                if (label.Length == 0) continue; // 비어 있는 벨트는 색으로만 — 글자까지 깔면 시끄럽다
+                DrawLabelAt(cam, kv.Value.transform.position, label, beltStyle, Color.black, 40f);
+            }
+        }
+
+        /// <summary>월드 좌표 → 화면 라벨 한 장. 화면 밖이나 카메라 뒤는 건너뛴다.</summary>
+        private static void DrawLabelAt(Camera cam, Vector3 world, string text,
+            GUIStyle style, Color color, float width)
+        {
+            if (string.IsNullOrEmpty(text)) return;
+
+            Vector3 sp = cam.WorldToScreenPoint(world);
+            if (sp.z <= 0f) return; // 카메라 뒤
+            float y = Screen.height - sp.y;
+            if (sp.x < -width || sp.x > Screen.width + width || y < -20f || y > Screen.height + 20f) return;
+
+            Color prev = GUI.color;
+            GUI.color = color;
+            GUI.Label(new Rect(sp.x - width * 0.5f, y - 9f, width, 18f), text, style);
+            GUI.color = prev;
+        }
+
+        /// <summary>
         /// 선택한 노드의 조합표 패널(2026-08-27 레시피 선택형 · 260829_V02 착수 승인).
         ///
         /// **노드 하나는 조합표 하나를 돌린다.** 갈래를 늘리는 방법은 노드를 더 놓는 것이지
@@ -575,8 +713,9 @@ namespace MBI.Logistics
                 // 돌릴 수 없는 후보도 **자리는 보여 준다** — 감추면 「왜 못 만드나」가 아니라
                 // 「그런 게 있었나」가 된다. 착수 금지가 화면에서도 자리로 표현된다.
                 GUI.enabled = r.IsRunnable;
-                if (GUI.Button(rect, (r.kind == current ? "● " : "") + r.displayName, style))
-                    inst.SelectRecipe(r.kind);
+                if (GUI.Button(rect, (r.kind == current ? "● " : "") + r.displayName, style)
+                    && inst.SelectRecipe(r.kind))
+                    RefreshConnections(); // 산출이 바뀌면 하류 벨트가 나르는 것도 바뀐다
 
                 y += h + pad;
             }
@@ -597,7 +736,7 @@ namespace MBI.Logistics
                 if (rect.Contains(Event.current.mousePosition)) _pointerOverPalette = true;
 
                 if (GUI.Button(rect, (inst.AmmoKind == kind ? "● " : "") + AmmoLabel(kind), style))
-                    inst.AmmoKind = kind;
+                    inst.AmmoKind = kind; // 탄종은 흐르는 품목(탄약)을 바꾸지 않는다 — 라벨만 갈린다
             }
         }
 
@@ -680,6 +819,24 @@ namespace MBI.Logistics
             Debug.Log($"[MBI] 선택: {(inst != null ? inst.Definition.displayName : "?")} @ 셀({cell.x},{cell.y}).");
         }
 
+        /// <summary>
+        /// 벨트 색 = **나르는 품목**. 비어 있으면 짙은 회색이라 「깔았는데 안 흐른다」가 먼저 보인다.
+        /// 방향 화살표는 연결 여부(초록/노랑)를 그대로 쓴다 — 축이 둘이라 겹치지 않는다.
+        /// </summary>
+        private void RefreshBeltColors()
+        {
+            foreach (KeyValuePair<Vector2Int, GameObject> kv in _beltMarkers)
+            {
+                if (kv.Value == null) continue;
+                var sr = kv.Value.GetComponent<SpriteRenderer>();
+                if (sr == null) continue;
+
+                Color c = FlowColor(BeltFlow.KindAt(_grid, kv.Key));
+                c.a = BeltColor.a;
+                sr.color = c;
+            }
+        }
+
         /// <summary>격자 좌하단 코너 월드 좌표 = 보드 위치 중심 정렬(파생값).</summary>
         private static Vector2 ComputeOrigin(BoardConfig cfg, Vector3 boardPos)
         {
@@ -697,6 +854,7 @@ namespace MBI.Logistics
             var sr = m.AddComponent<SpriteRenderer>();
             sr.sprite = UnitSprite();
             sr.color = BeltColor;
+            sr.sortingOrder = MarkerOrder;
 
             var arrow = new GameObject("dir");
             arrow.transform.SetParent(m.transform, false);
@@ -706,7 +864,10 @@ namespace MBI.Logistics
             var asr = arrow.AddComponent<SpriteRenderer>();
             asr.sprite = UnitSprite();
             asr.color = BeltArrowColor;
-            asr.sortingOrder = SortingLayers.Tile + 1; // 벨트 방향 표시 — 타일 층 안
+            // ⚠️ 보드는 **자기 지역 순서대로 그린다**(격자 배경 -3 · 셀선 -2 · 마커 0).
+            // 여기에 SortingLayers.Tile(-20)을 쓰면 화살표가 벨트 몸통(0) 뒤로 들어가 안 보인다 —
+            // 실제로 그래서 방향 표시가 화면에 없었다.
+            asr.sortingOrder = BeltArrowOrder;
 
             // 끝단 미연결 경고(§5-4 ⑤): 셀 위쪽 모서리에 작은 표식. 기본 off — RefreshConnections가 켠다.
             var warn = new GameObject("warn");
@@ -716,7 +877,7 @@ namespace MBI.Logistics
             var wsr = warn.AddComponent<SpriteRenderer>();
             wsr.sprite = UnitSprite();
             wsr.color = BeltWarningColor;
-            wsr.sortingOrder = SortingLayers.Tile + 2; // 미연결 경고 아이콘
+            wsr.sortingOrder = BeltWarningOrder; // 경고는 화살표보다도 위
             wsr.enabled = false;
 
             _beltArrows[cell] = asr;
@@ -728,6 +889,11 @@ namespace MBI.Logistics
         // 설치 확정 시점(설치·배치·제거)에만 호출된다 → 드래그 중에는 판정하지 않는다는 사양이 자동 충족.
         private void RefreshConnections()
         {
+            // ⚠️ 링크 판정보다 **먼저** 흘린다. BuildLinks가 벨트↔벨트에 품목 일치를 요구하므로,
+            // 품목이 안 정해진 벨트는 서로 이어지지도 않는다.
+            BeltFlow.Resolve(_grid);
+            RefreshBeltColors();
+
             List<BeltLink> links = BeltRouting.BuildLinks(_grid);
             var connected = new HashSet<Vector2Int>();
             foreach (BeltLink l in links)
@@ -742,6 +908,7 @@ namespace MBI.Logistics
                     kv.Value.color = connected.Contains(kv.Key) ? BeltConnectedColor : BeltArrowColor;
 
             // 판정은 전부 Core(BeltRouting) — 여기서는 켜고 끄기만 한다(§3 UI는 매핑만).
+            // (아래) 끝단 미연결 경고.
             var warn = new HashSet<Vector2Int>(BeltRouting.DanglingWarningCells(_grid));
             foreach (KeyValuePair<Vector2Int, SpriteRenderer> kv in _beltWarnings)
                 if (kv.Value != null)
