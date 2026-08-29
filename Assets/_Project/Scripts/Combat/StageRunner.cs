@@ -17,6 +17,8 @@ namespace MBI.Combat
     {
         [Header("데이터(생성기 산출 SO)")]
         public RobotDefinition robot;
+        [Tooltip("태그 상대(로봇 B, 드론 운용기). 비우면 로봇 한 대로 돈다 — 태그·합체가 없는 기존 경로.")]
+        public RobotDefinition robotB;
         public StageDefinition stage;
         public CombatTuning tuning;
         [Tooltip("적 카탈로그(atk 조회용). Enemy_infantry/artillery/armor/boss.")]
@@ -47,6 +49,20 @@ namespace MBI.Combat
         private float _mountCoef;
         private bool _ready;
         private float _lastRobotHp; // 피격 점멸 트리거 — HP가 줄어든 프레임을 잡는다
+        private int _viewedRobotIndex;  // 뷰가 지금 그리고 있는 로봇 — 교대하면 다시 묶는다
+        private bool _pointerDown;      // 플릭 인식: 누른 상태인가
+        private Vector2 _pointerStart;  // 누른 지점(스크린 픽셀)
+        private float _pointerDownTime;
+        private readonly Dictionary<DroneUnit, SpriteRenderer> _droneViews =
+            new Dictionary<DroneUnit, SpriteRenderer>();
+
+        /// <summary>지금 나가 있는 로봇의 SO. 태그하면 바뀐다 — 스프라이트·색이 여기서 온다.</summary>
+        private RobotDefinition ActiveRobotDef =>
+            _sim != null && _sim.ActiveRobotIndex == 1 && robotB != null ? robotB : robot;
+
+        // 로봇 두 대를 색으로 구분한다(아트가 들어오면 스프라이트가 이깁니다).
+        private static readonly Color RobotAColor = new Color(0.3f, 0.6f, 1f);
+        private static readonly Color RobotBColor = new Color(0.45f, 0.9f, 0.55f);
 
         // 크기는 아트 캔버스가 결정한다(ArtSpec, PPU 192 — V02 §4). 플레이스홀더도 실물과 같은 자리를
         // 차지하게 해서 스프라이트 교체 때 레이아웃이 흔들리지 않게 한다.
@@ -129,6 +145,7 @@ namespace MBI.Combat
             _lastScale = 1f;
             ShotAllocator.AllocateRates(robot.weapons, robot.consumptionCap, _lastScale, _lineBuffer);
 
+            // 로봇 A — 다발형. 화력이 탄약 라인에서 나온다.
             var setup = new RobotSetup
             {
                 hp = tuning.robotHpTbd,
@@ -148,16 +165,70 @@ namespace MBI.Combat
 
             List<EnemySpawn> spawns = BuildSpawns();
 
-            _sim = new CombatSimulation(setup, spawns, tuning.arenaRadiusTbd, stage.challengeTime, tuning.spawnCadenceTbd);
+            // 태그 상대가 있으면 로봇 두 대로 돈다. 마운트는 비대칭(A 4슬롯 / B 8슬롯)이고
+            // ⚠️ 스택 상한은 넘기지 않는다 — 탄약·드론 스택이 검증 대장 TBD라
+            // 하드코딩한 상한을 끼우면 만충 시점을 코드가 발명하게 된다(MountLoad 주석).
+            _sim = robotB != null
+                ? new CombatSimulation(setup, BuildRobotBSetup(),
+                    new MountLoad(MountLoad.SlotsRobotA), new MountLoad(MountLoad.SlotsRobotB),
+                    spawns, tuning.arenaRadiusTbd, stage.challengeTime, tuning.spawnCadenceTbd)
+                : new CombatSimulation(setup, spawns,
+                    tuning.arenaRadiusTbd, stage.challengeTime, tuning.spawnCadenceTbd);
 
-            // 로봇 뷰(중앙, 파랑)
+            // 로봇 뷰(중앙). 아트가 있으면 그것을, 없으면 색 플레이스홀더로 폴백한다(교체 지점 §8).
             _robotView = NewView("Robot");
-            // 아트가 있으면 그것을, 없으면 색 플레이스홀더로 폴백한다(교체 지점 §8).
-            _robotView.Bind(_sim.Robot, new Color(0.3f, 0.6f, 1f), RobotSize, SortingLayers.Actor,
-                robot != null ? robot.sprite : null);
-            _lastRobotHp = _sim.Robot.hp;
+            BindRobotView();
 
             _ready = true;
+        }
+
+        /// <summary>
+        /// 로봇 B — 드론 운용기. **본체 무기가 없다**: 화력은 전부 사출한 드론에서 나온다
+        /// (RobotDefinition의 weapons가 비어 있는 것이 그 표현이다).
+        /// 드론 확정치(슬롯 3 · 방출률 1.0 · 충전량 100)는 BalanceConfig 미러에서 온다.
+        /// </summary>
+        private RobotSetup BuildRobotBSetup()
+        {
+            BalanceConfig bal = robotB.balanceRef != null ? robotB.balanceRef : robot.balanceRef;
+
+            return new RobotSetup
+            {
+                hp = tuning.robotHpTbd,
+                mountCoef = stage.powerModel == StagePowerModel.Logistics
+                    ? robotB.mountCoef : robotB.enhancedMountCoef,
+                moduleMult = robotB.moduleMult,
+                attackRange = tuning.robotAttackRangeTbd,
+                radius = RobotSize * 0.5f,
+                // 드론 2종(누적형·광역형) 구분은 광역 반경이 미확정이라 보류다 —
+                // 단일 표적으로 두고, 확정되면 여기서 갈린다.
+                multiShotCount = 1,
+                aoeRadius = 0f,
+                aoeSplashFactor = 0f,
+                lines = new List<AmmoLine>(),
+                // 탄약 라인이 없으니 창고도 쓰지 않는다. 용량만 남겨 HUD가 0/40을 그린다.
+                ammoCapacity = bal != null ? bal.storeCapacity : 40f,
+                ammoInitialStock = 0f,
+                droneSlots = bal != null ? bal.droneSlots : 3,
+                droneReleaseRate = bal != null ? bal.droneReleaseRate : 1f,
+                droneCharge = bal != null ? bal.droneCharge : 100f,
+                droneAttackRange = tuning.robotAttackRangeTbd, // 본체와 동일(C-3 확정)
+            };
+        }
+
+        /// <summary>
+        /// 뷰를 지금 나가 있는 로봇에 묶는다. 교대하면 **엔티티도 스프라이트도 바뀌므로**
+        /// 다시 묶지 않으면 B가 싸우는데 화면에는 A가 서 있게 된다.
+        /// </summary>
+        private void BindRobotView()
+        {
+            if (_robotView == null || _sim == null) return;
+
+            RobotDefinition def = ActiveRobotDef;
+            _robotView.Bind(_sim.Robot, _sim.ActiveRobotIndex == 1 ? RobotBColor : RobotAColor,
+                RobotSize, SortingLayers.Actor, def != null ? def.sprite : null);
+
+            _viewedRobotIndex = _sim.ActiveRobotIndex;
+            _lastRobotHp = _sim.Robot.hp; // 교대 프레임을 피격으로 오인해 점멸하지 않게 한다
         }
 
         /// <summary>
@@ -222,7 +293,16 @@ namespace MBI.Combat
                 RefreshFireRate();
                 // 창고 유입 = 라이브 군수 생산율. 재고가 마르면 발사가 멈춘다(탄약 소진 = 공격 정지).
                 _sim.AmmoSupplyRate = LogisticsOutputBridge.AmmoProduce;
+                // 드론 몸체·추진제도 같은 보드에서 온다. 사출대·부스터가 각각 받아 화력과 생존이 된다.
+                _sim.DroneInflowRate = LogisticsOutputBridge.DroneProduce;
+                _sim.PropellantSupplyRate = LogisticsOutputBridge.PropellantProduce;
+                // ⚠️ 대기 로봇의 유입은 주입하지 않는다. 보드는 로봇의 몸이라 로봇마다 하나인데
+                // 지금 씬에는 보드가 한 장뿐이다 — 같은 값을 양쪽에 넣으면 보드 한 장이
+                // 두 배를 생산하게 된다. 두 번째 보드가 생기면 여기 한 줄이 붙는다.
             }
+
+            // 수동 회피(화면 플릭). 이동 명령이 아니라 **즉시 회피**라 이동 처리와 섞지 않는다.
+            if (running) PollFlick();
 
             // 이동: 수동 입력이 있으면 수동이 우선, 없으면 유예 후 자동 조종이 맡는다.
             // 영상 시나리오의 수동 카이팅 연출과 방치 진행이 한 빌드에서 공존해야 하므로 둘 다 살린다.
@@ -256,6 +336,9 @@ namespace MBI.Combat
             }
 
             _sim.Tick(Time.deltaTime);
+
+            // 교대했으면 뷰를 새 로봇에 다시 묶는다 — 안 하면 B가 싸우는데 A가 서 있다.
+            if (_sim.ActiveRobotIndex != _viewedRobotIndex) BindRobotView();
 
             // 처치를 방치 런타임으로 흘린다. 가져가며 비우는 API라 같은 처치를 두 번 세지 않는다.
             IdleSignals.AddKills(_sim.ConsumeKills());
@@ -301,7 +384,46 @@ namespace MBI.Combat
                 view.Sync();
             }
 
+            SyncDroneViews();
             _robotView.Sync();
+        }
+
+        /// <summary>
+        /// 사출된 드론의 뷰. 드론은 CombatEntity가 아니라(HP도 방어도 없다 — 충전량이 곧 수명이다)
+        /// 위치만 따라가는 얇은 스프라이트로 그린다.
+        /// </summary>
+        private void SyncDroneViews()
+        {
+            IReadOnlyList<DroneUnit> drones = _sim.Drones;
+
+            // 소멸분 정리 — 충전량을 다 쓴 드론은 목록에서 빠진다.
+            var live = new HashSet<DroneUnit>(drones);
+            var gone = new List<DroneUnit>();
+            foreach (KeyValuePair<DroneUnit, SpriteRenderer> kv in _droneViews)
+                if (!live.Contains(kv.Key))
+                {
+                    if (kv.Value != null) Destroy(kv.Value.gameObject);
+                    gone.Add(kv.Key);
+                }
+            foreach (DroneUnit d in gone) _droneViews.Remove(d);
+
+            foreach (DroneUnit d in drones)
+            {
+                if (!_droneViews.TryGetValue(d, out SpriteRenderer sr))
+                {
+                    var go = new GameObject("Drone");
+                    go.transform.SetParent(transform, false);
+                    sr = go.AddComponent<SpriteRenderer>();
+                    Sprite art = robotB != null ? robotB.droneSprite : null;
+                    sr.sprite = art != null ? art : PlaceholderSprite.SoftDisc();
+                    sr.color = art != null ? Color.white : new Color(0.6f, 0.95f, 0.7f);
+                    sr.sortingOrder = SortingLayers.Actor;
+                    // 크기는 아트 캔버스가 정한다(드론 64px). 아트가 이미 그 크기면 스케일 1이다.
+                    if (art == null) go.transform.localScale = new Vector3(ArtSpec.DroneSize, ArtSpec.DroneSize, 1f);
+                    _droneViews[d] = sr;
+                }
+                if (sr != null) sr.transform.position = new Vector3(d.Position.x, d.Position.y, 0f);
+            }
         }
 
         private CombatEntityView NewView(string name)
@@ -309,6 +431,39 @@ namespace MBI.Combat
             var go = new GameObject(name);
             go.transform.SetParent(transform, false);
             return go.AddComponent<CombatEntityView>();
+        }
+
+        /// <summary>
+        /// 화면 플릭 → 수동 회피. 누른 지점에서 뗀 지점까지의 방향으로 피한다.
+        ///
+        /// 짧고 빠른 것만 플릭으로 본다 — 오래 끈 것은 드래그(보드 조작)라 회피가 아니다.
+        /// 문턱 두 값은 원천 미규정이라 CombatTuning의 TBD를 읽는다.
+        /// </summary>
+        private void PollFlick()
+        {
+            Pointer p = Pointer.current;
+            if (p == null) return;
+
+            bool pressed = p.press.isPressed;
+            Vector2 pos = p.position.ReadValue();
+
+            if (pressed && !_pointerDown)
+            {
+                _pointerDown = true;
+                _pointerStart = pos;
+                _pointerDownTime = Time.unscaledTime;
+                return;
+            }
+
+            if (pressed || !_pointerDown) return;
+
+            _pointerDown = false;
+            Vector2 delta = pos - _pointerStart;
+            if (Time.unscaledTime - _pointerDownTime > tuning.flickMaxSecondsTbd) return;
+            if (delta.magnitude < tuning.flickMinPixelsTbd) return;
+
+            // 방향만 넘긴다. 발동 여부(추진제 유무·재발동 금지)는 시뮬이 판정한다.
+            _sim.RequestDodge(delta.normalized);
         }
 
         // ---- 입력(InputSystem, 프로젝트 컨벤션) ----
@@ -407,8 +562,13 @@ namespace MBI.Combat
             foreach (KeyValuePair<CombatEntity, CombatEntityView> kv in _enemyViews)
                 if (kv.Value != null) Destroy(kv.Value.gameObject);
             _enemyViews.Clear();
+            // 드론 뷰도 함께 정리한다 — 안 지우면 재시작마다 유령 드론이 화면에 쌓인다.
+            foreach (KeyValuePair<DroneUnit, SpriteRenderer> kv in _droneViews)
+                if (kv.Value != null) Destroy(kv.Value.gameObject);
+            _droneViews.Clear();
             if (_robotView != null) Destroy(_robotView.gameObject);
             _robotView = null;
+            _viewedRobotIndex = 0;
             Begin();
         }
 
@@ -420,24 +580,102 @@ namespace MBI.Combat
             var style = new GUIStyle(GUI.skin.label) { fontSize = 16 };
             var big = new GUIStyle(GUI.skin.label) { fontSize = 34, fontStyle = FontStyle.Bold };
 
-            GUILayout.BeginArea(new Rect(12, 10, 560, 270));
+            GUILayout.BeginArea(new Rect(12, 10, 560, 280));
             GUILayout.Label($"스테이지 {stage.stageId}  ·  {stage.topic}", style);
             GUILayout.Label(OutputLine(), style);
             GUILayout.Label(AmmoLine(), style);
             GUILayout.Label($"저장고(군수 생산) {LogisticsOutputBridge.AmmoProduce:F1} 발/초", style);
-            GUILayout.Label($"적 {_sim.Remaining}/{_sim.TotalEnemies}   로봇 HP {_sim.Robot.hp:F0}/{_sim.Robot.maxHp:F0}", style);
+            // 회피 스택은 HP 바로 옆에 붙인다 — 「몇 대 더 버티는가」를 같은 눈길에서 읽게 한다.
+            GUILayout.Label($"적 {_sim.Remaining}/{_sim.TotalEnemies}   로봇 HP {_sim.Robot.hp:F0}/{_sim.Robot.maxHp:F0}" +
+                            $"   {DodgeLine()}", style);
+            if (robotB != null) GUILayout.Label(TagLine(), style);
             GUILayout.Label($"경과 {_sim.Elapsed:F1}s / {stage.challengeTime:F0}s", style);
-            GUILayout.Label("이동 WASD / 화살표 (카이팅)", style);
+            GUILayout.Label("이동 WASD / 화살표   ·   회피 = 화면 플릭", style);
             GUILayout.EndArea();
 
             if (_sim.Result != CombatResult.InProgress)
             {
-                GUILayout.BeginArea(new Rect(12, 290, 560, 160));
+                GUILayout.BeginArea(new Rect(12, 300, 560, 160));
                 GUILayout.Label(ResultText(), big);
                 if (GUILayout.Button("다시 (Restart)", GUILayout.Width(160), GUILayout.Height(34)))
                     Restart();
                 GUILayout.EndArea();
+                return;
             }
+
+            TagMergeButtons(style);
+        }
+
+        /// <summary>
+        /// 태그·합체 조작. **판정은 시뮬이 한다** — 여기서는 누를 수 있는지만 물어보고 결과를 그린다.
+        /// </summary>
+        private void TagMergeButtons(GUIStyle style)
+        {
+            if (_sim.Tag == null) return;
+
+            GUILayout.BeginArea(new Rect(12, 300, 560, 120));
+            GUILayout.BeginHorizontal();
+
+            // 태그 — 쿨다운 중이거나 합체로 잠겨 있으면 비활성. 누르면 시뮬이 활성 인덱스까지 맞춘다.
+            GUI.enabled = _sim.Tag.Tag.CanTag;
+            if (GUILayout.Button(TagButtonLabel(), GUILayout.Width(210), GUILayout.Height(34)))
+                _sim.TryManualTag();
+
+            // 합체 — 게이지가 차야 눌린다. 스테이지당 1회라 쓰고 나면 영영 비활성이다.
+            GUI.enabled = _sim.Merge != null && _sim.Merge.IsReady;
+            if (GUILayout.Button(MergeButtonLabel(), GUILayout.Width(210), GUILayout.Height(34)))
+                _sim.TryMerge();
+
+            GUI.enabled = true;
+            GUILayout.EndHorizontal();
+            GUILayout.EndArea();
+        }
+
+        private string TagButtonLabel()
+        {
+            if (_sim.Tag.Locked) return "태그 (합체 중 잠금)";
+            float cd = _sim.Tag.Tag.CooldownRemaining;
+            return cd > 0f ? $"태그 (쿨다운 {cd:F1}s)" : "태그 — 교대";
+        }
+
+        private string MergeButtonLabel()
+        {
+            if (_sim.Merge == null) return "합체 (없음)";
+            if (_sim.Merge.IsActive) return $"합체 진행 {_sim.Merge.RemainingSeconds:F1}s";
+            if (_sim.Merge.UsedThisStage) return "합체 (이 스테이지 사용 완료)";
+            return _sim.Merge.IsReady
+                ? "합체 — 발동"
+                : $"합체 게이지 {_sim.Merge.ChargeRatio * 100f:F0}%";
+        }
+
+        /// <summary>
+        /// 회피 재고. 추진제가 곧 회피 횟수이므로 남은 개수를 상한과 함께 보여 준다.
+        /// 무적 중에는 그 사실을 따로 표시한다 — 피해가 0으로 뜨는 이유가 보여야 한다.
+        /// </summary>
+        private string DodgeLine()
+        {
+            DodgeSystem d = _sim.Dodge;
+            string core = $"회피 {d.Stacks}/{DodgeSystem.MaxStacks}";
+            return d.IsInvincible ? core + "  [무적]" : core;
+        }
+
+        /// <summary>
+        /// 태그 상태 한 줄. 만충 판정 주체는 **마운트**다(창고가 아니다).
+        /// ⚠️ 탄약·드론 스택 상한이 미확정이라 마운트 만충이 성립하지 않는다 —
+        /// 지금 자동 교대를 여는 것은 「활성 소진 + 대기에 남음」 쪽뿐이다.
+        /// </summary>
+        private string TagLine()
+        {
+            string who = _sim.ActiveRobotIndex == 1 ? "로봇B(드론)" : "로봇A(탄약)";
+            MountLoad act = _sim.Tag.ActiveMount;
+            MountLoad standby = _sim.Tag.StandbyMount;
+            // 상한이 하나도 없으면 Capacity가 0이다 — 이때는 「채우는 중」이 아니라 **판정 자체가 없다**.
+            // 한 칸이 얼마든 받아 나머지 칸이 안 열리므로 만충이 영영 서지 않는다.
+            string fullness = standby.Capacity <= 0f
+                ? "만충 판정 불가(스택 TBD)"
+                : (standby.IsFull ? "만충" : "채우는 중");
+            return $"출전 {who}   ·   마운트 적재 {act.Total:F0}   ·   대기 마운트 {standby.Total:F0} ({fullness})" +
+                   $"   ·   드론 {_sim.Drones.Count}기";
         }
 
         /// <summary>물류 출력 이중표시(예상/실제/갭) + 전역 원인(전력/발열) 점멸(§L4-R #1·#5 변수패널 1차 표시자).</summary>

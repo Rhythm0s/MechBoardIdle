@@ -220,6 +220,19 @@ namespace MBI.Core
             return true;
         }
 
+        /// <summary>
+        /// 수동 태그(HUD 버튼). 성공하면 **이번 틱부터** 새 로봇이 싸운다.
+        ///
+        /// ⚠️ <c>Tag.TryManualTag()</c>를 밖에서 직접 부르면 안 된다 — 조정자의 활성 인덱스만 바뀌고
+        /// 시뮬의 <c>_active</c>가 그대로 남아 두 쪽이 어긋난다. 동기화는 여기 한 곳에서만 한다.
+        /// </summary>
+        public bool TryManualTag()
+        {
+            if (Tag == null || !Tag.TryManualTag()) return false;
+            _active = Tag.ActiveIndex;
+            return true;
+        }
+
         /// <summary>이번 전투에서 드론이 낸 누적 피해(검산용).</summary>
         public float DroneDamageDealt { get; private set; }
 

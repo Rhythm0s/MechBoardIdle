@@ -72,6 +72,19 @@ namespace MBI.Data
             }
         }
 
+        [Header("드론(로봇 B) — 확정치")]
+        [Tooltip("드론 슬롯 수. params.slot = 3 확정치(강화 비대상 상수).")]
+        public int droneSlots = 3;
+
+        [Tooltip("슬롯당 방출률(기/초). params.r = 1.0 확정치. 실효 방출량 = min(유입, 슬롯 x 방출률).")]
+        public float droneReleaseRate = 1f;
+
+        [Tooltip("드론 1기의 충전량(= 피해 총량). params.dB = 100 확정치. 1기 = 1회 타격 = 충전량 전량 — 나눠 쏘면 등가선을 벗어난다.")]
+        public float droneCharge = 100f;
+
+        [Tooltip("드론 몸체 유입(기/초). params.pB = 1.0 확정치. 등가선: pB x dB = 100 = 관통 20x5와 같은 DPS.")]
+        public float droneInflow = 1f;
+
         /// <summary>물류 단독 천장 = origin * ceil. S3req &lt; 천장 &lt; S4밴드 (S4가 강화-only 벽).</summary>
         public float LogisticsCeiling => origin * ceil;
     }

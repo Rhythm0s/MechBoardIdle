@@ -89,6 +89,7 @@ namespace MBI.Editor
             var runner = go.AddComponent<StageRunner>();
 
             RobotDefinition robot = Load<RobotDefinition>($"{SoRoot}/Robots/Robot_A.asset");
+            RobotDefinition robotB = Load<RobotDefinition>($"{SoRoot}/Robots/Robot_B.asset");
             StageDefinition stage = Load<StageDefinition>($"{SoRoot}/Stages/Stage_S1.asset");
             var stageList = new List<StageDefinition>();
             foreach (string id in new[] { "S1", "S2", "S3", "S4", "S5", "S6" })
@@ -108,6 +109,7 @@ namespace MBI.Editor
 
             var so = new SerializedObject(runner);
             so.FindProperty("robot").objectReferenceValue = robot;
+            so.FindProperty("robotB").objectReferenceValue = robotB; // 태그 상대 — 있어야 태그·합체가 돈다
             so.FindProperty("stage").objectReferenceValue = stage;
             so.FindProperty("tuning").objectReferenceValue = LoadOrCreateTuning();
             SerializedProperty cat = so.FindProperty("enemyCatalog");

@@ -51,6 +51,22 @@ namespace MBI.Tests
             Assert.AreEqual(_json.enhance.s4Band[1], _config.s4Band.y, Delta);
         }
 
+        /// <summary>
+        /// 드론(로봇 B) 확정치 미러. 이 넷이 어긋나면 등가선이 깨진다 —
+        /// pB × dB = 1.0 × 100 = 100 이고, 그게 관통 20×5와 같은 DPS라는 것이 로봇 B의 밸런스 근거다.
+        /// </summary>
+        [Test]
+        public void Config_MirrorsDroneParams()
+        {
+            Assert.AreEqual(_json.Param("slot"), _config.droneSlots, Delta, "슬롯 수");
+            Assert.AreEqual(_json.Param("r"), _config.droneReleaseRate, Delta, "슬롯당 방출률");
+            Assert.AreEqual(_json.Param("dB"), _config.droneCharge, Delta, "1기 충전량");
+            Assert.AreEqual(_json.Param("pB"), _config.droneInflow, Delta, "몸체 유입");
+
+            Assert.AreEqual(100f, _config.droneInflow * _config.droneCharge, Delta,
+                "등가선 — 드론 DPS 100");
+        }
+
         // ---- 1. 원점 = 100 ----
         [Test]
         public void Anchor1_Origin_Is100()

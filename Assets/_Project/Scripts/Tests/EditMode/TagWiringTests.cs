@@ -217,5 +217,54 @@ namespace MBI.Tests
 
             Assert.LessOrEqual(sim.Tag.Tag.TotalTags, 1, "4초 안에는 쿨다운 5초 때문에 한 번뿐");
         }
+
+        // ---- 수동 태그(HUD 버튼) ----
+
+        /// <summary>
+        /// 수동 태그는 **시뮬의 활성 인덱스까지** 바꾼다.
+        /// 조정자만 바꾸면 화면에는 B가, 사격은 A가 도는 어긋남이 생긴다.
+        /// </summary>
+        [Test]
+        public void ManualTag_SwapsSimulationActiveIndex()
+        {
+            CombatSimulation sim = TwoRobots();
+
+            Assert.AreEqual(0, sim.ActiveRobotIndex);
+            Assert.IsTrue(sim.TryManualTag());
+
+            Assert.AreEqual(1, sim.ActiveRobotIndex, "시뮬이 따라왔다");
+            Assert.AreEqual(sim.Tag.ActiveIndex, sim.ActiveRobotIndex, "조정자와 시뮬이 같은 곳을 본다");
+        }
+
+        /// <summary>수동 태그도 쿨다운을 지킨다 — 버튼 연타로 규칙을 우회하지 못한다.</summary>
+        [Test]
+        public void ManualTag_RespectsCooldown()
+        {
+            CombatSimulation sim = TwoRobots();
+            sim.TryManualTag();
+
+            Assert.IsFalse(sim.TryManualTag(), "쿨다운 중엔 다시 안 된다");
+            Assert.AreEqual(1, sim.ActiveRobotIndex, "실패했으니 자리도 그대로다");
+        }
+
+        /// <summary>합체 중에는 수동 태그도 잠긴다(상위 잠금).</summary>
+        [Test]
+        public void ManualTag_IsLockedDuringMerge()
+        {
+            CombatSimulation sim = TwoRobots();
+            sim.Tag.Locked = true;
+
+            Assert.IsFalse(sim.TryManualTag());
+            Assert.AreEqual(0, sim.ActiveRobotIndex);
+        }
+
+        /// <summary>로봇이 하나면 수동 태그가 없다 — 갈 곳이 없다.</summary>
+        [Test]
+        public void ManualTag_DoesNothing_WithOneRobot()
+        {
+            var sim = new CombatSimulation(Robot(), Sandbag(), 6f, 120f, 0f);
+
+            Assert.IsFalse(sim.TryManualTag());
+        }
     }
 }

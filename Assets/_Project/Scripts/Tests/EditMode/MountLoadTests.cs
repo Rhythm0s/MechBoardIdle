@@ -255,5 +255,39 @@ namespace MBI.Tests
 
             Assert.IsTrue(mount.IsFull, "창고와 무관하게 마운트로 판정한다");
         }
+
+        /// <summary>
+        /// 슬롯 수는 상수로 소유한다 — 러너가 4·8을 직접 적으면 비대칭이 두 곳에서 갈린다.
+        /// 비대칭은 의도다: A는 다발형이라 자주 채우고 자주 쓰고, B는 단발 고밀도라 크게 쓴다.
+        /// </summary>
+        [Test]
+        public void SlotCounts_AreOwnedHere_AndAsymmetric()
+        {
+            Assert.AreEqual(4, MountLoad.SlotsRobotA);
+            Assert.AreEqual(8, MountLoad.SlotsRobotB);
+            Assert.AreEqual(MountLoad.SlotsRobotA, RobotA().SlotCount);
+            Assert.AreEqual(MountLoad.SlotsRobotB, RobotB().SlotCount);
+            Assert.Less(MountLoad.SlotsRobotA, MountLoad.SlotsRobotB, "B가 더 많이 든다");
+        }
+
+        /// <summary>
+        /// 상한을 안 넘기면 **만충이 서지 않는다.** 러너가 실제로 이렇게 만든다 —
+        /// 탄약·드론 스택이 검증 대장 TBD라 하드코딩한 상한을 끼우지 않기 때문이다.
+        ///
+        /// 상한이 없으면 한 칸이 얼마든 받으므로 나머지 칸이 영영 안 열린다.
+        /// 그래서 자동 태그를 여는 것은 만충 쪽이 아니라 **소진 쪽**뿐이다 —
+        /// 스택이 확정되기 전까지 게임에서 관찰될 태그는 전부 소진 트리거다.
+        /// </summary>
+        [Test]
+        public void WithoutStackLimits_FullnessNeverStands()
+        {
+            var mount = new MountLoad(MountLoad.SlotsRobotA);
+            mount.Load(MountItem.Pierce, 999f);
+
+            Assert.AreEqual(1, mount.SlotsUsedBy(MountItem.Pierce), "상한이 없으면 한 칸이 전부 먹는다");
+            Assert.IsFalse(mount.AllSlotsClaimed, "나머지 칸은 열리지 않는다");
+            Assert.IsFalse(mount.IsFull, "그래서 만충 트리거가 안 열린다");
+            Assert.IsFalse(mount.IsEmpty, "소진 판정은 그래도 선다 — 태그는 이쪽으로 열린다");
+        }
     }
 }

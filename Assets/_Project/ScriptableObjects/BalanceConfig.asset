@@ -27,3 +27,7 @@ MonoBehaviour:
   storeCapacity: 40
   muniPerNode: 1
   lineSpecShots: {x: 5, y: 4, z: 2}
+  droneSlots: 3
+  droneReleaseRate: 1
+  droneCharge: 100
+  droneInflow: 1

@@ -56,6 +56,14 @@ namespace MBI.Data
         [Tooltip("AoE 스플래시 배율. 로봇A 폭발탄 = 0(스플래시 없음, 단일 표적). 드론 광역형이 >0 사용.")]
         public float aoeSplashFactorTbd = 0f;
 
+        [Header("수동 회피 입력 — 화면 플릭")]
+        // 회피 자체의 확정치(무적 0.167초 · 스택 상한 3)는 DodgeSystem이 든다. 여기는 **입력 인식** 축이라
+        // 별개다 — 플릭으로 볼 문턱은 원천에 없어 TBD다(문턱을 무적 값에서 끌어오면 안 된다).
+        [Tooltip("TBD — 플릭으로 인정할 최소 이동(픽셀). chat+Notion 확정 필요.")]
+        public float flickMinPixelsTbd = 40f;
+        [Tooltip("TBD — 플릭으로 인정할 최대 시간(초). 이보다 오래 끌면 드래그로 본다.")]
+        public float flickMaxSecondsTbd = 0.3f;
+
         // 마운트 탄약 용량(capA=6)은 RobotDefinition.consumptionCap 단일 소스로 통합(§3 한 파일=한 책임, L4-R).
         //   — 중복 미러(mountAmmoCapTbd) 제거. HUD/발사 배분은 robot.consumptionCap을 읽는다.
         // 물류 출력(전투력 입력)은 별도 상수를 두지 않는다 — RobotDefinition.weapons의 mock 생산율(pA)에서

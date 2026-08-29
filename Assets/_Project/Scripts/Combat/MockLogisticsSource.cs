@@ -19,6 +19,9 @@ namespace MBI.Combat
         [Tooltip("로봇. 명목 출력·원점·천장의 원천. 씬 생성기가 주입.")]
         public RobotDefinition robot;
 
+        [Tooltip("군수 노드 SO. 드론 몸체·추진제 산출 속도를 조합표에서 읽는다 — 여기 숫자를 적지 않는다.")]
+        public NodeDefinition munitionsNode;
+
         private void Awake() => LogisticsOutputBridge.Reset();
 
         private void Update()
@@ -29,7 +32,25 @@ namespace MBI.Combat
 
             LogisticsOutputBridge.Result = MockLogisticsOutput.Simulate(robot, 1f, robot.moduleMult, origin);
             LogisticsOutputBridge.AmmoProduce = robot.consumptionCap; // 격리 씬 = 수요만큼 공급된다고 본다
+            LogisticsOutputBridge.DroneProduce = RecipeRate(RecipeKind.DroneBody);
+            LogisticsOutputBridge.PropellantProduce = RecipeRate(RecipeKind.Propellant);
             LogisticsOutputBridge.GlobalCause = ConstraintCause.None;
+        }
+
+        /// <summary>
+        /// 군수 노드가 그 조합표를 **한 개 돌렸을 때**의 산출(개/초). 노드가 없으면 0이다.
+        ///
+        /// 격리 씬은 「군수 노드 한 대가 붙어 있다」로 본다 — 여기서 노드 수를 늘리면
+        /// 보드 없이 밸런스를 만지게 되므로 배수를 두지 않는다.
+        /// </summary>
+        private float RecipeRate(RecipeKind kind)
+        {
+            if (munitionsNode == null || munitionsNode.recipes == null) return 0f;
+
+            foreach (NodeRecipe r in munitionsNode.recipes)
+                if (r.kind == kind) return r.IsRunnable ? r.outputPerSec : 0f;
+
+            return 0f;
         }
     }
 }

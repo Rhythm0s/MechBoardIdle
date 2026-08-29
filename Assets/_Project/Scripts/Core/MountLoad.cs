@@ -42,6 +42,12 @@ namespace MBI.Core
             _stackLimits = stackLimits ?? new System.Collections.Generic.Dictionary<MountItem, float>();
         }
 
+        /// <summary>로봇 A의 슬롯 수. 다발형이라 자주 채우고 자주 쓴다.</summary>
+        public const int SlotsRobotA = 4;
+
+        /// <summary>로봇 B의 슬롯 수. 단발 고밀도라 천천히 채워 크게 쓴다.</summary>
+        public const int SlotsRobotB = 8;
+
         /// <summary>슬롯 수. 로봇 A = 4 · 로봇 B = 8.</summary>
         public int SlotCount { get; }
 

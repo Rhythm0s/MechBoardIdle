@@ -77,6 +77,12 @@ namespace MBI.Editor
             c.muniPerNode = json.Param("muniPerNode");
             c.lineSpecShots = new Vector3(json.Param("specA0"), json.Param("specA1"), json.Param("specA2"));
 
+            // 드론(로봇 B) 확정치. 등가선이 여기서 닫힌다 — pB × dB = 1.0 × 100 = 100.
+            c.droneSlots = Mathf.RoundToInt(json.Param("slot"));
+            c.droneReleaseRate = json.Param("r");
+            c.droneCharge = json.Param("dB");
+            c.droneInflow = json.Param("pB");
+
             EditorUtility.SetDirty(c);
             return c;
         }
@@ -91,7 +97,7 @@ namespace MBI.Editor
             // 노드 하나가 상한을 다 채워 두 번째 노드부터 출력 영향이 0이 됐다(CLAUDE.md §7 등재).
             float muniPerNode = json.Param("muniPerNode");
             // 드론 유입(기/초). params pB = 1.0 확정치 — 드론 몸체 조합표의 산출 속도.
-            float droneInflow = json.Param("pB");
+            float droneInflow = config.droneInflow;
             float heat = json.Param("heat");  // 발열 합 → 가공
             float heatc = json.Param("heatc"); // 냉각 임계 → 가공
             float pw = json.Param("pw");      // 전력 소비 합(집계) → 코어에 lumped placeholder

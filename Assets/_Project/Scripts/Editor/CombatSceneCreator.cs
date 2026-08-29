@@ -47,6 +47,7 @@ namespace MBI.Editor
             var runner = runnerGo.AddComponent<StageRunner>();
 
             RobotDefinition robot = Load<RobotDefinition>($"{SoRoot}/Robots/Robot_A.asset");
+            RobotDefinition robotB = Load<RobotDefinition>($"{SoRoot}/Robots/Robot_B.asset");
             StageDefinition stage = Load<StageDefinition>($"{SoRoot}/Stages/Stage_S1.asset");
             CombatTuning tuning = LoadOrCreateTuning();
             EnemyDefinition[] enemies =
@@ -62,6 +63,7 @@ namespace MBI.Editor
 
             var so = new SerializedObject(runner);
             so.FindProperty("robot").objectReferenceValue = robot;
+            so.FindProperty("robotB").objectReferenceValue = robotB; // 태그 상대 — 있어야 태그·합체가 돈다
             so.FindProperty("stage").objectReferenceValue = stage;
             so.FindProperty("tuning").objectReferenceValue = tuning;
 
@@ -80,13 +82,15 @@ namespace MBI.Editor
             // StageRunner는 두 씬 모두에서 브릿지만 읽는다 — 씬 구분 분기가 필요 없다.
             var source = runnerGo.AddComponent<MockLogisticsSource>();
             source.robot = robot;
+            // 드론 몸체·추진제 산출은 군수 노드의 조합표에서 읽는다 — mock이 숫자를 들지 않는다.
+            source.munitionsNode = Load<NodeDefinition>($"{SoRoot}/Nodes/Node_muni.asset");
 
             AssetDatabase.SaveAssets(); // 새 CombatTuning.asset을 씬 저장 전에 flush.
 
             EnsureFolder(ScenesDir);
             bool saved = EditorSceneManager.SaveScene(scene, ScenePath);
             if (saved)
-                Debug.Log($"[MBI] Combat 씬 생성 완료: {ScenePath} (탑뷰 카메라 + StageRunner: Stage_S1·Robot_A·CombatTuning). Play로 전투 확인.");
+                Debug.Log($"[MBI] Combat 씬 생성 완료: {ScenePath} (탑뷰 카메라 + StageRunner: Stage_S1·Robot_A·Robot_B·CombatTuning). Play로 태그·합체·회피 확인.");
             else
                 Debug.LogError($"[MBI] Combat 씬 저장 실패: {ScenePath}");
         }
