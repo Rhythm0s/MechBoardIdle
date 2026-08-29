@@ -67,9 +67,14 @@ namespace MBI.Core
         {
             Tick(dt);
 
+            // 소진 트리거는 **갈 곳이 있을 때만** 성립한다. 대기도 비었으면 교대해 봐야 똑같고,
+            // 그 헛교대가 5초 쿨다운을 먹어 정작 대기가 찼을 때 못 나가게 만든다.
+            // 둘 다 빈 것은 교대 사유가 아니라 **실패 조건**이다(BothDepleted).
+            bool canFallBack = !StandbyMount.IsEmpty;
+
             TagEntry reason = TagSystem.EvaluateAuto(
                 standbyMountFull: StandbyMount.IsFull,
-                activeDepleted: ActiveMount.IsEmpty);
+                activeDepleted: ActiveMount.IsEmpty && canFallBack);
 
             return Execute(reason);
         }
@@ -79,10 +84,13 @@ namespace MBI.Core
 
         private bool Execute(TagEntry reason)
         {
+            // ⚠️ 실패 판정이 플래그를 지우지 않게 **성공한 뒤에** 초기화한다.
+            // 「마지막 태그에서 스킬이 나갔는가」는 연출·피해 계산이 읽는 값인데,
+            // 매 틱 리셋하면 교대 다음 프레임에 사라져 그 프레임을 놓친 쪽은 영영 못 읽는다.
+            if (!_tag.TryTag(reason)) return false;
+
             LastTagFiredSkill = false;
             LastTagSkillDrained = 0f;
-
-            if (!_tag.TryTag(reason)) return false;
 
             // 태그 스킬 — **들어오는 쪽(대기 로봇)의 마운트**가 만충일 때 나간다.
             // 만재 등장이 보상형인 이유가 이것이고, 소진 트리거에는 붙지 않는다.

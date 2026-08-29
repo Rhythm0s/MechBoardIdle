@@ -68,55 +68,104 @@ namespace MBI.Core
     /// </summary>
     public sealed class CombatSimulation
     {
-        private readonly CombatEntity _robot;
+        /// <summary>
+        /// 로봇 한 대분 상태. 태그(A↔B 교대)가 들어오면서 이 묶음이 둘이 된다 —
+        /// **대기 로봇도 자기 공장·창고·마운트를 그대로 갖는다**(전투 문서 1장: 대기 로봇의 공장도
+        /// 가동을 유지하고, 그 산출이 태그 인 순간 비축 화력이 된다).
+        ///
+        /// 클래스로 둔 이유: setup이 struct라 배열에서 값으로 꺼내면 복사본이 되고,
+        /// SetFireLines의 라인 교체가 원본에 안 닿는다. 클래스 필드면 그 자리에서 바뀐다.
+        /// </summary>
+        private sealed class RobotSide
+        {
+            public RobotSetup setup;
+            public CombatEntity body;
+            public AmmoInventory ammo;          // 창고(저장 노드)
+            public MountLoad mount;             // 마운트 적재 — 만충 판정 주체(V03 §2)
+            public DroneBay bay;
+            public readonly List<DroneUnit> drones = new List<DroneUnit>();
+            public float[] lineTimers = new float[0];
+            public float ammoSupplyRate;        // 창고 유입(발/초)
+            public float droneInflowRate;       // 드론 몸체 유입(기/초)
+        }
+
+        private readonly RobotSide[] _sides;
+        private int _active;
+
+        /// <summary>지금 나가 있는 로봇의 상태 묶음.</summary>
+        private RobotSide Act => _sides[_active];
+
         private readonly List<CombatEntity> _enemies = new List<CombatEntity>();
         private readonly List<EnemySpawn> _spawnQueue;
         private readonly Vector2[] _spawnPositions;
         private readonly List<ShotEvent> _shots = new List<ShotEvent>();
 
-        // 물류 출력이 바뀌면 라인이 교체되므로 readonly가 아니다(SetFireLines).
-        private RobotSetup _robotSetup;
         private readonly float _arenaRadius;
         private readonly float _challengeTime;
         private readonly float _spawnCadence;
 
         private int _spawnedCount;
-        // 라인별 발사 누산기(1.0 도달 = 1발). 라인마다 제 주기로 쏘므로 단일 간격이 없다.
-        private float[] _lineTimers = new float[0];
+        // 라인별 발사 누산기는 로봇마다 따로 든다 — 교대해도 위상이 보존돼야 한다.
         private const float FireEpsilon = 1e-4f; // float 누적 오차로 발사를 흘리지 않기 위한 허용오차
 
-        // 탄약 재고(단일 층, 탄종별 스택 · 총량 캡 공유). 밸런스 확정 원칙: 탄약 소진 = 공격 정지, 대체 수단 없음.
-        private readonly AmmoInventory _ammo;
-
         /// <summary>창고로 들어오는 생산율(발/초, 전 탄종 합). 러너가 라이브 물류에서 매 프레임 주입한다.</summary>
-        public float AmmoSupplyRate { get; set; }
+        public float AmmoSupplyRate
+        {
+            get => Act.ammoSupplyRate;
+            set => Act.ammoSupplyRate = value;
+        }
 
-        /// <summary>재고 잔량(전 탄종 합)·적재율(HUD·만충 트리거용).</summary>
-        public float AmmoStock => _ammo.Total;
-        public float AmmoFillRatio => _ammo.FillRatio;
+        /// <summary>대기 로봇의 창고 유입. 대기 보드도 계속 돌아 비축이 쌓인다(전투 문서 1장).</summary>
+        public float StandbyAmmoSupplyRate
+        {
+            get => Standby.ammoSupplyRate;
+            set => Standby.ammoSupplyRate = value;
+        }
+
+        /// <summary>재고 잔량(전 탄종 합)·적재율(HUD용). 창고는 만충 판정 주체가 아니다(V03 §2).</summary>
+        public float AmmoStock => Act.ammo.Total;
+        public float AmmoFillRatio => Act.ammo.FillRatio;
 
         /// <summary>탄종별 잔량(발). 탄종별 창고 표시·진단용.</summary>
-        public float AmmoStockOf(AmmoKind kind) => _ammo.StockOf(kind);
+        public float AmmoStockOf(AmmoKind kind) => Act.ammo.StockOf(kind);
 
         // ---- 드론(로봇 B) ----
-        private readonly DroneBay _droneBay;
-        private readonly List<DroneUnit> _drones = new List<DroneUnit>();
 
         /// <summary>드론 몸체 유입(기/초). 러너가 보드 산출에서 매 프레임 주입한다.</summary>
-        public float DroneInflowRate { get; set; }
+        public float DroneInflowRate
+        {
+            get => Act.droneInflowRate;
+            set => Act.droneInflowRate = value;
+        }
 
         /// <summary>필드에 나가 있는 드론.</summary>
-        public IReadOnlyList<DroneUnit> Drones => _drones;
+        public IReadOnlyList<DroneUnit> Drones => Act.drones;
 
         /// <summary>드론 사출대(진단·HUD용).</summary>
-        public DroneBay Drones_Bay => _droneBay;
+        public DroneBay Drones_Bay => Act.bay;
+
+        // ---- 태그(A↔B 교대) ----
+
+        private RobotSide Standby => _sides[_sides.Length > 1 ? 1 - _active : _active];
+
+        /// <summary>로봇이 둘인가. 하나면 태그가 없다(격리 전투·기존 테스트 경로).</summary>
+        public bool HasTagPartner => _sides.Length > 1;
+
+        /// <summary>지금 나가 있는 로봇(0 = A, 1 = B).</summary>
+        public int ActiveRobotIndex => _active;
+
+        /// <summary>교대 조정자. 로봇이 하나면 null.</summary>
+        public TagBattle Tag { get; private set; }
+
+        /// <summary>활성 로봇의 마운트 — 만충·소진 판정의 주체(V03 §2).</summary>
+        public MountLoad ActiveMount => Act.mount;
 
         /// <summary>이번 전투에서 드론이 낸 누적 피해(검산용).</summary>
         public float DroneDamageDealt { get; private set; }
 
         public CombatResult Result { get; private set; } = CombatResult.InProgress;
         public float Elapsed { get; private set; }
-        public CombatEntity Robot => _robot;
+        public CombatEntity Robot => Act.body;
         public IReadOnlyList<CombatEntity> Enemies => _enemies;
         public IReadOnlyList<ShotEvent> ShotsThisTick => _shots;
         public int TotalEnemies => _spawnQueue.Count;
@@ -176,33 +225,71 @@ namespace MBI.Core
             }
         }
 
+        /// <summary>로봇 한 대(격리 전투·태그 없음).</summary>
         public CombatSimulation(RobotSetup robot, IReadOnlyList<EnemySpawn> spawns,
             float arenaRadius, float challengeTime, float spawnCadence)
+            : this(new[] { robot }, null, spawns, arenaRadius, challengeTime, spawnCadence)
         {
-            _robotSetup = robot;
+        }
+
+        /// <summary>
+        /// 로봇 두 대(A↔B 태그). 대기 로봇도 자기 공장·창고·마운트를 그대로 갖고 계속 돈다 —
+        /// 그 산출이 태그 인 순간 비축 화력이 되고, 그것이 저장 노드의 존재 이유다.
+        /// </summary>
+        public CombatSimulation(RobotSetup robotA, RobotSetup robotB,
+            MountLoad mountA, MountLoad mountB, IReadOnlyList<EnemySpawn> spawns,
+            float arenaRadius, float challengeTime, float spawnCadence)
+            : this(new[] { robotA, robotB }, new[] { mountA, mountB },
+                   spawns, arenaRadius, challengeTime, spawnCadence)
+        {
+        }
+
+        private CombatSimulation(RobotSetup[] setups, MountLoad[] mounts,
+            IReadOnlyList<EnemySpawn> spawns, float arenaRadius, float challengeTime, float spawnCadence)
+        {
             _arenaRadius = arenaRadius;
             _challengeTime = challengeTime;
             _spawnCadence = spawnCadence;
 
-            _robot = new CombatEntity
+            _sides = new RobotSide[setups.Length];
+            for (int i = 0; i < setups.Length; i++)
             {
-                faction = Faction.Robot,
-                label = "로봇",
-                position = Vector2.zero,
-                hp = robot.hp,
-                maxHp = robot.hp,
-                def = 0f,
-                radius = robot.radius,
-            };
+                RobotSetup r = setups[i];
+                var side = new RobotSide
+                {
+                    setup = r,
+                    body = new CombatEntity
+                    {
+                        faction = Faction.Robot,
+                        label = setups.Length > 1 ? (i == 0 ? "로봇A" : "로봇B") : "로봇",
+                        position = Vector2.zero,
+                        hp = r.hp,
+                        maxHp = r.hp,
+                        def = 0f,
+                        radius = r.radius,
+                    },
+                    ammo = new AmmoInventory(r.ammoCapacity),
+                    bay = new DroneBay(r.droneSlots, r.droneReleaseRate, r.droneCharge),
+                    // 마운트를 안 주면 슬롯 0짜리를 둔다 — 기존 단일 로봇 경로가 마운트를 모르기 때문이다.
+                    mount = mounts != null && i < mounts.Length && mounts[i] != null
+                        ? mounts[i] : new MountLoad(0),
+                };
+                side.lineTimers = new float[r.lines != null ? r.lines.Count : 0];
+                _sides[i] = side;
+            }
 
             _spawnQueue = new List<EnemySpawn>(spawns ?? new List<EnemySpawn>());
             _spawnPositions = BuildSpawnPositions(_spawnQueue.Count, arenaRadius);
 
-            _ammo = new AmmoInventory(robot.ammoCapacity);
-            LoadInitialStock(robot.ammoInitialStock);
-            _droneBay = new DroneBay(robot.droneSlots, robot.droneReleaseRate, robot.droneCharge);
+            // 초기 재고는 각 로봇의 창고에 넣는다.
+            for (int i = 0; i < _sides.Length; i++)
+            {
+                _active = i;
+                LoadInitialStock(_sides[i].setup.ammoInitialStock);
+            }
+            _active = 0;
 
-            ResizeLineTimers(robot.lines != null ? robot.lines.Count : 0);
+            if (_sides.Length > 1) Tag = new TagBattle(_sides[0].mount, _sides[1].mount);
         }
 
         // ── 탄종별 배분 (§1 배선 전 과도 규칙) ────────────────────────────────
@@ -213,9 +300,11 @@ namespace MBI.Core
         // §1 배선이 들어오면 이 두 메서드는 노드 배정 기반으로 교체된다.
 
         /// <summary>라인 i가 전체 수요에서 차지하는 몫(0~1).</summary>
-        private float DemandShare(int lineIndex)
+        private float DemandShare(int lineIndex) => DemandShareOf(Act, lineIndex);
+
+        private float DemandShareOf(RobotSide s, int lineIndex)
         {
-            List<AmmoLine> lines = _robotSetup.lines;
+            List<AmmoLine> lines = s.setup.lines;
             if (lines == null || lineIndex < 0 || lineIndex >= lines.Count) return 0f;
 
             float total = 0f;
@@ -230,50 +319,52 @@ namespace MBI.Core
         {
             if (rounds <= 0f) return;
 
-            List<AmmoLine> lines = _robotSetup.lines;
+            List<AmmoLine> lines = Act.setup.lines;
             if (lines == null || lines.Count == 0) return;
 
             for (int i = 0; i < lines.Count; i++)
-                _ammo.Add(lines[i].kind, rounds * DemandShare(i));
+                Act.ammo.Add(lines[i].kind, rounds * DemandShare(i));
         }
 
         /// <summary>군수 → 창고 유입을 탄종별로 넣는다. 용량은 셋이 나눠 쓴다(잠식).</summary>
-        private void ProduceAmmo(float dt)
-        {
-            if (AmmoSupplyRate <= 0f) return;
+        private void ProduceAmmo(float dt) => ProduceAmmoInto(Act, dt);
 
-            List<AmmoLine> lines = _robotSetup.lines;
+        private void ProduceAmmoInto(RobotSide s, float dt)
+        {
+            if (s.ammoSupplyRate <= 0f) return;
+
+            List<AmmoLine> lines = s.setup.lines;
             if (lines == null || lines.Count == 0) return;
 
             for (int i = 0; i < lines.Count; i++)
-                _ammo.Produce(lines[i].kind, dt, AmmoSupplyRate * DemandShare(i));
+                s.ammo.Produce(lines[i].kind, dt, s.ammoSupplyRate * DemandShareOf(s, i));
         }
 
         /// <summary>
         /// 발사 라인 교체(§5-6 D2). 물류 출력이 변하면 전투를 재시작하지 않고 이것만 갈아끼운다
         /// (연속성 원칙 — 조립 중에도 전투는 멈추지 않는다).
         ///
-        /// ⚠️ 누산기(_lineTimers)는 **보존한다.** 매 프레임 호출될 수 있는데 여기서 0으로 되돌리면
+        /// ⚠️ 누산기(Act.lineTimers)는 **보존한다.** 매 프레임 호출될 수 있는데 여기서 0으로 되돌리면
         /// 누산이 1.0에 영영 도달하지 못해 영구 무발사가 된다.
         /// </summary>
         public void SetFireLines(IReadOnlyList<AmmoLine> lines)
         {
-            if (_robotSetup.lines == null) _robotSetup.lines = new List<AmmoLine>();
-            _robotSetup.lines.Clear();
+            if (Act.setup.lines == null) Act.setup.lines = new List<AmmoLine>();
+            Act.setup.lines.Clear();
             if (lines != null)
-                for (int i = 0; i < lines.Count; i++) _robotSetup.lines.Add(lines[i]);
+                for (int i = 0; i < lines.Count; i++) Act.setup.lines.Add(lines[i]);
 
-            ResizeLineTimers(_robotSetup.lines.Count);
+            ResizeLineTimers(Act.setup.lines.Count);
         }
 
         // 라인 수가 변해도 기존 위상을 최대한 유지한다(길이가 줄면 잘리고, 늘면 0에서 시작).
         private void ResizeLineTimers(int count)
         {
-            if (_lineTimers.Length == count) return;
+            if (Act.lineTimers.Length == count) return;
             var next = new float[count];
-            int keep = _lineTimers.Length < count ? _lineTimers.Length : count;
-            for (int i = 0; i < keep; i++) next[i] = _lineTimers[i];
-            _lineTimers = next;
+            int keep = Act.lineTimers.Length < count ? Act.lineTimers.Length : count;
+            for (int i = 0; i < keep; i++) next[i] = Act.lineTimers[i];
+            Act.lineTimers = next;
         }
 
         /// <summary>경계 원주에 균등 각도로 배치(결정론적, 난수 0).</summary>
@@ -296,7 +387,9 @@ namespace MBI.Core
             KillsThisTick = 0;
             Elapsed += dt;
 
-            ProduceAmmo(dt); // 군수 → 창고 유입(총량 캡 초과분은 버려진다)
+            ProduceAmmo(dt);   // 군수 → 창고 유입(총량 캡 초과분은 버려진다)
+            StandbyTick(dt);   // 대기 로봇의 공장도 계속 돈다 — 그 산출이 태그 인 순간 비축 화력이 된다
+            TagTick(dt);       // 교대 판정. 교대가 일어나면 이번 틱부터 새 로봇이 싸운다
 
             SpawnDue();
             MoveAndAttackEnemies(dt);
@@ -306,6 +399,59 @@ namespace MBI.Core
             DroneTick(dt);
             CleanupDead();
             Evaluate();
+        }
+
+        // ── 태그(A↔B 교대) ─────────────────────────────────────────────────
+        // 로봇이 하나면 아무 일도 하지 않는다 — 격리 전투와 기존 경로가 그대로 돈다.
+
+        /// <summary>
+        /// 대기 로봇의 공장 가동. **대기 중에도 창고가 차고 마운트가 채워진다**(전투 문서 1장).
+        /// 이것이 없으면 태그 인 순간 빈손으로 나와 「축적 → 만재 등장」이라는 설계가 성립하지 않는다.
+        /// </summary>
+        private void StandbyTick(float dt)
+        {
+            if (!HasTagPartner) return;
+
+            RobotSide s = Standby;
+            if (s.ammoSupplyRate > 0f)
+            {
+                // 대기 로봇은 소비가 0이라 생산 전량이 쌓인다(조립 문서「소비까지의 흐름」).
+                // 탄종 배정이 아직 물류에 없으므로 활성과 같은 과도 규칙을 쓴다.
+                ProduceAmmoInto(s, dt);
+            }
+
+            // 창고 → 마운트. 벨트가 실어 오는 것이라 자리가 없으면 창고에 남는다.
+            RefillMount(s);
+        }
+
+        /// <summary>교대 판정 → 발동. 교대하면 활성 인덱스가 바뀐다.</summary>
+        private void TagTick(float dt)
+        {
+            if (Tag == null) return;
+
+            RefillMount(Act); // 활성도 벨트가 계속 채운다
+
+            if (Tag.TickAuto(dt)) _active = Tag.ActiveIndex;
+        }
+
+        /// <summary>
+        /// 창고 → 마운트 이송. 탄종별로 실을 수 있는 만큼만 실린다.
+        /// **마운트가 만충 판정 주체**이므로(V03 §2) 이 이송이 태그 트리거를 만든다.
+        /// </summary>
+        private void RefillMount(RobotSide s)
+        {
+            if (s.mount == null || s.mount.SlotCount <= 0) return;
+
+            for (int k = 0; k < 3; k++)
+            {
+                var kind = (AmmoKind)k;
+                float have = s.ammo.StockOf(kind);
+                if (have <= 0f) continue;
+
+                MountItem item = MountItemMap.From(kind);
+                float loaded = s.mount.Load(item, have);
+                if (loaded > 0f) s.ammo.TryConsume(kind, loaded);
+            }
         }
 
         // 스폰 시각 = index * spawnCadence. cadence<=0 이면 전원 t=0.
@@ -341,17 +487,17 @@ namespace MBI.Core
             foreach (CombatEntity e in _enemies)
             {
                 if (!e.IsAlive) continue;
-                Vector2 toRobot = _robot.position - e.position;
+                Vector2 toRobot = Act.body.position - e.position;
                 float dist = toRobot.magnitude;
 
                 if (dist > e.attackRange)
                 {
                     // 4방향 이동(구현 사양). 대각선은 두 축을 번갈아 낸다.
-                    Vector2 next = GridMovement.Step(e.position, _robot.position, e.moveSpeed * dt);
+                    Vector2 next = GridMovement.Step(e.position, Act.body.position, e.moveSpeed * dt);
 
                     // 막히면 **멈춘다** — 통과하지도, 밀어내지도, 돌아가지도 않는다.
                     // 경로 탐색을 넣으면 장갑형 길막이 사라지므로 우회는 금지다.
-                    if (!GridMovement.IsBlocked(next, e.radius, e, _enemies, _robot))
+                    if (!GridMovement.IsBlocked(next, e.radius, e, _enemies, Act.body))
                         e.position = next;
 
                     e.attackCooldown = 0f; // 접근 중엔 즉시 타격 준비
@@ -361,7 +507,7 @@ namespace MBI.Core
                     e.attackCooldown -= dt;
                     if (e.attackCooldown <= 0f)
                     {
-                        _robot.hp -= e.atk; // 로봇 방어 스탯 없음 — 받는 피해 = 몬스터 공격력(§9)
+                        Act.body.hp -= e.atk; // 로봇 방어 스탯 없음 — 받는 피해 = 몬스터 공격력(§9)
                         e.attackCooldown += Mathf.Max(0.0001f, e.attackInterval);
                     }
                 }
@@ -375,20 +521,20 @@ namespace MBI.Core
         // 「단발 고밀도(관통형)」라는 밸런스 표현이 이 구조를 가리킨다.
         private void DroneTick(float dt)
         {
-            if (_droneBay == null) return;
+            if (Act.bay == null) return;
 
-            _droneBay.Produce(dt, DroneInflowRate);
+            Act.bay.Produce(dt, DroneInflowRate);
 
-            int launched = _droneBay.Launch(dt);
+            int launched = Act.bay.Launch(dt);
             for (int i = 0; i < launched; i++)
-                _drones.Add(new DroneUnit(DroneStation(_drones.Count),
-                    _robotSetup.droneCharge, _robotSetup.droneCharge, _robotSetup.droneAttackRange));
+                Act.drones.Add(new DroneUnit(DroneStation(Act.drones.Count),
+                    Act.setup.droneCharge, Act.setup.droneCharge, Act.setup.droneAttackRange));
 
             // 사격 — 표적은 본체와 같은 최근접 규칙이되 **기준점이 드론 자신**이라
             // 본체와 다른 적을 칠 수 있다(자동 전투 구현 사양).
-            for (int i = _drones.Count - 1; i >= 0; i--)
+            for (int i = Act.drones.Count - 1; i >= 0; i--)
             {
-                DroneUnit d = _drones[i];
+                DroneUnit d = Act.drones[i];
                 CombatEntity target = NearestLivingEnemyWithin(d.Position, d.AttackRange);
                 if (target == null) continue;
 
@@ -396,7 +542,7 @@ namespace MBI.Core
                 if (dealt <= 0f) continue;
 
                 // 판정식을 다시 만들지 않는다 — 본체 사격과 같은 식을 탄다.
-                float applied = DamageFormula.PerHit(dealt, _robotSetup.mountCoef, _robotSetup.moduleMult, target.def);
+                float applied = DamageFormula.PerHit(dealt, Act.setup.mountCoef, Act.setup.moduleMult, target.def);
                 target.hp -= applied;
                 DroneDamageDealt += applied;
 
@@ -410,8 +556,8 @@ namespace MBI.Core
                 // 충전량을 다 썼으면 소멸 — 슬롯은 즉시 빈다.
                 if (!d.IsAlive)
                 {
-                    _drones.RemoveAt(i);
-                    _droneBay.Retire();
+                    Act.drones.RemoveAt(i);
+                    Act.bay.Retire();
                 }
             }
         }
@@ -419,10 +565,10 @@ namespace MBI.Core
         /// <summary>드론 정박 위치(로봇 주변 고정 오프셋). 결정론 — 난수 0.</summary>
         private Vector2 DroneStation(int index)
         {
-            int slots = Mathf.Max(1, _robotSetup.droneSlots);
+            int slots = Mathf.Max(1, Act.setup.droneSlots);
             float angle = Mathf.PI * 2f * (index % slots) / slots;
-            float ring = Mathf.Max(0.35f, _robotSetup.radius * 1.5f);
-            return _robot.position + new Vector2(Mathf.Cos(angle), Mathf.Sin(angle)) * ring;
+            float ring = Mathf.Max(0.35f, Act.setup.radius * 1.5f);
+            return Act.body.position + new Vector2(Mathf.Cos(angle), Mathf.Sin(angle)) * ring;
         }
 
         /// <summary>주어진 기준점에서 사거리 안 최근접 생존 적. 동률은 먼저 등장한 쪽.</summary>
@@ -441,7 +587,7 @@ namespace MBI.Core
 
         private void RobotFire(float dt)
         {
-            List<AmmoLine> lines = _robotSetup.lines;
+            List<AmmoLine> lines = Act.setup.lines;
             if (lines == null || lines.Count == 0) return;
 
             // 사거리 내 살아있는 적이 있을 때만 사격(공백 후 버스트 방지 위해 타겟 있을 때만 누적).
@@ -449,25 +595,25 @@ namespace MBI.Core
             if (target == null) return;
 
             // 라인마다 제 주기로 발사. 순회 순서 고정 = 결정론 유지(난수 0).
-            for (int li = 0; li < lines.Count && li < _lineTimers.Length; li++)
+            for (int li = 0; li < lines.Count && li < Act.lineTimers.Length; li++)
             {
                 AmmoLine shot = lines[li];
                 if (shot.shotsPerSec <= 0f) continue;
 
-                _lineTimers[li] += shot.shotsPerSec * dt;
+                Act.lineTimers[li] += shot.shotsPerSec * dt;
                 // 허용오차: dt를 잘게 더하면 1발/초가 정확히 1.0이 아니라 0.9999…로 끝나 그 발이 다음 틱으로 밀린다.
                 // 잔여가 이월되므로 장기 발사율은 맞지만, 초 경계에서 한 발이 늦어 "1초 피해 = 명목 출력"(§5-6 계약)이
                 // 딱 떨어지지 않는다. 계약을 경계에서도 성립시키기 위한 허용오차다.
-                while (_lineTimers[li] >= 1f - FireEpsilon)
+                while (Act.lineTimers[li] >= 1f - FireEpsilon)
                 {
-                    _lineTimers[li] -= 1f;
+                    Act.lineTimers[li] -= 1f;
 
                     target = NearestLivingEnemyInRange();
-                    if (target == null) { _lineTimers[li] = 0f; break; }
+                    if (target == null) { Act.lineTimers[li] = 0f; break; }
 
                     // 탄약 소진 = 공격 정지(밸런스 확정 원칙). **그 탄종의** 재고가 없으면 그 발은 나가지 않는다
                     // — 다른 탄종이 창고에 쌓여 있어도 대신 쏘지 않는다.
-                    if (!_ammo.TryConsume(shot.kind, 1f)) { _lineTimers[li] = 0f; break; }
+                    if (!Act.ammo.TryConsume(shot.kind, 1f)) { Act.lineTimers[li] = 0f; break; }
 
                     FireOne(shot, target);
                 }
@@ -479,26 +625,26 @@ namespace MBI.Core
         {
             // 탄종 히트 패턴(단일/멀티샷/AoE) 해석 → 각 표적에 판정식(발당피해×배율) 적용.
             List<HitTarget> hits = HitResolver.Resolve(shot.kind, target, _enemies,
-                _robotSetup.multiShotCount, _robotSetup.aoeRadius, _robotSetup.aoeSplashFactor);
+                Act.setup.multiShotCount, Act.setup.aoeRadius, Act.setup.aoeSplashFactor);
 
             foreach (HitTarget h in hits)
             {
                 float dmg = DamageFormula.PerHit(shot.damagePerShot * h.damageFactor,
-                    _robotSetup.mountCoef, _robotSetup.moduleMult, h.entity.def);
+                    Act.setup.mountCoef, Act.setup.moduleMult, h.entity.def);
                 h.entity.hp -= dmg;
             }
 
             // 연출: 실제 스플래시가 있는 폭발(드론 광역형)만 착탄점 탄선 1발 + 폭발 광역 원.
             //        스플래시 0(로봇A 폭발=단일)·멀티샷·단일 = 표적별 탄선/플래시.
-            if (shot.kind == AmmoKind.Explosive && _robotSetup.aoeSplashFactor > 0f)
+            if (shot.kind == AmmoKind.Explosive && Act.setup.aoeSplashFactor > 0f)
             {
                 _shots.Add(new ShotEvent
                 {
-                    from = _robot.position,
+                    from = Act.body.position,
                     to = target.position,
                     kind = shot.kind,
                     killed = !target.IsAlive,
-                    aoeRadius = _robotSetup.aoeRadius,
+                    aoeRadius = Act.setup.aoeRadius,
                 });
             }
             else
@@ -506,7 +652,7 @@ namespace MBI.Core
                 foreach (HitTarget h in hits)
                     _shots.Add(new ShotEvent
                     {
-                        from = _robot.position,
+                        from = Act.body.position,
                         to = h.entity.position,
                         kind = shot.kind,
                         killed = !h.entity.IsAlive,
@@ -518,11 +664,11 @@ namespace MBI.Core
         private CombatEntity NearestLivingEnemyInRange()
         {
             CombatEntity best = null;
-            float bestSqr = _robotSetup.attackRange * _robotSetup.attackRange;
+            float bestSqr = Act.setup.attackRange * Act.setup.attackRange;
             foreach (CombatEntity e in _enemies)
             {
                 if (!e.IsAlive) continue;
-                float sqr = (e.position - _robot.position).sqrMagnitude;
+                float sqr = (e.position - Act.body.position).sqrMagnitude;
                 // 엄격 부등호 — 동률이면 **먼저 등장한 쪽**이 이긴다(구현 사양 확정).
                 // <= 로 두면 나중에 스폰된 쪽이 표적을 빼앗아 표적이 계속 흔들린다.
                 if (sqr < bestSqr)
@@ -550,9 +696,9 @@ namespace MBI.Core
 
         private void Evaluate()
         {
-            if (_robot.hp <= 0f)
+            if (Act.body.hp <= 0f)
             {
-                _robot.hp = 0f;
+                Act.body.hp = 0f;
                 Result = CombatResult.LoseDead;
                 return;
             }

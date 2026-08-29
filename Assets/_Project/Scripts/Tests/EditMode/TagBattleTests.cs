@@ -149,9 +149,10 @@ namespace MBI.Tests
         public void Cooldown_BlocksImmediateRetag()
         {
             MountLoad a = Known(), b = Known();
+            b.Load(MountItem.Pierce, 5f); // 갈 곳이 있어야 소진 트리거가 성립한다
             var battle = new TagBattle(a, b);
 
-            Assert.IsTrue(battle.TickAuto(0.1f), "둘 다 비어 소진 트리거");
+            Assert.IsTrue(battle.TickAuto(0.1f), "활성이 비었고 대기에는 있다");
             int after = battle.ActiveIndex;
 
             Assert.IsFalse(battle.TickAuto(0.1f), "쿨다운 중에는 못 바꾼다");
@@ -182,6 +183,23 @@ namespace MBI.Tests
             Assert.IsTrue(battle.TryManualTag());
             Assert.AreEqual(1, battle.ActiveIndex);
             Assert.IsFalse(battle.TryManualTag(), "쿨다운 중 수동도 막힌다");
+        }
+
+        /// <summary>
+        /// **갈 곳이 없으면 교대하지 않는다.** 대기도 비었는데 소진 트리거로 넘어가면
+        /// 상태는 그대로인 채 5초 쿨다운만 먹고, 정작 대기가 찼을 때 못 나간다.
+        /// 둘 다 빈 것은 교대 사유가 아니라 실패 조건이다.
+        /// </summary>
+        [Test]
+        public void DepletedTrigger_DoesNotFireWhenStandbyIsAlsoEmpty()
+        {
+            MountLoad a = Known(), b = Known();
+            var battle = new TagBattle(a, b);
+
+            Assert.IsTrue(battle.BothDepleted);
+            Assert.IsFalse(battle.TickAuto(0.1f), "헛교대하지 않는다");
+            Assert.AreEqual(0, battle.ActiveIndex);
+            Assert.IsTrue(battle.Tag.CanTag, "쿨다운도 안 먹는다 — 대기가 차면 바로 나갈 수 있다");
         }
 
         // ---- 실패 조건 ----
