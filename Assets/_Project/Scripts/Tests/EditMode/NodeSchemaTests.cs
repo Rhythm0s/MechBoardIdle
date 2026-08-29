@@ -34,9 +34,9 @@ namespace MBI.Tests
                 Assert.Ignore($"노드 자산 없음: {NodesDir} — 먼저 메뉴 'MBI/Generate Balance + Nodes' 실행.");
         }
 
-        // ---- (a) NodeType 6종 자산 존재 ----
+        // ---- (a) NodeType 7종 자산 존재(2026-08-29 부스터 신설) ----
         [Test]
-        public void AllSixNodeTypes_Exist()
+        public void AllNodeTypes_Exist()
         {
             var present = _nodes.Select(n => n.type).Distinct().ToList();
             foreach (NodeType t in System.Enum.GetValues(typeof(NodeType)))
@@ -62,7 +62,7 @@ namespace MBI.Tests
             foreach (NodeDefinition n in _nodes)
             {
                 // 군수만 확정: 노드 1개당 생산 1발/초(params muniPerNode, 2026-08-25 확정).
-                // 나머지 5종의 전력·발열은 노드 카탈로그와 함께 확정되므로 아직 Tbd다.
+                // 나머지 6종의 전력·발열은 노드 카탈로그와 함께 확정되므로 아직 Tbd다.
                 ConfirmState expected = n.type == NodeType.Munitions
                     ? ConfirmState.Confirmed
                     : ConfirmState.Tbd;

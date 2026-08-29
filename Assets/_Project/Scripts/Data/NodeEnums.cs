@@ -1,7 +1,7 @@
 namespace MBI.Data
 {
     /// <summary>
-    /// 물류 노드 6종. S1~S4 등장 5종(Core~Storage)만 이번에 구현.
+    /// 물류 노드 **7종**(2026-08-29 부스터 신설). S1~S4 등장 5종(Core~Storage) + 부스터가 구현분이다.
     /// Shield(쉴드 발생)는 스키마 자리만 두고 구현 보류(NodeDefinition.implemented=false).
     /// CLAUDE.md §5-2 · §4(MVP 스코프 가드레일).
     /// </summary>
@@ -12,7 +12,8 @@ namespace MBI.Data
         Munitions,   // 군수
         Energy,      // 에너지
         Storage,     // 저장
-        Shield       // 쉴드 발생 (스텁 — 구현 보류)
+        Shield,      // 쉴드 발생 (스텁 — 구현 보류)
+        Booster      // 부스터 (2026-08-29 신설) — 추진제를 받아 회피 스택을 공급하는 무형 자원 노드
     }
 
     /// <summary>노드의 네 면. 격자 인접 연결 판정의 기준(§5-3 그리드에서 사용).</summary>
@@ -41,7 +42,8 @@ namespace MBI.Data
         Ammo,     // 탄약
         Power,    // 전력
         Heat,     // 발열
-        Drone     // 드론 몸체 — 군수 노드 「드론 몸체」 레시피 산출 (2026-08-27)
+        Drone,    // 드론 몸체 — 군수 노드 「드론 몸체」 레시피 산출 (2026-08-27)
+        Propellant // 추진제 — 군수 노드 산출, 부스터 노드가 받아 회피 스택으로 바꾼다 (2026-08-29)
     }
 
     /// <summary>

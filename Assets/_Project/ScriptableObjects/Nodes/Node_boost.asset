@@ -1,0 +1,32 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d9289dc3b91bcd2438aaa0a9baec200b, type: 3}
+  m_Name: Node_boost
+  m_EditorClassIdentifier: MBI.Data::MBI.Data.NodeDefinition
+  nodeId: boost
+  displayName: "\uBD80\uC2A4\uD130"
+  type: 6
+  implemented: 1
+  resources:
+    powerDraw: 0
+    powerSupply: 0
+    ammoProduce: 0
+    ammoConsume: 0
+    heatGenerate: 0
+    heatDissipate: 0
+    confirm: 1
+  recipes: []
+  ports:
+  - face: 3
+    io: 0
+    kind: 5
+  balanceRef: {fileID: 11400000, guid: a00911652af86014e9b4ea1c7d0b41d5, type: 2}

@@ -7,7 +7,7 @@ using UnityEngine;
 namespace MBI.Editor
 {
     /// <summary>
-    /// balance_v4.json(1차 계약)을 읽어 BalanceConfig.asset + 노드 SO 6종을 생성/갱신한다.
+    /// balance_v4.json(1차 계약)을 읽어 BalanceConfig.asset + 노드 SO 7종을 생성/갱신한다.
     /// 메뉴: MBI/Generate Balance + Nodes.
     ///
     /// - 수치 원천은 json(§9). 코드에 밸런스 리터럴을 두지 않는다(§3) — 앵커는 json에서 복사.
@@ -20,6 +20,9 @@ namespace MBI.Editor
         private const string SoRoot = "Assets/_Project/ScriptableObjects";
         private const string NodesDir = SoRoot + "/Nodes";
         private const string ConfigPath = SoRoot + "/BalanceConfig.asset";
+
+        /// <summary>회피 스택 상한 3 — 확정치(전투 문서 11-9장). MBI.Core와 같은 값이라야 한다.</summary>
+        private const float DodgeStackLimit = 3f;
 
         [MenuItem("MBI/Generate Balance + Nodes")]
         public static void Generate()
@@ -39,7 +42,7 @@ namespace MBI.Editor
             AssetDatabase.Refresh();
 
             Debug.Log($"[MBI] 밸런스/노드 자산 생성 완료 — 원천 {json.meta.schemaVersion} " +
-                      $"({json.meta.exportedAt}). BalanceConfig + 노드 6종(구현 5 + 쉴드 스텁).");
+                      $"({json.meta.exportedAt}). BalanceConfig + 노드 7종(구현 6 + 쉴드 스텁).");
         }
 
         // ---- BalanceConfig: json 앵커의 단일 원천 미러 ----
@@ -78,7 +81,7 @@ namespace MBI.Editor
             return c;
         }
 
-        // ---- 노드 6종 ----
+        // ---- 노드 7종 ----
         private static void BuildNodes(BalanceConfig config, BalanceJson json)
         {
             // 단일 소유가 자연스러운 병목 항목만 placeholder로 끌어온다(전부 Tbd).
@@ -131,13 +134,15 @@ namespace MBI.Editor
                     new NodeRecipe { kind = RecipeKind.DroneBody, displayName = "드론 몸체",
                         output = FlowKind.Drone, outputPerSec = droneInflow,
                         stackLimitTbd = 0f, implemented = true },
-                    // 아래 둘은 자리만 — 쉴드는 범위 밖, 추진제는 노드 6종→7종 개편이 선행(§E 착수 금지).
+                    // 쉴드 재료는 자리만 — 쉴드 발생 노드가 범위 밖이다(§4).
                     new NodeRecipe { kind = RecipeKind.ShieldMaterial, displayName = "쉴드 재료",
                         output = FlowKind.Material, outputPerSec = 0f,
                         stackLimitTbd = 0f, implemented = false },
+                    // 추진제 — 회피 1회분. 주기 15초/1개는 **선언치**(시뮬 실측 후 확정)이고
+                    // 스택 상한 3은 확정치다(회피 스택 상한과 같은 값 — 부스터가 그 이상 못 든다).
                     new NodeRecipe { kind = RecipeKind.Propellant, displayName = "추진제",
-                        output = FlowKind.Material, outputPerSec = 0f,
-                        stackLimitTbd = 0f, implemented = false },
+                        output = FlowKind.Propellant, outputPerSec = 1f / 15f,
+                        stackLimitTbd = DodgeStackLimit, implemented = true },
                 });
 
             // 에너지 — 발전(전력 공급)
@@ -158,6 +163,17 @@ namespace MBI.Editor
                 {
                     new NodePort(PortFace.West, PortIO.Input, FlowKind.Ammo),
                     new NodePort(PortFace.East, PortIO.Output, FlowKind.Ammo),
+                });
+
+            // 부스터 — 추진제를 받아 회피 스택을 공급(2026-08-29 신설, 노드 7종).
+            // 쉴드 발생 노드와 같은 **무형 자원 공급 계열**이라 마운트 같은 별도 소비 장치가 없다 —
+            // 노드가 입력을 받아 그 자리에서 소비하고 보드 위 노드라 자기 버퍼를 이미 갖는다.
+            // 회피를 늘리는 방법은 **부스터를 더 놓는 것**이다 — 한 대가 드는 것은 3회에서 멈춘다.
+            WriteNode(config, "boost", "부스터", NodeType.Booster, true,
+                new NodeResourceProfile { powerDraw = 0f, confirm = ConfirmState.Tbd },
+                new List<NodePort>
+                {
+                    new NodePort(PortFace.West, PortIO.Input, FlowKind.Propellant),
                 });
 
             // 쉴드 발생 — 스키마 자리만(구현 보류, §4). implemented=false, 포트 없음.

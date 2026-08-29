@@ -85,10 +85,14 @@ namespace MBI.Tests
             Assert.IsTrue(kinds.Contains(RecipeKind.Ammo), "탄약");
             Assert.IsTrue(kinds.Contains(RecipeKind.DroneBody), "드론 몸체");
             Assert.IsTrue(kinds.Contains(RecipeKind.ShieldMaterial), "쉴드 재료(자리만)");
-            Assert.IsTrue(kinds.Contains(RecipeKind.Propellant), "추진제(자리만)");
+            Assert.IsTrue(kinds.Contains(RecipeKind.Propellant), "추진제(2026-08-29 가동)");
         }
 
-        /// <summary>범위 밖 조합표는 자리만 있고 돌지 않는다 — 착수 금지가 데이터로 표현된다.</summary>
+        /// <summary>
+        /// 범위 밖 조합표는 자리만 있고 돌지 않는다 — 착수 금지가 데이터로 표현된다.
+        /// 추진제는 2026-08-29 회피 원천이 닫히며 착수 금지가 풀려 가동으로 넘어갔고,
+        /// 남은 범위 밖은 쉴드 재료 하나다(쉴드 발생 노드 자체가 MVP 밖).
+        /// </summary>
         [Test]
         public void OutOfScopeRecipes_ArePresentButNotRunnable()
         {
@@ -96,7 +100,7 @@ namespace MBI.Tests
 
             foreach (NodeRecipe r in muni.recipes)
             {
-                bool inScope = r.kind == RecipeKind.Ammo || r.kind == RecipeKind.DroneBody;
+                bool inScope = r.kind != RecipeKind.ShieldMaterial;
                 Assert.AreEqual(inScope, r.IsRunnable, $"{r.kind} 가동 여부");
             }
         }

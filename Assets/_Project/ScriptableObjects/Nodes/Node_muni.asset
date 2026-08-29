@@ -45,10 +45,10 @@ MonoBehaviour:
     implemented: 0
   - kind: 4
     displayName: "\uCD94\uC9C4\uC81C"
-    output: 0
-    outputPerSec: 0
-    stackLimitTbd: 0
-    implemented: 0
+    output: 5
+    outputPerSec: 0.06666667
+    stackLimitTbd: 3
+    implemented: 1
   ports:
   - face: 3
     io: 0

@@ -87,6 +87,11 @@ namespace MBI.Core
             public float[] lineTimers = new float[0];
             public float ammoSupplyRate;        // 창고 유입(발/초)
             public float droneInflowRate;       // 드론 몸체 유입(기/초)
+
+            // 회피는 로봇마다 따로 든다 — 대기 보드의 부스터도 계속 돌아 추진제를 쌓는다.
+            public readonly DodgeSystem dodge = new DodgeSystem();
+            public float propellantSupplyRate;  // 부스터 유입(개/초)
+            public float propellantCarry;       // 소수분 이월 — 15초에 1개라 한 틱에 1개가 안 나온다
         }
 
         private readonly RobotSide[] _sides;
@@ -107,6 +112,11 @@ namespace MBI.Core
         private int _spawnedCount;
         // 라인별 발사 누산기는 로봇마다 따로 든다 — 교대해도 위상이 보존돼야 한다.
         private const float FireEpsilon = 1e-4f; // float 누적 오차로 발사를 흘리지 않기 위한 허용오차
+        // 추진제 이월도 같은 뿌리의 오차를 탄다 — 0.9999에서 한 개를 흘리면 회피가 영영 안 찬다.
+        private const float PropellantEpsilon = 1e-4f;
+
+        private bool _pendingFlick;
+        private Vector2 _pendingFlickDirection;
 
         /// <summary>창고로 들어오는 생산율(발/초, 전 탄종 합). 러너가 라이브 물류에서 매 프레임 주입한다.</summary>
         public float AmmoSupplyRate
@@ -143,6 +153,39 @@ namespace MBI.Core
 
         /// <summary>드론 사출대(진단·HUD용).</summary>
         public DroneBay Drones_Bay => Act.bay;
+
+        // ---- 회피(부스터 노드) ----
+
+        /// <summary>나가 있는 로봇의 회피. HUD는 HP 바 옆에 이 스택을 그린다.</summary>
+        public DodgeSystem Dodge => Act.dodge;
+
+        /// <summary>
+        /// 추진제 유입(개/초). 러너가 부스터 노드 산출에서 매 프레임 주입한다.
+        /// ⚠️ 탄약 유입과 마찬가지로 **설정 시점의 활성 로봇**을 가리킨다 —
+        /// 같은 틱에 교대가 끼면 그 값은 새로 나온 로봇의 것이 된다.
+        /// </summary>
+        public float PropellantSupplyRate
+        {
+            get => Act.propellantSupplyRate;
+            set => Act.propellantSupplyRate = value;
+        }
+
+        /// <summary>대기 로봇의 추진제 유입. 대기 보드도 돈다(전투 문서 1장).</summary>
+        public float StandbyPropellantSupplyRate
+        {
+            get => Standby.propellantSupplyRate;
+            set => Standby.propellantSupplyRate = value;
+        }
+
+        /// <summary>
+        /// 수동 회피 입력(화면 플릭). **이동 명령이 아니라 즉시 회피**라 다음 틱에 즉시 소비된다.
+        /// 자동과 겹쳐도 추진제는 1개만 나간다 — 수동이 먼저 처리돼 자동이 재발동을 못 한다.
+        /// </summary>
+        public void RequestDodge(Vector2 flickDirection)
+        {
+            _pendingFlick = true;
+            _pendingFlickDirection = flickDirection;
+        }
 
         // ---- 태그(A↔B 교대) ----
 
@@ -361,6 +404,42 @@ namespace MBI.Core
                 s.ammo.Produce(lines[i].kind, dt, s.ammoSupplyRate * DemandShareOf(s, i));
         }
 
+        // ── 회피(부스터 노드) ────────────────────────────────────────────────
+        // 부스터가 추진제를 만들고, 추진제 1개가 회피 1회다. 스택 상한 3을 넘겨 쌓이지 않으므로
+        // 회피를 늘리는 방법은 **부스터를 더 놓는 것**이지 한 대를 오래 돌리는 것이 아니다.
+
+        /// <summary>
+        /// 추진제 유입 + 수동 플릭 소비. **적 공격 판정보다 먼저** 돈다:
+        /// 수동이 먼저 발동해 있으면 자동은 재발동 금지에 걸려 그냥 지나가고,
+        /// 그 결과 「수동이 이기고 추진제는 1개만」이 순서만으로 성립한다.
+        /// </summary>
+        private void DodgeTick(float dt)
+        {
+            for (int i = 0; i < _sides.Length; i++) _sides[i].dodge.Tick(dt);
+
+            ProducePropellantInto(Act, dt);
+
+            if (!_pendingFlick) return;
+            Act.dodge.TryDodge(false, Vector2.zero, true, _pendingFlickDirection);
+            _pendingFlick = false;
+        }
+
+        /// <summary>
+        /// 부스터 → 추진제. 만충이면 이월분을 **버린다** — 상한 위에 남겨 두면
+        /// 회피를 쓴 직후 쌓아 둔 소수분이 한꺼번에 터져 상한이 사실상 없어진다.
+        /// </summary>
+        private void ProducePropellantInto(RobotSide s, float dt)
+        {
+            if (s.propellantSupplyRate <= 0f) return;
+
+            s.propellantCarry += s.propellantSupplyRate * dt;
+            while (s.propellantCarry >= 1f - PropellantEpsilon)
+            {
+                if (s.dodge.AddStacks(1) == 0) { s.propellantCarry = 0f; return; }
+                s.propellantCarry -= 1f;
+            }
+        }
+
         /// <summary>
         /// 발사 라인 교체(§5-6 D2). 물류 출력이 변하면 전투를 재시작하지 않고 이것만 갈아끼운다
         /// (연속성 원칙 — 조립 중에도 전투는 멈추지 않는다).
@@ -413,6 +492,8 @@ namespace MBI.Core
             MergeTick(dt);     // 게이지 충전·지속 소모. 합체가 끝나면 태그 잠금이 풀린다
             TagTick(dt);       // 교대 판정. 교대가 일어나면 이번 틱부터 새 로봇이 싸운다
 
+            DodgeTick(dt);     // 추진제 유입 + 수동 플릭 소비. **적 공격 판정보다 앞선다**
+
             SpawnDue();
             MoveAndAttackEnemies(dt);
             // ResolveSeparation(밀어내기) 폐기 — 구현 사양이 "밀어내지 않음 · 막히면 멈춤"으로 확정됐다.
@@ -441,6 +522,9 @@ namespace MBI.Core
                 // 탄종 배정이 아직 물류에 없으므로 활성과 같은 과도 규칙을 쓴다.
                 ProduceAmmoInto(s, dt);
             }
+
+            // 대기 보드의 부스터도 돈다 — 태그 인 순간 회피 스택도 함께 나온다.
+            ProducePropellantInto(s, dt);
 
             // 창고 → 마운트. 벨트가 실어 오는 것이라 자리가 없으면 창고에 남는다.
             RefillMount(s);
@@ -544,8 +628,18 @@ namespace MBI.Core
                     e.attackCooldown -= dt;
                     if (e.attackCooldown <= 0f)
                     {
-                        Act.body.hp -= e.atk; // 로봇 방어 스탯 없음 — 받는 피해 = 몬스터 공격력(§9)
                         e.attackCooldown += Mathf.Max(0.0001f, e.attackInterval);
+
+                        // 자동 회피는 **명중 판정에 들어오는 순간** 판정한다. 위협 반대 방향으로 뺀다.
+                        // 이미 수동으로 피하고 있으면 재발동 금지에 걸려 추진제가 두 번 나가지 않는다.
+                        Act.dodge.TryDodge(true, (Act.body.position - e.position).normalized,
+                            false, Vector2.zero);
+
+                        // ⚠️ 무적은 **판정식의 항이 아니다.** 계산에 진입하지 않고 통째로 건너뛴다 —
+                        // 판정식이 max(1, …)라 「방어 무한대」로 표현하면 여전히 1이 꽂힌다.
+                        if (Act.dodge.IsInvincible) continue;
+
+                        Act.body.hp -= e.atk; // 로봇 방어 스탯 없음 — 받는 피해 = 몬스터 공격력(§9)
                     }
                 }
             }
