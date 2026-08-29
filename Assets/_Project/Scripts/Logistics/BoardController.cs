@@ -95,6 +95,17 @@ namespace MBI.Logistics
         // 미연결 경고 아이콘(§5-4 ⑤). 마커의 자식이라 마커 파괴 시 함께 사라진다.
         private readonly Dictionary<Vector2Int, SpriteRenderer> _beltWarnings = new Dictionary<Vector2Int, SpriteRenderer>();
 
+        /// <summary>노드 면에 붙은 입출력 표시. 마커의 자식이라 마커 파괴 시 함께 사라진다.</summary>
+        private struct PortMarker
+        {
+            public SpriteRenderer sr;
+            public PortIO io;
+            public FlowKind declared; // 포트에 적힌 품목 — 출력은 조합표가 덮는다
+        }
+
+        private readonly Dictionary<Vector2Int, List<PortMarker>> _portMarkers =
+            new Dictionary<Vector2Int, List<PortMarker>>();
+
         private bool _removeMode; // 제거 모드 — 탭으로 노드/벨트 삭제
 
         private static readonly Color SelectedColor = new Color(0.98f, 0.85f, 0.30f, 1f);
@@ -183,6 +194,8 @@ namespace MBI.Logistics
         private const int MarkerOrder = 0;
         private const int BeltArrowOrder = 1;
         private const int BeltWarningOrder = 2;
+        private const int PortInOrder = 1;   // 노드 몸통(0) 위
+        private const int PortOutOrder = 2;  // 출력이 입력보다 위 — 겹칠 일은 없지만 의도를 남긴다
 
         private static Sprite _unitSprite;
 
@@ -546,6 +559,70 @@ namespace MBI.Logistics
             sr.color = c;
             _markers[cell] = marker;
             _nodeColors[cell] = c;
+
+            SpawnPortMarkers(cell, marker.transform);
+        }
+
+        /// <summary>
+        /// 노드 면의 입출력 표시. **어느 면으로 들어오고 어느 면으로 나가는지**를 안 보여 주면
+        /// 벨트를 어디에 붙여야 할지 찍어 볼 수밖에 없다.
+        ///
+        /// 출력은 셀 **밖으로 튀어나온** 탭, 입력은 셀 **안쪽에 파인** 탭이다 —
+        /// 색을 못 가려도 형태로 갈린다. 색은 그 면을 흐르는 품목이다.
+        /// </summary>
+        private void SpawnPortMarkers(Vector2Int cell, Transform parent)
+        {
+            NodeInstance inst = _grid.GetAt(cell);
+            if (inst == null || inst.Definition == null || inst.Definition.ports == null) return;
+
+            var list = new List<PortMarker>();
+            foreach (NodePort p in inst.Definition.ports)
+            {
+                Vector2 off = FaceOffset(p.face);
+                bool outward = p.io == PortIO.Output;
+
+                var tab = new GameObject(outward ? $"out_{p.face}" : $"in_{p.face}");
+                tab.transform.SetParent(parent, false);
+                // 출력은 면 밖으로 반쯤 나가고, 입력은 면 안쪽에 머문다.
+                float dist = outward ? 0.52f : 0.36f;
+                tab.transform.localPosition = new Vector3(off.x * dist, off.y * dist, 0f);
+                // 면을 따라 납작하게 — 세로면이면 눕히고 가로면이면 세운다.
+                bool horizontal = Mathf.Abs(off.x) > 0.5f;
+                tab.transform.localScale = horizontal
+                    ? new Vector3(0.16f, 0.34f, 1f)
+                    : new Vector3(0.34f, 0.16f, 1f);
+
+                var sr = tab.AddComponent<SpriteRenderer>();
+                sr.sprite = UnitSprite();
+                sr.sortingOrder = outward ? PortOutOrder : PortInOrder;
+                list.Add(new PortMarker { sr = sr, io = p.io, declared = p.kind });
+            }
+
+            _portMarkers[cell] = list;
+            RefreshPortColors(cell);
+        }
+
+        /// <summary>
+        /// 포트 색 = 그 면을 흐르는 품목. **출력은 조합표가 정한다** — 군수 노드의 출력 포트는
+        /// 「탄약」으로 적혀 있지만 추진제를 돌리면 나가는 것은 추진제다(BeltFlow와 같은 규칙).
+        /// 입력은 어둡게 깔아 나가는 쪽과 한눈에 갈리게 한다.
+        /// </summary>
+        private void RefreshPortColors(Vector2Int cell)
+        {
+            if (!_portMarkers.TryGetValue(cell, out List<PortMarker> list)) return;
+
+            NodeInstance inst = _grid.GetAt(cell);
+            FlowKind outKind = BeltFlow.OutputKindOf(inst);
+
+            foreach (PortMarker pm in list)
+            {
+                if (pm.sr == null) continue;
+                bool outward = pm.io == PortIO.Output;
+                Color c = FlowColor(outward ? outKind : pm.declared);
+                if (!outward) c *= 0.55f; // 입력은 어둡게
+                c.a = 1f;
+                pm.sr.color = c;
+            }
         }
 
         // 배치된 노드/벨트 제거(§5-4 제거 모드).
@@ -557,6 +634,7 @@ namespace MBI.Logistics
                 if (_markers.TryGetValue(cell, out GameObject m) && m != null) Destroy(m);
                 _markers.Remove(cell);
                 _nodeColors.Remove(cell);
+                _portMarkers.Remove(cell); // 자식이라 마커와 함께 파괴됐다 — 목록만 비운다
                 if (_selected.HasValue && _selected.Value == cell) _selected = null;
             }
             else if (_grid.HasBelt(cell))
@@ -585,15 +663,17 @@ namespace MBI.Logistics
 
             if (palette == null || palette.Count == 0) return;
 
-            var style = new GUIStyle(GUI.skin.button) { fontSize = 14 };
-            const float w = 130f, h = 34f, pad = 6f;
+            var style = new GUIStyle(GUI.skin.button) { fontSize = 15 };
+            const float w = 130f, h = 36f, pad = 6f;
             float x = Screen.width - w - 12f;
-            float y0 = 90f;
+            // ⚠️ 변수 패널(우상단 12..262)과 겹치면 안 된다 — 실제로 겹쳐서 「노드 팔레트」 글자가
+            // 패널 위에 얹혀 있었다. 그 아래에서 시작한다.
+            float y0 = 300f;
 
             // 이동 모드에서는 팔레트를 흐리게 — 지금은 놓을 수 없다는 것을 버튼 상태로 알린다.
             GUI.enabled = _mode == BoardMode.Build;
 
-            GUI.Label(new Rect(x, y0 - 24f, w, 22f), "노드 팔레트");
+            GUI.Label(new Rect(x, y0 - 26f, w, 24f), "노드 팔레트", new GUIStyle(GUI.skin.label) { fontSize = 15 });
             int i;
             for (i = 0; i < palette.Count; i++)
             {
@@ -614,7 +694,7 @@ namespace MBI.Logistics
             if (rmRect.Contains(Event.current.mousePosition)) _pointerOverPalette = true;
             if (GUI.Button(rmRect, (_removeMode ? "● " : "") + "제거", style)) _removeMode = !_removeMode;
 
-            GUI.Label(new Rect(x, y0 + (i + 1) * (h + pad) + 8f, w, 56f),
+            GUI.Label(new Rect(x, y0 + (i + 1) * (h + pad) + 8f, w + 20f, 60f),
                 _removeMode ? "제거 모드\n탭=노드/벨트 삭제" : "탭=노드 배치\n드래그=벨트");
 
             GUI.enabled = true;
@@ -635,21 +715,22 @@ namespace MBI.Logistics
 
             var nodeStyle = new GUIStyle(GUI.skin.label)
             {
-                fontSize = 12,
+                fontSize = 17,
                 alignment = TextAnchor.MiddleCenter,
                 fontStyle = FontStyle.Bold,
             };
             var beltStyle = new GUIStyle(GUI.skin.label)
             {
-                fontSize = 11,
+                fontSize = 16,
                 alignment = TextAnchor.MiddleCenter,
+                fontStyle = FontStyle.Bold,
             };
 
             foreach (KeyValuePair<Vector2Int, GameObject> kv in _markers)
             {
                 if (kv.Value == null) continue;
                 DrawLabelAt(cam, kv.Value.transform.position, NodeLabel(_grid.GetAt(kv.Key)),
-                    nodeStyle, Color.black, 84f);
+                    nodeStyle, Color.black, 118f);
             }
 
             foreach (KeyValuePair<Vector2Int, GameObject> kv in _beltMarkers)
@@ -657,7 +738,7 @@ namespace MBI.Logistics
                 if (kv.Value == null) continue;
                 string label = FlowLabel(BeltFlow.KindAt(_grid, kv.Key));
                 if (label.Length == 0) continue; // 비어 있는 벨트는 색으로만 — 글자까지 깔면 시끄럽다
-                DrawLabelAt(cam, kv.Value.transform.position, label, beltStyle, Color.black, 40f);
+                DrawLabelAt(cam, kv.Value.transform.position, label, beltStyle, Color.black, 52f);
             }
         }
 
@@ -674,7 +755,7 @@ namespace MBI.Logistics
 
             Color prev = GUI.color;
             GUI.color = color;
-            GUI.Label(new Rect(sp.x - width * 0.5f, y - 9f, width, 18f), text, style);
+            GUI.Label(new Rect(sp.x - width * 0.5f, y - 12f, width, 24f), text, style);
             GUI.color = prev;
         }
 
@@ -697,12 +778,15 @@ namespace MBI.Logistics
             List<NodeRecipe> candidates = inst.Definition.recipes;
             if (candidates == null || candidates.Count == 0) return;
 
-            var style = new GUIStyle(GUI.skin.button) { fontSize = 13 };
-            const float w = 150f, h = 30f, pad = 4f;
+            var style = new GUIStyle(GUI.skin.button) { fontSize = 15 };
+            var head = new GUIStyle(GUI.skin.label) { fontSize = 15, fontStyle = FontStyle.Bold };
+            const float w = 160f, h = 32f, pad = 4f;
             const float x = 12f;
-            float y = 90f;
+            // ⚠️ 전투 HUD가 y10~280을 쓰고 태그·합체 버튼이 y300에 있다 —
+            // 실제로 겹쳐서 조합표 버튼이 물류 출력 글자 위에 얹혀 있었다. 그 아래에서 시작한다.
+            float y = 380f;
 
-            GUI.Label(new Rect(x, y - 24f, w + 60f, 22f), inst.Definition.displayName + " 조합표");
+            GUI.Label(new Rect(x, y - 26f, w + 80f, 24f), inst.Definition.displayName + " 조합표", head);
 
             RecipeKind current = inst.CurrentRecipe.kind;
             foreach (NodeRecipe r in candidates)
@@ -726,13 +810,13 @@ namespace MBI.Logistics
             // 탄종 — 조합표만으로는 부족하다. 라인 생산량이 min(스펙, 탄종별 노드 수)이라
             // 「무엇을 몇 대 놓았는가」가 그대로 출력이 된다.
             y += 6f;
-            GUI.Label(new Rect(x, y, w + 60f, 22f), "탄종");
-            y += 22f;
+            GUI.Label(new Rect(x, y, w + 80f, 24f), "탄종", head);
+            y += 26f;
 
             for (int k = 0; k < 3; k++)
             {
                 var kind = (AmmoKind)k;
-                var rect = new Rect(x + k * (58f + pad), y, 58f, h);
+                var rect = new Rect(x + k * (64f + pad), y, 64f, h);
                 if (rect.Contains(Event.current.mousePosition)) _pointerOverPalette = true;
 
                 if (GUI.Button(rect, (inst.AmmoKind == kind ? "● " : "") + AmmoLabel(kind), style))
@@ -893,6 +977,7 @@ namespace MBI.Logistics
             // 품목이 안 정해진 벨트는 서로 이어지지도 않는다.
             BeltFlow.Resolve(_grid);
             RefreshBeltColors();
+            foreach (Vector2Int cell in _portMarkers.Keys) RefreshPortColors(cell);
 
             List<BeltLink> links = BeltRouting.BuildLinks(_grid);
             var connected = new HashSet<Vector2Int>();
