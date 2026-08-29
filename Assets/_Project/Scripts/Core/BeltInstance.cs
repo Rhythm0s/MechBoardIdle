@@ -19,9 +19,29 @@ namespace MBI.Core
     {
         public readonly Vector2Int Cell;
         public readonly BeltElementKind Element;
-        public readonly PortFace[] InFaces;
-        public readonly PortFace[] OutFaces;
         public FlowKind Kind;
+
+        /// <summary>입력면. 병합기·분류기는 이웃에 따라 다시 잡힌다(<see cref="Reorient"/>).</summary>
+        public PortFace[] InFaces { get; private set; }
+
+        /// <summary>출력면. 병합기·분류기는 이웃에 따라 다시 잡힌다(<see cref="Reorient"/>).</summary>
+        public PortFace[] OutFaces { get; private set; }
+
+        /// <summary>
+        /// 면을 다시 잡는다(병합기·분류기 전용).
+        ///
+        /// 왜 배치 시점에 고정하지 않는가: 요소를 **먼저 놓고 나중에 이웃을 붙이는** 순서가
+        /// 자연스러운데, 그때 방향을 고정해 두면 조용히 안 이어진 채로 남는다.
+        /// 벨트 품목(<c>BeltFlow</c>)과 같은 이유로 배치가 바뀔 때마다 다시 잡는다.
+        ///
+        /// 직선·코너는 드래그 경로가 방향을 정하므로 여기 오지 않는다.
+        /// </summary>
+        public void Reorient(PortFace[] inFaces, PortFace[] outFaces)
+        {
+            if (Element != BeltElementKind.Merger && Element != BeltElementKind.Sorter) return;
+            if (inFaces != null && inFaces.Length > 0) InFaces = inFaces;
+            if (outFaces != null && outFaces.Length > 0) OutFaces = outFaces;
+        }
 
         /// <summary>단일 입력면(직선/코너/분류기). 다중 입력이면 첫 면.</summary>
         public PortFace InFace => InFaces[0];

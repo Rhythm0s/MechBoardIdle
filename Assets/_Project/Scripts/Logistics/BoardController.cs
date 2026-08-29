@@ -108,6 +108,14 @@ namespace MBI.Logistics
 
         private bool _removeMode; // 제거 모드 — 탭으로 노드/벨트 삭제
 
+        /// <summary>
+        /// 선택된 벨트 요소(병합기·분류기). 없으면 탭은 노드를 놓는다.
+        ///
+        /// 직선·코너는 **드래그**가 만들고 경로가 방향을 정한다. 병합기·분류기는 방향이 여러 개라
+        /// 경로로 표현되지 않으므로 **탭**으로 놓고, 면은 이웃에서 다시 잡는다(BeltAutoOrient).
+        /// </summary>
+        private BeltElementKind? _elementMode;
+
         private static readonly Color SelectedColor = new Color(0.98f, 0.85f, 0.30f, 1f);
         private static readonly Color BeltColor = new Color(0.5f, 0.5f, 0.5f, 1f);
         private static readonly Color BeltArrowColor = new Color(0.95f, 0.85f, 0.3f, 1f);       // 미연결(dangling)
@@ -447,6 +455,7 @@ namespace MBI.Logistics
                 Vector2Int cell = _dragCells[0];
                 if (_removeMode) RemoveAt(cell);         // 제거 모드 = 탭으로 삭제
                 else if (_grid.IsOccupied(cell)) Select(cell);
+                else if (_elementMode.HasValue) PlaceElement(cell, _elementMode.Value);
                 else Place(cell);
             }
             else if (_dragCells.Count > 1)
@@ -542,6 +551,27 @@ namespace MBI.Logistics
             RefreshConnections(); // 노드 추가로 인접 벨트 연결 상태 변화 반영.
             Debug.Log($"[MBI] 배치: {node.displayName} @ 셀({cell.x},{cell.y}) → 월드 {_grid.CellToWorld(cell)}.");
         }
+
+        /// <summary>
+        /// 병합기·분류기 설치(§5-4 L3 · 260829_V03 §판정③).
+        ///
+        /// 면은 여기서 정하지 않는다 — 임시로 넣고 <see cref="RefreshConnections"/>가
+        /// 이웃을 보고 다시 잡는다. 그래야 「요소 먼저, 이웃 나중」 순서가 성립한다.
+        /// </summary>
+        private void PlaceElement(Vector2Int cell, BeltElementKind element)
+        {
+            if (!_grid.IsInside(cell) || !_grid.IsFree(cell)) return;
+
+            if (!_grid.TryPlaceBeltElement(cell, element,
+                    new[] { PortFace.West }, new[] { PortFace.East }, FlowKind.None, out _)) return;
+
+            SpawnBeltMarker(cell, PortFace.East);
+            RefreshConnections();
+            Debug.Log($"[MBI] {ElementLabel(element)} 설치 @ 셀({cell.x},{cell.y}).");
+        }
+
+        private static string ElementLabel(BeltElementKind e) =>
+            e == BeltElementKind.Merger ? "병합기" : "분류기";
 
         // 노드 마커 스폰(플레이어 배치·시작 배치 공용).
         private void SpawnNodeMarker(Vector2Int cell)
@@ -686,15 +716,41 @@ namespace MBI.Logistics
                 {
                     _selectedNode = i;
                     _removeMode = false;
+                    _elementMode = null;
                 }
             }
 
-            // 제거 토글.
-            var rmRect = new Rect(x, y0 + i * (h + pad) + 4f, w, h);
-            if (rmRect.Contains(Event.current.mousePosition)) _pointerOverPalette = true;
-            if (GUI.Button(rmRect, (_removeMode ? "● " : "") + "제거", style)) _removeMode = !_removeMode;
+            // 벨트 요소(§5-4 L3). 직선·코너는 드래그가 만들고, 이 둘만 탭으로 놓는다 —
+            // 방향이 여러 개라 드래그 경로로는 표현되지 않는다.
+            float ey = y0 + i * (h + pad) + 10f;
+            GUI.Label(new Rect(x, ey - 22f, w + 20f, 22f), "벨트 요소",
+                new GUIStyle(GUI.skin.label) { fontSize = 14 });
+            ey += 2f;
 
-            GUI.Label(new Rect(x, y0 + (i + 1) * (h + pad) + 8f, w + 20f, 60f),
+            foreach (BeltElementKind e in new[] { BeltElementKind.Merger, BeltElementKind.Sorter })
+            {
+                var eRect = new Rect(x, ey, w, h);
+                if (eRect.Contains(Event.current.mousePosition)) _pointerOverPalette = true;
+
+                bool on = !_removeMode && _elementMode == e;
+                if (GUI.Button(eRect, (on ? "● " : "") + ElementLabel(e), style))
+                {
+                    _elementMode = on ? (BeltElementKind?)null : e;
+                    _removeMode = false;
+                }
+                ey += h + pad;
+            }
+
+            // 제거 토글.
+            var rmRect = new Rect(x, ey + 4f, w, h);
+            if (rmRect.Contains(Event.current.mousePosition)) _pointerOverPalette = true;
+            if (GUI.Button(rmRect, (_removeMode ? "● " : "") + "제거", style))
+            {
+                _removeMode = !_removeMode;
+                if (_removeMode) _elementMode = null;
+            }
+
+            GUI.Label(new Rect(x, ey + h + 12f, w + 20f, 60f),
                 _removeMode ? "제거 모드\n탭=노드/벨트 삭제" : "탭=노드 배치\n드래그=벨트");
 
             GUI.enabled = true;
@@ -736,7 +792,11 @@ namespace MBI.Logistics
             foreach (KeyValuePair<Vector2Int, GameObject> kv in _beltMarkers)
             {
                 if (kv.Value == null) continue;
-                string label = FlowLabel(BeltFlow.KindAt(_grid, kv.Key));
+                BeltInstance belt = _grid.GetBeltAt(kv.Key);
+                // 병합기·분류기는 **무엇인지가 먼저**다 — 직선 벨트와 형태가 같아 글자로만 갈린다.
+                string label = belt != null && belt.Element == BeltElementKind.Merger ? "합"
+                    : belt != null && belt.Element == BeltElementKind.Sorter ? "분"
+                    : FlowLabel(BeltFlow.KindAt(_grid, kv.Key));
                 if (label.Length == 0) continue; // 비어 있는 벨트는 색으로만 — 글자까지 깔면 시끄럽다
                 DrawLabelAt(cam, kv.Value.transform.position, label, beltStyle, Color.black, 52f);
             }
@@ -918,6 +978,14 @@ namespace MBI.Logistics
                 Color c = FlowColor(BeltFlow.KindAt(_grid, kv.Key));
                 c.a = BeltColor.a;
                 sr.color = c;
+
+                // 화살표는 **지금** 출력면을 가리켜야 한다 — 병합기·분류기는 방향이 다시 잡힌다.
+                BeltInstance belt = _grid.GetBeltAt(kv.Key);
+                if (belt == null || !_beltArrows.TryGetValue(kv.Key, out SpriteRenderer arrow)) continue;
+                if (arrow == null) continue;
+
+                Vector2 off = FaceOffset(belt.OutFace);
+                arrow.transform.localPosition = new Vector3(off.x * 0.32f, off.y * 0.32f, 0f);
             }
         }
 
@@ -973,8 +1041,9 @@ namespace MBI.Logistics
         // 설치 확정 시점(설치·배치·제거)에만 호출된다 → 드래그 중에는 판정하지 않는다는 사양이 자동 충족.
         private void RefreshConnections()
         {
-            // ⚠️ 링크 판정보다 **먼저** 흘린다. BuildLinks가 벨트↔벨트에 품목 일치를 요구하므로,
-            // 품목이 안 정해진 벨트는 서로 이어지지도 않는다.
+            // 순서가 중요하다: **면 → 품목 → 색**.
+            // 면이 안 잡히면 링크가 안 서고, 링크가 안 서면 품목이 못 흐른다.
+            BeltAutoOrient.Resolve(_grid);
             BeltFlow.Resolve(_grid);
             RefreshBeltColors();
             foreach (Vector2Int cell in _portMarkers.Keys) RefreshPortColors(cell);
