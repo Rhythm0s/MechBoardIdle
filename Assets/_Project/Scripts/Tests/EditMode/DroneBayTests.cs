@@ -54,32 +54,32 @@ namespace MBI.Tests
 
         // ---- 출격 ----
 
+        /// <summary>
+        /// **적재분에서 나간다.** 사출대는 자기 대기열을 들지 않는다 —
+        /// 재고는 마운트가 들고, 사출대는 몇 기가 나갈 수 있는지만 정한다(260829_V03).
+        /// </summary>
         [Test]
-        public void Launch_TakesFromPending_AndOccupiesSlots()
+        public void Launch_TakesFromTheMountLoad_AndOccupiesSlots()
         {
             DroneBay bay = Bay();
-            bay.Produce(dt: 3f, inflowPerSec: 1f); // 3기 대기
 
-            int launched = bay.Launch(1f);
+            int launched = bay.Launch(1f, loadedInMount: 3f);
 
             Assert.AreEqual(3, launched);
             Assert.AreEqual(3, bay.Active);
-            Assert.AreEqual(0f, bay.Pending, D);
         }
 
-        /// <summary>슬롯이 다 차면 더 못 나간다 — 만든 드론은 대기열에 남는다(버려지지 않는다).</summary>
+        /// <summary>슬롯이 다 차면 더 못 나간다 — 적재분은 마운트에 그대로 남는다.</summary>
         [Test]
-        public void Launch_BlockedByOccupiedSlots_KeepsPending()
+        public void Launch_BlockedByOccupiedSlots()
         {
             DroneBay bay = Bay(slots: 2);
-            bay.Produce(dt: 10f, inflowPerSec: 1f); // 10기 대기
 
-            bay.Launch(10f);
+            bay.Launch(10f, loadedInMount: 10f);
             Assert.AreEqual(2, bay.Active, "슬롯 2가 상한");
 
-            float pendingBefore = bay.Pending;
-            Assert.AreEqual(0, bay.Launch(10f), "빈 슬롯이 없으면 0기");
-            Assert.AreEqual(pendingBefore, bay.Pending, D, "대기열은 그대로 — 버리지 않는다");
+            Assert.AreEqual(0, bay.Launch(10f, loadedInMount: 8f), "빈 슬롯이 없으면 0기");
+            Assert.AreEqual(2, bay.Active, "그대로");
         }
 
         /// <summary>방출률이 시간당 상한이므로 짧은 틱에는 그만큼만 나간다.</summary>
@@ -87,22 +87,18 @@ namespace MBI.Tests
         public void Launch_IsRateLimitedPerTick()
         {
             DroneBay bay = Bay(slots: 10, rate: 1f); // 처리량 10/초
-            bay.Produce(dt: 100f, inflowPerSec: 1f);
 
-            Assert.AreEqual(2, bay.Launch(0.2f), "10/초 × 0.2초 = 2기");
+            Assert.AreEqual(2, bay.Launch(0.2f, loadedInMount: 100f), "10/초 × 0.2초 = 2기");
         }
 
-        /// <summary>소수 유입은 이월된다 — 0.5기씩 두 번이면 1기가 나간다.</summary>
+        /// <summary>소수 적재로는 못 나간다 — 반 기짜리 드론은 없다.</summary>
         [Test]
-        public void FractionalInflow_CarriesOver()
+        public void FractionalLoad_LaunchesNothing()
         {
             DroneBay bay = Bay();
 
-            bay.Produce(1f, 0.5f);
-            Assert.AreEqual(0, bay.Launch(1f), "0.5기로는 못 나간다");
-
-            bay.Produce(1f, 0.5f);
-            Assert.AreEqual(1, bay.Launch(1f), "합쳐서 1기");
+            Assert.AreEqual(0, bay.Launch(1f, loadedInMount: 0.5f), "0.5기로는 못 나간다");
+            Assert.AreEqual(1, bay.Launch(1f, loadedInMount: 1f), "1기가 차야 나간다");
         }
 
         /// <summary>
@@ -116,10 +112,13 @@ namespace MBI.Tests
             DroneBay bay = Bay(); // 처리량 3기/초
             int launched = 0;
 
+            float loaded = 0f;
             for (int i = 0; i < 50; i++) // 1초를 0.02초로 쪼갠다
             {
-                bay.Produce(0.02f, 1f);
-                launched += bay.Launch(0.02f);
+                loaded += 1f * 0.02f;              // 유입 1기/초가 마운트에 쌓인다
+                int out_ = bay.Launch(0.02f, loaded);
+                loaded -= out_;
+                launched += out_;
             }
 
             Assert.AreEqual(1, launched, "유입 1기/초 × 1초 = 1기");
@@ -131,10 +130,10 @@ namespace MBI.Tests
         {
             DroneBay bay = Bay(slots: 3, rate: 1f);
 
-            for (int i = 0; i < 100; i++) bay.Launch(0.1f); // 유입 없이 10초 — 허용량만 흐른다
-            bay.Produce(10f, 1f);                            // 이제 10기가 대기
+            for (int i = 0; i < 100; i++) bay.Launch(0.1f, 0f); // 적재 없이 10초 — 허용량만 흐른다
 
-            Assert.LessOrEqual(bay.Launch(0.1f), 3, "슬롯 3을 넘어 한꺼번에 나가지 않는다");
+            Assert.LessOrEqual(bay.Launch(0.1f, loadedInMount: 10f), 3,
+                "슬롯 3을 넘어 한꺼번에 나가지 않는다");
         }
 
         // ---- 수명: 충전량 = 피해 총량 (§5-3 회신분) ----
@@ -179,14 +178,13 @@ namespace MBI.Tests
         public void Retire_FreesSlotImmediately()
         {
             DroneBay bay = Bay(slots: 2);
-            bay.Produce(10f, 1f);
-            bay.Launch(10f);
+            bay.Launch(10f, loadedInMount: 10f);
             Assert.AreEqual(2, bay.Active);
 
             bay.Retire();
 
             Assert.AreEqual(1, bay.Active);
-            Assert.AreEqual(1, bay.Launch(10f), "빈 슬롯이 바로 채워진다");
+            Assert.AreEqual(1, bay.Launch(10f, loadedInMount: 8f), "빈 슬롯이 바로 채워진다");
         }
 
         [Test]
@@ -197,18 +195,19 @@ namespace MBI.Tests
             Assert.AreEqual(0, bay.Active);
         }
 
-        /// <summary>전투 종료 정리 — 필드가 없어지므로 나가 있던 드론도 함께 사라진다.</summary>
+        /// <summary>
+        /// 전투 종료 정리 — 필드가 없어지므로 나가 있던 드론도 함께 사라진다.
+        /// 적재분은 마운트 소관이라 여기서 지우지 않는다.
+        /// </summary>
         [Test]
-        public void Reset_ClearsFieldAndQueue()
+        public void Reset_ClearsTheField()
         {
             DroneBay bay = Bay();
-            bay.Produce(10f, 1f);
-            bay.Launch(10f);
+            bay.Launch(10f, loadedInMount: 10f);
 
             bay.Reset();
 
             Assert.AreEqual(0, bay.Active);
-            Assert.AreEqual(0f, bay.Pending, D);
         }
 
         // ---- 사거리 ----
@@ -232,10 +231,16 @@ namespace MBI.Tests
             };
 
             float produced = NodeProduction.Produce(recipe, bufferNow: 0f, dt: 3f);
+            Assert.AreEqual(3f, produced, D, "3초에 3기");
+
+            // 만든 것은 **마운트에 실린다.** 사출대는 거기서 꺼내 쏠 뿐이다.
+            var mount = new MountLoad(MountLoad.SlotsRobotB);
+            mount.Load(MountItem.Drone, produced);
 
             DroneBay bay = Bay();
-            bay.Produce(1f, produced / 3f); // 초당 유입으로 환산
-            Assert.AreEqual(1f, bay.Pending, D);
+            int launched = bay.Launch(1f, mount.AmountOf(MountItem.Drone));
+
+            Assert.AreEqual(3, launched, "슬롯 3 · 처리량 3기/초 — 세 기가 나간다");
         }
     }
 }

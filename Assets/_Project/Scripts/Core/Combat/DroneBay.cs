@@ -5,6 +5,13 @@ namespace MBI.Core
     /// <summary>
     /// 드론 사출대(로봇 B). 밸런스 문서 10-3 · 전투 시스템 문서.
     ///
+    /// ⚠️ **사출대는 재고 층이 아니다**(260829_V03 §판정②). 재고는 세 층뿐이고
+    /// (노드 출력 버퍼 · 저장 노드 · **마운트 적재**) 사출대라는 층은 없다 —
+    /// 사출대는 화면에서 **어디로 나오느냐**이지 어디에 담겨 있느냐가 아니다.
+    /// 그래서 대기열을 여기서 들지 않고 **마운트에서 꺼내 쏜다.**
+    /// 이걸 자기 큐로 들고 있던 동안 로봇 B의 마운트는 구조적으로 영구히 비었고,
+    /// 태그의 두 트리거가 **둘 다** 막혀 있었다.
+    ///
     /// 실효 방출량 = **min(유입, 슬롯 × 방출률)**. 두 병목 중 낮은 쪽이 이긴다:
     ///   유입이 모자라면 슬롯이 놀고, 슬롯이 모자라면 만든 드론이 쌓인다.
     /// 이 min이 「물류가 전투력을 만든다」의 로봇 B 판이다 — 유입은 보드가 만든다.
@@ -16,7 +23,6 @@ namespace MBI.Core
     /// </summary>
     public sealed class DroneBay
     {
-        private float _pending;   // 만들어졌지만 아직 못 나간 드론(소수 누적 포함)
         private float _allowance;  // 방출률이 허용한 몫(소수 누적) — 아래 주석 참조
 
         // dt를 잘게 더하면 1기가 정확히 1.0이 아니라 0.9999…로 끝나 그 기체가 다음 틱으로 밀린다.
@@ -43,9 +49,6 @@ namespace MBI.Core
         /// <summary>현재 필드에 나가 있는 드론 수. 슬롯을 점유한다.</summary>
         public int Active { get; private set; }
 
-        /// <summary>대기 중(만들어졌으나 미출격) 드론 수. 소수는 다음 틱으로 이월된다.</summary>
-        public float Pending => _pending;
-
         /// <summary>슬롯 상한에 걸린 초당 방출 능력(기/초).</summary>
         public float SlotThroughput => Slots * ReleaseRatePerSlot;
 
@@ -56,18 +59,14 @@ namespace MBI.Core
         /// <summary>유입이 병목인가(슬롯이 놀고 있는가). 진단 표시용.</summary>
         public bool InflowLimited(float inflowPerSec) => inflowPerSec < SlotThroughput;
 
-        /// <summary>생산 유입을 대기열에 넣는다. 유입 = 생산이므로 보드 산출이 그대로 온다.</summary>
-        public void Produce(float dt, float inflowPerSec)
-        {
-            if (dt <= 0f || inflowPerSec <= 0f) return;
-            _pending += inflowPerSec * dt;
-        }
-
         /// <summary>
-        /// 이번 틱 출격 수. 슬롯 여유와 대기열 중 **적은 쪽**만 나간다.
+        /// 이번 틱 출격 수. 슬롯 여유 · 방출 허용량 · **마운트에 실린 드론** 중 가장 적은 쪽이 나간다.
         /// 방출률은 시간당 상한이므로 dt를 곱해 이번 틱 몫을 낸다.
+        ///
+        /// 마운트에서 빼는 것은 호출자가 한다 — 사출대가 재고를 건드리면
+        /// 「재고는 마운트가 든다」가 두 곳으로 갈린다.
         /// </summary>
-        public int Launch(float dt)
+        public int Launch(float dt, float loadedInMount)
         {
             if (dt <= 0f || Slots <= 0) return 0;
 
@@ -79,10 +78,10 @@ namespace MBI.Core
             int freeSlots = Slots - Active;
             if (freeSlots <= 0) return 0;
 
-            int count = Mathf.FloorToInt(Mathf.Min(_pending, Mathf.Min(freeSlots, _allowance)) + LaunchEpsilon);
+            float available = Mathf.Max(0f, loadedInMount);
+            int count = Mathf.FloorToInt(Mathf.Min(available, Mathf.Min(freeSlots, _allowance)) + LaunchEpsilon);
             if (count <= 0) return 0;
 
-            _pending -= count;
             _allowance -= count;
             Active += count;
             return count;
@@ -101,7 +100,6 @@ namespace MBI.Core
         public void Reset()
         {
             Active = 0;
-            _pending = 0f;
             _allowance = 0f;
         }
     }

@@ -266,5 +266,93 @@ namespace MBI.Tests
 
             Assert.IsFalse(sim.TryManualTag());
         }
+
+        // ---- 드론 로봇의 마운트 (260829_V03 §판정②) ----
+
+        /// <summary>드론 운용기. 본체 무기가 없고 화력이 전부 드론에서 나온다.</summary>
+        private static RobotSetup DroneRobot()
+        {
+            RobotSetup r = Robot();
+            r.lines = new List<AmmoLine>();
+            r.ammoInitialStock = 0f;
+            r.droneSlots = 3;
+            r.droneReleaseRate = 1f;
+            r.droneCharge = 100f;
+            r.droneAttackRange = 100f;
+            return r;
+        }
+
+        /// <summary>
+        /// **드론은 마운트에 실린다.** 사출대는 재고 층이 아니라 화면상의 출구다(260829_V03).
+        ///
+        /// 이걸 사출대가 자기 큐로 들고 있던 동안 로봇 B의 마운트는 **구조적으로 영구히 비어**
+        /// 「활성 소진 → 대기 복귀」 트리거가 켜질 수 없었다 — 태그 두 트리거가 둘 다 막혀 있었다.
+        /// </summary>
+        [Test]
+        public void DroneRobot_LoadsItsMount_UnblockingTheDepletionTag()
+        {
+            var mountA = new MountLoad(MountLoad.SlotsRobotA, Stacks());
+            var mountB = new MountLoad(MountLoad.SlotsRobotB); // 드론 스택 상한 미확정 → 안 넘긴다
+            var sim = new CombatSimulation(Robot(), DroneRobot(), mountA, mountB,
+                Sandbag(), arenaRadius: 6f, challengeTime: 120f, spawnCadence: 0f);
+
+            sim.Tag.Locked = true; // 교대를 막고 대기 축적만 잰다
+            sim.StandbyDroneInflowRate = 2f;
+
+            Assert.IsTrue(mountB.IsEmpty, "처음엔 비어 있다");
+
+            Run(sim, 3f);
+
+            Assert.AreEqual(6f, mountB.AmountOf(MountItem.Drone), 0.2f, "2기/초 × 3초");
+            Assert.IsFalse(sim.Tag.StandbyMount.IsEmpty, "소진 복귀 트리거의 전제가 섰다");
+        }
+
+        /// <summary>
+        /// 사출은 **마운트에서 뺀다.** 유입이 슬롯 처리량보다 느리면 실린 즉시 나가므로
+        /// 마운트는 거의 비어 있고, 나간 만큼이 그대로 피해가 된다.
+        ///
+        /// ⚠️ 드론은 **한 번 쏘고 소멸한다**(1기 = 1회 타격 = 충전량 전량). 그래서
+        /// 나간 수를 `Drones.Count`로 세면 안 된다 — 같은 틱에 이미 사라져 있다.
+        /// </summary>
+        [Test]
+        public void LaunchingDrones_DrainsTheMount()
+        {
+            var mountA = new MountLoad(MountLoad.SlotsRobotB);
+            var sim = new CombatSimulation(DroneRobot(), Robot(), mountA,
+                new MountLoad(MountLoad.SlotsRobotA, Stacks()),
+                Sandbag(), arenaRadius: 6f, challengeTime: 120f, spawnCadence: 0f);
+
+            sim.Tag.Locked = true;
+            sim.DroneInflowRate = 2f; // 슬롯 처리량 3기/초보다 느리다 → 유입이 병목
+
+            Run(sim, 6f);
+
+            Assert.AreEqual(1200f, sim.DroneDamageDealt, 200f, "2기/초 × 6초 × 기당 100");
+            Assert.Less(mountA.AmountOf(MountItem.Drone), 1.5f,
+                "실린 만큼 그대로 나갔다 — 마운트에 쌓이지 않는다");
+        }
+
+        /// <summary>
+        /// **슬롯이 병목이면 마운트에 쌓인다.** 실효 방출량 = min(유입, 슬롯 × 방출률)이고,
+        /// 넘치는 분이 갈 곳이 마운트라는 것이 「마운트가 재고 층」의 실측이다.
+        /// 사출대가 자기 큐를 들고 있던 동안에는 이 잉여가 마운트 밖에 쌓여
+        /// 태그가 볼 수 없었다.
+        /// </summary>
+        [Test]
+        public void WhenSlotsAreTheBottleneck_SurplusPilesUpInTheMount()
+        {
+            var mountA = new MountLoad(MountLoad.SlotsRobotB);
+            var sim = new CombatSimulation(DroneRobot(), Robot(), mountA,
+                new MountLoad(MountLoad.SlotsRobotA, Stacks()),
+                Sandbag(), arenaRadius: 6f, challengeTime: 120f, spawnCadence: 0f);
+
+            sim.Tag.Locked = true;
+            sim.DroneInflowRate = 10f; // 슬롯 처리량 3기/초를 훨씬 넘는다
+
+            Run(sim, 6f);
+
+            Assert.AreEqual(1800f, sim.DroneDamageDealt, 300f, "3기/초 상한 × 6초 × 100");
+            Assert.AreEqual(42f, mountA.AmountOf(MountItem.Drone), 4f, "60 실려 18 나갔다");
+        }
     }
 }

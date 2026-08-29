@@ -148,6 +148,16 @@ namespace MBI.Core
             set => Act.droneInflowRate = value;
         }
 
+        /// <summary>
+        /// 대기 로봇의 드론 몸체 유입. 대기 보드도 돌아 **대기 로봇의 마운트에 드론이 쌓인다** —
+        /// 그것이 「활성 소진 → 대기 복귀」 태그 트리거의 전제다.
+        /// </summary>
+        public float StandbyDroneInflowRate
+        {
+            get => Standby.droneInflowRate;
+            set => Standby.droneInflowRate = value;
+        }
+
         /// <summary>필드에 나가 있는 드론.</summary>
         public IReadOnlyList<DroneUnit> Drones => Act.drones;
 
@@ -360,9 +370,13 @@ namespace MBI.Core
                     },
                     ammo = new AmmoInventory(r.ammoCapacity),
                     bay = new DroneBay(r.droneSlots, r.droneReleaseRate, r.droneCharge),
-                    // 마운트를 안 주면 슬롯 0짜리를 둔다 — 기존 단일 로봇 경로가 마운트를 모르기 때문이다.
+                    // 마운트를 안 줘도 **자기 마운트는 갖는다.** 마운트는 로봇의 장비이지
+                    // 태그의 부속이 아니다 — 슬롯 0을 주던 동안 단일 로봇 시뮬은 드론을
+                    // 실을 데가 없어 사출이 통째로 막혔다(드론 재고가 마운트로 옮겨진 뒤 드러남).
+                    // 슬롯 수는 setup에서 나온다: 드론을 모는 쪽이 로봇 B다.
                     mount = mounts != null && i < mounts.Length && mounts[i] != null
-                        ? mounts[i] : new MountLoad(0),
+                        ? mounts[i]
+                        : new MountLoad(r.droneSlots > 0 ? MountLoad.SlotsRobotB : MountLoad.SlotsRobotA),
                 };
                 side.lineTimers = new float[r.lines != null ? r.lines.Count : 0];
                 _sides[i] = side;
@@ -438,6 +452,16 @@ namespace MBI.Core
         // 군수 노드가 추진제를 만들고, 부스터가 그것을 먹어 회피 스택을 채운다. 추진제 1개 = 회피 1회.
         // 상한은 **부스터 대수 × 2**라 회피를 늘리는 방법은 부스터를 더 놓는 것뿐이다.
         // 그릇만 키워도 안 세진다 — 채우는 속도는 군수 노드가 정한다(15초에 1개).
+
+        /// <summary>
+        /// 드론 몸체 유입 → 마운트 적재(260829_V03 §판정②: 사출대는 재고 층이 아니다).
+        /// 마운트가 없으면(격리 단일 전투) 아무 데도 안 쌓인다 — 그때는 드론도 안 나간다.
+        /// </summary>
+        private static void LoadDronesInto(RobotSide s, float dt)
+        {
+            if (s.mount == null || s.droneInflowRate <= 0f || dt <= 0f) return;
+            s.mount.Load(MountItem.Drone, s.droneInflowRate * dt);
+        }
 
         /// <summary>
         /// 추진제 유입 + 수동 플릭 소비. **적 공격 판정보다 먼저** 돈다:
@@ -519,6 +543,10 @@ namespace MBI.Core
             Elapsed += dt;
 
             ProduceAmmo(dt);   // 군수 → 창고 유입(총량 캡 초과분은 버려진다)
+            // 창고 → 마운트. ⚠️ 태그 여부와 **무관하게** 돈다 — 마운트는 로봇의 장비라
+            // 로봇이 하나여도 거기서 쏜다. 이걸 TagTick 안에 두었더니 단일 로봇 시뮬은
+            // 마운트가 영영 비어 발사가 통째로 멈췄다(마운트 슬롯이 0이던 동안 가려져 있었다).
+            RefillMount(Act);
             StandbyTick(dt);   // 대기 로봇의 공장도 계속 돈다 — 그 산출이 태그 인 순간 비축 화력이 된다
             MergeTick(dt);     // 게이지 충전·지속 소모. 합체가 끝나면 태그 잠금이 풀린다
             TagTick(dt);       // 교대 판정. 교대가 일어나면 이번 틱부터 새 로봇이 싸운다
@@ -557,6 +585,11 @@ namespace MBI.Core
             // 대기 보드의 부스터도 돈다 — 태그 인 순간 회피 스택도 함께 나온다.
             ProducePropellantInto(s, dt);
 
+            // 대기 로봇의 드론도 마운트에 쌓인다. **이것이 로봇 B의 태그 조건을 연다** —
+            // 드론이 마운트로 안 들어가던 동안 B의 마운트는 영구히 비어 있어
+            // 「활성 소진 → 대기 복귀」 트리거가 켜질 수 없었다.
+            LoadDronesInto(s, dt);
+
             // 창고 → 마운트. 벨트가 실어 오는 것이라 자리가 없으면 창고에 남는다.
             RefillMount(s);
         }
@@ -580,8 +613,6 @@ namespace MBI.Core
         private void TagTick(float dt)
         {
             if (Tag == null) return;
-
-            RefillMount(Act); // 활성도 벨트가 계속 채운다
 
             if (Tag.TickAuto(dt)) _active = Tag.ActiveIndex;
         }
@@ -685,9 +716,12 @@ namespace MBI.Core
         {
             if (Act.bay == null) return;
 
-            Act.bay.Produce(dt, DroneInflowRate);
+            // 유입은 **마운트로** 들어간다 — 드론은 로봇 B의 탄약이고, 탄약이 있는 곳은 마운트다.
+            LoadDronesInto(Act, dt);
 
-            int launched = Act.bay.Launch(dt);
+            int launched = Act.bay.Launch(dt, Act.mount != null ? Act.mount.AmountOf(MountItem.Drone) : 0f);
+            if (launched > 0 && Act.mount != null) Act.mount.TryConsume(MountItem.Drone, launched);
+
             for (int i = 0; i < launched; i++)
                 Act.drones.Add(new DroneUnit(DroneStation(Act.drones.Count),
                     Act.setup.droneCharge, Act.setup.droneCharge, Act.setup.droneAttackRange));
