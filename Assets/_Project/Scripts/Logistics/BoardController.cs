@@ -536,6 +536,79 @@ namespace MBI.Logistics
                 _removeMode ? "제거 모드\n탭=노드/벨트 삭제" : "탭=노드 배치\n드래그=벨트");
 
             GUI.enabled = true;
+
+            DrawRecipePanel();
+        }
+
+        /// <summary>
+        /// 선택한 노드의 조합표 패널(2026-08-27 레시피 선택형 · 260829_V02 착수 승인).
+        ///
+        /// **노드 하나는 조합표 하나를 돌린다.** 갈래를 늘리는 방법은 노드를 더 놓는 것이지
+        /// 노드 하나를 넓히는 것이 아니므로, 후보 중 하나만 켜진다.
+        /// 조합표가 탄약이면 탄종도 함께 고른다 — 출력이 **탄종별 노드 수**에서 나오기 때문이다.
+        ///
+        /// 판정은 NodeInstance가 한다(돌릴 수 없는 조합표는 거절된다). 여기서는 매핑만 한다.
+        /// </summary>
+        private void DrawRecipePanel()
+        {
+            if (!_selected.HasValue || _grid == null) return;
+
+            NodeInstance inst = _grid.GetAt(_selected.Value);
+            if (inst == null || inst.Definition == null) return;
+
+            List<NodeRecipe> candidates = inst.Definition.recipes;
+            if (candidates == null || candidates.Count == 0) return;
+
+            var style = new GUIStyle(GUI.skin.button) { fontSize = 13 };
+            const float w = 150f, h = 30f, pad = 4f;
+            const float x = 12f;
+            float y = 90f;
+
+            GUI.Label(new Rect(x, y - 24f, w + 60f, 22f), inst.Definition.displayName + " 조합표");
+
+            RecipeKind current = inst.CurrentRecipe.kind;
+            foreach (NodeRecipe r in candidates)
+            {
+                var rect = new Rect(x, y, w, h);
+                if (rect.Contains(Event.current.mousePosition)) _pointerOverPalette = true;
+
+                // 돌릴 수 없는 후보도 **자리는 보여 준다** — 감추면 「왜 못 만드나」가 아니라
+                // 「그런 게 있었나」가 된다. 착수 금지가 화면에서도 자리로 표현된다.
+                GUI.enabled = r.IsRunnable;
+                if (GUI.Button(rect, (r.kind == current ? "● " : "") + r.displayName, style))
+                    inst.SelectRecipe(r.kind);
+
+                y += h + pad;
+            }
+            GUI.enabled = true;
+
+            if (current != RecipeKind.Ammo) return;
+
+            // 탄종 — 조합표만으로는 부족하다. 라인 생산량이 min(스펙, 탄종별 노드 수)이라
+            // 「무엇을 몇 대 놓았는가」가 그대로 출력이 된다.
+            y += 6f;
+            GUI.Label(new Rect(x, y, w + 60f, 22f), "탄종");
+            y += 22f;
+
+            for (int k = 0; k < 3; k++)
+            {
+                var kind = (AmmoKind)k;
+                var rect = new Rect(x + k * (58f + pad), y, 58f, h);
+                if (rect.Contains(Event.current.mousePosition)) _pointerOverPalette = true;
+
+                if (GUI.Button(rect, (inst.AmmoKind == kind ? "● " : "") + AmmoLabel(kind), style))
+                    inst.AmmoKind = kind;
+            }
+        }
+
+        private static string AmmoLabel(AmmoKind kind)
+        {
+            switch (kind)
+            {
+                case AmmoKind.Pierce: return "관통";
+                case AmmoKind.Split: return "분열";
+                default: return "폭발";
+            }
         }
 
         // 모드 버튼 — 화면 우측 하단 1개(UI 문서 9-2).

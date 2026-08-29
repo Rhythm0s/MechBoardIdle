@@ -16,7 +16,17 @@ namespace MBI.Core
     /// 회피(전투 시스템 문서 11-9장 · 07 문서「생존 체계」, 2026-08-29 신설).
     /// 순수 로직 — 씬 비의존이라 EditMode로 검증된다.
     ///
-    /// 확정치: **무적 0.167초** · 추진제 1개 = 회피 1회 · **회피 스택 상한 3**.
+    /// 확정치: **무적 0.167초** · 추진제 1개 = 회피 1회 · **회피 스택 상한 = 부스터 대수 × 2**.
+    ///
+    /// 상한은 상수가 아니라 **대수의 파생값**이다(260829_V02 §① — 구 「상한 3」 폐기).
+    /// 상수로 두면 부스터 1대와 3대가 같아져 「더 놓으면 강해진다」가 수치로 무너진다.
+    /// 밸런스 문서「물류 천장 재검증」의 **천장은 생산 비용이 만든다**가 여기에도 적용된다.
+    ///
+    /// 그릇만 키워도 안 세지는 이유: **채우는 속도는 군수 노드가 정한다**(15초에 1개).
+    /// 부스터는 담는 그릇이라 여섯 칸을 채우려면 90초가 든다.
+    ///
+    /// ⚠️ 「추진제 아이템 최대 스택 3」과 **다른 축**이다. 추진제는 물건이라 마운트에 쌓이고,
+    /// 회피 스택은 부스터가 그 물건을 먹어 채우는 형체 없는 게이지다. 숫자가 3 근처라 섞이기 쉽다.
     ///
     /// 규칙:
     ///   - 자동 기본 + 수동 오버라이드(태그와 같은 문법)
@@ -36,8 +46,8 @@ namespace MBI.Core
         /// <summary>무적 지속(초). 확정치 0.167.</summary>
         public const float InvincibleSeconds = 0.167f;
 
-        /// <summary>회피 스택 상한. 확정치 3.</summary>
-        public const int MaxStacks = 3;
+        /// <summary>부스터 노드 1대가 드는 회피 스택. 확정치 2(260829_V02).</summary>
+        public const int StacksPerBooster = 2;
 
         /// <summary>
         /// 종료 모션 딜레이(초) — **미확정**. 무적과 **별개 값**이다:
@@ -48,8 +58,26 @@ namespace MBI.Core
 
         private float _invincibleLeft;
         private float _recoveryLeft;
+        private int _boosterCount;
 
-        /// <summary>보유 추진제(회피 가능 횟수). 부스터 노드가 공급한다.</summary>
+        /// <summary>
+        /// 보드에 놓인 부스터 대수. 상한의 원천이라 줄이면 넘치는 스택이 잘린다 —
+        /// 노드를 뽑았는데 회피가 그대로 남으면 보드가 결과를 못 바꾸는 것이 된다.
+        /// </summary>
+        public int BoosterCount
+        {
+            get => _boosterCount;
+            set
+            {
+                _boosterCount = Mathf.Max(0, value);
+                if (Stacks > Capacity) Stacks = Capacity;
+            }
+        }
+
+        /// <summary>회피 스택 상한 = 부스터 대수 × 2. 부스터가 없으면 0 — 회피 자체가 없다.</summary>
+        public int Capacity => _boosterCount * StacksPerBooster;
+
+        /// <summary>보유 회피 스택(회피 가능 횟수). 부스터가 추진제를 먹어 채운다.</summary>
         public int Stacks { get; private set; }
 
         /// <summary>무적 구간인가. **이 동안 피해 계산에 진입하지 않는다.**</summary>
@@ -71,7 +99,7 @@ namespace MBI.Core
         public int TotalDodges { get; private set; }
 
         /// <summary>
-        /// 부스터 노드가 추진제를 공급한다. **상한 3을 넘겨 쌓이지 않는다** —
+        /// 부스터가 추진제를 먹어 회피 스택을 채운다. **대수 × 2를 넘겨 쌓이지 않는다** —
         /// 넘치는 분은 버려지고, 그래서 부스터를 더 놓는 것이 회피를 늘리는 유일한 방법이다.
         /// 실제로 들어간 개수를 돌려준다.
         /// </summary>
@@ -79,7 +107,7 @@ namespace MBI.Core
         {
             if (count <= 0) return 0;
 
-            int room = MaxStacks - Stacks;
+            int room = Capacity - Stacks;
             int taken = Mathf.Min(room, count);
             Stacks += taken;
             return taken;
@@ -122,7 +150,7 @@ namespace MBI.Core
         {
             _invincibleLeft = 0f;
             _recoveryLeft = 0f;
-            Stacks = 0;
+            Stacks = 0; // 부스터 대수는 보드가 정하는 것이라 여기서 지우지 않는다
             TotalDodges = 0;
             LastTrigger = DodgeTrigger.None;
             LastDirection = Vector2.zero;

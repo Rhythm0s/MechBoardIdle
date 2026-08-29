@@ -8,15 +8,19 @@ namespace MBI.Tests
 {
     /// <summary>
     /// 회피(전투 시스템 문서 11-9장 · 07「생존 체계」, 2026-08-29 신설).
-    /// 확정치: 무적 0.167초 · 스택 상한 3 · 추진제 1개 = 회피 1회.
+    /// 확정치: 무적 0.167초 · 부스터 1대 = 스택 2칸 · 추진제 1개 = 회피 1회.
+    ///
+    /// 구 「상한 3」은 2026-08-29 폐기됐다(260829_V02 §①) — 상수로 두면 부스터 1대와 3대가
+    /// 같아져 「더 놓으면 강해진다」가 수치로 무너지기 때문이다.
     /// </summary>
     public sealed class DodgeSystemTests
     {
         private const float D = 0.0001f;
 
-        private static DodgeSystem Ready(int stacks = 3)
+        /// <summary>부스터 2대(= 4칸)를 놓고 스택을 채워 둔 상태.</summary>
+        private static DodgeSystem Ready(int stacks = 4, int boosters = 2)
         {
-            var d = new DodgeSystem();
+            var d = new DodgeSystem { BoosterCount = boosters };
             d.AddStacks(stacks);
             return d;
         }
@@ -27,7 +31,7 @@ namespace MBI.Tests
         public void ConfirmedConstants()
         {
             Assert.AreEqual(0.167f, DodgeSystem.InvincibleSeconds, D, "무적 0.167초");
-            Assert.AreEqual(3, DodgeSystem.MaxStacks, "회피 스택 상한 3");
+            Assert.AreEqual(2, DodgeSystem.StacksPerBooster, "부스터 1대 = 2칸");
         }
 
         /// <summary>
@@ -62,17 +66,62 @@ namespace MBI.Tests
         // ---- 스택 ----
 
         /// <summary>
-        /// **상한 3을 넘겨 쌓이지 않는다.** 부스터 한 대가 드는 것은 3회에서 멈추고,
-        /// 회피를 늘리는 방법은 노드를 더 놓는 것이다.
+        /// **상한은 부스터 대수의 파생값이다.** 한 대가 드는 것은 2칸이고,
+        /// 회피를 늘리는 방법은 부스터를 더 놓는 것뿐이다.
         /// </summary>
         [Test]
-        public void Stacks_CapAtThree_OverflowIsDropped()
+        public void Capacity_ComesFromBoosterCount()
         {
             var d = new DodgeSystem();
 
-            Assert.AreEqual(3, d.AddStacks(10), "3개만 들어간다");
-            Assert.AreEqual(3, d.Stacks);
+            Assert.AreEqual(0, d.Capacity, "부스터가 없으면 회피 자체가 없다");
+
+            d.BoosterCount = 1;
+            Assert.AreEqual(2, d.Capacity);
+
+            d.BoosterCount = 3;
+            Assert.AreEqual(6, d.Capacity, "대수에 비례한다 — 상수가 아니다");
+        }
+
+        /// <summary>상한을 넘겨 쌓이지 않는다. 넘치는 분은 버려진다.</summary>
+        [Test]
+        public void Stacks_CapAtCapacity_OverflowIsDropped()
+        {
+            var d = new DodgeSystem { BoosterCount = 2 };
+
+            Assert.AreEqual(4, d.AddStacks(10), "4개만 들어간다");
+            Assert.AreEqual(4, d.Stacks);
             Assert.AreEqual(0, d.AddStacks(5), "가득 차면 한 개도 안 들어간다");
+        }
+
+        /// <summary>
+        /// 부스터를 뽑으면 넘치는 스택이 **그 자리에서 잘린다.**
+        /// 남겨 두면 노드를 빼도 결과가 안 바뀌어 보드가 생존을 못 만든다.
+        /// </summary>
+        [Test]
+        public void RemovingBoosters_TrimsStacksImmediately()
+        {
+            var d = new DodgeSystem { BoosterCount = 3 };
+            d.AddStacks(6);
+
+            d.BoosterCount = 1;
+
+            Assert.AreEqual(2, d.Capacity);
+            Assert.AreEqual(2, d.Stacks, "상한 위로 넘친 분은 잘린다");
+        }
+
+        /// <summary>
+        /// **그릇과 채우는 속도는 다른 축이다.** 부스터를 늘려 여섯 칸을 만들어도
+        /// 채우는 것은 군수 노드(15초에 1개)라 90초가 든다 — 그릇만 키우면 빈 그릇이 는다.
+        /// </summary>
+        [Test]
+        public void BiggerCapacity_DoesNotFillFaster()
+        {
+            var d = new DodgeSystem { BoosterCount = 3 };
+
+            Assert.AreEqual(1, d.AddStacks(1), "한 번에 들어오는 것은 추진제 하나뿐이다");
+            Assert.AreEqual(1, d.Stacks);
+            Assert.AreEqual(6, d.Capacity, "칸은 여섯이지만 다섯 칸이 비어 있다");
         }
 
         [Test]
@@ -88,7 +137,7 @@ namespace MBI.Tests
         [Test]
         public void NoStacks_NoDodge()
         {
-            var d = new DodgeSystem();
+            var d = new DodgeSystem { BoosterCount = 2 }; // 부스터는 있는데 추진제가 아직 안 왔다
 
             Assert.IsFalse(d.CanDodge);
             Assert.IsFalse(d.TryDodge(true, Vector2.right, true, Vector2.up));
@@ -104,7 +153,7 @@ namespace MBI.Tests
         [Test]
         public void ManualBeatsAuto_AndSpendsOnlyOneStack()
         {
-            DodgeSystem d = Ready(3);
+            DodgeSystem d = Ready();
 
             bool fired = d.TryDodge(autoTriggered: true, autoDirection: Vector2.right,
                                     manualFlick: true, flickDirection: Vector2.up);
@@ -112,7 +161,7 @@ namespace MBI.Tests
             Assert.IsTrue(fired);
             Assert.AreEqual(DodgeTrigger.Manual, d.LastTrigger, "수동이 이긴다");
             Assert.AreEqual(Vector2.up, d.LastDirection, "플릭 방향으로 피한다");
-            Assert.AreEqual(2, d.Stacks, "추진제는 하나만 나간다");
+            Assert.AreEqual(3, d.Stacks, "추진제는 하나만 나간다");
         }
 
         [Test]
@@ -132,7 +181,7 @@ namespace MBI.Tests
             DodgeSystem d = Ready();
 
             Assert.IsFalse(d.TryDodge(false, Vector2.zero, false, Vector2.zero));
-            Assert.AreEqual(3, d.Stacks, "헛발질이 재고를 먹지 않는다");
+            Assert.AreEqual(4, d.Stacks, "헛발질이 재고를 먹지 않는다");
         }
 
         // ---- 재발동 ----
@@ -141,25 +190,25 @@ namespace MBI.Tests
         [Test]
         public void CannotRetrigger_WhileDodging()
         {
-            DodgeSystem d = Ready(3);
+            DodgeSystem d = Ready();
             d.TryDodge(true, Vector2.right, false, Vector2.zero);
 
             Assert.IsTrue(d.IsDodging);
             Assert.IsFalse(d.TryDodge(true, Vector2.right, true, Vector2.up), "진행 중엔 안 나간다");
-            Assert.AreEqual(2, d.Stacks, "재고도 안 빠진다");
+            Assert.AreEqual(3, d.Stacks, "재고도 안 빠진다");
         }
 
         [Test]
         public void CanDodgeAgain_AfterItEnds()
         {
-            DodgeSystem d = Ready(3);
+            DodgeSystem d = Ready();
             d.TryDodge(true, Vector2.right, false, Vector2.zero);
 
             d.Tick(DodgeSystem.InvincibleSeconds + DodgeSystem.RecoveryDelayTbd + 0.01f);
 
             Assert.IsFalse(d.IsDodging);
             Assert.IsTrue(d.TryDodge(true, Vector2.right, false, Vector2.zero));
-            Assert.AreEqual(1, d.Stacks);
+            Assert.AreEqual(2, d.Stacks);
         }
 
         /// <summary>
@@ -202,6 +251,7 @@ namespace MBI.Tests
             Assert.IsFalse(d.IsDodging);
             Assert.AreEqual(0, d.TotalDodges);
             Assert.AreEqual(DodgeTrigger.None, d.LastTrigger);
+            Assert.AreEqual(2, d.BoosterCount, "부스터 대수는 보드의 것이라 초기화가 지우지 않는다");
         }
 
         // ---- 부스터 노드 자산 ----
@@ -240,22 +290,26 @@ namespace MBI.Tests
 
             Assert.IsTrue(propellant.IsRunnable, "추진제를 돌릴 수 있다");
             Assert.AreEqual(1f / 15f, propellant.outputPerSec, D, "15초에 1개");
-            Assert.AreEqual(DodgeSystem.MaxStacks, propellant.stackLimitTbd, D,
-                "부스터가 드는 상한이 회피 스택 상한과 같다");
+            // ⚠️ 회피 스택 상한(부스터 대수 × 2)과 **다른 축**이다 — 이쪽은 마운트 한 칸에
+            // 몇 개가 쌓이는가이고, 저쪽은 부스터가 채우는 게이지의 칸 수다.
+            Assert.AreEqual(3f, propellant.stackLimitTbd, D, "추진제 아이템 최대 스택 3");
         }
 
-        /// <summary>노드가 15초에 1개를 만들면 상한 3까지 45초가 걸린다 — 회피 리듬의 밑이다.</summary>
+        /// <summary>
+        /// 군수 노드 한 대는 추진제를 15초에 하나 만든다 — 아이템 스택 3을 채우는 데 45초.
+        /// **채우는 속도는 부스터가 아니라 여기서 정해진다.**
+        /// </summary>
         [Test]
-        public void ThreeStacks_TakeFortyFiveSeconds_AtDeclaredRate()
+        public void PropellantStack_TakesFortyFiveSeconds_AtDeclaredRate()
         {
             var recipe = new NodeRecipe
             {
                 kind = RecipeKind.Propellant, output = FlowKind.Propellant,
-                outputPerSec = 1f / 15f, stackLimitTbd = DodgeSystem.MaxStacks, implemented = true,
+                outputPerSec = 1f / 15f, stackLimitTbd = 3f, implemented = true,
             };
 
             Assert.AreEqual(3f, NodeProduction.Produce(recipe, 0f, 45f), D);
-            Assert.AreEqual(0f, NodeProduction.Produce(recipe, 3f, 45f), D, "상한에서 멈춘다");
+            Assert.AreEqual(0f, NodeProduction.Produce(recipe, 3f, 45f), D, "버퍼가 차면 멈춘다");
         }
     }
 }

@@ -42,13 +42,24 @@ namespace MBI.Tests
                 moveSpeed = 0f, attackRange = 100f, attackInterval = interval },
         };
 
-        private static CombatSimulation One(float interval = 1f) =>
-            new CombatSimulation(Robot(), Attacker(interval),
+        /// <summary>부스터 2대(= 회피 4칸)를 놓은 보드로 본다. 대수가 상한의 원천이다.</summary>
+        private static CombatSimulation One(float interval = 1f, int boosters = 2)
+        {
+            var sim = new CombatSimulation(Robot(), Attacker(interval),
                 arenaRadius: 6f, challengeTime: 1000f, spawnCadence: 0f);
+            sim.BoosterCount = boosters;
+            return sim;
+        }
 
-        private static CombatSimulation Two() =>
-            new CombatSimulation(Robot(), Robot(), new MountLoad(4, Stacks()), new MountLoad(4, Stacks()),
+        private static CombatSimulation Two()
+        {
+            var sim = new CombatSimulation(Robot(), Robot(),
+                new MountLoad(4, Stacks()), new MountLoad(4, Stacks()),
                 Attacker(), arenaRadius: 6f, challengeTime: 1000f, spawnCadence: 0f);
+            sim.BoosterCount = 2;
+            sim.StandbyBoosterCount = 2;
+            return sim;
+        }
 
         /// <summary>
         /// 첫 교대까지 돌린다. ⚠️ 두 마운트가 모두 만충이라 태그는 **쿨다운마다 왕복한다** —
@@ -73,7 +84,7 @@ namespace MBI.Tests
 
         private static float Taken(CombatSimulation sim) => RobotHp - sim.Robot.hp;
 
-        /// <summary>한 틱 만에 상한까지 채운다 — 넘치는 분은 버려지므로 정확히 3이 된다.</summary>
+        /// <summary>한 틱 만에 상한까지 채운다 — 넘치는 분은 버려지므로 정확히 상한이 된다.</summary>
         private static void FillStacks(CombatSimulation sim, float dt = 0.05f)
         {
             sim.PropellantSupplyRate = 1000f;
@@ -83,20 +94,58 @@ namespace MBI.Tests
 
         // ---- 공급 ----
 
-        /// <summary>부스터가 없으면 회피도 없다 — 회피는 재고로 갈린다.</summary>
+        /// <summary>
+        /// 부스터를 안 놓으면 **상한이 0**이라 추진제가 아무리 와도 회피가 없다.
+        /// 상한이 상수였다면 부스터 없이도 회피가 됐다 — 그 구멍이 2026-08-29에 막혔다.
+        /// </summary>
         [Test]
-        public void NoBooster_NoStacks()
+        public void NoBooster_NoCapacity_NoDodge()
+        {
+            CombatSimulation sim = One(boosters: 0);
+            sim.PropellantSupplyRate = 1000f;
+
+            Run(sim, 30f);
+
+            Assert.AreEqual(0, sim.Dodge.Capacity, "부스터가 없으면 칸도 없다");
+            Assert.AreEqual(0, sim.Dodge.Stacks);
+            Assert.AreEqual(0, sim.Dodge.TotalDodges, "쌓인 게 없으니 한 번도 못 피한다");
+        }
+
+        /// <summary>추진제가 안 오면 부스터가 있어도 회피가 없다 — 그릇만으로는 안 된다.</summary>
+        [Test]
+        public void NoPropellant_NoDodge()
         {
             CombatSimulation sim = One();
 
             Run(sim, 30f);
 
-            Assert.AreEqual(0, sim.Dodge.Stacks);
-            Assert.AreEqual(0, sim.Dodge.TotalDodges, "쌓인 게 없으니 한 번도 못 피한다");
+            Assert.AreEqual(4, sim.Dodge.Capacity, "2대 × 2칸");
+            Assert.AreEqual(0, sim.Dodge.Stacks, "그런데 빈 그릇이다");
+            Assert.AreEqual(0, sim.Dodge.TotalDodges);
         }
 
         /// <summary>
-        /// 선언치(15초에 1개)로 45초를 돌리면 상한 3에 닿는다.
+        /// **부스터를 더 놓으면 회피가 는다.** 이것이 성립하지 않으면 「더 놓으면 강해진다」가
+        /// 수치로 무너진다 — 상한이 상수였을 때 실제로 그랬다.
+        /// </summary>
+        [Test]
+        public void MoreBoosters_MoreDodges()
+        {
+            CombatSimulation few = One(boosters: 1);
+            CombatSimulation many = One(boosters: 3);
+
+            FillStacks(few);
+            FillStacks(many);
+            Run(few, 20f);
+            Run(many, 20f);
+
+            Assert.AreEqual(2, few.Dodge.TotalDodges, "1대 = 2회");
+            Assert.AreEqual(6, many.Dodge.TotalDodges, "3대 = 6회");
+            Assert.Less(Taken(many), Taken(few), "더 놓은 쪽이 덜 맞는다");
+        }
+
+        /// <summary>
+        /// 선언치(15초에 1개)로 45초를 돌리면 세 개가 쌓인다.
         /// 소수분 이월이 없으면 틱마다 floor(0.0033)=0이 되어 **영영 한 개도 안 나온다** —
         /// 드론 사출대에서 같은 뿌리의 결함을 겪었다.
         /// </summary>
@@ -111,6 +160,7 @@ namespace MBI.Tests
 
             Run(sim, 30f);
             Assert.AreEqual(3, sim.Dodge.Stacks + sim.Dodge.TotalDodges, "45초에 3개");
+            Assert.AreEqual(4, sim.Dodge.Capacity, "칸은 넷인데 셋이다 — 그릇이 아니라 속도가 병목이다");
         }
 
         /// <summary>
@@ -118,14 +168,14 @@ namespace MBI.Tests
         /// 한꺼번에 터져 상한이 사실상 없어진다 — 그래서 만충에서 이월을 버린다.
         /// </summary>
         [Test]
-        public void FastSupply_StillCapsAtThree()
+        public void FastSupply_StillCapsAtCapacity()
         {
             CombatSimulation sim = One();
             sim.PropellantSupplyRate = 100f;
 
             sim.Tick(0.05f);
 
-            Assert.AreEqual(DodgeSystem.MaxStacks, sim.Dodge.Stacks + sim.Dodge.TotalDodges);
+            Assert.AreEqual(sim.Dodge.Capacity, sim.Dodge.Stacks + sim.Dodge.TotalDodges);
         }
 
         // ---- 피해 흡수 ----
@@ -143,11 +193,11 @@ namespace MBI.Tests
         }
 
         /// <summary>
-        /// **추진제 3개 = 타격 3회 무효.** 부스터를 놓으면 그만큼 덜 맞는다 —
+        /// **스택 하나 = 타격 한 번 무효.** 부스터 2대면 네 번 덜 맞는다 —
         /// 「보드가 생존을 만든다」의 실측이다.
         /// </summary>
         [Test]
-        public void ThreeStacks_AbsorbThreeHits()
+        public void EachStack_AbsorbsOneHit()
         {
             CombatSimulation bare = One();
             CombatSimulation boosted = One();
@@ -156,8 +206,8 @@ namespace MBI.Tests
             Run(bare, 10f);
             Run(boosted, 10f);
 
-            Assert.AreEqual(3, boosted.Dodge.TotalDodges, "세 번 피했다");
-            Assert.AreEqual(3f * EnemyAtk, Taken(bare) - Taken(boosted), D, "그만큼 덜 맞았다");
+            Assert.AreEqual(4, boosted.Dodge.TotalDodges, "네 번 피했다");
+            Assert.AreEqual(4f * EnemyAtk, Taken(bare) - Taken(boosted), D, "그만큼 덜 맞았다");
         }
 
         /// <summary>
@@ -208,21 +258,25 @@ namespace MBI.Tests
             Assert.AreEqual(before - 1, sim.Dodge.Stacks, "추진제는 하나만 나간다");
         }
 
-        /// <summary>플릭은 한 번에 한 번만 먹는다 — 눌러 둔 입력이 다음 틱까지 남으면 재고가 샌다.</summary>
+        /// <summary>
+        /// 플릭은 **한 번만 먹는다.** 눌러 둔 입력이 다음 틱까지 남으면 재고가 매 틱 샌다.
+        /// ⚠️ 자동이 끼면 몇 회가 나갔는지 못 가르므로 타격 간격을 벌려 자동을 뺀다.
+        /// </summary>
         [Test]
         public void Flick_IsConsumedOnce()
         {
-            CombatSimulation sim = One();
-            FillStacks(sim);
+            CombatSimulation sim = One(interval: 1000f);
+            FillStacks(sim);          // 첫 타격에 자동이 한 번 나간다
             Run(sim, 0.5f);
 
             int before = sim.Dodge.Stacks;
-            sim.RequestDodge(Vector2.up);
-            Run(sim, 3f);
+            int dodgesBefore = sim.Dodge.TotalDodges;
 
-            Assert.GreaterOrEqual(sim.Dodge.Stacks, before - 1 - 1,
-                "플릭 1회 + 자동 몇 회지, 플릭이 매 틱 반복되지 않는다");
-            Assert.Greater(sim.Dodge.Stacks + sim.Dodge.TotalDodges, 0);
+            sim.RequestDodge(Vector2.up);
+            Run(sim, 3f);             // 이 3초 동안 적은 때리지 않는다
+
+            Assert.AreEqual(dodgesBefore + 1, sim.Dodge.TotalDodges, "딱 한 번 나갔다");
+            Assert.AreEqual(before - 1, sim.Dodge.Stacks, "재고도 하나만 빠졌다");
         }
 
         // ---- 태그와의 관계 ----
@@ -258,7 +312,7 @@ namespace MBI.Tests
             sim.Tick(0.05f);
             sim.PropellantSupplyRate = 0f;
 
-            Assert.AreEqual(3, sim.Dodge.Stacks + sim.Dodge.TotalDodges, "A는 채웠고");
+            Assert.AreEqual(4, sim.Dodge.Stacks + sim.Dodge.TotalDodges, "A는 채웠고");
 
             sim.Tag.Locked = false;
             Assert.IsTrue(RunUntilSwap(sim), "교대한다");

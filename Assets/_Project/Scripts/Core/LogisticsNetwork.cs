@@ -20,6 +20,13 @@ namespace MBI.Core
         public int muniSplit;
         public int muniExplosive;
 
+        // 군수 노드가 탄약 말고 다른 조합표를 돌리면 산출이 이쪽으로 간다(2026-08-27 레시피 선택형).
+        public float droneProduce;      // Σ 드론 몸체(기/초) — 사출대 유입
+        public float propellantProduce; // Σ 추진제(개/초) — 부스터가 받아 회피 스택으로 바꾼다
+
+        /// <summary>부스터 대수. **회피 스택 상한 = 이 값 × 2**(260829_V02) — 상수가 아니다.</summary>
+        public int boosterCount;
+
         public int MuniCountOf(AmmoKind kind)
         {
             switch (kind)
@@ -50,6 +57,7 @@ namespace MBI.Core
                 if (node == null || node.Definition == null || !node.Definition.implemented) continue;
 
                 if (node.Definition.type == NodeType.Core) a.hasCore = true;
+                if (node.Definition.type == NodeType.Booster) a.boosterCount++;
                 a.nodeCount++;
 
                 NodeResourceProfile r = node.Definition.resources;
@@ -57,15 +65,37 @@ namespace MBI.Core
                 a.powerDraw += r.powerDraw;
                 a.heatGenerate += r.heatGenerate;
                 a.heatDissipate += r.heatDissipate;
-                a.ammoProduce += r.ammoProduce;
 
-                if (node.Definition.type == NodeType.Munitions)
+                if (node.Definition.type != NodeType.Munitions)
                 {
-                    switch (node.AmmoKind)
+                    a.ammoProduce += r.ammoProduce;
+                }
+                else
+                {
+                    // 군수 노드는 조합표 **하나**를 돌린다. 무엇을 돌리는지에 따라 산출이 갈린다 —
+                    // 조합표를 안 보고 전부 탄약으로 세던 것이 2026-08-27 이전 모델이었다.
+                    NodeRecipe recipe = node.CurrentRecipe;
+                    switch (recipe.kind)
                     {
-                        case AmmoKind.Pierce: a.muniPierce++; break;
-                        case AmmoKind.Split: a.muniSplit++; break;
-                        default: a.muniExplosive++; break;
+                        case RecipeKind.DroneBody:
+                            a.droneProduce += recipe.outputPerSec;
+                            break;
+                        case RecipeKind.Propellant:
+                            a.propellantProduce += recipe.outputPerSec;
+                            break;
+                        default:
+                            // 탄약(미선택 폴백 포함). 라인 생산량은 **노드 수**로 계산되므로
+                            // 탄종별로도 센다 — min(스펙, 노드 수)가 그 식이다.
+                            // ⚠️ ammoProduce를 조합표 밖에서 더하면 추진제를 만드는 노드가
+                            // 탄약도 만드는 것으로 집계된다. 노드 하나는 조합표 하나다.
+                            a.ammoProduce += r.ammoProduce;
+                            switch (node.AmmoKind)
+                            {
+                                case AmmoKind.Pierce: a.muniPierce++; break;
+                                case AmmoKind.Split: a.muniSplit++; break;
+                                default: a.muniExplosive++; break;
+                            }
+                            break;
                     }
                 }
             }

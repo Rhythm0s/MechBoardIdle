@@ -296,6 +296,8 @@ namespace MBI.Combat
                 // 드론 몸체·추진제도 같은 보드에서 온다. 사출대·부스터가 각각 받아 화력과 생존이 된다.
                 _sim.DroneInflowRate = LogisticsOutputBridge.DroneProduce;
                 _sim.PropellantSupplyRate = LogisticsOutputBridge.PropellantProduce;
+                // 회피 스택 상한은 부스터 대수의 파생값이다 — 노드를 뽑으면 그 자리에서 줄어든다.
+                _sim.BoosterCount = LogisticsOutputBridge.BoosterCount;
                 // ⚠️ 대기 로봇의 유입은 주입하지 않는다. 보드는 로봇의 몸이라 로봇마다 하나인데
                 // 지금 씬에는 보드가 한 장뿐이다 — 같은 값을 양쪽에 넣으면 보드 한 장이
                 // 두 배를 생산하게 된다. 두 번째 보드가 생기면 여기 한 줄이 붙는다.
@@ -655,7 +657,8 @@ namespace MBI.Combat
         private string DodgeLine()
         {
             DodgeSystem d = _sim.Dodge;
-            string core = $"회피 {d.Stacks}/{DodgeSystem.MaxStacks}";
+            // 상한을 부스터 대수와 함께 보여 준다 — 「노드를 더 놓으면 칸이 는다」가 화면에서 읽혀야 한다.
+            string core = $"회피 {d.Stacks}/{d.Capacity} (부스터 {d.BoosterCount}대)";
             return d.IsInvincible ? core + "  [무적]" : core;
         }
 

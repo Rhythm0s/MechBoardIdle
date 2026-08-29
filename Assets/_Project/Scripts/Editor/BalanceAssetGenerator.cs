@@ -21,8 +21,12 @@ namespace MBI.Editor
         private const string NodesDir = SoRoot + "/Nodes";
         private const string ConfigPath = SoRoot + "/BalanceConfig.asset";
 
-        /// <summary>회피 스택 상한 3 — 확정치(전투 문서 11-9장). MBI.Core와 같은 값이라야 한다.</summary>
-        private const float DodgeStackLimit = 3f;
+        /// <summary>
+        /// 추진제 **아이템**의 최대 스택 3 — 확정치. 마운트 한 칸에 3개까지 쌓인다.
+        /// ⚠️ 회피 스택 상한과 **다른 축**이다(260829_V02): 그쪽은 부스터 대수 × 2다.
+        /// 숫자가 3 근처라 섞이기 쉬워 이름을 갈라 둔다.
+        /// </summary>
+        private const float PropellantItemStack = 3f;
 
         [MenuItem("MBI/Generate Balance + Nodes")]
         public static void Generate()
@@ -145,10 +149,10 @@ namespace MBI.Editor
                         output = FlowKind.Material, outputPerSec = 0f,
                         stackLimitTbd = 0f, implemented = false },
                     // 추진제 — 회피 1회분. 주기 15초/1개는 **선언치**(시뮬 실측 후 확정)이고
-                    // 스택 상한 3은 확정치다(회피 스택 상한과 같은 값 — 부스터가 그 이상 못 든다).
+                    // 아이템 최대 스택 3은 확정치다. 회피 스택 상한(부스터 대수 × 2)과는 별개 축이다.
                     new NodeRecipe { kind = RecipeKind.Propellant, displayName = "추진제",
                         output = FlowKind.Propellant, outputPerSec = 1f / 15f,
-                        stackLimitTbd = DodgeStackLimit, implemented = true },
+                        stackLimitTbd = PropellantItemStack, implemented = true },
                 });
 
             // 에너지 — 발전(전력 공급)
@@ -174,7 +178,9 @@ namespace MBI.Editor
             // 부스터 — 추진제를 받아 회피 스택을 공급(2026-08-29 신설, 노드 7종).
             // 쉴드 발생 노드와 같은 **무형 자원 공급 계열**이라 마운트 같은 별도 소비 장치가 없다 —
             // 노드가 입력을 받아 그 자리에서 소비하고 보드 위 노드라 자기 버퍼를 이미 갖는다.
-            // 회피를 늘리는 방법은 **부스터를 더 놓는 것**이다 — 한 대가 드는 것은 3회에서 멈춘다.
+            // **한 대 = 회피 스택 2칸**이고 상한은 대수의 파생값이다(260829_V02) —
+            // 그래서 회피를 늘리는 방법은 부스터를 더 놓는 것뿐이다.
+            // 그릇만 키워도 안 세진다: 채우는 것은 군수 노드이고 15초에 하나다.
             WriteNode(config, "boost", "부스터", NodeType.Booster, true,
                 new NodeResourceProfile { powerDraw = 0f, confirm = ConfirmState.Tbd },
                 new List<NodePort>

@@ -22,17 +22,17 @@ namespace MBI.Core
         /// <summary>라이브 네트워크 군수 생산율(발/초). 전투 HUD의 저장고 표시용(라이브 없으면 0).</summary>
         public static float AmmoProduce;
 
-        /// <summary>
-        /// 라이브 드론 몸체 산출(기/초). 로봇 B가 사출대에 넣는 유입이다.
-        ///
-        /// ⚠️ 집계(<see cref="LogisticsNetwork"/>)가 아직 조합표를 모른다 — 군수 노드를 탄종으로만 센다.
-        /// 그래서 실보드 경로에서는 0이고, 격리 전투 씬의 mock만 값을 넣는다.
-        /// 집계가 조합표를 읽게 되면 **여기 한 곳만** 바뀐다.
-        /// </summary>
+        /// <summary>라이브 드론 몸체 산출(기/초). 로봇 B가 사출대에 넣는 유입이다.</summary>
         public static float DroneProduce;
 
-        /// <summary>라이브 추진제 산출(개/초). 부스터가 받아 회피 스택으로 바꾼다. 위와 같은 이유로 실보드는 0.</summary>
+        /// <summary>라이브 추진제 산출(개/초). 부스터가 받아 회피 스택으로 바꾼다.</summary>
         public static float PropellantProduce;
+
+        /// <summary>
+        /// 보드에 놓인 부스터 대수. **회피 스택 상한 = 이 값 × 2**(260829_V02).
+        /// 상한이 상수가 아니라 대수의 파생값이라, 이 채널이 없으면 보드가 생존을 못 바꾼다.
+        /// </summary>
+        public static int BoosterCount;
 
         /// <summary>전역 병목 원인(변수 패널 아이콘·점멸용). Power → Heat 우선(§3-4-1). None = 정상.</summary>
         public static ConstraintCause GlobalCause;
@@ -56,6 +56,7 @@ namespace MBI.Core
             AmmoProduce = 0f;
             DroneProduce = 0f;
             PropellantProduce = 0f;
+            BoosterCount = 0;
             GlobalCause = ConstraintCause.None;
         }
     }

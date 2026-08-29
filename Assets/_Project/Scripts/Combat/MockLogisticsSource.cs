@@ -34,6 +34,9 @@ namespace MBI.Combat
             LogisticsOutputBridge.AmmoProduce = robot.consumptionCap; // 격리 씬 = 수요만큼 공급된다고 본다
             LogisticsOutputBridge.DroneProduce = RecipeRate(RecipeKind.DroneBody);
             LogisticsOutputBridge.PropellantProduce = RecipeRate(RecipeKind.Propellant);
+            // 부스터도 한 대 붙어 있다고 본다 — 회피 스택 상한 2칸.
+            // 여기서 대수를 늘리면 보드 없이 밸런스를 만지게 되므로 1로 고정한다.
+            LogisticsOutputBridge.BoosterCount = 1;
             LogisticsOutputBridge.GlobalCause = ConstraintCause.None;
         }
 

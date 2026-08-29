@@ -75,6 +75,13 @@ namespace MBI.Logistics
             NetworkAggregate agg = LogisticsNetwork.Aggregate(grid);
             LogisticsOutputBridge.AmmoProduce = agg.ammoProduce; // 전투 HUD 저장고/탄약 표시(§C-2)
 
+            // 군수 노드가 탄약 말고 다른 조합표를 돌리면 산출이 이쪽으로 나간다.
+            // ⚠️ 코어가 없어도 게시한다 — 이 셋은 전투 출력이 아니라 **보드가 만든 물건**이라,
+            // 코어 유무로 막으면 「부스터를 놓았는데 회피 칸이 안 늘어난다」가 된다.
+            LogisticsOutputBridge.DroneProduce = agg.droneProduce;
+            LogisticsOutputBridge.PropellantProduce = agg.propellantProduce;
+            LogisticsOutputBridge.BoosterCount = agg.boosterCount;
+
             if (!agg.hasCore)
             {
                 LogisticsOutputBridge.Result = default; // 물류 허브(코어) 없음 → 전투로 나가는 출력 없음
