@@ -160,6 +160,23 @@ namespace MBI.Core
         /// <summary>활성 로봇의 마운트 — 만충·소진 판정의 주체(V03 §2).</summary>
         public MountLoad ActiveMount => Act.mount;
 
+        /// <summary>
+        /// 합체·버스트. 로봇이 하나면 null — 합칠 상대가 없다.
+        /// 합체 중에는 두 로봇이 모두 쏘고 태그가 잠긴다.
+        /// </summary>
+        public MergeSystem Merge { get; private set; }
+
+        /// <summary>
+        /// 합체를 시도한다(플레이어 트리거). 게이지 만충이고 스테이지당 1회 미사용일 때만 성공.
+        /// 성공하면 태그가 잠긴다 — 합체 중 교대는 불가다(전투 문서 4장).
+        /// </summary>
+        public bool TryMerge()
+        {
+            if (Merge == null || !Merge.TryActivate()) return false;
+            if (Tag != null) Tag.Locked = true;
+            return true;
+        }
+
         /// <summary>이번 전투에서 드론이 낸 누적 피해(검산용).</summary>
         public float DroneDamageDealt { get; private set; }
 
@@ -289,7 +306,11 @@ namespace MBI.Core
             }
             _active = 0;
 
-            if (_sides.Length > 1) Tag = new TagBattle(_sides[0].mount, _sides[1].mount);
+            if (_sides.Length > 1)
+            {
+                Tag = new TagBattle(_sides[0].mount, _sides[1].mount);
+                Merge = new MergeSystem(); // 합칠 상대가 있을 때만 존재한다
+            }
         }
 
         // ── 탄종별 배분 (§1 배선 전 과도 규칙) ────────────────────────────────
@@ -389,6 +410,7 @@ namespace MBI.Core
 
             ProduceAmmo(dt);   // 군수 → 창고 유입(총량 캡 초과분은 버려진다)
             StandbyTick(dt);   // 대기 로봇의 공장도 계속 돈다 — 그 산출이 태그 인 순간 비축 화력이 된다
+            MergeTick(dt);     // 게이지 충전·지속 소모. 합체가 끝나면 태그 잠금이 풀린다
             TagTick(dt);       // 교대 판정. 교대가 일어나면 이번 틱부터 새 로봇이 싸운다
 
             SpawnDue();
@@ -422,6 +444,21 @@ namespace MBI.Core
 
             // 창고 → 마운트. 벨트가 실어 오는 것이라 자리가 없으면 창고에 남는다.
             RefillMount(s);
+        }
+
+        /// <summary>
+        /// 합체 게이지 충전과 지속 소모. **전투 수행 중에만** 찬다 —
+        /// 여기서 Tick이 도는 것 자체가 전투가 진행 중이라는 뜻이다.
+        /// 합체가 끝나면 태그 잠금을 푼다(전투 문서 4장: 종료 후 필드 로봇 만재 복귀).
+        /// </summary>
+        private void MergeTick(float dt)
+        {
+            if (Merge == null) return;
+
+            bool wasActive = Merge.IsActive;
+            Merge.Tick(dt, inCombat: true);
+
+            if (wasActive && !Merge.IsActive && Tag != null) Tag.Locked = false;
         }
 
         /// <summary>교대 판정 → 발동. 교대하면 활성 인덱스가 바뀐다.</summary>
@@ -587,7 +624,22 @@ namespace MBI.Core
 
         private void RobotFire(float dt)
         {
-            List<AmmoLine> lines = Act.setup.lines;
+            // 합체 중에는 **두 로봇이 모두 쏘고**, 각 발에 합체 배율이 곱해진다.
+            // 그래야 「합체 화력 = (A 화력 + B 화력) × 1.8」이 DPS 수준에서 정확히 성립한다
+            // (밸런스 5-2). 배율을 발사율에 얹으면 발사 리듬이 바뀌어 같은 값이 안 나온다.
+            if (Merge != null && Merge.IsActive)
+            {
+                for (int i = 0; i < _sides.Length; i++)
+                    FireSide(_sides[i], dt, MergeSystem.MergeMultiplier);
+                return;
+            }
+
+            FireSide(Act, dt, 1f);
+        }
+
+        private void FireSide(RobotSide side, float dt, float damageMultiplier)
+        {
+            List<AmmoLine> lines = side.setup.lines;
             if (lines == null || lines.Count == 0) return;
 
             // 사거리 내 살아있는 적이 있을 때만 사격(공백 후 버스트 방지 위해 타겟 있을 때만 누적).
@@ -595,42 +647,57 @@ namespace MBI.Core
             if (target == null) return;
 
             // 라인마다 제 주기로 발사. 순회 순서 고정 = 결정론 유지(난수 0).
-            for (int li = 0; li < lines.Count && li < Act.lineTimers.Length; li++)
+            for (int li = 0; li < lines.Count && li < side.lineTimers.Length; li++)
             {
                 AmmoLine shot = lines[li];
                 if (shot.shotsPerSec <= 0f) continue;
 
-                Act.lineTimers[li] += shot.shotsPerSec * dt;
+                side.lineTimers[li] += shot.shotsPerSec * dt;
                 // 허용오차: dt를 잘게 더하면 1발/초가 정확히 1.0이 아니라 0.9999…로 끝나 그 발이 다음 틱으로 밀린다.
                 // 잔여가 이월되므로 장기 발사율은 맞지만, 초 경계에서 한 발이 늦어 "1초 피해 = 명목 출력"(§5-6 계약)이
                 // 딱 떨어지지 않는다. 계약을 경계에서도 성립시키기 위한 허용오차다.
-                while (Act.lineTimers[li] >= 1f - FireEpsilon)
+                while (side.lineTimers[li] >= 1f - FireEpsilon)
                 {
-                    Act.lineTimers[li] -= 1f;
+                    side.lineTimers[li] -= 1f;
 
                     target = NearestLivingEnemyInRange();
-                    if (target == null) { Act.lineTimers[li] = 0f; break; }
+                    if (target == null) { side.lineTimers[li] = 0f; break; }
 
                     // 탄약 소진 = 공격 정지(밸런스 확정 원칙). **그 탄종의** 재고가 없으면 그 발은 나가지 않는다
-                    // — 다른 탄종이 창고에 쌓여 있어도 대신 쏘지 않는다.
-                    if (!Act.ammo.TryConsume(shot.kind, 1f)) { Act.lineTimers[li] = 0f; break; }
+                    // — 다른 탄종이 쌓여 있어도 대신 쏘지 않는다.
+                    //
+                    // 소비하는 곳은 **마운트**다(V03 §2). 흐름이 군수 → 창고 → 벨트 → 마운트 → 소비이므로
+                    // 실제 탄약이 있는 곳은 마운트이고, 창고에서 빼면 이송분이 이중으로 사라진다.
+                    // 마운트가 없는 구성(격리 전투·단일 로봇)은 창고에서 바로 쓴다.
+                    if (!ConsumeRound(side, shot.kind)) { side.lineTimers[li] = 0f; break; }
 
-                    FireOne(shot, target);
+                    FireOne(side, shot, target, damageMultiplier);
                 }
             }
         }
 
         // 한 발 처리: 히트 패턴 해석 → 판정식 적용 → 연출 이벤트.
-        private void FireOne(AmmoLine shot, CombatEntity target)
+        /// <summary>한 발 소비. 마운트가 있으면 마운트에서, 없으면 창고에서 뺀다.</summary>
+        private static bool ConsumeRound(RobotSide side, AmmoKind kind)
+        {
+            if (side.mount != null && side.mount.SlotCount > 0)
+                return side.mount.TryConsume(MountItemMap.From(kind), 1f);
+
+            return side.ammo.TryConsume(kind, 1f);
+        }
+
+        private void FireOne(RobotSide side, AmmoLine shot, CombatEntity target, float damageMultiplier)
         {
             // 탄종 히트 패턴(단일/멀티샷/AoE) 해석 → 각 표적에 판정식(발당피해×배율) 적용.
             List<HitTarget> hits = HitResolver.Resolve(shot.kind, target, _enemies,
-                Act.setup.multiShotCount, Act.setup.aoeRadius, Act.setup.aoeSplashFactor);
+                side.setup.multiShotCount, side.setup.aoeRadius, side.setup.aoeSplashFactor);
 
             foreach (HitTarget h in hits)
             {
+                // 합체 배율은 **판정식 결과에** 곱한다. 발당피해에 곱하면 방어를 빼기 전에 커져
+                // 「(A 화력 + B 화력) × 배율」과 값이 달라진다 — 화력은 방어 반영 후 값이다.
                 float dmg = DamageFormula.PerHit(shot.damagePerShot * h.damageFactor,
-                    Act.setup.mountCoef, Act.setup.moduleMult, h.entity.def);
+                    side.setup.mountCoef, side.setup.moduleMult, h.entity.def) * damageMultiplier;
                 h.entity.hp -= dmg;
             }
 
