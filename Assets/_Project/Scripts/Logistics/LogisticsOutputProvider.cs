@@ -104,7 +104,8 @@ namespace MBI.Logistics
             LogisticsResult r = LogisticsSimulation.Compute(
                 baseEff,
                 agg.powerSupply, agg.powerDraw,
-                agg.heatGenerate, agg.heatDissipate, heatThreshold,
+                // 냉각은 노드 합이 아니라 모듈 F가 든다(260829_V03) — 모듈이 없으면 0이다.
+                agg.heatGenerate, config != null ? config.moduleCoolingTbd : 0f, heatThreshold,
                 beltCapacity, agg.ammoProduce, // 운송 필요 proxy = 탄약 생산량
                 origin);
 

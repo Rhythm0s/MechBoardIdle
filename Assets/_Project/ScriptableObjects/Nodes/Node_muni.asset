@@ -17,12 +17,11 @@ MonoBehaviour:
   type: 2
   implemented: 1
   resources:
-    powerDraw: 0
+    powerDraw: 2
     powerSupply: 0
     ammoProduce: 1
     ammoConsume: 0
     heatGenerate: 0
-    heatDissipate: 0
     confirm: 0
   recipes:
   - kind: 1

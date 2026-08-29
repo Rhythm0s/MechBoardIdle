@@ -61,11 +61,16 @@ namespace MBI.Tests
         {
             foreach (NodeDefinition n in _nodes)
             {
-                // 군수만 확정: 노드 1개당 생산 1발/초(params muniPerNode, 2026-08-25 확정).
-                // 나머지 6종의 전력·발열은 노드 카탈로그와 함께 확정되므로 아직 Tbd다.
-                ConfirmState expected = n.type == NodeType.Munitions
-                    ? ConfirmState.Confirmed
-                    : ConfirmState.Tbd;
+                // 부하 열이 **전부** 확정된 노드만 Confirmed다(260829_V03).
+                //   코어 — 고정비 0 하나뿐이고 그게 확정
+                //   군수 — 생산 1발/초 + 고정비 2 둘 다 확정
+                //   가공 — 고정비 1은 확정이나 **발열이 표에 없다**
+                //   에너지 — 고정비 0 · 발열 1은 확정이나 **대당 발전량이 미확정**
+                //   저장·부스터·쉴드 — 값 자체가 없다
+                ConfirmState expected =
+                    n.type == NodeType.Munitions || n.type == NodeType.Core
+                        ? ConfirmState.Confirmed
+                        : ConfirmState.Tbd;
 
                 Assert.AreEqual(expected, n.resources.confirm,
                     $"{n.displayName}: 확정분 외 노드별 수치는 Tbd 표기 필요(§7)");
@@ -80,6 +85,57 @@ namespace MBI.Tests
         /// capA를 여기에 넣던 시기에는 노드 1개가 상한을 다 채워 두 번째 노드부터 출력 영향이
         /// 0이었고, 격자를 넓혀도 출력이 상수였다(CLAUDE.md §7 등재분의 회귀 방지).
         /// </summary>
+        /// <summary>
+        /// 노드 **대당** 부하(260829_V03 §판정①). 종전에는 네트워크 합계(pw 66)를
+        /// 코어 한 대가 통째로 졌다 — 그러면 노드를 늘려도 부하가 안 늘어
+        /// 「비용을 내고 놓는다」가 성립하지 않는다.
+        /// </summary>
+        [Test]
+        public void PerNodeLoad_IsPerNode_NotTheNetworkTotal()
+        {
+            Assert.AreEqual(0f, Node("core").resources.powerDraw, 0.001f, "코어 고정비 0");
+            Assert.AreEqual(1f, Node("proc").resources.powerDraw, 0.001f, "가공 1/초");
+            Assert.AreEqual(2f, Node("muni").resources.powerDraw, 0.001f, "군수 2/초");
+            Assert.AreEqual(0f, Node("ener").resources.powerDraw, 0.001f, "에너지는 안 먹는다");
+            Assert.AreEqual(1f, Node("ener").resources.heatGenerate, 0.001f, "발전이 열을 낸다");
+
+            foreach (NodeDefinition n in _nodes)
+                Assert.AreNotEqual(66f, n.resources.powerDraw,
+                    $"{n.displayName}: 66은 **네트워크 합계**다 — 노드 한 대에 얹으면 안 된다");
+        }
+
+        /// <summary>
+        /// 원점 구성(코어1 · 가공2 · 군수1 · 에너지1)의 고정비 합 = **4/초**.
+        /// 66은 어디서도 나오지 않는 독립 placeholder였다.
+        /// </summary>
+        [Test]
+        public void OriginLayout_DrawsFour()
+        {
+            float draw = Node("core").resources.powerDraw
+                         + 2f * Node("proc").resources.powerDraw
+                         + Node("muni").resources.powerDraw
+                         + Node("ener").resources.powerDraw;
+
+            Assert.AreEqual(4f, draw, 0.001f);
+        }
+
+        /// <summary>
+        /// **냉각은 노드의 값이 아니다.** 구 냉각 노드가 2026-07-02에 모듈 F로 전환됐으므로,
+        /// 노드에 냉각량을 두면 폐기된 노드가 이름만 바꿔 되살아난다(260829_V03).
+        /// 필드 자체가 사라졌으니 발열원만 남는다 — 지금 발열을 내는 것은 에너지 하나뿐이다.
+        /// </summary>
+        [Test]
+        public void Cooling_IsNotOwnedByNodes()
+        {
+            float totalHeat = 0f;
+            foreach (NodeDefinition n in _nodes) totalHeat += n.resources.heatGenerate;
+
+            Assert.AreEqual(1f, totalHeat, 0.001f, "발열원은 에너지 1/초 하나");
+        }
+
+        private NodeDefinition Node(string id) =>
+            AssetDatabase.LoadAssetAtPath<NodeDefinition>($"{NodesDir}/Node_{id}.asset");
+
         [Test]
         public void MunitionsNode_ProducesOneRoundPerSecond_NotConsumptionCap()
         {

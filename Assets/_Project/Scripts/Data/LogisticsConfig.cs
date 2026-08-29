@@ -24,7 +24,10 @@ namespace MBI.Data
         public float beltCapacity = 14f;
 
         [Header("발열 (⚠️ TBD)")]
-        [Tooltip("TBD — 발열 발생(/초). balance heat = 8.")]
+        [Tooltip("⚠️ TBD — 모듈 F의 냉각량(/초). 0 = 미측정 센티넬. 냉각은 **노드의 값이 아니다** — 구 냉각 노드가 2026-07-02에 모듈 F로 전환됐다(260829_V03). 모듈 시스템이 서면 이 필드가 그쪽으로 간다.")]
+        public float moduleCoolingTbd = 0f;
+
+        [Tooltip("TBD — 발열 발생(/초). balance heat = 8. ⚠️ 네트워크 합계다 — 노드 대당 값은 노드 SO가 든다.")]
         public float heatGenerate = 8f;
         [Tooltip("TBD — 발열 임계. balance heatc = 12. heat>heatc면 감쇠.")]
         public float heatThreshold = 12f;

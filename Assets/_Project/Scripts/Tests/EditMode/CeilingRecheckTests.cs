@@ -73,24 +73,55 @@ namespace MBI.Tests
         }
 
         /// <summary>
-        /// **전력이 상한 역할을 하지 못한다.** 군수 노드의 powerDraw가 0이라 6노드를 깔아도
-        /// 전력 소비가 늘지 않는다(전 노드 고정비 66이 코어에 lumped). V02 §5가 물은
-        /// 「최소 40 이상 깎이는지」의 답은 현재 데이터에서 **0 깎임**이다.
+        /// **소비 쪽은 살아났다.** 군수 노드 대당 2/초가 확정되면서(260829_V03) 6노드를 깔면
+        /// 전력 소비가 12/초로 실제로 늘어난다 — 종전에는 0이었다(전 노드 고정비 66이 코어에 lumped).
         ///
-        /// 이는 밸런스가 틀렸다는 뜻이 아니라 **노드별 전력 카탈로그가 아직 없다**는 뜻이다
-        /// (밸런스 11-4 미결). 카탈로그가 들어오면 이 테스트가 실패해 재산정을 알린다.
+        /// ⚠️ **그런데도 감쇠는 0이다.** 공급 쪽 대당 값이 아직 없어 에너지 노드 **한 대**가
+        /// 발전 용량 합 80을 통째로 낸다. 12 &lt; 80이므로 효율은 1이다.
+        /// V02 §5가 물은 「최소 40 이상 깎이는지」의 답은 여전히 **0 깎임**이고,
+        /// 남은 미확정은 **에너지 대당 발전량** 하나다(260829_V03 미확정 5건 #1).
+        ///
+        /// 그 값이 오면 아래 Tbd 단언이 실패해 재산정을 알린다.
         /// </summary>
         [Test]
-        public void PowerDoesNotThrottle_BecauseMunitionsDrawIsUnset()
+        public void PowerStillDoesNotThrottle_ButNowBecauseGenerationPerNodeIsUnset()
         {
-            NodeDefinition muni = UnityEditor.AssetDatabase.LoadAssetAtPath<NodeDefinition>(
-                "Assets/_Project/ScriptableObjects/Nodes/Node_muni.asset");
-            Assert.NotNull(muni, "군수 노드 자산");
+            NodeDefinition muni = Node("muni");
+            NodeDefinition ener = Node("ener");
 
-            Assert.AreEqual(0f, muni.resources.powerDraw, D,
-                "군수 노드 전력 소비가 0 — 6노드를 깔아도 전력이 늘지 않아 천장을 막지 못한다");
-            Assert.AreEqual(ConfirmState.Confirmed, muni.resources.confirm,
-                "생산은 확정됐다 — 미확정인 것은 전력 쪽(밸런스 11-4)");
+            Assert.AreEqual(2f, muni.resources.powerDraw, D, "군수 대당 2/초(확정)");
+
+            float draw6 = 6f * muni.resources.powerDraw;
+            Assert.AreEqual(12f, draw6, D, "6노드 = 12/초 — 노드를 늘리면 실제로 늘어난다");
+
+            Assert.AreEqual(80f, ener.resources.powerSupply, D,
+                "발전 **용량 합**이 노드 한 대에 얹혀 있다 — 대당 값이 아직 없다");
+            Assert.Greater(ener.resources.powerSupply, draw6,
+                "한 대가 6노드를 다 먹여 살린다 → 전력이 천장을 막지 못한다");
+
+            Assert.AreEqual(ConfirmState.Tbd, ener.resources.confirm,
+                "에너지 대당 발전량 미확정 — 확정되면 이 단언이 실패해 재산정을 알린다");
+        }
+
+        /// <summary>
+        /// 천장을 전력으로 막으려면 **6노드 구성에서 공급이 12 미만**이어야 한다.
+        /// 필요한 감쇠 0.8(아래 테스트)을 전력만으로 내려면 공급 ÷ 소비 = 0.8, 즉 공급 9.6이다.
+        /// 지금은 그 숫자를 만들 대당 발전량이 없어 **계산만 해 두고 값은 비운다.**
+        /// </summary>
+        [Test]
+        public void SupplyNeededToThrottleByPower_Is9Point6()
+        {
+            float draw6 = 6f * Node("muni").resources.powerDraw;
+
+            Assert.AreEqual(9.6f, draw6 * 0.8f, D, "12 × 0.8 — 이 아래로 공급돼야 전력이 막는다");
+        }
+
+        private static NodeDefinition Node(string id)
+        {
+            var n = UnityEditor.AssetDatabase.LoadAssetAtPath<NodeDefinition>(
+                $"Assets/_Project/ScriptableObjects/Nodes/Node_{id}.asset");
+            Assert.NotNull(n, $"{id} 노드 자산");
+            return n;
         }
 
         /// <summary>

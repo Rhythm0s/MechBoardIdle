@@ -39,8 +39,8 @@ namespace MBI.Data
         public float arenaRadiusTbd = 6f;
 
         [Header("자동 전투 (⚠️ TBD — 밸런스 아님, 연출·조작감)")]
-        [Tooltip("TBD — 자동 조종이 유지하려는 거리(유닛). 이보다 가까우면 물러난다.")]
-        public float autoPilotDesiredGapTbd = 3f;
+        // autoPilotDesiredGapTbd 삭제(260829_V03 승인) — 2026-08-26 카이팅 폐기로
+        // 「후퇴 개시 거리」라는 개념 자체가 사라졌다. 읽는 곳도 0건이었다.
         [Tooltip("TBD — 수동 입력 후 자동 조종이 다시 잡기까지의 유예(초). 조작 중 자동이 끼어들지 않게.")]
         public float manualOverrideGraceTbd = 2f;
         [Tooltip("TBD — 전투 종료 후 자동 재시작까지 대기(초). 승리 연출을 볼 시간 vs 방치 효율.")]

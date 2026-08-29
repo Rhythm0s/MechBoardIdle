@@ -22,8 +22,12 @@ namespace MBI.Data
         public float ammoConsume;   // 소비/초.
 
         // --- 발열 (임계 초과 시 감쇠 — §5-5 시뮬 담당) ---
-        public float heatGenerate;  // 발열/초. balance.json heat.
-        public float heatDissipate; // 냉각/초. balance.json heatc.
+        public float heatGenerate;  // 발열/초. 노드 대당 값(조립 문서「노드 종류」 부하 열).
+
+        // ⚠️ 냉각(heatDissipate)은 **노드의 값이 아니다**(260829_V03 §판정①).
+        // 구 냉각 노드는 2026-07-02에 모듈 F로 전환되어 노드 목록에서 빠졌다 —
+        // 노드에 냉각량을 두면 폐기된 노드가 이름만 바꿔 되살아난다.
+        // 냉각은 LogisticsConfig.moduleCoolingTbd(모듈 F 소유)가 든다.
 
         /// <summary>확정/미확정 표시. balance.json confirmed 플래그 대응(§7 오표기 방지).</summary>
         public ConfirmState confirm;

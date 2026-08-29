@@ -21,8 +21,7 @@ MonoBehaviour:
     powerSupply: 80
     ammoProduce: 0
     ammoConsume: 0
-    heatGenerate: 0
-    heatDissipate: 0
+    heatGenerate: 1
     confirm: 1
   recipes: []
   ports:

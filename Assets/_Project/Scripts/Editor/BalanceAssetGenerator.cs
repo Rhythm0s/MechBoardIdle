@@ -21,6 +21,18 @@ namespace MBI.Editor
         private const string NodesDir = SoRoot + "/Nodes";
         private const string ConfigPath = SoRoot + "/BalanceConfig.asset";
 
+        // ---- 노드 대당 부하(조립 시스템 문서「노드 종류」 부하 열, 260829_V03 §판정①) ----
+        //
+        // ⚠️ **대당 값이 원천이고 네트워크 합계는 파생값이다.** 종전에는 balance_v4의
+        // 합계(pw 66 / heat 8 / heatc 12)를 노드 **한 대**에 통째로 얹어 두었는데,
+        // 그러면 노드를 늘려도 부하가 안 늘어 「비용을 내고 놓는다」가 성립하지 않는다.
+        // 원점 구성(코어1·가공2·군수1·에너지1)의 합은 2×1 + 1×2 = 4/초다 — 66은 어디서도 안 나온다.
+        private const float CorePowerDraw = 0f;   // 코어 — 허브는 고정비가 없다
+        private const float ProcPowerDraw = 1f;   // 가공
+        private const float MuniPowerDraw = 2f;   // 군수
+        private const float EnergyPowerDraw = 0f; // 에너지 — 내는 쪽이라 안 먹는다
+        private const float EnergyHeat = 1f;      // 에너지 — 발전이 열을 낸다
+
         /// <summary>
         /// 추진제 **아이템**의 최대 스택 3 — 확정치. 마운트 한 칸에 3개까지 쌓인다.
         /// ⚠️ 회피 스택 상한과 **다른 축**이다(260829_V02): 그쪽은 부스터 대수 × 2다.
@@ -46,7 +58,7 @@ namespace MBI.Editor
             AssetDatabase.Refresh();
 
             Debug.Log($"[MBI] 밸런스/노드 자산 생성 완료 — 원천 {json.meta.schemaVersion} " +
-                      $"({json.meta.exportedAt}). BalanceConfig + 노드 7종(구현 6 + 쉴드 스텁).");
+                      $"({json.meta.exportedAt}). BalanceConfig + 노드 7종(구현 6 + 쉴드 스텁, 대당 부하 반영).");
         }
 
         // ---- BalanceConfig: json 앵커의 단일 원천 미러 ----
@@ -94,21 +106,21 @@ namespace MBI.Editor
         // ---- 노드 7종 ----
         private static void BuildNodes(BalanceConfig config, BalanceJson json)
         {
-            // 단일 소유가 자연스러운 병목 항목만 placeholder로 끌어온다(전부 Tbd).
-            float pwc = json.Param("pwc");    // 발전 용량 → 에너지
+            // ⚠️ 발전 **용량 합**이다. 에너지 노드 **대당** 발전량은 아직 원천에 없어
+            // (260829_V03 미확정 5건 #1) 합계를 한 대에 얹어 둔 상태 그대로 둔다 —
+            // 여기에 0 센티넬을 넣으면 전력 효율이 0이 되어 보드 전체가 멈춘다.
+            // 대당 값이 오면 이 줄이 사라지고 상수 하나로 바뀐다.
+            float pwc = json.Param("pwc");    // 발전 용량 합 → 에너지(대당 미확정)
             // 군수 노드 1개당 생산(발/초) — 확정치 1 (2026-08-25).
             // ⚠️ 여기에 capA(마운트 소비 상한 6)를 넣던 시기가 있었다. capA는 **소비 천장**이라
             // 노드 하나가 상한을 다 채워 두 번째 노드부터 출력 영향이 0이 됐다(CLAUDE.md §7 등재).
             float muniPerNode = json.Param("muniPerNode");
             // 드론 유입(기/초). params pB = 1.0 확정치 — 드론 몸체 조합표의 산출 속도.
             float droneInflow = config.droneInflow;
-            float heat = json.Param("heat");  // 발열 합 → 가공
-            float heatc = json.Param("heatc"); // 냉각 임계 → 가공
-            float pw = json.Param("pw");      // 전력 소비 합(집계) → 코어에 lumped placeholder
 
-            // 코어 — 물류 허브(탄약·전력 소비, 물류 산출)
+            // 코어 — 물류 허브(탄약·전력 소비, 물류 산출). 고정비 0(확정).
             WriteNode(config, "core", "코어", NodeType.Core, true,
-                new NodeResourceProfile { powerDraw = pw, confirm = ConfirmState.Tbd },
+                new NodeResourceProfile { powerDraw = CorePowerDraw, confirm = ConfirmState.Confirmed },
                 new List<NodePort>
                 {
                     new NodePort(PortFace.West, PortIO.Input, FlowKind.Ammo),
@@ -116,9 +128,11 @@ namespace MBI.Editor
                     new NodePort(PortFace.North, PortIO.Output, FlowKind.Material),
                 });
 
-            // 가공 — 물류 품목 처리(발열 발생원)
+            // 가공 — 물류 품목 처리. 전력 1/초(확정).
+            // ⚠️ 가공의 **발열**은 부하 열에 없다. 표에 있는 발열원은 에너지 하나뿐이라
+            // 0으로 두고 보고한다 — 차원이 비슷하다고 옛 합계(8)를 되넣지 않는다(§7 08-24).
             WriteNode(config, "proc", "가공", NodeType.Processing, true,
-                new NodeResourceProfile { heatGenerate = heat, heatDissipate = heatc, confirm = ConfirmState.Tbd },
+                new NodeResourceProfile { powerDraw = ProcPowerDraw, heatGenerate = 0f, confirm = ConfirmState.Tbd },
                 new List<NodePort>
                 {
                     new NodePort(PortFace.West, PortIO.Input, FlowKind.Material),
@@ -130,7 +144,8 @@ namespace MBI.Editor
             // 출력 포트는 단일이고 산출 종류는 선택된 조합표가 정한다.
             // 스택 상한은 미확정(조립 「품목과 재고」 신설 중) — 0 = 미설정 센티넬로 두고 하드코딩하지 않는다.
             WriteNode(config, "muni", "군수", NodeType.Munitions, true,
-                new NodeResourceProfile { ammoProduce = muniPerNode, confirm = ConfirmState.Confirmed },
+                new NodeResourceProfile { ammoProduce = muniPerNode, powerDraw = MuniPowerDraw,
+                    confirm = ConfirmState.Confirmed },
                 new List<NodePort>
                 {
                     new NodePort(PortFace.West, PortIO.Input, FlowKind.Material),
@@ -155,9 +170,11 @@ namespace MBI.Editor
                         stackLimitTbd = PropellantItemStack, implemented = true },
                 });
 
-            // 에너지 — 발전(전력 공급)
+            // 에너지 — 발전(전력 공급). 고정비 0 · 발열 1/초는 확정,
+            // **대당 발전량은 미확정**이라 프로필 전체는 Tbd다.
             WriteNode(config, "ener", "에너지", NodeType.Energy, true,
-                new NodeResourceProfile { powerSupply = pwc, confirm = ConfirmState.Tbd },
+                new NodeResourceProfile { powerSupply = pwc, powerDraw = EnergyPowerDraw,
+                    heatGenerate = EnergyHeat, confirm = ConfirmState.Tbd },
                 new List<NodePort>
                 {
                     new NodePort(PortFace.East, PortIO.Output, FlowKind.Power),

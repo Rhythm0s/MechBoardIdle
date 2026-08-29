@@ -10,8 +10,8 @@ namespace MBI.Core
         public int nodeCount;
         public float powerSupply;  // Σ 발전(에너지)
         public float powerDraw;    // Σ 고정비(전 노드)
-        public float heatGenerate; // Σ 발열(가공)
-        public float heatDissipate;
+        public float heatGenerate; // Σ 발열(노드 대당 값의 합)
+        // 냉각은 노드가 들지 않는다 — 모듈 F 소유(260829_V03). LogisticsConfig가 든다.
         public float ammoProduce;  // Σ 탄약 생산(군수) — 벨트 운송 필요량 proxy
 
         // 탄종별 군수 노드 수. **출력은 이 셋에서 나온다**(§1: 라인 생산량 = min(스펙, 노드 수)).
@@ -64,7 +64,6 @@ namespace MBI.Core
                 a.powerSupply += r.powerSupply;
                 a.powerDraw += r.powerDraw;
                 a.heatGenerate += r.heatGenerate;
-                a.heatDissipate += r.heatDissipate;
 
                 if (node.Definition.type != NodeType.Munitions)
                 {
