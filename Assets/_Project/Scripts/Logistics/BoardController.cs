@@ -17,6 +17,20 @@ namespace MBI.Logistics
     }
 
     /// <summary>
+    /// 시작 벨트 1칸. 연결성이 출력의 조건이 된 뒤로(260829_V03 §판정① A안)
+    /// 노드만 깔아 두면 출력이 0이라 「게임이 고장난 것처럼」 보인다 — 배선도 함께 준다.
+    /// </summary>
+    [System.Serializable]
+    public struct InitialBelt
+    {
+        public Vector2Int cell;
+        public PortFace inFace;
+        public PortFace outFace;
+        /// <summary>병합기·분류기면 true. 면은 이웃에서 다시 잡히므로 위 두 면은 무시된다.</summary>
+        public bool merger;
+    }
+
+    /// <summary>
     /// 물류 보드 씬 글루(§5-3) — BoardRoot에 부착. 탭 입력을 셀로 판정해 배치/선택한다.
     ///
     /// 순수 격자 로직은 BoardGrid(MBI.Core)에 있고, 이 클래스는 씬 연동만 담당:
@@ -38,6 +52,8 @@ namespace MBI.Logistics
         [SerializeField] private Camera boardCamera;
         [Tooltip("시작 배치(온보딩). 빈 보드로 시작하면 플레이어가 무엇을 해야 할지 알 수 없다 — 거의 완성된 라인을 주고 한 칸만 비워 둔다(튜토리얼 10장 '왼팔만 비움'을 보드에 적용).")]
         [SerializeField] private List<InitialNode> initialLayout = new List<InitialNode>();
+        [Tooltip("시작 배선. 노드만 있고 벨트가 없으면 연결성 게이트에 걸려 출력이 0이다.")]
+        [SerializeField] private List<InitialBelt> initialBelts = new List<InitialBelt>();
 
         private int _selectedNode; // 팔레트에서 선택된 노드 인덱스
         private bool _pointerOverPalette; // 팔레트 버튼 위 클릭은 보드 무시
@@ -284,14 +300,25 @@ namespace MBI.Logistics
         // 시작 배치를 깐다. 배치 경로는 플레이어 조작과 동일(TryPlace + 마커) — 별도 경로를 만들지 않는다.
         private void ApplyInitialLayout()
         {
-            if (initialLayout == null) return;
-            foreach (InitialNode item in initialLayout)
-            {
-                if (item.node == null) continue;
-                if (!_grid.TryPlace(item.cell, item.node, out NodeInstance placed)) continue;
-                placed.AmmoKind = item.ammoKind; // 군수 노드가 만드는 탄종(§1). 다른 타입에서는 읽히지 않는다.
-                SpawnNodeMarker(item.cell);
-            }
+            if (initialLayout != null)
+                foreach (InitialNode item in initialLayout)
+                {
+                    if (item.node == null) continue;
+                    if (!_grid.TryPlace(item.cell, item.node, out NodeInstance placed)) continue;
+                    placed.AmmoKind = item.ammoKind; // 군수 노드가 만드는 탄종(§1). 다른 타입에서는 읽히지 않는다.
+                    SpawnNodeMarker(item.cell);
+                }
+
+            if (initialBelts != null)
+                foreach (InitialBelt b in initialBelts)
+                {
+                    bool ok = b.merger
+                        ? _grid.TryPlaceBeltElement(b.cell, BeltElementKind.Merger,
+                            new[] { PortFace.West }, new[] { PortFace.East }, FlowKind.None, out _)
+                        : _grid.TryPlaceBelt(b.cell, b.inFace, b.outFace, FlowKind.None, out _);
+                    if (ok) SpawnBeltMarker(b.cell, b.outFace);
+                }
+
             RefreshConnections();
         }
 

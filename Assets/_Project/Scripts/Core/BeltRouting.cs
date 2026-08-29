@@ -46,9 +46,13 @@ namespace MBI.Core
                 NodeInstance node = grid.GetAt(cell);
                 if (node != null)
                 {
+                    // ⚠️ 나가는 것은 **포트에 적힌 종류가 아니라 조합표가 정한다**.
+                    // 군수 노드의 출력 포트는 「탄약」 하나뿐인데 추진제를 돌리면 추진제가 나간다 —
+                    // 포트만 보면 추진제 라인이 부스터에 링크가 서지 않는다(BeltFlow와 같은 원천).
+                    FlowKind outKind = BeltFlow.OutputKindOf(node);
                     foreach (NodePort p in node.Definition.ports)
                         if (p.io == PortIO.Output)
-                            TryLink(grid, links, cell, p.face, p.kind);
+                            TryLink(grid, links, cell, p.face, outKind);
                     continue;
                 }
                 BeltInstance belt = grid.GetBeltAt(cell);

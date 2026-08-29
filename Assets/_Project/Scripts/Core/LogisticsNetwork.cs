@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using MBI.Data;
 using UnityEngine;
 
@@ -27,6 +28,9 @@ namespace MBI.Core
         /// <summary>부스터 대수. **회피 스택 상한 = 이 값 × 2**(260829_V02) — 상수가 아니다.</summary>
         public int boosterCount;
 
+        /// <summary>탄약이 흐르는 **경로 수**. 총 대역 = 이 값 × 한 줄 처리량(벨트 등급).</summary>
+        public int ammoPaths;
+
         public int MuniCountOf(AmmoKind kind)
         {
             switch (kind)
@@ -45,16 +49,30 @@ namespace MBI.Core
     /// </summary>
     public static class LogisticsNetwork
     {
-        public static NetworkAggregate Aggregate(BoardGrid grid)
+        /// <summary>
+        /// 보드 집계. <paramref name="connectedOnly"/>를 주면 **거기 든 노드만** 센다
+        /// (260829_V03 §판정① A안 — 코어까지 안 이어진 노드는 라인이 아니다).
+        ///
+        /// null이면 전부 센다. 격자만 놓고 계산을 보는 단위 테스트가 그 경로를 쓴다 —
+        /// 게이트를 켠 실측은 <see cref="LogisticsReach.ConnectedNodes"/>를 넘겨 잰다.
+        /// </summary>
+        public static NetworkAggregate Aggregate(BoardGrid grid,
+            ICollection<Vector2Int> connectedOnly = null)
         {
             var a = new NetworkAggregate();
             if (grid == null) return a;
 
+            a.ammoPaths = LogisticsReach.AmmoPathCount(grid);
+
             for (int x = 0; x < grid.Columns; x++)
             for (int y = 0; y < grid.Rows; y++)
             {
-                NodeInstance node = grid.GetAt(new Vector2Int(x, y));
+                var cell = new Vector2Int(x, y);
+                NodeInstance node = grid.GetAt(cell);
                 if (node == null || node.Definition == null || !node.Definition.implemented) continue;
+
+                // 안 이어진 노드는 라인이 아니다 — 놓여 있다고 세지 않는다.
+                if (connectedOnly != null && !connectedOnly.Contains(cell)) continue;
 
                 if (node.Definition.type == NodeType.Core) a.hasCore = true;
                 if (node.Definition.type == NodeType.Booster) a.boosterCount++;

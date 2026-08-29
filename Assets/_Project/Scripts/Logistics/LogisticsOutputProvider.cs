@@ -72,7 +72,9 @@ namespace MBI.Logistics
             // 브릿지는 물류 단위 = 마운트계수 미적용(마운트계수는 판정식 내부 항 = 전투 측).
             float origin = robot.balanceRef != null ? robot.balanceRef.origin : 100f;
 
-            NetworkAggregate agg = LogisticsNetwork.Aggregate(grid);
+            // **이어진 노드만 센다**(260829_V03 §판정① A안). 배선이 곧 출력이다 —
+            // 종전에는 격자에 놓인 노드를 전부 세서 벨트를 전부 지워도 출력이 그대로였다.
+            NetworkAggregate agg = LogisticsNetwork.Aggregate(grid, LogisticsReach.ConnectedNodes(grid));
             LogisticsOutputBridge.AmmoProduce = agg.ammoProduce; // 전투 HUD 저장고/탄약 표시(§C-2)
 
             // 군수 노드가 탄약 말고 다른 조합표를 돌리면 산출이 이쪽으로 나간다.
@@ -99,7 +101,11 @@ namespace MBI.Logistics
             float baseEff = AmmoLineProduction.TotalOutput(_muniLines, PerNodeRate);
 
             float heatThreshold = config != null ? config.heatThreshold : 12f;
-            float beltCapacity = config != null ? config.beltCapacity : 14f;
+
+            // 총 대역 = **경로 수 × 한 줄 처리량**. 길게 늘이면 지연이 늘 뿐이고,
+            // 늘리려면 **병렬 경로**를 놓아야 한다 — 그래서 병합기·분류기가 대역의 수단이다.
+            float perLane = config != null ? config.beltCapacity : 14f;
+            float beltCapacity = perLane * agg.ammoPaths;
 
             LogisticsResult r = LogisticsSimulation.Compute(
                 baseEff,

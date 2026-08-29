@@ -12,8 +12,10 @@ namespace MBI.Core
     /// 같은 이유로 **배치가 바뀔 때마다** 다시 잡는다.
     ///
     /// 규칙:
-    ///   - 병합기 = 여러 면으로 받아 **한 면으로** 낸다. 출력면 = 이웃이 받아 줄 수 있는 첫 면
-    ///   - 분류기 = 한 면으로 받아 **여러 면으로** 낸다. 입력면 = 이웃이 내보낼 수 있는 첫 면
+    ///   - 병합기 = 여러 면으로 받아 **한 면으로** 낸다. 출력면 = 받아 줄 이웃이 있는 면
+    ///   - 분류기 = 한 면으로 받아 **여러 면으로** 낸다. 입력면 = 내보낼 이웃이 있는 면
+    ///   - **노드가 벨트보다 우선한다.** 벨트는 중간이고 노드가 목적지다 —
+    ///     안 그러면 코어 옆 병합기가 코어 대신 옆 벨트를 가리킨다
     ///   - 나머지 세 면은 반대 역할을 맡는다. 아무것도 안 붙은 면은 그냥 안 이어질 뿐이라
     ///     남겨 둬도 해가 없고, 덕분에 붙이는 순서가 자유로워진다
     ///
@@ -61,18 +63,17 @@ namespace MBI.Core
         /// <summary>그 면의 이웃이 **받아 줄 수 있는가**(노드 입력 포트 또는 벨트). 병합기 출력면.</summary>
         private static PortFace FindConsumerFace(BoardGrid grid, Vector2Int cell)
         {
+            // 1) 목적지(노드) 먼저.
+            foreach (PortFace f in FaceOrder)
+            {
+                NodeInstance node = NodeAt(grid, cell, f);
+                if (node != null && HasPort(node, PortIO.Input, NodeConnectionRules.Opposite(f))) return f;
+            }
+            // 2) 없으면 중간(벨트).
             foreach (PortFace f in FaceOrder)
             {
                 Vector2Int nb = cell + BeltRouting.Delta(f);
-                if (!grid.IsInside(nb)) continue;
-
-                NodeInstance node = grid.GetAt(nb);
-                if (node != null)
-                {
-                    if (HasPort(node, PortIO.Input, NodeConnectionRules.Opposite(f))) return f;
-                    continue; // 노드인데 그 면에 입력이 없다 — 등을 대고 있는 것이다
-                }
-                if (grid.GetBeltAt(nb) != null) return f;
+                if (grid.IsInside(nb) && grid.GetAt(nb) == null && grid.GetBeltAt(nb) != null) return f;
             }
             // 아직 아무것도 안 붙었다. 동쪽으로 두고 이웃이 붙으면 다시 잡힌다.
             return PortFace.East;
@@ -83,18 +84,21 @@ namespace MBI.Core
         {
             foreach (PortFace f in FaceOrder)
             {
+                NodeInstance node = NodeAt(grid, cell, f);
+                if (node != null && HasPort(node, PortIO.Output, NodeConnectionRules.Opposite(f))) return f;
+            }
+            foreach (PortFace f in FaceOrder)
+            {
                 Vector2Int nb = cell + BeltRouting.Delta(f);
-                if (!grid.IsInside(nb)) continue;
-
-                NodeInstance node = grid.GetAt(nb);
-                if (node != null)
-                {
-                    if (HasPort(node, PortIO.Output, NodeConnectionRules.Opposite(f))) return f;
-                    continue;
-                }
-                if (grid.GetBeltAt(nb) != null) return f;
+                if (grid.IsInside(nb) && grid.GetAt(nb) == null && grid.GetBeltAt(nb) != null) return f;
             }
             return PortFace.West;
+        }
+
+        private static NodeInstance NodeAt(BoardGrid grid, Vector2Int cell, PortFace face)
+        {
+            Vector2Int nb = cell + BeltRouting.Delta(face);
+            return grid.IsInside(nb) ? grid.GetAt(nb) : null;
         }
 
         private static bool HasPort(NodeInstance node, PortIO io, PortFace face)

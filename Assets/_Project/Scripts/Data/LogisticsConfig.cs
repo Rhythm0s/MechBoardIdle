@@ -20,7 +20,7 @@ namespace MBI.Data
         public float powerSupply = 80f;
 
         [Header("벨트 (⚠️ TBD)")]
-        [Tooltip("TBD — 벨트 처리 용량(/초). balance belt = 14. 필요<용량이면 무손실.")]
+        [Tooltip("⚠️ TBD — **한 줄(노랑 등급)**의 처리 용량(/초). balance belt = 14. 총 대역 = 경로 수 × 이 값 — 길이는 대역이 아니라 지연을 늘리므로 칸 수로 세지 않는다(260829_V03 §판정②). 빨강·파랑 등급 값은 미확정(검증 대장).")]
         public float beltCapacity = 14f;
 
         [Header("발열 (⚠️ TBD)")]

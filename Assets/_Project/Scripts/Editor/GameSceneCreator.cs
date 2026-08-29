@@ -174,13 +174,32 @@ namespace MBI.Editor
             NodeDefinition muni = Load<NodeDefinition>($"{SoRoot}/Nodes/Node_muni.asset");
             SerializedProperty layout = so.FindProperty("initialLayout");
             layout.arraySize = 0;
+
             // 좌표는 몸통(x 3~8, y 4~9) 안이다 — 몸통이 생산 허브라는 11-3 결론을 배치로 지킨다.
-            AddInitial(layout, new Vector2Int(4, 7), Load<NodeDefinition>($"{SoRoot}/Nodes/Node_core.asset"));
-            AddInitial(layout, new Vector2Int(3, 7), Load<NodeDefinition>($"{SoRoot}/Nodes/Node_ener.asset"));
-            AddInitial(layout, new Vector2Int(5, 7), muni, AmmoKind.Pierce);
-            AddInitial(layout, new Vector2Int(5, 6), muni, AmmoKind.Split);
-            AddInitial(layout, new Vector2Int(5, 5), muni, AmmoKind.Explosive);
-            // (5, 4) 폭발 두 번째 = 비워 둔 칸.
+            //
+            //   y=8   군수:분열(3,8) →  벨트(4,8) W→S ↘
+            //   y=7   군수:관통(3,7) →  병합기(4,7) →  코어(5,7)
+            //   y=6   ┌ 빈칸 (3,6) ┐→  벨트(4,6) W→N ↗
+            //   y=5      에너지(4,5) →  벨트(5,5) W→N →  벨트(5,6) S→N →  코어 남쪽(전력)
+            //
+            // 코어의 탄약 입구는 **서쪽 한 면뿐**이라 여러 군수 라인을 모으려면 병합기가 필요하다.
+            // 병합기 하나가 입구 셋을 여니 군수 라인도 셋이 상한이다 — 넷째 줄을 놓으려면
+            // 플레이어가 병합기를 하나 더 놓아야 한다. 그것이 「대역을 늘리려면 병렬 경로」의 첫 수업이다.
+            AddInitial(layout, new Vector2Int(5, 7), Load<NodeDefinition>($"{SoRoot}/Nodes/Node_core.asset"));
+            AddInitial(layout, new Vector2Int(4, 5), Load<NodeDefinition>($"{SoRoot}/Nodes/Node_ener.asset"));
+            AddInitial(layout, new Vector2Int(3, 7), muni, AmmoKind.Pierce);
+            AddInitial(layout, new Vector2Int(3, 8), muni, AmmoKind.Split);
+            // (3, 6) 군수:폭발 = **비워 둔 칸.** 벨트는 이미 깔려 있고 회색(비어 있음)이라
+            // 「여기 뭔가 놓으라」가 색으로 보인다. 놓으면 45 → 95가 되고 S1 요구 90을 넘는다.
+
+            SerializedProperty belts = so.FindProperty("initialBelts");
+            belts.arraySize = 0;
+            AddBelt(belts, new Vector2Int(4, 7), merger: true);                       // 탄약 3줄 합류
+            AddBelt(belts, new Vector2Int(4, 8), PortFace.West, PortFace.South);      // 분열 → 병합기
+            AddBelt(belts, new Vector2Int(4, 6), PortFace.West, PortFace.North);      // 폭발(빈칸) → 병합기
+            AddBelt(belts, new Vector2Int(5, 5), PortFace.West, PortFace.North);      // 에너지 → 위로
+            AddBelt(belts, new Vector2Int(5, 6), PortFace.South, PortFace.North);     // → 코어 남쪽(전력)
+
             so.ApplyModifiedPropertiesWithoutUndo();
 
             // 라이브 네트워크 → 출력 반영(§5-6): 노드 집계 → 흐름시뮬 → LogisticsOutputBridge.
@@ -208,6 +227,19 @@ namespace MBI.Editor
             item.FindPropertyRelative("cell").vector2IntValue = cell;
             item.FindPropertyRelative("node").objectReferenceValue = node;
             item.FindPropertyRelative("ammoKind").enumValueIndex = (int)ammoKind;
+        }
+
+        // initialBelts 배열에 벨트 1칸 추가. 병합기는 면을 이웃에서 다시 잡으므로 면 인자를 무시한다.
+        private static void AddBelt(SerializedProperty belts, Vector2Int cell,
+            PortFace inFace = PortFace.West, PortFace outFace = PortFace.East, bool merger = false)
+        {
+            int idx = belts.arraySize;
+            belts.arraySize = idx + 1;
+            SerializedProperty item = belts.GetArrayElementAtIndex(idx);
+            item.FindPropertyRelative("cell").vector2IntValue = cell;
+            item.FindPropertyRelative("inFace").enumValueIndex = (int)inFace;
+            item.FindPropertyRelative("outFace").enumValueIndex = (int)outFace;
+            item.FindPropertyRelative("merger").boolValue = merger;
         }
 
         private static LogisticsConfig LoadOrCreateLogisticsConfig()
