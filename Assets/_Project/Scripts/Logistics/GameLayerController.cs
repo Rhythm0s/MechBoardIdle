@@ -9,7 +9,13 @@ namespace MBI.Logistics
     /// 이 컨트롤러는 **카메라만** 두 영역(전투 원점 · 보드 오프셋) 사이로 슬라이드한다(씬 로딩 없음).
     /// 전투 HUD는 StageRunner.OnGUI가 화면 좌상단에 항상 그리므로 두 레이어에서 유지된다.
     ///
-    /// MVP: 카메라 슬라이드 + 진입/복귀 버튼. 변수패널·전투력 이중표시·프리셋·미니맵(UI 문서)은 후속.
+    /// MVP: 카메라 슬라이드 + 진입/복귀 버튼.
+    /// 변수패널(<see cref="MBI.UI.VariablePanel"/>) · 전투력 이중표시(StageRunner.OutputLine) ·
+    /// 미니맵(BoardController.DrawMiniMap)은 **구현 완료** — 이 줄이 「후속」으로 남아 있었다.
+    ///
+    /// ⚠️ **프리셋은 구현하지 않는다**(2026-08-31 확정). 일정과 포트폴리오 성격상 범위 밖이며,
+    /// 「후속」이 아니라 **미구현 명시**다 — 묵시적 생략 금지(2026-08-18 범위 기준).
+    /// 프리셋에 딸린 「자동 프리셋 복귀」(물류 병목 피드백)도 함께 빠진다.
     /// </summary>
     public sealed class GameLayerController : MonoBehaviour
     {
