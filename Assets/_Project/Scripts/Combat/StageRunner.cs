@@ -50,6 +50,7 @@ namespace MBI.Combat
         private float _mountCoef;
         private bool _ready;
         private float _lastRobotHp; // 피격 점멸 트리거 — HP가 줄어든 프레임을 잡는다
+        private readonly MergeCutscene _cutscene = new MergeCutscene(); // 합체 3초 연출(시간표는 코어가 쥔다)
         private int _viewedRobotIndex;  // 뷰가 지금 그리고 있는 로봇 — 교대하면 다시 묶는다
         private bool _pointerDown;      // 플릭 인식: 누른 상태인가
         private Vector2 _pointerStart;  // 누른 지점(스크린 픽셀)
@@ -180,6 +181,7 @@ namespace MBI.Combat
             _robotView = NewView("Robot");
             BindRobotView();
 
+            _cutscene.Reset(); // 지난 판의 숫자가 남아 있으면 안 된다
             _ready = true;
         }
 
@@ -286,6 +288,9 @@ namespace MBI.Combat
         private void Update()
         {
             if (!_ready) return;
+
+            // 결과가 나도 끝까지 튼다 — 버스트로 마지막 적이 죽으면 연출이 그 프레임에 끊긴다.
+            _cutscene.Tick(Time.deltaTime);
 
             bool running = _sim.Result == CombatResult.InProgress;
 
@@ -604,10 +609,65 @@ namespace MBI.Combat
                 if (GUILayout.Button("다시 (Restart)", GUILayout.Width(160), GUILayout.Height(34)))
                     Restart();
                 GUILayout.EndArea();
-                return;
+            }
+            else
+            {
+                TagMergeButtons(style);
             }
 
-            TagMergeButtons(style);
+            // IMGUI는 나중에 그린 것이 위에 온다 — 연출은 결과 화면 위에도 덮여야 한다.
+            DrawMergeCutscene();
+        }
+
+        /// <summary>
+        /// 합체 3초 연출(260831_V07 「3초 최소본」). **판정은 없다** — <see cref="MergeCutscene"/>이
+        /// 계산한 값을 화면에 옮길 뿐이다.
+        ///
+        /// 최소본이 보여야 할 둘: **화면이 바뀐다**(전면 암전)와 **수치가 바뀐다**(화력 카운트업).
+        /// 암전을 1.0으로 채우지 않는 이유는 그 뒤에서 전투가 계속 돌기 때문이다 —
+        /// 합체 화력으로 적이 녹는 장면이 연출에 가려지면 보여 줄 것이 사라진다.
+        /// </summary>
+        private void DrawMergeCutscene()
+        {
+            if (!_cutscene.IsPlaying) return;
+
+            Color prev = GUI.color;
+
+            GUI.color = new Color(0f, 0f, 0f, _cutscene.Dim);
+            GUI.DrawTexture(new Rect(0f, 0f, Screen.width, Screen.height), Texture2D.whiteTexture);
+
+            // 글자도 암전과 같이 붙었다 뗀다 — 배경만 걷히고 글씨가 남으면 겉돈다.
+            float a = _cutscene.Dim / MergeCutscene.MaxDim;
+
+            var title = new GUIStyle(GUI.skin.label)
+            {
+                fontSize = 64, fontStyle = FontStyle.Bold,
+                alignment = TextAnchor.MiddleCenter,
+            };
+            var line = new GUIStyle(GUI.skin.label)
+            {
+                fontSize = 30, alignment = TextAnchor.MiddleCenter,
+            };
+
+            float w = Screen.width;
+            float y = Screen.height * 0.5f - 130f;
+
+            GUI.color = new Color(1f, 0.86f, 0.35f, a); // 합체 = 금색. 태그(청)와 눈으로 갈린다
+            GUI.Label(new Rect(0f, y, w, 90f), "합　체", title);
+
+            GUI.color = new Color(1f, 1f, 1f, a);
+            GUI.Label(new Rect(0f, y + 96f, w, 44f),
+                $"화력 {_cutscene.OutputBefore:F0}  →  {_cutscene.OutputNow:F0}", line);
+
+            // 표적이 없어 안 터졌으면 줄 자체를 안 그린다 — 「버스트 0」은 거짓말이다.
+            if (_cutscene.BurstDamage > 0f)
+            {
+                GUI.color = new Color(1f, 0.55f, 0.35f, a);
+                GUI.Label(new Rect(0f, y + 144f, w, 44f),
+                    $"버스트 {_cutscene.BurstDamage:F0}", line);
+            }
+
+            GUI.color = prev;
         }
 
         /// <summary>
@@ -627,8 +687,11 @@ namespace MBI.Combat
 
             // 합체 — 게이지가 차야 눌린다. 스테이지당 1회라 쓰고 나면 영영 비활성이다.
             GUI.enabled = _sim.Merge != null && _sim.Merge.IsReady;
-            if (GUILayout.Button(MergeButtonLabel(), GUILayout.Width(210), GUILayout.Height(34)))
-                _sim.TryMerge();
+            if (GUILayout.Button(MergeButtonLabel(), GUILayout.Width(210), GUILayout.Height(34)) && _sim.TryMerge())
+            {
+                // 발동에 **성공했을 때만** 튼다. 실패한 버튼에 연출이 붙으면 안 된 일이 된 것처럼 보인다.
+                _cutscene.Play(_sim.LastMergeSnapshot, _sim.LastBurstDamage);
+            }
 
             GUI.enabled = true;
             GUILayout.EndHorizontal();

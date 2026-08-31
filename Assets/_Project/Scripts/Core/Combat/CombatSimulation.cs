@@ -253,6 +253,9 @@ namespace MBI.Core
         /// <summary>직전 버스트가 낸 피해(진단·연출용). 아직 안 터졌으면 0.</summary>
         public float LastBurstDamage { get; private set; }
 
+        /// <summary>합체 발동 순간의 두 로봇 합산 초당 실피해. 연출이 「전 → 후」의 **전**으로 쓴다.</summary>
+        public float LastMergeSnapshot { get; private set; }
+
         /// <summary>
         /// 버스트 — 합체 발동 순간의 **순간 필살 1회**(밸런스 5장, 예산 밖 마진 항).
         ///
@@ -268,10 +271,14 @@ namespace MBI.Core
             LastBurstDamage = 0f;
 
             CombatEntity target = NearestLivingEnemyInRange();
-            if (target == null) return; // 때릴 것이 없으면 터뜨리지 않는다 — 허공에 버리지 않는다
 
+            // ⚠️ 스냅샷은 **표적 유무와 무관하게** 잡는다. 연출이 「화력 50 → 90」을 띄우는 근거가
+            // 이 값인데, 마침 사거리에 적이 없었다는 이유로 0이 되면 화면이 빈다.
             float snapshot = 0f;
             for (int i = 0; i < _sides.Length; i++) snapshot += SideOutputAgainst(_sides[i], target);
+            LastMergeSnapshot = snapshot;
+
+            if (target == null) return; // 때릴 것이 없으면 터뜨리지 않는다 — 허공에 버리지 않는다
             if (snapshot <= 0f) return;
 
             float damage = MergeSystem.BurstDamage(snapshot);
@@ -298,7 +305,8 @@ namespace MBI.Core
                 AmmoLine l = lines[i];
                 if (l.shotsPerSec <= 0f) continue;
                 sum += l.shotsPerSec *
-                       DamageFormula.PerHit(l.damagePerShot, side.setup.mountCoef, side.setup.moduleMult, target.def);
+                       DamageFormula.PerHit(l.damagePerShot, side.setup.mountCoef, side.setup.moduleMult,
+                           target != null ? target.def : 0f);
             }
             return sum;
         }
