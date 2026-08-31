@@ -228,6 +228,16 @@ namespace MBI.Logistics
 
         private static Sprite _unitSprite;
 
+        /// <summary>「노는 중」 글자색. 종류색·상태 밝기와 겹치지 않게 무채색에 가깝게 둔다.</summary>
+        private static readonly Color IdleLabelColor = new Color(0.15f, 0.15f, 0.15f, 0.9f);
+
+        /// <summary>이 칸의 노드가 놀고 있는가. 일감률이 아직 안 실렸으면 「논다」고 말하지 않는다.</summary>
+        private static bool IsIdle(Vector2Int cell)
+        {
+            var perNode = LogisticsOutputBridge.Workload.perNode;
+            return perNode != null && perNode.TryGetValue(cell, out float rate) && rate <= 0f;
+        }
+
         /// <summary>
         /// 노드 표시색 = **기본색 × 산출률 밝기 배율**(UI 문서「노드 상태 표시」· V02 §1 개정).
         /// 기본색은 아트 자체의 색이고 코드는 밝기만 곱한다 — 한 노드에 색 축이 둘 겹치면
@@ -818,11 +828,26 @@ namespace MBI.Logistics
                 fontStyle = FontStyle.Bold,
             };
 
+            // 「노는 중」은 노드 이름보다 작게 아래에 붙인다 — 이름을 밀어내면 무엇인지가 사라진다.
+            var idleStyle = new GUIStyle(GUI.skin.label)
+            {
+                fontSize = 14,
+                alignment = TextAnchor.MiddleCenter,
+                fontStyle = FontStyle.Bold,
+            };
+
             foreach (KeyValuePair<Vector2Int, GameObject> kv in _markers)
             {
                 if (kv.Value == null) continue;
                 DrawLabelAt(cam, kv.Value.transform.position, NodeLabel(_grid.GetAt(kv.Key)),
                     nodeStyle, Color.black, 118f);
+
+                // 일감률 0 = 이 노드는 지금 아무것도 안 하고 있다(260831_V07 표시 규칙).
+                // 초과분을 몰아서 0으로 두었으므로 **뺄 노드가 그대로 지목된다** —
+                // 0.71씩 골고루 나눠 줬다면 여기에 쓸 말이 없다.
+                if (IsIdle(kv.Key))
+                    DrawLabelAt(cam, kv.Value.transform.position, "노는 중",
+                        idleStyle, IdleLabelColor, 118f, 20f);
             }
 
             foreach (KeyValuePair<Vector2Int, GameObject> kv in _beltMarkers)
@@ -838,15 +863,18 @@ namespace MBI.Logistics
             }
         }
 
-        /// <summary>월드 좌표 → 화면 라벨 한 장. 화면 밖이나 카메라 뒤는 건너뛴다.</summary>
+        /// <summary>
+        /// 월드 좌표 → 화면 라벨 한 장. 화면 밖이나 카메라 뒤는 건너뛴다.
+        /// <paramref name="yOffset"/>은 같은 칸에 둘째 줄을 붙일 때 쓴다(픽셀, 아래가 +).
+        /// </summary>
         private static void DrawLabelAt(Camera cam, Vector3 world, string text,
-            GUIStyle style, Color color, float width)
+            GUIStyle style, Color color, float width, float yOffset = 0f)
         {
             if (string.IsNullOrEmpty(text)) return;
 
             Vector3 sp = cam.WorldToScreenPoint(world);
             if (sp.z <= 0f) return; // 카메라 뒤
-            float y = Screen.height - sp.y;
+            float y = Screen.height - sp.y + yOffset;
             if (sp.x < -width || sp.x > Screen.width + width || y < -20f || y > Screen.height + 20f) return;
 
             Color prev = GUI.color;

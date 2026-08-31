@@ -10,7 +10,8 @@ namespace MBI.Core
         public bool hasCore;       // 물류 허브(코어) 존재 — 없으면 전투로 나가는 출력 없음
         public int nodeCount;
         public float powerSupply;  // Σ 발전(에너지)
-        public float powerDraw;    // Σ 고정비(전 노드)
+        public float powerDraw;    // Σ 변동비(대당 전력 × 일감률) — 노는 노드는 0을 먹는다
+        public float workloadAverage; // 보드 일감률 평균(코어 제외). 표시용
         public float heatGenerate; // Σ 발열(노드 대당 값의 합)
         // 냉각은 노드가 들지 않는다 — 모듈 F 소유(260829_V03). LogisticsConfig가 든다.
         public float ammoProduce;  // Σ 탄약 생산(군수) — 벨트 운송 필요량 proxy
@@ -57,10 +58,16 @@ namespace MBI.Core
         /// 게이트를 켠 실측은 <see cref="LogisticsReach.ConnectedNodes"/>를 넘겨 잰다.
         /// </summary>
         public static NetworkAggregate Aggregate(BoardGrid grid,
-            ICollection<Vector2Int> connectedOnly = null)
+            ICollection<Vector2Int> connectedOnly = null,
+            WorkloadRate.Result? workload = null)
         {
             var a = new NetworkAggregate();
             if (grid == null) return a;
+
+            // 일감률을 안 주면 **전부 만가동**으로 본다 — 종전 동작이 그대로 남는다.
+            WorkloadRate.Result work = workload ?? default;
+            bool hasWork = workload.HasValue;
+            a.workloadAverage = hasWork ? work.average : 1f;
 
             a.ammoPaths = LogisticsReach.AmmoPathCount(grid);
 
@@ -79,8 +86,18 @@ namespace MBI.Core
                 a.nodeCount++;
 
                 NodeResourceProfile r = node.Definition.resources;
+
+                // **전력은 변동비다**(260830_V01 개정 · 260831_V07 일감률 승인).
+                // 수요 = Σ(대당 전력 × 일감률). 노는 노드는 0을 먹는다 —
+                // ⚠️ 「유휴 시 대당의 3~5%」는 **미승인**이라 대기 전력은 0 센티넬로 둔다.
+                // 승인되면 여기가 `r.powerDraw * (w + (1f - w) * idleFraction)`이 된다.
+                float w = hasWork ? work.Of(cell) : 1f;
+
                 a.powerSupply += r.powerSupply;
-                a.powerDraw += r.powerDraw;
+                a.powerDraw += r.powerDraw * w;
+
+                // ⚠️ 발열은 그대로 둔다 — 변동비로 바뀐 것은 전력뿐이고, 발열의 일감률 연동은
+                // 승인 범위 밖이다. 노드 대당 발열은 영상 이후로 연기된 항목이기도 하다.
                 a.heatGenerate += r.heatGenerate;
 
                 if (node.Definition.type != NodeType.Munitions)

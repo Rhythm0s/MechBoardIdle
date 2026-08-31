@@ -37,6 +37,12 @@ namespace MBI.Core
         /// <summary>전역 병목 원인(변수 패널 아이콘·점멸용). Power → Heat 우선(§3-4-1). None = 정상.</summary>
         public static ConstraintCause GlobalCause;
 
+        /// <summary>
+        /// 노드별 일감률(260831_V07 승인분). 보드가 **어느 노드가 놀고 있는지**를 여기서 읽는다 —
+        /// 초과분을 노는 것으로 몰아 두었으므로 화면에서 뺄 노드가 그대로 지목된다.
+        /// </summary>
+        public static WorkloadRate.Result Workload;
+
         /// <summary>실제 출력(전투력 산출의 입력) = 병목 반영된 실측치.</summary>
         public static float Output => Result.actual;
 
@@ -52,6 +58,7 @@ namespace MBI.Core
         /// </summary>
         public static void Reset()
         {
+            Workload = default;
             Result = default;
             AmmoProduce = 0f;
             DroneProduce = 0f;

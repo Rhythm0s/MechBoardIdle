@@ -23,6 +23,16 @@ namespace MBI.UI
         private GUIStyle _label;
         private GUIStyle _head;
 
+        /// <summary>보드 일감률 평균. 아직 안 실렸으면 만가동으로 본다 — 0으로 그리면 거짓말이다.</summary>
+        private static float WorkloadAverage
+        {
+            get
+            {
+                var perNode = LogisticsOutputBridge.Workload.perNode;
+                return perNode == null || perNode.Count == 0 ? 1f : LogisticsOutputBridge.Workload.average;
+            }
+        }
+
         private void OnGUI()
         {
             KoreanFont.Apply(); // WebGL엔 시스템 폰트 폴백이 없다 — 스타일보다 먼저 물린다
@@ -44,6 +54,10 @@ namespace MBI.UI
             GUILayout.Space(4f);
 
             GUILayout.Label($"명목 배율 ×{r.multiple:F2}", _label);
+
+            // 일감률(260831_V07 승인분). **총합은 평균**이고, 어느 노드가 노는지는 보드가 그린다.
+            // 전력 수요가 이 값을 타므로 갭 발생원 「전력」과 같은 눈길에서 읽혀야 한다.
+            GUILayout.Label($"일감률 평균 {Pct(WorkloadAverage)}   (노는 노드는 전력 0)", _label);
 
             string cause = CauseText(LogisticsOutputBridge.GlobalCause);
             if (cause != null && Blink())

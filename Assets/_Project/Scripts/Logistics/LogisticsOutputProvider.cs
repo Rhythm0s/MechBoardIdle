@@ -1,5 +1,6 @@
 using MBI.Core;
 using MBI.Data;
+using System.Collections.Generic;
 using UnityEngine;
 
 namespace MBI.Logistics
@@ -74,7 +75,14 @@ namespace MBI.Logistics
 
             // **이어진 노드만 센다**(260829_V03 §판정① A안). 배선이 곧 출력이다 —
             // 종전에는 격자에 놓인 노드를 전부 세서 벨트를 전부 지워도 출력이 그대로였다.
-            NetworkAggregate agg = LogisticsNetwork.Aggregate(grid, LogisticsReach.ConnectedNodes(grid));
+            ICollection<Vector2Int> connected = LogisticsReach.ConnectedNodes(grid);
+
+            // 일감률(260831_V07 승인분) — 전력 수요가 이 값을 타고 변동비가 된다.
+            // ⚠️ 부스터의 「추진제 스택이 차면 0」은 여기서 못 읽는다(스택은 전투가 쥔다) → 잠정 1.
+            WorkloadRate.Result work = WorkloadRate.Compute(grid, connected, robot.balanceRef);
+
+            NetworkAggregate agg = LogisticsNetwork.Aggregate(grid, connected, work);
+            LogisticsOutputBridge.Workload = work; // 보드가 「노는 중」을 그리는 근거
             LogisticsOutputBridge.AmmoProduce = agg.ammoProduce; // 전투 HUD 저장고/탄약 표시(§C-2)
 
             // 군수 노드가 탄약 말고 다른 조합표를 돌리면 산출이 이쪽으로 나간다.
