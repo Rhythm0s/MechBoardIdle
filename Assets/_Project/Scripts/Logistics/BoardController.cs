@@ -122,6 +122,9 @@ namespace MBI.Logistics
         private readonly Dictionary<Vector2Int, List<PortMarker>> _portMarkers =
             new Dictionary<Vector2Int, List<PortMarker>>();
 
+        /// <summary>마지막 진단. 병목 힌트가 「무엇부터」를 고르는 데 쓴다.</summary>
+        private IReadOnlyList<NodeDiagnostic> _lastDiagnostics;
+
         private bool _removeMode; // 제거 모드 — 탭으로 노드/벨트 삭제
 
         /// <summary>
@@ -141,6 +144,7 @@ namespace MBI.Logistics
         private static readonly Color GridLineColor = new Color(0.40f, 0.85f, 0.60f, 0.35f);    // 셀 경계선
         private static readonly Color GridBorderColor = new Color(0.45f, 0.9f, 0.65f, 0.85f);   // 바깥 테두리
         private static readonly Color PanDimColor = new Color(0.03f, 0.05f, 0.08f, 0.55f);     // 이동 모드 흐림 막
+        private static readonly Color HintColor = new Color(0.98f, 0.72f, 0.25f, 0.92f);       // 병목 힌트 바탕(경고 톤)
         // 종류별 배색은 **아트 자체의 색**이다(V02 §1). 코드는 밝기만 곱한다.
         // 아트가 아직 없어 전 노드가 흰 사각으로 나왔고, 그래서 보드에서 코어와 군수를 못 갈랐다.
         // 아래는 **아트가 들어오면 아트가 이기는 플레이스홀더 색상**이다 —
@@ -247,6 +251,7 @@ namespace MBI.Logistics
         public void ApplyDiagnostics(IReadOnlyList<NodeDiagnostic> diags)
         {
             if (diags == null) return;
+            _lastDiagnostics = diags;
             foreach (NodeDiagnostic d in diags)
             {
                 float ratio = d.targetRate > 0f ? d.actualRate / d.targetRate : 1f;
@@ -261,6 +266,7 @@ namespace MBI.Logistics
         /// <summary>진단 없음(코어 미배치 등) → 노드를 정상색으로.</summary>
         public void ClearDiagnostics()
         {
+            _lastDiagnostics = null;
             foreach (KeyValuePair<Vector2Int, GameObject> kv in _markers)
             {
                 if (kv.Value == null) continue;
@@ -715,6 +721,7 @@ namespace MBI.Logistics
             if (!GameLayerController.BoardViewActive) return;
 
             DrawCellLabels(); // 버튼보다 먼저 — 팔레트/모드 버튼이 라벨 위에 온다
+            DrawBottleneckHint();
             DrawModeButton();
             DrawMiniMap();
 
@@ -919,6 +926,34 @@ namespace MBI.Logistics
                 case AmmoKind.Split: return "분열";
                 default: return "폭발";
             }
+        }
+
+        /// <summary>
+        /// 병목 힌트 한 줄(260831_V02 §3 확정). **무엇을 하면 되는지**만 쓰고 정답은 말하지 않는다.
+        ///
+        /// 자리는 상단 중앙이다 — 좌상단은 전투 HUD, 우상단은 변수 패널이 이미 쓴다.
+        /// 막힌 곳이 없으면 아무것도 그리지 않는다: 늘 떠 있는 줄은 읽히지 않는다.
+        /// </summary>
+        private void DrawBottleneckHint()
+        {
+            string hint = BottleneckHint.For(LogisticsOutputBridge.GlobalCause, _lastDiagnostics);
+            if (hint.Length == 0) return;
+
+            const float w = 540f, h = 32f;
+            var rect = new Rect((Screen.width - w) * 0.5f, 12f, w, h);
+            if (rect.Contains(Event.current.mousePosition)) _pointerOverPalette = true;
+
+            Color prev = GUI.color;
+            GUI.color = HintColor;
+            GUI.Box(rect, GUIContent.none);
+            GUI.color = prev;
+
+            GUI.Label(rect, hint, new GUIStyle(GUI.skin.label)
+            {
+                fontSize = 16,
+                alignment = TextAnchor.MiddleCenter,
+                fontStyle = FontStyle.Bold,
+            });
         }
 
         // 모드 버튼 — 화면 우측 하단 1개(UI 문서 9-2).
