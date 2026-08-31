@@ -3,6 +3,7 @@
     "rootNamespace": "MBI.Editor",
     "references": [
         "MBI.Data",
+        "MBI.Core",
         "MBI.Logistics",
         "MBI.Combat",
         "MBI.UI",

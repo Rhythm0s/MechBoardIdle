@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using System.IO;
 using MBI.Combat;
+using MBI.Core;
 using MBI.Data;
 using MBI.Idle;
 using MBI.Logistics;
@@ -163,42 +164,20 @@ namespace MBI.Editor
                 pal.arraySize = idx + 1;
                 pal.GetArrayElementAtIndex(idx).objectReferenceValue = n;
             }
-            // 시작 배치(온보딩): 대표 배치에서 군수 한 칸만 비워 둔다.
-            // 빈 보드로 시작하면 출력 0 = 전투 정지라 "게임이 고장난 것"처럼 보이고, 반대로 완성된 라인을
-            // 주면 물류 보드를 열 이유가 사라진다. 한 칸만 비우면 부족 → 배치 → 출력 상승 → 클리어가 돈다.
-            //
-            // 대표 배치 = 군수 4개(관통1 · 분열1 · 폭발2) → 20 + 25 + 100 = 145(§9 s3Break).
-            // 노드 1개 = 1발/초이므로 노드 수가 곧 pA다(260824_V02 §1).
-            // 폭발 하나를 비워 두면 20 + 25 + 50 = 95로 시작하고, 그 칸을 채우면 145가 된다 —
-            // "배치가 출력을 올린다"가 보드 위에서 눈에 보이는 구성이다.
-            NodeDefinition muni = Load<NodeDefinition>($"{SoRoot}/Nodes/Node_muni.asset");
+            // 시작 배치(온보딩) — **배치는 StartingBoard(MBI.Core)가 쥔다.**
+            // 종전에는 여기 좌표 리터럴로만 있어서 「정말 80이 나오는가」를 확인할 방법이
+            // 씬을 열어 보는 것뿐이었다. 데이터로 빼면 이 생성기와 테스트가 같은 것을 읽어,
+            // 숫자가 어긋나면 배치모드에서 깨진다(StartingBoardTests).
             SerializedProperty layout = so.FindProperty("initialLayout");
             layout.arraySize = 0;
-
-            // 좌표는 몸통(x 3~8, y 4~9) 안이다 — 몸통이 생산 허브라는 11-3 결론을 배치로 지킨다.
-            //
-            //   y=8   군수:분열(3,8) →  벨트(4,8) W→S ↘
-            //   y=7   군수:관통(3,7) →  병합기(4,7) →  코어(5,7)
-            //   y=6   ┌ 빈칸 (3,6) ┐→  벨트(4,6) W→N ↗
-            //   y=5      에너지(4,5) →  벨트(5,5) W→N →  벨트(5,6) S→N →  코어 남쪽(전력)
-            //
-            // 코어의 탄약 입구는 **서쪽 한 면뿐**이라 여러 군수 라인을 모으려면 병합기가 필요하다.
-            // 병합기 하나가 입구 셋을 여니 군수 라인도 셋이 상한이다 — 넷째 줄을 놓으려면
-            // 플레이어가 병합기를 하나 더 놓아야 한다. 그것이 「대역을 늘리려면 병렬 경로」의 첫 수업이다.
-            AddInitial(layout, new Vector2Int(5, 7), Load<NodeDefinition>($"{SoRoot}/Nodes/Node_core.asset"));
-            AddInitial(layout, new Vector2Int(4, 5), Load<NodeDefinition>($"{SoRoot}/Nodes/Node_ener.asset"));
-            AddInitial(layout, new Vector2Int(3, 7), muni, AmmoKind.Pierce);
-            AddInitial(layout, new Vector2Int(3, 8), muni, AmmoKind.Split);
-            // (3, 6) 군수:폭발 = **비워 둔 칸.** 벨트는 이미 깔려 있고 회색(비어 있음)이라
-            // 「여기 뭔가 놓으라」가 색으로 보인다. 놓으면 45 → 95가 되고 S1 요구 90을 넘는다.
+            foreach (StartingBoard.Slot slot in StartingBoard.Nodes)
+                AddInitial(layout, slot.cell,
+                    Load<NodeDefinition>($"{SoRoot}/Nodes/Node_{slot.nodeId}.asset"), slot.ammo);
 
             SerializedProperty belts = so.FindProperty("initialBelts");
             belts.arraySize = 0;
-            AddBelt(belts, new Vector2Int(4, 7), merger: true);                       // 탄약 3줄 합류
-            AddBelt(belts, new Vector2Int(4, 8), PortFace.West, PortFace.South);      // 분열 → 병합기
-            AddBelt(belts, new Vector2Int(4, 6), PortFace.West, PortFace.North);      // 폭발(빈칸) → 병합기
-            AddBelt(belts, new Vector2Int(5, 5), PortFace.West, PortFace.North);      // 에너지 → 위로
-            AddBelt(belts, new Vector2Int(5, 6), PortFace.South, PortFace.North);     // → 코어 남쪽(전력)
+            foreach (StartingBoard.Run run in StartingBoard.Belts)
+                AddBelt(belts, run.cell, run.inFace, run.outFace, run.merger);
 
             so.ApplyModifiedPropertiesWithoutUndo();
 
