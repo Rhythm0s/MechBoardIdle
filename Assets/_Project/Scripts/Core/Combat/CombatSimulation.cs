@@ -256,6 +256,76 @@ namespace MBI.Core
         /// <summary>합체 발동 순간의 두 로봇 합산 초당 실피해. 연출이 「전 → 후」의 **전**으로 쓴다.</summary>
         public float LastMergeSnapshot { get; private set; }
 
+        /// <summary>직전 태그 스킬이 낸 피해(진단·연출용). 안 나갔으면 0.</summary>
+        public float LastTagSkillDamage { get; private set; }
+
+        /// <summary>
+        /// 태그 스킬 타격 — 만재 등장이 쏟아내는 **1회 공격**(260831_V09 확정).
+        ///
+        /// 규칙은 버스트와 같다: **최근접 1체** · 교대 프레임에 1회 ·
+        /// **표적이 없으면 발동 보류**(false를 주면 마운트도 안 비워진다).
+        ///
+        /// 피해 = 적재량 × 평균 발당피해(<see cref="GrandEntrance.Damage"/> 확정식).
+        /// 평균은 **마운트에 실린 것들로 가중**한다 — 실린 물건 하나가 타격 하나이고,
+        /// 그 물건의 발당피해를 판정식에 태우는 것은 드론이 자기 충전량으로 때리는 것과 같은 규칙이다.
+        /// </summary>
+        private bool TagSkillStrike(float loadedRounds)
+        {
+            if (loadedRounds <= 0f || Tag == null) return false;
+
+            // ⚠️ **Act가 아니라 들어오는 로봇이다.** TagBattle은 이 시점에 이미 교대를 끝냈지만
+            // 시뮬의 _active는 TickAuto가 돌아온 뒤에 갱신된다. Act를 쓰면 **나가는 로봇의**
+            // 마운트로 평균을 내서 피해가 어긋난다 — 실제로 200이 나올 자리에 100이 나왔다.
+            RobotSide side = _sides[Tag.ActiveIndex];
+
+            CombatEntity target = NearestLivingEnemyWithin(side.body.position, side.setup.attackRange);
+            if (target == null) return false; // 표적이 없으면 보류 — 재고는 만재로 남는다
+
+            float avg = AverageDamagePerItem(side, target, loadedRounds);
+            float damage = GrandEntrance.Damage(true, loadedRounds, avg);
+            if (damage <= 0f) return false;
+
+            target.hp -= damage;
+            LastTagSkillDamage = damage;
+
+            _shots.Add(new ShotEvent
+            {
+                from = side.body.position, to = target.position,
+                kind = AmmoKind.Explosive, // 쏟아붓기 — 폭발 연출로 그린다
+                killed = target.hp <= 0f, aoeRadius = 0f,
+            });
+            return true;
+        }
+
+        /// <summary>
+        /// 마운트에 실린 것들의 **가중 평균 발당 실피해.** 판정식을 다시 만들지 않는다.
+        ///
+        /// 드론은 <c>droneCharge</c>가 곧 1회 타격이라 그 값을 발당피해로 쓴다 —
+        /// 드론 사격이 이미 같은 식을 탄다(<c>DroneTick</c>).
+        /// </summary>
+        private static float AverageDamagePerItem(RobotSide side, CombatEntity target, float loadedRounds)
+        {
+            if (loadedRounds <= 0f || side.mount == null) return 0f;
+
+            float sum = side.mount.AmountOf(MountItem.Drone) *
+                        DamageFormula.PerHit(side.setup.droneCharge,
+                            side.setup.mountCoef, side.setup.moduleMult, target.def);
+
+            List<AmmoLine> lines = side.setup.lines;
+            if (lines != null)
+            {
+                for (int i = 0; i < lines.Count; i++)
+                {
+                    AmmoLine l = lines[i];
+                    sum += side.mount.AmountOf(MountItemMap.From(l.kind)) *
+                           DamageFormula.PerHit(l.damagePerShot,
+                               side.setup.mountCoef, side.setup.moduleMult, target.def);
+                }
+            }
+
+            return sum / loadedRounds;
+        }
+
         /// <summary>
         /// 버스트 — 합체 발동 순간의 **순간 필살 1회**(밸런스 5장, 예산 밖 마진 항).
         ///
@@ -460,6 +530,8 @@ namespace MBI.Core
             if (_sides.Length > 1)
             {
                 Tag = new TagBattle(_sides[0].mount, _sides[1].mount);
+                // 때릴 대상을 아는 쪽은 시뮬뿐이다. 이걸 안 꽂으면 스킬이 안 나간다(의도된 기본값).
+                Tag.SkillStrike = TagSkillStrike;
                 Merge = new MergeSystem(); // 합칠 상대가 있을 때만 존재한다
             }
         }

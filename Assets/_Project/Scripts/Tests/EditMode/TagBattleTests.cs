@@ -93,11 +93,68 @@ namespace MBI.Tests
             b.Load(MountItem.Pierce, 40f);
 
             var battle = new TagBattle(a, b);
+            battle.SkillStrike = _ => true; // 표적이 있다 — 타격이 성립한다
             battle.TickAuto(0.1f);
 
             Assert.IsTrue(battle.LastTagFiredSkill);
             Assert.AreEqual(40f, battle.LastTagSkillDrained, D, "적재 전량이 소진된다");
             Assert.IsTrue(battle.ActiveMount.IsEmpty, "나온 로봇의 마운트가 비었다");
+        }
+
+        /// <summary>
+        /// **재고를 비우는 것과 피해를 주는 것은 한 동작이다**(260831_V09 확정).
+        /// 타격이 성립하지 않으면 마운트는 **만재 그대로** 남는다.
+        ///
+        /// 이 규칙이 없어서 생긴 결함이 정확히 이것이었다 — 비우기만 코드에 있고 피해가 없어
+        /// 스킬이 나갈 때마다 화력이 죽고 아무 일도 일어나지 않았다(순손실).
+        /// </summary>
+        [Test]
+        public void TagSkill_WithoutATarget_KeepsTheMountFull()
+        {
+            MountLoad a = Known(), b = Known();
+            b.Load(MountItem.Pierce, 40f);
+
+            var battle = new TagBattle(a, b);
+            battle.SkillStrike = _ => false; // 때릴 것이 없다
+
+            Assert.IsTrue(battle.TickAuto(0.1f), "교대 자체는 된다");
+
+            Assert.IsFalse(battle.LastTagFiredSkill, "스킬은 보류됐다");
+            Assert.AreEqual(0f, battle.LastTagSkillDrained, D);
+            Assert.AreEqual(40f, battle.ActiveMount.Total, D, "만재 그대로 — 적이 나타나면 그때 터진다");
+        }
+
+        /// <summary>
+        /// 타격을 꽂아 주지 않으면 스킬이 **안 나간다.** 때릴 대상을 아는 쪽이 없다는 것은
+        /// 표적 없이 발동하는 것과 같고, 그것이 재고만 태우던 상태다.
+        /// </summary>
+        [Test]
+        public void TagSkill_WithoutAStrike_DoesNothing()
+        {
+            MountLoad a = Known(), b = Known();
+            b.Load(MountItem.Pierce, 40f);
+
+            var battle = new TagBattle(a, b); // SkillStrike를 안 꽂는다
+            battle.TickAuto(0.1f);
+
+            Assert.IsFalse(battle.LastTagFiredSkill);
+            Assert.AreEqual(40f, battle.ActiveMount.Total, D, "비우지 않는다");
+        }
+
+        /// <summary>타격에 넘어가는 값은 **비우기 전 적재량**이다 — 0을 받으면 셀 것이 없다.</summary>
+        [Test]
+        public void TagSkill_StrikeSeesTheLoadBeforeDraining()
+        {
+            MountLoad a = Known(), b = Known();
+            b.Load(MountItem.Pierce, 40f);
+
+            float seen = -1f;
+            var battle = new TagBattle(a, b);
+            battle.SkillStrike = loaded => { seen = loaded; return true; };
+
+            battle.TickAuto(0.1f);
+
+            Assert.AreEqual(40f, seen, D);
         }
 
         /// <summary>소진 트리거로 교대하면 스킬이 없다 — 미완충의 처벌이 유지돼야 한다.</summary>
@@ -108,6 +165,7 @@ namespace MBI.Tests
             b.Load(MountItem.Pierce, 20f); // 만충은 아니다(40이 만충)
 
             var battle = new TagBattle(a, b);
+            battle.SkillStrike = _ => true; // 타격은 성립하지만 **만충이 아니라** 스킬 자체가 없다
             Assert.IsTrue(battle.TickAuto(0.1f), "소진으로 교대는 한다");
 
             Assert.IsFalse(battle.LastTagFiredSkill, "스킬은 안 나간다");
@@ -122,6 +180,7 @@ namespace MBI.Tests
             b.Load(MountItem.Pierce, 999f);
 
             var battle = new TagBattle(a, b);
+            battle.SkillStrike = _ => true;
             battle.TickAuto(0.1f);
 
             Assert.AreEqual(1, battle.ActiveIndex, "교대는 됐다");
@@ -138,6 +197,7 @@ namespace MBI.Tests
             b.Load(MountItem.Pierce, 40f);
 
             var battle = new TagBattle(a, b);
+            battle.SkillStrike = _ => true;
             battle.TickAuto(0.1f);
 
             Assert.AreEqual(2104f, battle.TagSkillDamage(52.6f), 1f, "40 × 52.6 — params tagspec 대조");

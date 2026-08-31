@@ -156,6 +156,106 @@ namespace MBI.Tests
             Assert.Greater(sim.Tag.TagSkillDamage(52.6f), 0f, "그 값이 피해 계산의 입력이다");
         }
 
+        // ---- 스킬이 실제로 때린다(260831_V09) ----
+
+        /// <summary>
+        /// **태그 스킬이 피해를 준다.** 이 파일의 존재 이유가 여기로 옮겨 왔다 —
+        /// 종전에는 마운트를 비우기만 하고 `TagSkillDamage`를 부르는 곳이 테스트뿐이라,
+        /// 스킬이 나갈 때마다 화력이 죽고 **아무 일도 일어나지 않았다.** 순손실이었다.
+        /// </summary>
+        [Test]
+        public void TagSkill_ActuallyDealsDamage()
+        {
+            CombatSimulation sim = TwoRobots(out MountLoad mountA, out _, slots: 1);
+            mountA.Load(MountItem.Pierce, 5f);
+            sim.AmmoSupplyRate = 0f;
+            sim.StandbyAmmoSupplyRate = 20f;
+
+            Run(sim, 0.05f); // 적은 첫 틱에 등장한다 — 그 전에 읽으면 목록이 비어 있다
+            float hp0 = sim.Enemies[0].hp;
+            Run(sim, 2f);
+
+            Assert.IsTrue(sim.Tag.LastTagFiredSkill, "스킬이 나갔다");
+            Assert.Greater(sim.LastTagSkillDamage, 0f, "피해가 실제로 들어갔다");
+            Assert.Less(sim.Enemies[0].hp, hp0, "적 HP가 줄었다");
+        }
+
+        /// <summary>
+        /// 피해 = **적재량 × 평균 발당 실피해**(GrandEntrance 확정식).
+        /// 관통만 10발 실린 마운트에서 발당 20이면 200이다.
+        /// </summary>
+        [Test]
+        public void TagSkill_DamageIsLoadTimesAverage()
+        {
+            CombatSimulation sim = TwoRobots(out MountLoad mountA, out _, slots: 1);
+            mountA.Load(MountItem.Pierce, 5f);
+            sim.AmmoSupplyRate = 0f;
+            sim.StandbyAmmoSupplyRate = 20f;
+
+            Run(sim, 2f);
+
+            Assert.AreEqual(sim.Tag.LastTagSkillDrained * 20f, sim.LastTagSkillDamage, 0.5f,
+                "소진량 × 발당 20");
+        }
+
+        /// <summary>
+        /// **표적이 없으면 발동을 보류하고 재고도 안 비운다**(260831_V09).
+        /// 비우기와 때리기는 한 동작이라, 때릴 것이 없으면 둘 다 일어나지 않는다.
+        /// </summary>
+        [Test]
+        public void TagSkill_WithoutTargets_KeepsTheMountFull()
+        {
+            var mountA = new MountLoad(1, Stacks());
+            var mountB = new MountLoad(1, Stacks());
+            var sim = new CombatSimulation(Robot(), Robot(), mountA, mountB,
+                new List<EnemySpawn>(), arenaRadius: 6f, challengeTime: 120f, spawnCadence: 0f);
+            sim.Endless = true; // 적이 없어도 승리로 끝나지 않게
+
+            mountA.Load(MountItem.Pierce, 5f);
+            sim.AmmoSupplyRate = 0f;
+            sim.StandbyAmmoSupplyRate = 20f;
+
+            Run(sim, 2f);
+
+            Assert.IsFalse(sim.Tag.LastTagFiredSkill, "스킬은 보류됐다");
+            Assert.AreEqual(0f, sim.LastTagSkillDamage, D);
+            Assert.Greater(mountB.Total, 0f, "만재를 유지한다 — 적이 나타나면 그때 터진다");
+        }
+
+        /// <summary>
+        /// **최근접 1체를 때린다**(버스트와 같은 규칙). 광역이 아니므로 먼 적은 멀쩡하다.
+        /// </summary>
+        [Test]
+        public void TagSkill_HitsTheNearestOnly()
+        {
+            var mountA = new MountLoad(1, Stacks());
+            var mountB = new MountLoad(1, Stacks());
+            var enemies = new List<EnemySpawn>
+            {
+                new EnemySpawn { label = "가까운", hp = 1000000f, def = 0f, atk = 0f,
+                    moveSpeed = 0f, attackRange = 0.5f, attackInterval = 1f },
+                new EnemySpawn { label = "먼", hp = 1000000f, def = 0f, atk = 0f,
+                    moveSpeed = 0f, attackRange = 0.5f, attackInterval = 1f },
+            };
+            var sim = new CombatSimulation(Robot(), Robot(), mountA, mountB,
+                enemies, arenaRadius: 6f, challengeTime: 120f, spawnCadence: 0f);
+
+            mountA.Load(MountItem.Pierce, 5f);
+            sim.AmmoSupplyRate = 0f;
+            sim.StandbyAmmoSupplyRate = 20f;
+
+            Run(sim, 2f);
+
+            Assert.IsTrue(sim.Tag.LastTagFiredSkill);
+
+            // 둘 다 사격에 맞으므로 「한쪽만 줄었다」로는 못 잰다 —
+            // 스킬 피해만큼의 격차가 벌어졌는지로 잰다.
+            float lower = Mathf.Min(sim.Enemies[0].hp, sim.Enemies[1].hp);
+            float higher = Mathf.Max(sim.Enemies[0].hp, sim.Enemies[1].hp);
+            Assert.Greater(higher - lower, sim.LastTagSkillDamage * 0.5f,
+                "한 체만 스킬을 맞았다 — 광역이 아니다");
+        }
+
         // ---- 활성 로봇이 바뀐다 ----
 
         /// <summary>교대하면 `Robot`이 가리키는 몸체도 바뀐다 — HP가 각자다.</summary>

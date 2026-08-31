@@ -44,6 +44,18 @@ namespace MBI.Core
         }
 
         /// <summary>마지막 태그에서 태그 스킬이 나갔는가(연출·피해 계산 트리거).</summary>
+        /// <summary>
+        /// 태그 스킬 타격. 시뮬이 꽂아 준다 — 인자는 마운트 적재량, 반환은 **실제로 때렸는가**.
+        ///
+        /// **재고를 비우는 것과 피해를 주는 것은 한 동작이다**(260831_V09 확정).
+        /// 이 함수가 false를 주면 재고도 안 비운다. 표적이 없으면 발동을 보류하고
+        /// 마운트는 만재를 유지하다가, 적이 나타나면 그때 터진다.
+        ///
+        /// ⚠️ 꽂아 주지 않으면 스킬은 **안 나간다.** 그 편이 맞다 — 때릴 대상을 아는 쪽이
+        /// 없으면 표적 없이 발동한 것과 같고, 그것이 재고만 태우던 결함이었다.
+        /// </summary>
+        public System.Func<float, bool> SkillStrike;
+
         public bool LastTagFiredSkill { get; private set; }
 
         /// <summary>마지막 태그 스킬이 소진한 적재량. 피해 계산의 입력.</summary>
@@ -102,8 +114,15 @@ namespace MBI.Core
             {
                 // 마운트 재고 **전량**을 소진하는 공격 1회. 저장 노드는 남는다 —
                 // 마운트가 빈 동안 화력이 죽고 벨트가 다시 채우며, 물류가 좋을수록 그 공백이 짧다.
-                LastTagSkillDrained = ActiveMount.DrainAll();
-                LastTagFiredSkill = LastTagSkillDrained > 0f;
+                //
+                // ⚠️ **비우기와 때리기는 한 동작이다.** 타격이 성립하지 않으면 비우지도 않는다 —
+                // 종전에는 비우기만 있어 「대가만 치르고 아무 일도 안 일어나는」 순손실이었다.
+                float loaded = ActiveMount.Total;
+                if (loaded > 0f && SkillStrike != null && SkillStrike(loaded))
+                {
+                    LastTagSkillDrained = ActiveMount.DrainAll();
+                    LastTagFiredSkill = true;
+                }
             }
             return true;
         }
