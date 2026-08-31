@@ -35,7 +35,9 @@ namespace MBI.Tests
                 BottleneckHint.TextOf(ConstraintCause.NoInput));
             Assert.AreEqual("전력이 모자라 느려졌다. 발전소를 늘리거나 노드를 줄여라",
                 BottleneckHint.TextOf(ConstraintCause.Power));
-            Assert.AreEqual("열이 올라 느려졌다. 냉각 모듈을 붙여라",
+            // ⚠️ 모듈이 영상 이후로 연기되면서 문구가 교체됐다(260831_V07) —
+            // 없는 물건을 가리키면 안 된다. 모듈이 들어오면 원래 문구로 되돌린다.
+            Assert.AreEqual("열이 올라 느려졌다. 열이 몰린 곳의 노드를 덜어내라",
                 BottleneckHint.TextOf(ConstraintCause.Heat));
         }
 
@@ -65,6 +67,8 @@ namespace MBI.Tests
                 Assert.IsNotEmpty(t, $"{c}");
 
                 bool actionable = t.Contains("라") || t.Contains("해라");
+                Assert.IsFalse(t.Contains("모듈"),
+                    $"{c}: 아직 없는 물건을 가리키면 안 된다 — \"{t}\"");
                 Assert.IsTrue(actionable, $"{c}: 행동으로 끝나야 한다 — \"{t}\"");
 
                 foreach (char digit in "0123456789")

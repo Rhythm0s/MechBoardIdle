@@ -244,7 +244,63 @@ namespace MBI.Core
         {
             if (Merge == null || !Merge.TryActivate()) return false;
             if (Tag != null) Tag.Locked = true;
+
+            // 발동 순간에 일어나는 것은 **버스트 하나**다 — 태그 스킬은 부르지 않는다(2026-08-29 확정).
+            FireBurst();
             return true;
+        }
+
+        /// <summary>직전 버스트가 낸 피해(진단·연출용). 아직 안 터졌으면 0.</summary>
+        public float LastBurstDamage { get; private set; }
+
+        /// <summary>
+        /// 버스트 — 합체 발동 순간의 **순간 필살 1회**(밸런스 5장, 예산 밖 마진 항).
+        ///
+        /// 스냅샷 = 그 순간 **두 로봇이 합쳐 내는 초당 실피해**이고, 거기에 300%를 곱한다.
+        /// 「실피해」인 이유는 합체 배율과 같다 — 배율을 방어 빼기 전에 곱하면
+        /// 「(A 화력 + B 화력) × 배수」와 값이 달라진다(260829_V01 확정).
+        ///
+        /// ⚠️ 드론은 스냅샷에 넣지 않는다. 드론은 초당 화력이 아니라 **재고를 태워 쓰는** 축이라
+        /// 「지금 내고 있는 화력」에 섞으면 남은 재고까지 한 번에 계상된다.
+        /// </summary>
+        private void FireBurst()
+        {
+            LastBurstDamage = 0f;
+
+            CombatEntity target = NearestLivingEnemyInRange();
+            if (target == null) return; // 때릴 것이 없으면 터뜨리지 않는다 — 허공에 버리지 않는다
+
+            float snapshot = 0f;
+            for (int i = 0; i < _sides.Length; i++) snapshot += SideOutputAgainst(_sides[i], target);
+            if (snapshot <= 0f) return;
+
+            float damage = MergeSystem.BurstDamage(snapshot);
+            target.hp -= damage;
+            LastBurstDamage = damage;
+
+            _shots.Add(new ShotEvent
+            {
+                from = Act.body.position, to = target.position,
+                kind = AmmoKind.Explosive, // 순간 필살 — 폭발 연출로 그린다
+                killed = target.hp <= 0f, aoeRadius = 0f,
+            });
+        }
+
+        /// <summary>그 표적에 대해 이 로봇이 내는 **초당 실피해**. 판정식을 다시 만들지 않는다.</summary>
+        private static float SideOutputAgainst(RobotSide side, CombatEntity target)
+        {
+            List<AmmoLine> lines = side.setup.lines;
+            if (lines == null) return 0f;
+
+            float sum = 0f;
+            for (int i = 0; i < lines.Count; i++)
+            {
+                AmmoLine l = lines[i];
+                if (l.shotsPerSec <= 0f) continue;
+                sum += l.shotsPerSec *
+                       DamageFormula.PerHit(l.damagePerShot, side.setup.mountCoef, side.setup.moduleMult, target.def);
+            }
+            return sum;
         }
 
         /// <summary>

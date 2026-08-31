@@ -26,7 +26,10 @@ namespace MBI.Core
                 case ConstraintCause.Power:
                     return "전력이 모자라 느려졌다. 발전소를 늘리거나 노드를 줄여라";
                 case ConstraintCause.Heat:
-                    return "열이 올라 느려졌다. 냉각 모듈을 붙여라";
+                    // ⚠️ 원래 문구는 「냉각 모듈을 붙여라」였다. 모듈이 영상 이후로 연기되면서
+                    // **없는 물건을 가리키게 되어** 교체했다(260831_V07). 제거 도구는 이미 팔레트에
+                    // 있으니 실행 가능한 안내다. 모듈이 들어오면 원래 문구로 되돌린다.
+                    return "열이 올라 느려졌다. 열이 몰린 곳의 노드를 덜어내라";
                 default:
                     return "";
             }
@@ -40,7 +43,8 @@ namespace MBI.Core
         /// 전역 안의 Power → Heat 순서는 기존 전역 원인 배지 규칙을 그대로 잇는다 —
         /// 두 곳이 다른 것을 가리키면 배지와 힌트가 서로 다른 말을 하게 된다.
         ///
-        /// ⚠️ 이 우선순위는 원천이 정한 것이 아니라 **기존 규칙의 연장**이다(보고 대상).
+        /// 이 우선순위는 260831_V07에서 **승인**됐다 — 전역 원인은 여러 노드를 한꺼번에
+        /// 멈추므로 먼저 고쳐야 하고, 개별 원인은 한 자리만 고치면 된다.
         /// </summary>
         public static ConstraintCause MostUrgent(ConstraintCause global,
             IReadOnlyList<NodeDiagnostic> diagnostics)
