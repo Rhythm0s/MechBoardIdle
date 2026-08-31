@@ -25,6 +25,7 @@ namespace MBI.UI
 
         private void OnGUI()
         {
+            KoreanFont.Apply(); // WebGL엔 시스템 폰트 폴백이 없다 — 스타일보다 먼저 물린다
             EnsureStyles();
 
             LogisticsResult r = LogisticsOutputBridge.Result;

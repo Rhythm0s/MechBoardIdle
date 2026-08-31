@@ -73,6 +73,7 @@ namespace MBI.Logistics
         // 진입/복귀 버튼(하단 중앙, UI 문서 "조립 진입 버튼" 항상 노출). 전투 HUD는 StageRunner가 그림.
         private void OnGUI()
         {
+            MBI.UI.KoreanFont.Apply(); // WebGL엔 시스템 폰트 폴백이 없다
             var style = new GUIStyle(GUI.skin.button) { fontSize = 18 };
             const float w = 220f, h = 46f;
             var rect = new Rect((Screen.width - w) * 0.5f, Screen.height - h - 14f, w, h);

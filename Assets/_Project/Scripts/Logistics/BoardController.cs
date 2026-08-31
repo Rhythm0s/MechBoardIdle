@@ -1,3 +1,4 @@
+using MBI.UI;
 using System.Collections.Generic;
 using MBI.Core;
 using MBI.Data;
@@ -719,6 +720,7 @@ namespace MBI.Logistics
         {
             _pointerOverPalette = false;
             if (!GameLayerController.BoardViewActive) return;
+            KoreanFont.Apply(); // WebGL엔 시스템 폰트 폴백이 없다
 
             DrawCellLabels(); // 버튼보다 먼저 — 팔레트/모드 버튼이 라벨 위에 온다
             DrawBottleneckHint();

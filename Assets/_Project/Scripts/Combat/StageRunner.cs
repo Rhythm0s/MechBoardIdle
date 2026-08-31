@@ -1,3 +1,4 @@
+using MBI.UI;
 using System.Collections.Generic;
 using MBI.Core;
 using MBI.Data;
@@ -578,6 +579,7 @@ namespace MBI.Combat
         private void OnGUI()
         {
             if (!_ready) return;
+            KoreanFont.Apply(); // WebGL엔 시스템 폰트 폴백이 없다 — 안 물리면 한글이 통째로 사라진다
 
             var style = new GUIStyle(GUI.skin.label) { fontSize = 16 };
             var big = new GUIStyle(GUI.skin.label) { fontSize = 34, fontStyle = FontStyle.Bold };

@@ -4,7 +4,8 @@
     "references": [
         "MBI.Data",
         "MBI.Core",
-        "Unity.InputSystem"
+        "Unity.InputSystem",
+        "MBI.UI"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],

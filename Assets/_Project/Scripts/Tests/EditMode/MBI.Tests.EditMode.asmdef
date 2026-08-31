@@ -6,7 +6,8 @@
         "MBI.Core",
         "MBI.Editor",
         "UnityEngine.TestRunner",
-        "UnityEditor.TestRunner"
+        "UnityEditor.TestRunner",
+        "MBI.UI"
     ],
     "includePlatforms": [
         "Editor"
