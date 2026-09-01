@@ -82,6 +82,21 @@ namespace MBI.Core
         }
 
         /// <summary>스테이지 시작 시 초기화. 게이지도 사용 이력도 스테이지 단위다.</summary>
+        /// <summary>
+        /// 게이지를 만충 직전까지 채운다 — **심사자용 바로가기 전용**(260901_W04 §3층).
+        ///
+        /// 만충까지 90초라 촬영과 리허설에서 그 90초를 매번 기다리게 된다.
+        /// 이미 썼거나 진행 중이면 아무 일도 하지 않는다 — 스테이지당 1회 규칙은 그대로다.
+        ///
+        /// ⚠️ **만충이 아니라 직전이다.** 꽉 채우면 자동 발동이 걸려 「발동하는 순간」을
+        /// 촬영자가 못 고른다. 남겨 둔 1초가 그 조작 여유다.
+        /// </summary>
+        public void FillGaugeAlmost()
+        {
+            if (UsedThisStage || IsActive) return;
+            _charge = Mathf.Max(0f, GaugeFullSeconds - 1f);
+        }
+
         public void Reset()
         {
             _charge = 0f;

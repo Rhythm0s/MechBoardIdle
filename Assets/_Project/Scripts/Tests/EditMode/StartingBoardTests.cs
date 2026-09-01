@@ -71,6 +71,30 @@ namespace MBI.Tests
             if (placed != null) placed.AmmoKind = slot.ammo;
         }
 
+        /// <summary>한 칸을 빼고 깐다 — 「그 칸이 없으면 라인이 끊기는가」를 재기 위한 것.</summary>
+        private static BoardGrid BuildWithout(Vector2Int omit, bool fillEmptySlot)
+        {
+            var g = new BoardGrid(PartLayout.Columns, PartLayout.Rows, 1f, Vector2.zero,
+                PartLayout.BuildMask());
+
+            foreach (StartingBoard.Slot slot in StartingBoard.Nodes) Place(g, slot);
+            if (fillEmptySlot) Place(g, StartingBoard.FillsEmptySlot);
+
+            foreach (StartingBoard.Run run in StartingBoard.Belts)
+            {
+                if (run.cell == omit) continue; // 이 칸을 비운다
+                if (run.merger)
+                    g.TryPlaceBeltElement(run.cell, BeltElementKind.Merger,
+                        new[] { run.inFace }, new[] { run.outFace }, FlowKind.None, out _);
+                else
+                    g.TryPlaceBelt(run.cell, run.inFace, run.outFace, FlowKind.None, out _);
+            }
+
+            BeltAutoOrient.Resolve(g);
+            BeltFlow.Resolve(g);
+            return g;
+        }
+
         /// <summary>보드가 만드는 물류 출력. 이어진 노드만 센다(260829_V03 A안).</summary>
         private float Output(BoardGrid g)
         {
@@ -228,6 +252,43 @@ namespace MBI.Tests
 
             Assert.AreEqual(90.9f, throttled, 0.1f, "100 × 10/11");
             Assert.Greater(throttled, 90f, "요구 90을 발전 증설 없이 넘는다 — 설계 보고 대상");
+        }
+
+        // ---- 스테이지 0: 어느 칸을 비우면 라인이 끊기는가 (260901_W05 §4층 검증 3) ----
+
+        /// <summary>
+        /// **코어 직전 병합기를 빼면 전 라인이 끊긴다**(후보 A).
+        ///
+        /// 스테이지 0은 「끊긴 라인을 잇는다」가 목표이므로, 비워 둔 칸이 채워지기 전에는
+        /// 출력이 **0**이어야 한다. 지금처럼 다섯째 노드 자리를 비우면 나머지 4대가 계속 돌아
+        /// 마운트가 저절로 차고, 놓는 순간 곧바로 끝나 「쌓인다」를 못 본다.
+        /// </summary>
+        [Test]
+        public void WithoutTheCoreMerger_OutputIsZero()
+        {
+            BoardGrid g = BuildWithout(new Vector2Int(4, 7), fillEmptySlot: true);
+
+            Assert.AreEqual(0f, Output(g), D, "코어로 가는 유일한 입구가 막힌다");
+        }
+
+        /// <summary>병합기를 도로 놓으면 다섯 줄이 살아난다 — 끊은 것이 그 칸 하나임을 못 박는다.</summary>
+        [Test]
+        public void WithTheCoreMerger_AllFiveLinesLive()
+        {
+            BoardGrid g = Build(fillEmptySlot: true);
+
+            Assert.AreEqual(100f, Output(g), D);
+        }
+
+        /// <summary>
+        /// 비교 — **다섯째 노드 자리를 비우는 지금 방식은 80이 나온다.** 0이 아니다.
+        /// 이 숫자가 후보 A로 바꿔야 하는 이유 그 자체다.
+        /// </summary>
+        [Test]
+        public void WithoutTheFifthNode_OutputIsStillEighty()
+        {
+            Assert.AreEqual(80f, Output(Build(fillEmptySlot: false)), D,
+                "노드를 안 놓아도 4대가 돌아 마운트가 저절로 찬다");
         }
 
         private NetworkAggregate Aggregate(BoardGrid g)

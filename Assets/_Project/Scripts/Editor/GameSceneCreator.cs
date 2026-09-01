@@ -124,10 +124,10 @@ namespace MBI.Editor
             }
             so.ApplyModifiedPropertiesWithoutUndo();
 
-            // ── 스테이지 0 (260901_V05 §3층) ─────────────────────────────────
-            // ⚠️ **되돌림 지점 — 9월 4일 게이트 2.** 스테이지 0이 안 끝나 있으면
-            // 아래 블록만 지우면 종전 동작(켜면 바로 스테이지 1)으로 돌아온다.
-            // StageRunner·BoardController·asmdef 어디도 손대지 않았으므로 이 블록이 전부다.
+            // ── 스테이지 0 (260901_V05 §3층 · 260901_W05로 영상 A구간 등장 확정) ──────
+            // ⚠️ **되돌림 지점은 철회됐다**(260901_W05 §2층). 영상에 나오는 것을 게이트 2에서
+            // 되돌릴 수는 없다. 얹는 방식은 그대로 두는데, 되돌리기 위해서가 아니라
+            // 진입 경로를 덜 건드리기 위해서다 — 9월 5일 리허설에서 진입이 깨지면 시간이 없다.
             StageDefinition stageZero = CreateStageZero();
             so.FindProperty("stage").objectReferenceValue = stageZero; // 켜면 스테이지 0부터
             so.ApplyModifiedPropertiesWithoutUndo();
@@ -137,7 +137,19 @@ namespace MBI.Editor
             s0so.FindProperty("runner").objectReferenceValue = runner;
             s0so.FindProperty("nextStage").objectReferenceValue = stage; // 마치면 스테이지 1로
             s0so.ApplyModifiedPropertiesWithoutUndo();
-            // ── 되돌림 지점 끝 ───────────────────────────────────────────────
+
+            // ── 심사자용 바로가기 (260901_W04 §3층) ──────────────────────────
+            // 빌드에 남긴다. 숨기지 않는다 — 이유는 컴포넌트 주석에 있다.
+            var shortcuts = go.AddComponent<ReviewerShortcuts>();
+            var rso = new SerializedObject(shortcuts);
+            rso.FindProperty("runner").objectReferenceValue = runner;
+            rso.FindProperty("stage0").objectReferenceValue = stage0;
+            SerializedProperty rsl = rso.FindProperty("stages");
+            rsl.arraySize = stageList.Count + 1;
+            rsl.GetArrayElementAtIndex(0).objectReferenceValue = stageZero; // 맨 앞이 스테이지 0
+            for (int i = 0; i < stageList.Count; i++)
+                rsl.GetArrayElementAtIndex(i + 1).objectReferenceValue = stageList[i];
+            rso.ApplyModifiedPropertiesWithoutUndo();
 
             // 자동 전투 진행(§5-7): 전투가 끝나면 스스로 다음 판을 건다.
             // 사람이 "다시"를 눌러야 이어지면 방치형이 아니다.
