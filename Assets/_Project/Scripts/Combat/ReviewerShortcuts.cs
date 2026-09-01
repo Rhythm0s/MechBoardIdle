@@ -38,10 +38,13 @@ namespace MBI.Combat
             KoreanFont.Apply();
 
             var button = new GUIStyle(GUI.skin.button) { fontSize = 13 };
-            const float w = 150f, h = 26f, pad = 4f;
-            // 좌측 여백 — 전투 HUD(위)와 미니맵(아래) 사이. 보드는 x 280부터라 겹치지 않는다.
-            const float x = 12f;
-            float y = 212f;
+            const float w = 236f, h = 26f, pad = 4f;
+
+            // ⚠️ **좌측은 못 쓴다.** y 212에 뒀더니 HUD·태그 버튼과 통째로 겹쳐
+            // 글자가 서로 위에 찍혔다(2026-09-01 브라우저 실측).
+            // 오른쪽 아래로 옮긴다 — 변수 패널(우상단)과 레이어 버튼(하단 중앙) 사이가 비어 있다.
+            float x = Screen.width - w - 12f;
+            float y = Screen.height - 190f;
 
             if (!_open)
             {
@@ -54,9 +57,9 @@ namespace MBI.Combat
 
             // 안내 한 줄 — 이것이 있어야 「밸런스를 못 맞춰 넣었나」로 안 읽힌다.
             var note = new GUIStyle(GUI.skin.label) { fontSize = 12, wordWrap = true };
-            GUI.Label(new Rect(x, y, 300f, 32f),
+            GUI.Label(new Rect(x, y, w, 30f),
                 "포트폴리오용 바로가기입니다. 원래 진행은 스테이지 0부터 순서대로입니다", note);
-            y += 34f;
+            y += 32f;
 
             DrawStageButtons(y, x, h, pad, button);
             y += h + pad;
@@ -71,7 +74,12 @@ namespace MBI.Combat
         {
             if (runner == null || stages == null) return;
 
-            const float bw = 42f;
+            // ⚠️ 폭을 패널에서 역산한다. 40으로 고정했더니 일곱 개가 S4에서 잘렸다
+            // (2026-09-01 브라우저 실측). 스테이지가 늘어도 안 잘리게 나눠 쓴다.
+            int count = 0;
+            for (int i = 0; i < stages.Count; i++) if (stages[i] != null) count++;
+            if (count == 0) return;
+            float bw = (236f - pad * (count - 1)) / count;
             float bx = x;
 
             for (int i = 0; i < stages.Count; i++)
