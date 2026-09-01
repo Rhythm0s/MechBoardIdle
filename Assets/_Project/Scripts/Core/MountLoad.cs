@@ -48,6 +48,24 @@ namespace MBI.Core
         /// <summary>로봇 B의 슬롯 수. 단발 고밀도라 천천히 채워 크게 쓴다.</summary>
         public const int SlotsRobotB = 8;
 
+        /// <summary>
+        /// 마운트 품목 스택 상한 — **탄약 3종·드론 2종 공통**(260901_V03 확정).
+        ///
+        /// 적재량은 슬롯의 파생값이다: 로봇 A 4 × 10 = 40 · 로봇 B 8 × 10 = 80.
+        /// 그래서 A는 자주 채우고 자주 쓰고, B는 천천히 채워 크게 쓴다.
+        ///
+        /// ⚠️ 저장 노드 용량 40과 숫자가 같은 것은 **우연이다.** 층이 다르다 —
+        /// 저장은 태그 주기를 만들고 만충 판정에 세지 않으며, 만충은 이 마운트 층이 본다.
+        /// </summary>
+        public static System.Collections.Generic.Dictionary<MountItem, float> StandardStacks(float limit)
+        {
+            return new System.Collections.Generic.Dictionary<MountItem, float>
+            {
+                { MountItem.Pierce, limit }, { MountItem.Split, limit },
+                { MountItem.Explosive, limit }, { MountItem.Drone, limit },
+            };
+        }
+
         /// <summary>슬롯 수. 로봇 A = 4 · 로봇 B = 8.</summary>
         public int SlotCount { get; }
 

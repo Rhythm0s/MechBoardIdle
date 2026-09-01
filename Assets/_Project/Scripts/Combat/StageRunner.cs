@@ -168,11 +168,17 @@ namespace MBI.Combat
             List<EnemySpawn> spawns = BuildSpawns();
 
             // 태그 상대가 있으면 로봇 두 대로 돈다. 마운트는 비대칭(A 4슬롯 / B 8슬롯)이고
-            // ⚠️ 스택 상한은 넘기지 않는다 — 탄약·드론 스택이 검증 대장 TBD라
-            // 하드코딩한 상한을 끼우면 만충 시점을 코드가 발명하게 된다(MountLoad 주석).
+            // **스택 상한 10을 넘긴다**(260901_V03 확정). 적재량은 그 파생값이다 —
+            // A 4×10 = 40 · B 8×10 = 80.
+            //
+            // ⚠️ 종전에는 상한을 안 넘겼다. 스택이 미확정이라 발명을 피한 것인데, 그 결과
+            // `StackLimitOf`가 전부 0 → `IsFull`이 영영 false → **태그 스킬이 한 번도 발동하지
+            // 않았다.** 배선은 있는데 조건이 서지 않는 상태였다.
+            float stack = robot.balanceRef != null ? robot.balanceRef.mountStackLimit : 10f;
             _sim = robotB != null
                 ? new CombatSimulation(setup, BuildRobotBSetup(),
-                    new MountLoad(MountLoad.SlotsRobotA), new MountLoad(MountLoad.SlotsRobotB),
+                    new MountLoad(MountLoad.SlotsRobotA, MountLoad.StandardStacks(stack)),
+                    new MountLoad(MountLoad.SlotsRobotB, MountLoad.StandardStacks(stack)),
                     spawns, tuning.arenaRadiusTbd, stage.challengeTime, tuning.spawnCadenceTbd)
                 : new CombatSimulation(setup, spawns,
                     tuning.arenaRadiusTbd, stage.challengeTime, tuning.spawnCadenceTbd);
@@ -215,6 +221,7 @@ namespace MBI.Combat
                 droneReleaseRate = bal != null ? bal.droneReleaseRate : 1f,
                 droneCharge = bal != null ? bal.droneCharge : 100f,
                 droneAttackRange = tuning.robotAttackRangeTbd, // 본체와 동일(C-3 확정)
+                mountStackLimit = bal != null ? bal.mountStackLimit : 10f,
             };
         }
 

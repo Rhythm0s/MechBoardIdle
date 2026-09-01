@@ -43,6 +43,12 @@ namespace MBI.Core
         public int droneSlots;          // params slot = 3 (강화 비대상 상수)
         public float droneReleaseRate;  // params r = 1.0 (기/초/슬롯)
         public float droneCharge;       // params dB = 100. **1기 = 1회 타격 = 충전량 전량**
+
+        /// <summary>
+        /// 마운트 품목 스택 상한(260901_V03 확정 10). 0이면 상한 없음 —
+        /// 그때는 <c>IsFull</c>이 서지 않아 태그 스킬이 발동하지 않는다.
+        /// </summary>
+        public float mountStackLimit;
         public float droneAttackRange;  // 본체와 동일하게 둔다(C-3 확정)
     }
 
@@ -510,7 +516,8 @@ namespace MBI.Core
                     // 슬롯 수는 setup에서 나온다: 드론을 모는 쪽이 로봇 B다.
                     mount = mounts != null && i < mounts.Length && mounts[i] != null
                         ? mounts[i]
-                        : new MountLoad(r.droneSlots > 0 ? MountLoad.SlotsRobotB : MountLoad.SlotsRobotA),
+                        : new MountLoad(r.droneSlots > 0 ? MountLoad.SlotsRobotB : MountLoad.SlotsRobotA,
+                            r.mountStackLimit > 0f ? MountLoad.StandardStacks(r.mountStackLimit) : null),
                 };
                 side.lineTimers = new float[r.lines != null ? r.lines.Count : 0];
                 _sides[i] = side;
