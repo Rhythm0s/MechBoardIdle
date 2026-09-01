@@ -81,13 +81,26 @@ namespace MBI.Core
         public const string MuniId = "muni";
         public const string EnergyId = "ener";
 
-        /// <summary>관통 라인의 다섯째 자리 — **비워 둔 칸.** 여기를 채우면 80 → 100이 된다.</summary>
-        public static readonly Vector2Int EmptySlot = new Vector2Int(3, 8);
+        /// <summary>
+        /// **비워 둔 칸 — 코어 직전 병합기 자리다**(촬영 스크립트 A구간 확정, 2026-09-01).
+        ///
+        /// 종전에는 다섯째 노드 자리(3,8)였다. 그러면 나머지 네 대가 계속 돌아 마운트가
+        /// 저절로 차고, 플레이어가 놓는 순간 곧바로 끝나 **「쌓인다」를 한 번도 못 본다.**
+        /// 여기를 비우면 코어로 가는 유일한 입구가 막혀 **출력이 0**이 되고,
+        /// 놓는 순간부터 5발/초로 8초를 채운다 — 순서가 물리로 강제된다.
+        ///
+        /// 그리고 목표 문구와 같은 말이 된다. 스테이지 0의 목표는 「벨트를 이으면 물건이
+        /// 만들어진다」인데, 병합기는 벨트 요소이므로 **놓는 것이 곧 잇는 것**이다.
+        /// </summary>
+        public static readonly Vector2Int EmptySlot = new Vector2Int(4, 7);
 
-        /// <summary>빈 칸을 채웠을 때 놓이는 것. 팔레트 기본값과 같아야 100이 나온다.</summary>
-        public static readonly Slot FillsEmptySlot = new Slot(3, 8, MuniId, AmmoKind.Pierce);
+        /// <summary>빈 칸을 채우는 것 — **노드가 아니라 병합기**다.</summary>
+        public static readonly Run FillsEmptySlot = Run.Merger(4, 7);
 
-        /// <summary>시작 노드. 관통 4 + 코어 + 에너지 — 빈 칸은 여기 없다.</summary>
+        /// <summary>
+        /// 시작 노드. **관통 5대가 전부 놓여 있다** — 빈 칸은 이제 노드 자리가 아니다.
+        /// 다섯 대가 다 돌아도 병합기가 없으면 코어에 닿지 못해 출력은 0이다.
+        /// </summary>
         public static readonly IReadOnlyList<Slot> Nodes = new[]
         {
             new Slot(5, 7, CoreId),
@@ -96,16 +109,18 @@ namespace MBI.Core
             new Slot(3, 5, MuniId, AmmoKind.Pierce),
             new Slot(3, 6, MuniId, AmmoKind.Pierce),
             new Slot(3, 7, MuniId, AmmoKind.Pierce),
+            new Slot(3, 8, MuniId, AmmoKind.Pierce),
         };
 
-        /// <summary>시작 배선. 노드만 있고 벨트가 없으면 연결성 게이트에 걸려 출력이 0이다.</summary>
+        /// <summary>
+        /// 시작 배선. **M1(4,7)이 빠져 있다** — 그 자리가 비워 둔 칸이다.
+        /// </summary>
         public static readonly IReadOnlyList<Run> Belts = new[]
         {
-            Run.Merger(4, 7), // M1 — 코어 서쪽 입구로 낸다(노드가 벨트를 이긴다)
-            Run.Merger(4, 6), // M2 — 북쪽 M1으로
+            Run.Merger(4, 6), // M2 — 북쪽 M1 자리로
             Run.Merger(4, 5), // M3 — 북쪽 M2로
 
-            new Run(4, 8, PortFace.West, PortFace.South), // 빈 칸 → M1 북쪽. 직선이라 남향이 된다
+            new Run(4, 8, PortFace.West, PortFace.South), // 관통(3,8) → M1 자리
             new Run(4, 4, PortFace.West, PortFace.North),  // 관통(3,4) → M3 남쪽
 
             // 전력 — 에너지도 동쪽으로만 내므로 코어를 오른쪽으로 돌아 남쪽 입구로 들어간다.

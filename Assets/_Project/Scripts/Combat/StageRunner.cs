@@ -761,7 +761,11 @@ namespace MBI.Combat
             float exp = LogisticsOutputBridge.Expected;
             float act = LogisticsOutputBridge.Output;
             float gap = LogisticsOutputBridge.Gap;
-            string line = $"물류 출력  예상 {exp:F0} · 실제 {act:F0} · 갭 {gap:F0}  /  요구 {ReqLabel()}{ReqBadge()}  ·  마운트계수 {_mountCoef:F2}";
+            // ⚠️ **요구치가 없는 스테이지에서는 요구치를 말하지 않는다.** 스테이지 0은 전투가 없어
+            // req가 0인데, 그대로 그리면 화면이 「요구 0 [충족 80]」이라고 한다 —
+            // 없는 것을 말하고 판정까지 내리는 것이다(2026-09-01 브라우저 실측, A구간에 찍힌다).
+            string req = HasRequirement ? $"  /  요구 {ReqLabel()}{ReqBadge()}" : "";
+            string line = $"물류 출력  예상 {exp:F0} · 실제 {act:F0} · 갭 {gap:F0}{req}  ·  마운트계수 {_mountCoef:F2}";
             string badge = CauseBadge();
             return badge.Length > 0 ? line + "   " + badge : line;
         }
@@ -797,6 +801,10 @@ namespace MBI.Combat
             int cap = Mathf.RoundToInt(robot.consumptionCap); // capA — RobotDefinition 단일 소스(§3, CombatTuning 중복 정리)
             return $"탄약 마운트(용량 {cap}/종)  관통 {pierce:F0} · 분열 {split:F0} · 폭발 {expl:F0} 발/초";
         }
+
+        /// <summary>요구치가 있는 스테이지인가. 전투가 없는 스테이지 0은 없다.</summary>
+        private bool HasRequirement =>
+            stage != null && (stage.reqType != StageReqType.Fixed || stage.req > 0f);
 
         private string ReqLabel()
         {

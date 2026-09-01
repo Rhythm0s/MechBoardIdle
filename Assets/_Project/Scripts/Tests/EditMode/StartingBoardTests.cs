@@ -45,21 +45,24 @@ namespace MBI.Tests
                 PartLayout.BuildMask());
 
             foreach (StartingBoard.Slot slot in StartingBoard.Nodes) Place(g, slot);
-            if (fillEmptySlot) Place(g, StartingBoard.FillsEmptySlot);
 
-            foreach (StartingBoard.Run run in StartingBoard.Belts)
-            {
-                if (run.merger)
-                    g.TryPlaceBeltElement(run.cell, BeltElementKind.Merger,
-                        new[] { run.inFace }, new[] { run.outFace }, FlowKind.None, out _);
-                else
-                    g.TryPlaceBelt(run.cell, run.inFace, run.outFace, FlowKind.None, out _);
-            }
+            foreach (StartingBoard.Run run in StartingBoard.Belts) PlaceRun(g, run);
+            // 빈 칸을 채우는 것은 **병합기**다(2026-09-01 촬영 스크립트 A구간 확정).
+            if (fillEmptySlot) PlaceRun(g, StartingBoard.FillsEmptySlot);
 
             // 실제 경로와 같은 순서로 푼다: 면 → 품목.
             BeltAutoOrient.Resolve(g);
             BeltFlow.Resolve(g);
             return g;
+        }
+
+        private static void PlaceRun(BoardGrid g, StartingBoard.Run run)
+        {
+            if (run.merger)
+                g.TryPlaceBeltElement(run.cell, BeltElementKind.Merger,
+                    new[] { run.inFace }, new[] { run.outFace }, FlowKind.None, out _);
+            else
+                g.TryPlaceBelt(run.cell, run.inFace, run.outFace, FlowKind.None, out _);
         }
 
         private static void Place(BoardGrid g, StartingBoard.Slot slot)
@@ -78,17 +81,14 @@ namespace MBI.Tests
                 PartLayout.BuildMask());
 
             foreach (StartingBoard.Slot slot in StartingBoard.Nodes) Place(g, slot);
-            if (fillEmptySlot) Place(g, StartingBoard.FillsEmptySlot);
 
             foreach (StartingBoard.Run run in StartingBoard.Belts)
             {
                 if (run.cell == omit) continue; // 이 칸을 비운다
-                if (run.merger)
-                    g.TryPlaceBeltElement(run.cell, BeltElementKind.Merger,
-                        new[] { run.inFace }, new[] { run.outFace }, FlowKind.None, out _);
-                else
-                    g.TryPlaceBelt(run.cell, run.inFace, run.outFace, FlowKind.None, out _);
+                PlaceRun(g, run);
             }
+            if (fillEmptySlot && StartingBoard.EmptySlot != omit)
+                PlaceRun(g, StartingBoard.FillsEmptySlot);
 
             BeltAutoOrient.Resolve(g);
             BeltFlow.Resolve(g);
@@ -111,16 +111,23 @@ namespace MBI.Tests
 
         // ---- 숫자 ----
 
-        /// <summary>**시작 80.** 관통 4노드 × 1발/초 × 발당 20.</summary>
+        /// <summary>
+        /// **시작 0.** 코어 직전 병합기가 비어 있어 다섯 대가 다 돌아도 코어에 닿지 못한다
+        /// (촬영 스크립트 A구간 확정, 2026-09-01).
+        ///
+        /// 종전에는 80이었다 — 다섯째 노드 자리를 비웠기 때문이다. 그러면 네 대가 계속 돌아
+        /// 마운트가 저절로 차고, 놓는 순간 곧바로 끝나 「쌓인다」를 못 본다.
+        /// </summary>
         [Test]
-        public void StartsAtEighty()
+        public void StartsAtZero_BecauseTheLineIsCut()
         {
-            Assert.AreEqual(80f, Output(Build(fillEmptySlot: false)), D);
+            Assert.AreEqual(0f, Output(Build(fillEmptySlot: false)), D,
+                "끊긴 라인 — 이것이 고장난 로봇의 증거다");
         }
 
         /// <summary>
-        /// **빈 칸을 채우면 100.** 이것이 온보딩의 내용물이다 — 배치가 출력을 올린다는 것이
-        /// 보드 위에서 한 번에 보여야 한다.
+        /// **빈 칸을 채우면 100.** 0에서 100으로 뛴다 — 배치가 출력을 만든다는 것이
+        /// 보드 위에서 한 번에 보인다. 전력을 먹여 화면에 뜨는 값은 90.9다.
         /// </summary>
         [Test]
         public void FillingTheEmptySlot_ReachesOneHundred()
@@ -129,24 +136,28 @@ namespace MBI.Tests
         }
 
         /// <summary>
-        /// 채우는 칸은 **팔레트 기본값과 같은 관통**이어야 한다. 기본이 다른 탄종이면
-        /// 플레이어가 그냥 놓았을 때 100이 안 나온다.
+        /// 채우는 것은 **병합기**다 — 노드가 아니다. 스테이지 0의 목표가
+        /// 「벨트를 이으면 물건이 만들어진다」이므로 놓는 것과 목표가 같은 말이 된다.
         /// </summary>
         [Test]
-        public void TheFillIsPierce_LikeTheDefault()
+        public void TheFillIsAMerger()
         {
-            Assert.AreEqual(AmmoKind.Pierce, StartingBoard.FillsEmptySlot.ammo);
+            Assert.IsTrue(StartingBoard.FillsEmptySlot.merger, "벨트 요소다");
             Assert.AreEqual(StartingBoard.EmptySlot, StartingBoard.FillsEmptySlot.cell);
         }
 
-        /// <summary>빈 칸은 **비어 있다** — 시작 배치에 그 칸이 들어 있으면 온보딩이 사라진다.</summary>
+        /// <summary>빈 칸은 **비어 있다** — 시작 배선에 그 칸이 들어 있으면 온보딩이 사라진다.</summary>
         [Test]
         public void TheEmptySlotIsActuallyEmpty()
         {
+            foreach (StartingBoard.Run run in StartingBoard.Belts)
+                Assert.AreNotEqual(StartingBoard.EmptySlot, run.cell, "비워 둔 칸에 벨트가 있다");
             foreach (StartingBoard.Slot slot in StartingBoard.Nodes)
                 Assert.AreNotEqual(StartingBoard.EmptySlot, slot.cell, "비워 둔 칸에 노드가 있다");
 
-            Assert.IsNull(Build(fillEmptySlot: false).GetAt(StartingBoard.EmptySlot));
+            BoardGrid g = Build(fillEmptySlot: false);
+            Assert.IsNull(g.GetAt(StartingBoard.EmptySlot));
+            Assert.IsNull(g.GetBeltAt(StartingBoard.EmptySlot));
         }
 
         // ---- 배선이 실제로 이어지는가 ----
@@ -156,13 +167,13 @@ namespace MBI.Tests
         /// 숫자만 보면 「스펙이 그런가 보다」로 지나칠 수 있어 개수로도 잡아 둔다.
         /// </summary>
         [Test]
-        public void AllFourMunitionsAreConnected()
+        public void NothingIsConnected_UntilTheMergerIsPlaced()
         {
             BoardGrid g = Build(fillEmptySlot: false);
             NetworkAggregate agg = LogisticsNetwork.Aggregate(g, LogisticsReach.ConnectedNodes(g));
 
-            Assert.AreEqual(4, agg.muniPierce, "관통 4노드");
-            Assert.IsTrue(agg.hasCore, "코어가 이어져 있다");
+            // ⚠️ 이제 다섯 대가 다 놓여 있지만 **이어진 것은 0**이다 — 병합기가 없기 때문이다.
+            Assert.AreEqual(0, agg.muniPierce, "놓여 있어도 코어에 못 닿으면 안 센다");
         }
 
         /// <summary>다섯째 줄까지 병합기가 받는다 — 채웠을 때 5노드가 다 세어져야 100이 나온다.</summary>
@@ -184,7 +195,7 @@ namespace MBI.Tests
         [Test]
         public void NothingIsIdleAtTheStart()
         {
-            BoardGrid g = Build(fillEmptySlot: false);
+            BoardGrid g = Build(fillEmptySlot: true);
             WorkloadRate.Result w = WorkloadRate.Compute(g, LogisticsReach.ConnectedNodes(g), _bal);
 
             Assert.AreEqual(1f, w.average, D, "일감률 평균 100%");
@@ -210,11 +221,11 @@ namespace MBI.Tests
         [Test]
         public void PowerCovers_TheStartingBoard()
         {
+            // 놓기 전에는 이어진 노드가 에너지뿐이라 수요가 1이다.
             NetworkAggregate agg = Aggregate(Build(fillEmptySlot: false));
 
-            Assert.AreEqual(9f, agg.powerDraw, D, "군수 4×2 + 에너지 1×1");
+            Assert.AreEqual(1f, agg.powerDraw, D, "이어진 것은 에너지 1대뿐");
             Assert.AreEqual(10f, agg.powerSupply, D, "에너지 1대 × 10");
-            Assert.GreaterOrEqual(agg.powerSupply, agg.powerDraw, "시작은 전력이 남는다");
         }
 
         /// <summary>
@@ -266,7 +277,7 @@ namespace MBI.Tests
         [Test]
         public void WithoutTheCoreMerger_OutputIsZero()
         {
-            BoardGrid g = BuildWithout(new Vector2Int(4, 7), fillEmptySlot: true);
+            BoardGrid g = BuildWithout(StartingBoard.EmptySlot, fillEmptySlot: false);
 
             Assert.AreEqual(0f, Output(g), D, "코어로 가는 유일한 입구가 막힌다");
         }
@@ -285,10 +296,13 @@ namespace MBI.Tests
         /// 이 숫자가 후보 A로 바꿔야 하는 이유 그 자체다.
         /// </summary>
         [Test]
-        public void WithoutTheFifthNode_OutputIsStillEighty()
+        public void AllFiveNodesArePlacedFromTheStart()
         {
-            Assert.AreEqual(80f, Output(Build(fillEmptySlot: false)), D,
-                "노드를 안 놓아도 4대가 돌아 마운트가 저절로 찬다");
+            int muni = 0;
+            foreach (StartingBoard.Slot slot in StartingBoard.Nodes)
+                if (slot.nodeId == StartingBoard.MuniId) muni++;
+
+            Assert.AreEqual(5, muni, "다섯 대가 처음부터 놓여 있다 — 막힌 것은 출구다");
         }
 
         private NetworkAggregate Aggregate(BoardGrid g)

@@ -242,7 +242,10 @@ namespace MBI.Logistics
             if (target == null || _grid == null) return;
 
             Vector2Int cell = target.Value;
-            bool filled = _grid.GetAt(cell) != null;
+            // ⚠️ **노드만 보면 안 된다.** 비워 둔 칸이 병합기 자리로 바뀌면서(2026-09-01)
+            // 채우는 것이 벨트 요소가 됐다. `GetAt`은 노드만 보므로 그것만 쓰면
+            // 병합기를 놓아도 영영 「안 채워짐」이고 스테이지 0이 끝나지 않는다.
+            bool filled = _grid.GetAt(cell) != null || _grid.GetBeltAt(cell) != null;
             TutorialSignals.GhostCellFilled = filled;
             if (filled) return; // 놓았으면 고스트는 사라진다(3장 삭제 조건)
 
@@ -820,7 +823,18 @@ namespace MBI.Logistics
                 if (eRect.Contains(Event.current.mousePosition)) _pointerOverPalette = true;
 
                 bool on = !_removeMode && _elementMode == e;
-                if (GUI.Button(eRect, (on ? "● " : "") + ElementLabel(e), style))
+
+                // 강제 버튼(튜토리얼 기획서 2장) — 지금 놓아야 할 것을 빛나게 한다.
+                // 고스트는 **자리**만 말하므로, 무엇을 놓을지 모르면 자리를 알아도 막힌다.
+                Color prevCol = GUI.color;
+                if (TutorialSignals.HighlightMerger && e == BeltElementKind.Merger && !on)
+                    GUI.color = new Color(1f, 0.92f, 0.45f,
+                        0.75f + 0.25f * Mathf.Abs(Mathf.Sin(Time.unscaledTime * 2.2f)));
+
+                bool pressed = GUI.Button(eRect, (on ? "● " : "") + ElementLabel(e), style);
+                GUI.color = prevCol;
+
+                if (pressed)
                 {
                     _elementMode = on ? (BeltElementKind?)null : e;
                     _removeMode = false;

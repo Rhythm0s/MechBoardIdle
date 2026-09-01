@@ -37,12 +37,19 @@ namespace MBI.Core
         /// </summary>
         public static bool GhostCellFilled;
 
+        /// <summary>
+        /// 팔레트의 **병합기**를 빛나게 한다. 비워 둔 칸이 병합기 자리이므로(2026-09-01),
+        /// 자리를 알아도 무엇을 놓을지 모르면 여전히 막힌다 — 고스트는 자리만 말한다.
+        /// </summary>
+        public static bool HighlightMerger;
+
         /// <summary>도메인 리로드 비활성 시 이전 Play의 값이 남는 것을 막는다.</summary>
         public static void Reset()
         {
             GhostCell = null;
             HighlightBoardButton = false;
             GhostCellFilled = false;
+            HighlightMerger = false;
         }
     }
 }

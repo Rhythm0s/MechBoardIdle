@@ -42,6 +42,8 @@ namespace MBI.Combat
             TutorialSignals.Reset();
             TutorialSignals.GhostCell = StartingBoard.EmptySlot;
             TutorialSignals.HighlightBoardButton = true;
+            // 채우는 것이 병합기라 팔레트에서 「병합기」를 골라야 한다 — 그것도 빛나게 한다.
+            TutorialSignals.HighlightMerger = true;
         }
 
         private void OnDisable() => TutorialSignals.Reset();
@@ -93,7 +95,7 @@ namespace MBI.Combat
             var style = new GUIStyle(GUI.skin.label) { fontSize = 16, fontStyle = FontStyle.Bold };
 
             GUILayout.BeginArea(new Rect(12, Screen.height - 96f, 420f, 84f));
-            GUILayout.Label(Mark(_goal.NodePlaced) + " 빈 칸에 노드를 놓는다", style);
+            GUILayout.Label(Mark(_goal.NodePlaced) + " 끊긴 자리를 잇는다", style);
             GUILayout.Label(Mark(_goal.MountFilled) + " 마운트가 가득 찬다", style);
             GUILayout.EndArea();
         }
