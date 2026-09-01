@@ -1,3 +1,4 @@
+using MBI.Core;
 using UnityEngine;
 
 namespace MBI.Logistics
@@ -83,7 +84,15 @@ namespace MBI.Logistics
 
             if (!_boardView)
             {
+                // 강제 버튼(튜토리얼 기획서 2장) — 지금 눌러야 할 버튼을 빛나게 한다.
+                // 기본 모드가 이동이라 모드를 모르면 화면만 움직이고 벨트가 안 깔린다(T-7).
+                Color prev = GUI.color;
+                if (TutorialSignals.HighlightBoardButton)
+                    GUI.color = new Color(1f, 0.92f, 0.45f,
+                        0.75f + 0.25f * Mathf.Abs(Mathf.Sin(Time.unscaledTime * 2.2f)));
+
                 if (GUI.Button(rect, "▼ 조립 (물류 보드)", style)) _boardView = true;
+                GUI.color = prev;
             }
             else
             {

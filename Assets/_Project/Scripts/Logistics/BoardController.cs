@@ -228,6 +228,46 @@ namespace MBI.Logistics
 
         private static Sprite _unitSprite;
 
+        /// <summary>
+        /// 튜토리얼 고스트 — **놓을 자리를 반투명으로 미리 보여 준다**(튜토리얼 기획서 3장).
+        ///
+        /// 신호가 꺼져 있으면 아무것도 하지 않는다. 그래서 스테이지 0을 떼어낼 때
+        /// 이 메서드는 그냥 지나가는 코드가 되고 보드는 손댈 필요가 없다.
+        ///
+        /// **채워졌는지도 여기서 게시한다** — 그 칸의 사실을 아는 것은 보드뿐이다.
+        /// </summary>
+        private void DrawTutorialGhost()
+        {
+            Vector2Int? target = TutorialSignals.GhostCell;
+            if (target == null || _grid == null) return;
+
+            Vector2Int cell = target.Value;
+            bool filled = _grid.GetAt(cell) != null;
+            TutorialSignals.GhostCellFilled = filled;
+            if (filled) return; // 놓았으면 고스트는 사라진다(3장 삭제 조건)
+
+            Camera cam = boardCamera != null ? boardCamera : Camera.main;
+            if (cam == null) return;
+
+            Vector3 center = _grid.CellToWorld(cell);
+            Vector3 sp = cam.WorldToScreenPoint(center);
+            if (sp.z <= 0f) return;
+
+            // 셀 한 칸을 화면 크기로 환산한다 — 줌이 바뀌어도 칸에 들어맞게.
+            Vector3 edge = cam.WorldToScreenPoint(center + new Vector3(_grid.CellSize, 0f, 0f));
+            float size = Mathf.Abs(edge.x - sp.x);
+            if (size < 4f) return;
+
+            var rect = new Rect(sp.x - size * 0.5f, Screen.height - sp.y - size * 0.5f, size, size);
+
+            Color prev = GUI.color;
+            // 깜빡인다 — 보드에 색이 많아 가만히 있으면 묻힌다.
+            float pulse = 0.35f + 0.25f * Mathf.Abs(Mathf.Sin(Time.unscaledTime * 2.2f));
+            GUI.color = new Color(1f, 0.92f, 0.35f, pulse);
+            GUI.DrawTexture(rect, UnitSprite() != null ? UnitSprite().texture : Texture2D.whiteTexture);
+            GUI.color = prev;
+        }
+
         /// <summary>「노는 중」 글자색. 종류색·상태 밝기와 겹치지 않게 무채색에 가깝게 둔다.</summary>
         private static readonly Color IdleLabelColor = new Color(0.15f, 0.15f, 0.15f, 0.9f);
 
@@ -732,6 +772,7 @@ namespace MBI.Logistics
             if (!GameLayerController.BoardViewActive) return;
             KoreanFont.Apply(); // WebGL엔 시스템 폰트 폴백이 없다
 
+            DrawTutorialGhost(); // 라벨보다 먼저 — 고스트는 배경이지 글자가 아니다
             DrawCellLabels(); // 버튼보다 먼저 — 팔레트/모드 버튼이 라벨 위에 온다
             DrawBottleneckHint();
             DrawModeButton();

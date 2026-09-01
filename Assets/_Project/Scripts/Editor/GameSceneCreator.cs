@@ -124,6 +124,17 @@ namespace MBI.Editor
             }
             so.ApplyModifiedPropertiesWithoutUndo();
 
+            // ── 스테이지 0 (260901_V05 §3층) ─────────────────────────────────
+            // ⚠️ **되돌림 지점 — 9월 4일 게이트 2.** 스테이지 0이 안 끝나 있으면
+            // 아래 블록만 지우면 종전 동작(켜면 바로 스테이지 1)으로 돌아온다.
+            // StageRunner·BoardController·asmdef 어디도 손대지 않았으므로 이 블록이 전부다.
+            var stage0 = go.AddComponent<Stage0Session>();
+            var s0so = new SerializedObject(stage0);
+            s0so.FindProperty("runner").objectReferenceValue = runner;
+            s0so.FindProperty("nextStage").objectReferenceValue = stage; // 마치면 스테이지 1로
+            s0so.ApplyModifiedPropertiesWithoutUndo();
+            // ── 되돌림 지점 끝 ───────────────────────────────────────────────
+
             // 자동 전투 진행(§5-7): 전투가 끝나면 스스로 다음 판을 건다.
             // 사람이 "다시"를 눌러야 이어지면 방치형이 아니다.
             var auto = go.AddComponent<AutoBattleController>();
