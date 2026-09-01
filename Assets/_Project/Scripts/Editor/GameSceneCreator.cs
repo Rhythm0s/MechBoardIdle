@@ -236,7 +236,9 @@ namespace MBI.Editor
             so.FindProperty("topic").stringValue = "벨트 — 이으면 만들어진다";
             so.FindProperty("reqType").enumValueIndex = (int)StageReqType.Fixed;
             so.FindProperty("req").floatValue = 0f;          // 요구치 없음 — 전투가 없다
-            so.FindProperty("challengeTime").floatValue = 0f; // 제한 시간 없음
+            // ⚠️ 0이 아니라 큰 값이다. 0이면 첫 틱에 「시간 초과」가 성립해 패배 판정으로 샌다 —
+            // 전투가 없다는 것은 이기지도 지지도 않는다는 뜻이다.
+            so.FindProperty("challengeTime").floatValue = 9999f;
             so.FindProperty("composition").arraySize = 0;     // **적 0기**
             so.ApplyModifiedPropertiesWithoutUndo();
 

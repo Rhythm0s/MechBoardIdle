@@ -18,7 +18,7 @@ MonoBehaviour:
   req: 0
   reqBand: {x: 0, y: 0}
   powerModel: 0
-  challengeTime: 0
+  challengeTime: 9999
   enhMaterialReward: 0
   spawnCap: 0
   spawnInterval: 0

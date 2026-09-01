@@ -19,7 +19,10 @@ namespace MBI.Combat
     /// 스폰을 막는다. 시뮬 자체는 돌아야 마운트가 채워지기 때문이다 —
     /// 「이어지면 쌓인다」를 보여 주는 것이 이 스테이지의 내용물이다.
     /// </summary>
-    [DefaultExecutionOrder(50)] // StageRunner가 Tick을 돈 뒤에 관찰한다
+    // ⚠️ **StageRunner보다 먼저 돈다.** 뒤에 두었더니 첫 프레임에 이미 승리 판정이 났다 —
+    // 적이 0기라 StageRunner.Update의 Evaluate가 곧바로 Win을 내고, 자동 전투가 다음 판을 걸어
+    // 화면에 스테이지 2가 떴다(2026-09-01 브라우저 실측). 억제는 판정보다 앞서야 한다.
+    [DefaultExecutionOrder(-50)]
     public sealed class Stage0Session : MonoBehaviour
     {
         [Tooltip("전투 러너. 스테이지 0 동안 적 스폰만 막고 시뮬은 그대로 돌린다.")]
@@ -56,6 +59,7 @@ namespace MBI.Combat
             // 스테이지 0 자산의 몬스터 구성이 비어 있는 것이 전투가 없는 진짜 이유다.
             sim.Endless = true;
 
+            // 관찰은 **직전 프레임의 결과**를 본다. 억제보다 한 틱 늦지만, 8초짜리 목표라 무해하다.
             _goal.Observe(TutorialSignals.GhostCellFilled,
                 sim.ActiveMount != null && sim.ActiveMount.IsFull);
 
@@ -67,9 +71,10 @@ namespace MBI.Combat
             _finished = true;
             TutorialSignals.Reset(); // 고스트와 강조를 끈다
 
-            // 넘어갈 곳이 없으면 억제만 푼다 — 격리 씬에서 이 컴포넌트만 얹어 볼 수 있게.
-            if (nextStage != null) runner.LoadStage(nextStage);
-            else if (runner.Sim != null) runner.Sim.Endless = false;
+            // ⚠️ **억제를 반드시 푼다.** 이 컴포넌트는 곧 꺼지므로 여기서 안 풀면 Endless가
+            // 그대로 남아 다음 스테이지가 영영 안 끝난다.
+            if (nextStage != null) runner.LoadStage(nextStage); // 새 시뮬이라 Endless는 기본값
+            if (runner.Sim != null) runner.Sim.Endless = false;
 
             enabled = false;
         }
