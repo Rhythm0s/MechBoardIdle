@@ -23,8 +23,6 @@ namespace MBI.Data
         [Header("원점·곡선 (확정 앵커)")]
         [Tooltip("원점 출력 = 요구치 분모. balance.json params.origin.")]
         public float origin = 100f;
-        [Tooltip("물류 최적화 상한 배율. 물류만으로 이 배율 초과 불가. params.ceil.")]
-        public float ceil = 1.6f;
         [Tooltip("마운트계수(S4 강화, 곱셈). S4부터만 적용. params.enh / enhance.enhPoint.")]
         public float enh = 1.45f;
 
@@ -90,7 +88,5 @@ namespace MBI.Data
         [Tooltip("드론 몸체 유입(기/초). params.pB = 1.0 확정치. 등가선: pB x dB = 100 = 관통 20x5와 같은 DPS.")]
         public float droneInflow = 1f;
 
-        /// <summary>물류 단독 천장 = origin * ceil. S3req &lt; 천장 &lt; S4밴드 (S4가 강화-only 벽).</summary>
-        public float LogisticsCeiling => origin * ceil;
     }
 }

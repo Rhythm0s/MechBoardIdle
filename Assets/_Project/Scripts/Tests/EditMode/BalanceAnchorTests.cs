@@ -44,7 +44,6 @@ namespace MBI.Tests
         {
             Assert.AreEqual(_json.meta.schemaVersion, _config.schemaVersion, "schemaVersion 드리프트(§7)");
             Assert.AreEqual(_json.Param("origin"), _config.origin, Delta);
-            Assert.AreEqual(_json.Param("ceil"), _config.ceil, Delta);
             Assert.AreEqual(_json.Param("enh"), _config.enh, Delta);
             Assert.AreEqual(_json.enhance.s3Break, _config.s3Break, Delta);
             Assert.AreEqual(_json.enhance.s4Band[0], _config.s4Band.x, Delta);
@@ -75,18 +74,31 @@ namespace MBI.Tests
             Assert.AreEqual(100f, _config.origin, Delta);
         }
 
-        // ---- 2. 물류 천장 = origin*ceil = 160, S3req < 160 < S4밴드.lo ----
-        [Test]
-        public void Anchor2_LogisticsCeiling_Is160_AndS4IsAboveIt()
-        {
-            float ceiling = _config.LogisticsCeiling;
-            float s3Req = _json.Stage("S3").req;
-            TestContext.WriteLine($"[재현] 물류천장 = {_config.origin} × {_config.ceil} = {ceiling}");
-            TestContext.WriteLine($"[재현] S3req {s3Req} < 천장 {ceiling} < S4밴드.lo {_config.s4Band.x}");
+        // ---- 2. S4는 강화-only 벽이다 (물류 천장은 폐기됐다) ----
 
-            Assert.AreEqual(160f, ceiling, Delta, "물류 천장");
-            Assert.Less(s3Req, ceiling, "S3는 물류만으로 통과 가능");
-            Assert.Less(ceiling, _config.s4Band.x, "S4는 물류 천장 초과 = 강화-only 벽");
+        /// <summary>
+        /// ⚠️ **물류 천장 ×1.6은 폐기됐다**(260901_V05 §2층). 종전 이 자리는
+        /// 「S3req &lt; 천장 160 &lt; S4밴드.lo」를 못 박고 있었다.
+        ///
+        /// 폐기 근거는 셋이었다 — 측정된 적이 없고, 문서가 이미 세 곳에서 부정하고 있으며,
+        /// 억제는 경제가 이미 하고 있다(요구치 초과분은 시간만 줄고 보상은 그대로다).
+        ///
+        /// **지켜야 할 사실은 남는다**: S4는 물류만으로 못 넘고 강화가 있어야 넘는다.
+        /// 천장이라는 이름 없이 그것만 잰다.
+        /// </summary>
+        [Test]
+        public void Anchor2_S4_IsAnEnhancementOnlyWall()
+        {
+            float s3Req = _json.Stage("S3").req;
+            float representative = _config.s3Break;          // 대표 조합 145
+            float enhanced = representative * _config.enh;   // 강화 후 210.25
+
+            TestContext.WriteLine($"[재현] 대표 {representative} < S4밴드.lo {_config.s4Band.x} ≤ 강화후 {enhanced}");
+
+            Assert.Less(s3Req, representative, "S3는 물류만으로 통과 가능");
+            Assert.Less(representative, _config.s4Band.x, "대표 조합으로는 S4를 못 넘는다");
+            Assert.GreaterOrEqual(enhanced, _config.s4Band.x, "강화하면 넘는다");
+            Assert.LessOrEqual(enhanced, _config.s4Band.y, "밴드 상한 안쪽이다");
         }
 
         // ---- 3. S3 돌파 = 145 (v4 2차 실측 개정치, 원천 미러) ----

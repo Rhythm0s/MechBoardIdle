@@ -15,7 +15,7 @@ MonoBehaviour:
   stageId: S1
   topic: "\uBCA8\uD2B8 \uC5F0\uACB0(\uC628\uBCF4\uB529)"
   reqType: 0
-  req: 90
+  req: 64
   reqBand: {x: 0, y: 0}
   powerModel: 0
   challengeTime: 120

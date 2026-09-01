@@ -88,7 +88,6 @@ namespace MBI.Editor
             c.exportedAt = json.meta.exportedAt;
 
             c.origin = json.Param("origin");
-            c.ceil = json.Param("ceil");
             c.enh = json.Param("enh");
 
             c.enhBand = new Vector2(json.enhance.enhBand[0], json.enhance.enhBand[1]);

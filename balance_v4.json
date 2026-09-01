@@ -10,66 +10,538 @@
     "s6Budget": "보스 HP ≤ 일반 DPS × (제한 − 합체 지속) + 합체체 DPS × 합체 지속. 합체체 DPS = (A+B 원 DPS) × 합체 배율(교대 공백 미적용). 버스트 1회·등장 특공 = 예산 밖 마진 [밸런스 5장 2026-07-23 교정]"
   },
   "params": [
-    { "key": "origin", "label": "원점 출력", "group": "원점·곡선", "value": 100, "confirmed": true, "basis": "온보딩 공장 출력(불변) — 관통탄 20×5발 기본 라인", "intent": "요구치 분모=100", "docRef": "밸런스 2장" },
-    { "key": "ceil", "label": "물류 최적화 상한 배율", "group": "원점·곡선", "value": 1.6, "confirmed": true, "basis": "물류 단독 천장 — 담보 = 보드 물리 상한(Unity 이월)", "intent": "물류만으로 ×1.6 초과 불가", "docRef": "밸런스 2장 · 대장 ③" },
-    { "key": "enh", "label": "마운트계수(S4 강화, 곱셈)", "group": "원점·곡선", "value": 1.45, "confirmed": true, "basis": "실측 확정 ×1.45 (유효 실구간 ≈×1.34~1.48)", "intent": "S4부터만 곱연산, 탄종 상대가치 보존", "docRef": "밸런스 3장 (2026-07-17)" },
-    { "key": "moduleMult", "label": "모듈 배율(M/R/F 합성)", "group": "원점·곡선", "value": 1.0, "confirmed": true, "basis": "MVP 상수 1.0 확정 (성장 통로 흡수)", "intent": "판정식 곱항", "docRef": "밸런스 3장 미결 #16" },
-
-    { "key": "pA0", "label": "관통탄 발사/초 (대표 상태)", "group": "로봇A 탄약(스펙트럼)", "value": 1, "confirmed": true, "basis": "대표 상태 145 = 관통1+분열1+폭발2 (실측선)", "intent": "표준 발사수 스펙은 5발/초 — 대표 라인 생산은 1", "docRef": "밸런스 2장 · 07 5장" },
-    { "key": "dA0", "label": "관통탄 발당피해", "group": "로봇A 탄약(스펙트럼)", "value": 20, "confirmed": true, "basis": "스펙트럼 좌단 — 20×5=등가선 100", "intent": "다발형: 방어에 많이 깎임", "docRef": "07 5장 (2026-07-17)" },
-    { "key": "pA1", "label": "분열탄 발사/초 (대표 상태)", "group": "로봇A 탄약(스펙트럼)", "value": 1, "confirmed": true, "basis": "대표 상태 구성", "intent": "표준 발사수 스펙은 4발/초", "docRef": "밸런스 2장 · 07 5장" },
-    { "key": "dA1", "label": "분열탄 발당피해", "group": "로봇A 탄약(스펙트럼)", "value": 25, "confirmed": true, "basis": "스펙트럼 중앙 — 25×4=등가선 100", "intent": "중피해·중빈도", "docRef": "07 5장 (2026-07-17)" },
-    { "key": "pA2", "label": "폭발탄 발사/초 (대표 상태)", "group": "로봇A 탄약(스펙트럼)", "value": 2, "confirmed": true, "basis": "대표 상태 구성 — 표준 발사수 스펙과 동일 2발/초", "intent": "단발형: 방어에 덜 깎임", "docRef": "밸런스 2장 · 07 5장" },
-    { "key": "dA2", "label": "폭발탄 발당피해", "group": "로봇A 탄약(스펙트럼)", "value": 50, "confirmed": true, "basis": "스펙트럼 우단 — 50×2=등가선 100", "intent": "고피해·저빈도", "docRef": "07 5장 (2026-07-17)" },
-    { "key": "specA0", "label": "관통탄 발사수 스펙(발/초)", "group": "로봇A 탄약(스펙트럼)", "value": 5, "confirmed": true, "basis": "pA0 intent 「표준 발사수 스펙은 5발/초」 · spectrum 좌표 관통 20×5", "intent": "라인 100% 가동 발사율 — 필요 노드 5개", "docRef": "밸런스 문서「라인 가동률과 군수 노드 생산 단위」 · 07 5장" },
-    { "key": "specA1", "label": "분열탄 발사수 스펙(발/초)", "group": "로봇A 탄약(스펙트럼)", "value": 4, "confirmed": true, "basis": "pA1 intent 「표준 발사수 스펙은 4발/초」 · spectrum 좌표 분열 25×4", "intent": "라인 100% 가동 발사율 — 필요 노드 4개", "docRef": "밸런스 문서「라인 가동률과 군수 노드 생산 단위」 · 07 5장" },
-    { "key": "specA2", "label": "폭발탄 발사수 스펙(발/초)", "group": "로봇A 탄약(스펙트럼)", "value": 2, "confirmed": true, "basis": "pA2 intent 「표준 발사수 스펙과 동일 2발/초」 · spectrum 좌표 폭발 50×2", "intent": "라인 100% 가동 발사율 — 필요 노드 2개", "docRef": "밸런스 문서「라인 가동률과 군수 노드 생산 단위」 · 07 5장" },
-    { "key": "muniPerNode", "label": "군수 노드 1개당 생산(발/초)", "group": "로봇A 탄약(스펙트럼)", "value": 1, "confirmed": true, "basis": "노드 1개 = 1발/초. 라인 100% 가동 필요 노드 = 관통 5 / 분열 4 / 폭발 2 → 비용 배수 1 : 1.25 : 2.5가 등가선에서 도출된다 (2026-08-25 확정)", "intent": "라인 가동률 = min(1, 보유 노드 ÷ 필요 노드) — capA(소비 천장)와 별개의 축", "docRef": "밸런스 문서「라인 가동률과 군수 노드 생산 단위」" },
-    { "key": "capA", "label": "마운트 소비 상한(발/초)", "group": "로봇A 탄약(스펙트럼)", "value": 6, "confirmed": true, "basis": "소비 천장(상수) — 고효율 탄 우선 배분", "intent": "생산>소비 시 병목", "docRef": "07 5장 (2026-07-17)" },
-
-    { "key": "pB", "label": "드론 유입(기/초) — 누적형 기본 프리셋", "group": "로봇B 드론", "value": 1.0, "confirmed": true, "basis": "누적형 100×1.0 (등가선 100). 광역형 50×2.0은 스펙트럼 대안(시뮬 단일 슬롯 — override로 교체 검증)", "intent": "유입=생산", "docRef": "07 5장 (2026-07-23)" },
-    { "key": "dB", "label": "드론 기당피해(=충전량) — 누적형", "group": "로봇B 드론", "value": 100, "confirmed": true, "basis": "단발 고밀도(관통형) — S5 해답자", "intent": "고방어 관통 해답(S5 def45 → 실효 100)", "docRef": "07 3·5장 (2026-07-23)" },
-    { "key": "slot", "label": "동시 출격 슬롯", "group": "로봇B 드론", "value": 3, "confirmed": true, "basis": "상수(강화 비대상 — 미결 #13)", "intent": "방출 병렬도", "docRef": "07 3장 · 밸런스 #13" },
-    { "key": "r", "label": "방출률 r(기/초/슬롯)", "group": "로봇B 드론", "value": 1.0, "confirmed": true, "basis": "min(유입 1.0, 슬롯 3×r 1.0)=1.0 실측", "intent": "min(유입,슬롯×r)", "docRef": "밸런스 10-3 (2026-07-23)" },
-
-    { "key": "pw", "label": "노드 전력 소비(합)", "group": "병목", "value": 66, "confirmed": false, "basis": "가동 고정비(TBD — 노드 카탈로그와 결합)", "intent": "전력=고정비 전용", "docRef": "밸런스 1장" },
-    { "key": "pwc", "label": "전력 공급 용량", "group": "병목", "value": 80, "confirmed": false, "basis": "발전 용량(TBD)", "intent": "pwc<pw면 효율<1", "docRef": "밸런스 10-3" },
-    { "key": "belt", "label": "벨트 용량(처리량/초)", "group": "병목", "value": 14, "confirmed": false, "basis": "벨트 대역(TBD)", "intent": "필요<용량이면 무손실", "docRef": "밸런스 6-1" },
-    { "key": "heat", "label": "발열 발생/초", "group": "병목", "value": 8, "confirmed": false, "basis": "발열 합(TBD)", "intent": "임계 초과 시 감쇠", "docRef": "밸런스 6-1" },
-    { "key": "heatc", "label": "발열 임계", "group": "병목", "value": 12, "confirmed": false, "basis": "냉각 임계(TBD)", "intent": "heat>heatc면 감쇠", "docRef": "밸런스 6-1" },
-
-    { "key": "store", "label": "저장 용량(태그 만충)", "group": "태그", "value": 40, "confirmed": true, "basis": "태그 주기 10초(÷대표 생산 4발/초) · 교대 계수 0.96", "intent": "태그 주기 결정", "docRef": "밸런스 4장 (2026-07-23)" },
-    { "key": "tagspec", "label": "등장 특공(마진항)", "group": "태그", "value": 2103, "confirmed": true, "basis": "식 확정: 비축 발수 × 강화 평균 발당피해 = 40×52.6", "intent": "요구치 예산 밖 마진", "docRef": "밸런스 4장 (2026-07-23)" },
-
-    { "key": "mergeMult", "label": "합체 배율", "group": "합체·버스트", "value": 1.8, "confirmed": true, "basis": "변신 화력 = (A+B 원 DPS) × 배율 — 교대 공백 미적용", "intent": "예산 안 지속 항 (배율=키우기 축, 밑=물류 축)", "docRef": "밸런스 5-2 (2026-07-23)" },
-    { "key": "bd", "label": "합체 지속(초)", "group": "합체·버스트", "value": 20, "confirmed": true, "basis": "15초=필연 밴드 협소 / 30초=만충 제약 충돌", "intent": "예산식 지속 항 (구 '버스트 지속' 폐기 — 지속은 합체의 속성)", "docRef": "밸런스 5-2 (2026-07-23)" },
-    { "key": "gaugeFull", "label": "게이지 만충(초)", "group": "합체·버스트", "value": 90, "confirmed": true, "basis": "공통 게이지 1개(전투 수행 충전·스테이지당 1회) — 그리드 15×6, 제약 만충≤100초 충족", "intent": "합체·버스트 동시 발동 조건", "docRef": "밸런스 5-1 (2026-07-23)" },
-    { "key": "bc", "label": "버스트 계수 %", "group": "합체·버스트", "value": 300, "confirmed": true, "basis": "순간 1회 = 발동 순간 스냅샷 × 300% ≈ 852 — 예산 밖 마진 항", "intent": "오프닝 필살 스파이크 (등장 특공과 동렬)", "docRef": "밸런스 5-3 (2026-07-23)" },
-
-    { "key": "scrapPerKill", "label": "마리당 고철", "group": "경제(고철)", "value": 2, "confirmed": false, "basis": "처치당 고철(TBD — 노드 가격 카탈로그와 결합 확정)", "intent": "고철=킬 기반", "docRef": "스테이지 기획서「파밍 규칙」" },
-    { "key": "offlineHours", "label": "오프라인 시간(h,상한36)", "group": "경제(고철)", "value": 8, "confirmed": false, "basis": "꺼둔 시간(상한 36h만 확정)", "intent": "오프라인 창", "docRef": "스테이지 기획서「오프라인 보상」" },
-    { "key": "offlineCoef", "label": "오프라인 계수", "group": "경제(고철)", "value": 0.5, "confirmed": false, "basis": "수입 계수(TBD 밴드 — 1 미만이어야 꺼두는 편이 이득이 되지 않음)", "intent": "수입 = 상주 스테이지 최고 파밍 시급 × min(꺼둔 시간, 36h) × 계수", "docRef": "스테이지 기획서「오프라인 보상」" },
-    { "key": "offlineBaseRate", "label": "오프라인 기본 시급(고철/h)", "group": "경제(고철)", "value": 0, "confirmed": false, "basis": "상주 스테이지에 파밍 기록이 없을 때 쓰는 값(TBD). 0 = 미측정 센티넬", "intent": "기록 없음 폴백", "docRef": "스테이지 기획서「오프라인 보상」" }
+    {
+      "key": "origin",
+      "label": "원점 출력",
+      "group": "원점·곡선",
+      "value": 100,
+      "confirmed": true,
+      "basis": "온보딩 공장 출력(불변) — 관통탄 20×5발 기본 라인",
+      "intent": "요구치 분모=100",
+      "docRef": "밸런스 2장"
+    },
+    {
+      "key": "enh",
+      "label": "마운트계수(S4 강화, 곱셈)",
+      "group": "원점·곡선",
+      "value": 1.45,
+      "confirmed": true,
+      "basis": "실측 확정 ×1.45 (유효 실구간 ≈×1.34~1.48)",
+      "intent": "S4부터만 곱연산, 탄종 상대가치 보존",
+      "docRef": "밸런스 3장 (2026-07-17)"
+    },
+    {
+      "key": "moduleMult",
+      "label": "모듈 배율(M/R/F 합성)",
+      "group": "원점·곡선",
+      "value": 1.0,
+      "confirmed": true,
+      "basis": "MVP 상수 1.0 확정 (성장 통로 흡수)",
+      "intent": "판정식 곱항",
+      "docRef": "밸런스 3장 미결 #16"
+    },
+    {
+      "key": "pA0",
+      "label": "관통탄 발사/초 (대표 상태)",
+      "group": "로봇A 탄약(스펙트럼)",
+      "value": 1,
+      "confirmed": true,
+      "basis": "대표 상태 145 = 관통1+분열1+폭발2 (실측선)",
+      "intent": "표준 발사수 스펙은 5발/초 — 대표 라인 생산은 1",
+      "docRef": "밸런스 2장 · 07 5장"
+    },
+    {
+      "key": "dA0",
+      "label": "관통탄 발당피해",
+      "group": "로봇A 탄약(스펙트럼)",
+      "value": 20,
+      "confirmed": true,
+      "basis": "스펙트럼 좌단 — 20×5=등가선 100",
+      "intent": "다발형: 방어에 많이 깎임",
+      "docRef": "07 5장 (2026-07-17)"
+    },
+    {
+      "key": "pA1",
+      "label": "분열탄 발사/초 (대표 상태)",
+      "group": "로봇A 탄약(스펙트럼)",
+      "value": 1,
+      "confirmed": true,
+      "basis": "대표 상태 구성",
+      "intent": "표준 발사수 스펙은 4발/초",
+      "docRef": "밸런스 2장 · 07 5장"
+    },
+    {
+      "key": "dA1",
+      "label": "분열탄 발당피해",
+      "group": "로봇A 탄약(스펙트럼)",
+      "value": 25,
+      "confirmed": true,
+      "basis": "스펙트럼 중앙 — 25×4=등가선 100",
+      "intent": "중피해·중빈도",
+      "docRef": "07 5장 (2026-07-17)"
+    },
+    {
+      "key": "pA2",
+      "label": "폭발탄 발사/초 (대표 상태)",
+      "group": "로봇A 탄약(스펙트럼)",
+      "value": 2,
+      "confirmed": true,
+      "basis": "대표 상태 구성 — 표준 발사수 스펙과 동일 2발/초",
+      "intent": "단발형: 방어에 덜 깎임",
+      "docRef": "밸런스 2장 · 07 5장"
+    },
+    {
+      "key": "dA2",
+      "label": "폭발탄 발당피해",
+      "group": "로봇A 탄약(스펙트럼)",
+      "value": 50,
+      "confirmed": true,
+      "basis": "스펙트럼 우단 — 50×2=등가선 100",
+      "intent": "고피해·저빈도",
+      "docRef": "07 5장 (2026-07-17)"
+    },
+    {
+      "key": "specA0",
+      "label": "관통탄 발사수 스펙(발/초)",
+      "group": "로봇A 탄약(스펙트럼)",
+      "value": 5,
+      "confirmed": true,
+      "basis": "pA0 intent 「표준 발사수 스펙은 5발/초」 · spectrum 좌표 관통 20×5",
+      "intent": "라인 100% 가동 발사율 — 필요 노드 5개",
+      "docRef": "밸런스 문서「라인 가동률과 군수 노드 생산 단위」 · 07 5장"
+    },
+    {
+      "key": "specA1",
+      "label": "분열탄 발사수 스펙(발/초)",
+      "group": "로봇A 탄약(스펙트럼)",
+      "value": 4,
+      "confirmed": true,
+      "basis": "pA1 intent 「표준 발사수 스펙은 4발/초」 · spectrum 좌표 분열 25×4",
+      "intent": "라인 100% 가동 발사율 — 필요 노드 4개",
+      "docRef": "밸런스 문서「라인 가동률과 군수 노드 생산 단위」 · 07 5장"
+    },
+    {
+      "key": "specA2",
+      "label": "폭발탄 발사수 스펙(발/초)",
+      "group": "로봇A 탄약(스펙트럼)",
+      "value": 2,
+      "confirmed": true,
+      "basis": "pA2 intent 「표준 발사수 스펙과 동일 2발/초」 · spectrum 좌표 폭발 50×2",
+      "intent": "라인 100% 가동 발사율 — 필요 노드 2개",
+      "docRef": "밸런스 문서「라인 가동률과 군수 노드 생산 단위」 · 07 5장"
+    },
+    {
+      "key": "muniPerNode",
+      "label": "군수 노드 1개당 생산(발/초)",
+      "group": "로봇A 탄약(스펙트럼)",
+      "value": 1,
+      "confirmed": true,
+      "basis": "노드 1개 = 1발/초. 라인 100% 가동 필요 노드 = 관통 5 / 분열 4 / 폭발 2 → 비용 배수 1 : 1.25 : 2.5가 등가선에서 도출된다 (2026-08-25 확정)",
+      "intent": "라인 가동률 = min(1, 보유 노드 ÷ 필요 노드) — capA(소비 천장)와 별개의 축",
+      "docRef": "밸런스 문서「라인 가동률과 군수 노드 생산 단위」"
+    },
+    {
+      "key": "capA",
+      "label": "마운트 소비 상한(발/초)",
+      "group": "로봇A 탄약(스펙트럼)",
+      "value": 6,
+      "confirmed": true,
+      "basis": "소비 천장(상수) — 고효율 탄 우선 배분",
+      "intent": "생산>소비 시 병목",
+      "docRef": "07 5장 (2026-07-17)"
+    },
+    {
+      "key": "pB",
+      "label": "드론 유입(기/초) — 누적형 기본 프리셋",
+      "group": "로봇B 드론",
+      "value": 1.0,
+      "confirmed": true,
+      "basis": "누적형 100×1.0 (등가선 100). 광역형 50×2.0은 스펙트럼 대안(시뮬 단일 슬롯 — override로 교체 검증)",
+      "intent": "유입=생산",
+      "docRef": "07 5장 (2026-07-23)"
+    },
+    {
+      "key": "dB",
+      "label": "드론 기당피해(=충전량) — 누적형",
+      "group": "로봇B 드론",
+      "value": 100,
+      "confirmed": true,
+      "basis": "단발 고밀도(관통형) — S5 해답자",
+      "intent": "고방어 관통 해답(S5 def45 → 실효 100)",
+      "docRef": "07 3·5장 (2026-07-23)"
+    },
+    {
+      "key": "slot",
+      "label": "동시 출격 슬롯",
+      "group": "로봇B 드론",
+      "value": 3,
+      "confirmed": true,
+      "basis": "상수(강화 비대상 — 미결 #13)",
+      "intent": "방출 병렬도",
+      "docRef": "07 3장 · 밸런스 #13"
+    },
+    {
+      "key": "r",
+      "label": "방출률 r(기/초/슬롯)",
+      "group": "로봇B 드론",
+      "value": 1.0,
+      "confirmed": true,
+      "basis": "min(유입 1.0, 슬롯 3×r 1.0)=1.0 실측",
+      "intent": "min(유입,슬롯×r)",
+      "docRef": "밸런스 10-3 (2026-07-23)"
+    },
+    {
+      "key": "pw",
+      "label": "노드 전력 소비(합)",
+      "group": "병목",
+      "value": 66,
+      "confirmed": false,
+      "basis": "가동 고정비(TBD — 노드 카탈로그와 결합)",
+      "intent": "전력=고정비 전용",
+      "docRef": "밸런스 1장"
+    },
+    {
+      "key": "pwc",
+      "label": "전력 공급 용량",
+      "group": "병목",
+      "value": 80,
+      "confirmed": false,
+      "basis": "발전 용량(TBD)",
+      "intent": "pwc<pw면 효율<1",
+      "docRef": "밸런스 10-3"
+    },
+    {
+      "key": "belt",
+      "label": "벨트 용량(처리량/초)",
+      "group": "병목",
+      "value": 14,
+      "confirmed": false,
+      "basis": "벨트 대역(TBD)",
+      "intent": "필요<용량이면 무손실",
+      "docRef": "밸런스 6-1"
+    },
+    {
+      "key": "heat",
+      "label": "발열 발생/초",
+      "group": "병목",
+      "value": 8,
+      "confirmed": false,
+      "basis": "발열 합(TBD)",
+      "intent": "임계 초과 시 감쇠",
+      "docRef": "밸런스 6-1"
+    },
+    {
+      "key": "heatc",
+      "label": "발열 임계",
+      "group": "병목",
+      "value": 12,
+      "confirmed": false,
+      "basis": "냉각 임계(TBD)",
+      "intent": "heat>heatc면 감쇠",
+      "docRef": "밸런스 6-1"
+    },
+    {
+      "key": "store",
+      "label": "저장 용량(태그 만충)",
+      "group": "태그",
+      "value": 40,
+      "confirmed": true,
+      "basis": "태그 주기 10초(÷대표 생산 4발/초) · 교대 계수 0.96",
+      "intent": "태그 주기 결정",
+      "docRef": "밸런스 4장 (2026-07-23)"
+    },
+    {
+      "key": "tagspec",
+      "label": "등장 특공(마진항)",
+      "group": "태그",
+      "value": 2103,
+      "confirmed": true,
+      "basis": "식 확정: 비축 발수 × 강화 평균 발당피해 = 40×52.6",
+      "intent": "요구치 예산 밖 마진",
+      "docRef": "밸런스 4장 (2026-07-23)"
+    },
+    {
+      "key": "mergeMult",
+      "label": "합체 배율",
+      "group": "합체·버스트",
+      "value": 1.8,
+      "confirmed": true,
+      "basis": "변신 화력 = (A+B 원 DPS) × 배율 — 교대 공백 미적용",
+      "intent": "예산 안 지속 항 (배율=키우기 축, 밑=물류 축)",
+      "docRef": "밸런스 5-2 (2026-07-23)"
+    },
+    {
+      "key": "bd",
+      "label": "합체 지속(초)",
+      "group": "합체·버스트",
+      "value": 20,
+      "confirmed": true,
+      "basis": "15초=필연 밴드 협소 / 30초=만충 제약 충돌",
+      "intent": "예산식 지속 항 (구 '버스트 지속' 폐기 — 지속은 합체의 속성)",
+      "docRef": "밸런스 5-2 (2026-07-23)"
+    },
+    {
+      "key": "gaugeFull",
+      "label": "게이지 만충(초)",
+      "group": "합체·버스트",
+      "value": 90,
+      "confirmed": true,
+      "basis": "공통 게이지 1개(전투 수행 충전·스테이지당 1회) — 그리드 15×6, 제약 만충≤100초 충족",
+      "intent": "합체·버스트 동시 발동 조건",
+      "docRef": "밸런스 5-1 (2026-07-23)"
+    },
+    {
+      "key": "bc",
+      "label": "버스트 계수 %",
+      "group": "합체·버스트",
+      "value": 300,
+      "confirmed": true,
+      "basis": "순간 1회 = 발동 순간 스냅샷 × 300% ≈ 852 — 예산 밖 마진 항",
+      "intent": "오프닝 필살 스파이크 (등장 특공과 동렬)",
+      "docRef": "밸런스 5-3 (2026-07-23)"
+    },
+    {
+      "key": "scrapPerKill",
+      "label": "마리당 고철",
+      "group": "경제(고철)",
+      "value": 2,
+      "confirmed": false,
+      "basis": "처치당 고철(TBD — 노드 가격 카탈로그와 결합 확정)",
+      "intent": "고철=킬 기반",
+      "docRef": "스테이지 기획서「파밍 규칙」"
+    },
+    {
+      "key": "offlineHours",
+      "label": "오프라인 시간(h,상한36)",
+      "group": "경제(고철)",
+      "value": 8,
+      "confirmed": false,
+      "basis": "꺼둔 시간(상한 36h만 확정)",
+      "intent": "오프라인 창",
+      "docRef": "스테이지 기획서「오프라인 보상」"
+    },
+    {
+      "key": "offlineCoef",
+      "label": "오프라인 계수",
+      "group": "경제(고철)",
+      "value": 0.5,
+      "confirmed": false,
+      "basis": "수입 계수(TBD 밴드 — 1 미만이어야 꺼두는 편이 이득이 되지 않음)",
+      "intent": "수입 = 상주 스테이지 최고 파밍 시급 × min(꺼둔 시간, 36h) × 계수",
+      "docRef": "스테이지 기획서「오프라인 보상」"
+    },
+    {
+      "key": "offlineBaseRate",
+      "label": "오프라인 기본 시급(고철/h)",
+      "group": "경제(고철)",
+      "value": 0,
+      "confirmed": false,
+      "basis": "상주 스테이지에 파밍 기록이 없을 때 쓰는 값(TBD). 0 = 미측정 센티넬",
+      "intent": "기록 없음 폴백",
+      "docRef": "스테이지 기획서「오프라인 보상」"
+    }
   ],
   "enemies": [
-    { "key": "infantry", "label": "보병", "role": "중거리 교전", "atk": 6, "confirmed": false },
-    { "key": "artillery", "label": "포격", "role": "원거리 교전", "atk": 10, "confirmed": false },
-    { "key": "armor", "label": "장갑", "role": "근접·길막(고방어)", "atk": 8, "confirmed": false },
-    { "key": "boss", "label": "강적(보스)", "role": "단일 대형(체력+방어 복합)", "atk": 20, "confirmed": false }
+    {
+      "key": "infantry",
+      "label": "보병",
+      "role": "중거리 교전",
+      "atk": 6,
+      "confirmed": false
+    },
+    {
+      "key": "artillery",
+      "label": "포격",
+      "role": "원거리 교전",
+      "atk": 10,
+      "confirmed": false
+    },
+    {
+      "key": "armor",
+      "label": "장갑",
+      "role": "근접·길막(고방어)",
+      "atk": 8,
+      "confirmed": false
+    },
+    {
+      "key": "boss",
+      "label": "강적(보스)",
+      "role": "단일 대형(체력+방어 복합)",
+      "atk": 20,
+      "confirmed": false
+    }
   ],
   "stages": [
-    { "id": "S1", "topic": "벨트 연결(온보딩)", "reqType": "fixed", "req": 90, "reqConfirmed": true, "challengeTime": 120, "powerModel": "logistics", "enhMaterialReward": 30, "spawnCap": 0, "spawnInterval": 0, "spawnConfirmed": false, "compConfirmed": true, "monsterDir": "체력 낮은 다수·느린 등장·저방어",
-      "composition": [ { "enemy": "infantry", "count": 40, "hp": 270, "def": 1 } ] },
-    { "id": "S2", "topic": "모듈 배치(M/R/F)", "reqType": "fixed", "req": 105, "reqConfirmed": true, "challengeTime": 120, "powerModel": "logistics", "enhMaterialReward": 33, "spawnCap": 0, "spawnInterval": 0, "spawnConfirmed": false, "compConfirmed": true, "monsterDir": "체력 조금 상승·저방어",
-      "composition": [ { "enemy": "infantry", "count": 40, "hp": 250, "def": 1 }, { "enemy": "artillery", "count": 10, "hp": 260, "def": 3 } ] },
-    { "id": "S3", "topic": "물류 재설계(영상B)", "reqType": "fixed", "req": 130, "reqConfirmed": true, "challengeTime": 120, "powerModel": "logistics", "enhMaterialReward": 37, "spawnCap": 0, "spawnInterval": 0, "spawnConfirmed": false, "compConfirmed": true, "monsterDir": "점점 빨리 등장(지속 DPS)·방어 낮음",
-      "composition": [ { "enemy": "infantry", "count": 40, "hp": 230, "def": 2 }, { "enemy": "artillery", "count": 15, "hp": 280, "def": 3 }, { "enemy": "armor", "count": 5, "hp": 440, "def": 6 } ] },
-    { "id": "S4", "topic": "마운트 강화(벽)", "reqType": "band", "reqBand": [ 186, 215 ], "reqConfirmed": true, "challengeTime": 120, "powerModel": "enhanced", "enhMaterialReward": 0, "spawnCap": 0, "spawnInterval": 0, "spawnConfirmed": false, "compConfirmed": true, "monsterDir": "체력 급증(물류 천장 초과 유일 벽)",
-      "composition": [ { "enemy": "infantry", "count": 40, "hp": 280, "def": 3 }, { "enemy": "artillery", "count": 20, "hp": 310, "def": 5 }, { "enemy": "armor", "count": 12, "hp": 410, "def": 8 } ] },
-    { "id": "S5", "topic": "태그 학습", "reqType": "formula", "reqConfirmed": true, "challengeTime": 120, "powerModel": "tag", "enhMaterialReward": 0, "spawnCap": 0, "spawnInterval": 0, "spawnConfirmed": false, "compConfirmed": true, "monsterDir": "강력한 소수·고방어(def 45 = 분열 36.25 < 45 < 폭발 72.5 경계 — A 단독 289.5초 실패 / A+B 109.3초)",
-      "composition": [ { "enemy": "armor", "count": 15, "hp": 1100, "def": 45 } ] },
-    { "id": "S6", "topic": "합체·버스트(영상C)", "reqType": "budget", "reqConfirmed": true, "challengeTime": 120, "powerModel": "burst", "enhMaterialReward": 0, "spawnCap": 0, "spawnInterval": 0, "spawnConfirmed": false, "compConfirmed": true, "monsterDir": "강적 1기 — 합체 필연 밴드 34,067 < HP ≤ 39,018 · 실효 109.4초", "bossHp": 36000,
-      "composition": [ { "enemy": "boss", "count": 1, "hp": 36000, "def": 12 } ] }
+    {
+      "id": "S1",
+      "topic": "벨트 연결(온보딩)",
+      "reqType": "fixed",
+      "req": 64,
+      "reqConfirmed": true,
+      "challengeTime": 120,
+      "powerModel": "logistics",
+      "enhMaterialReward": 30,
+      "spawnCap": 0,
+      "spawnInterval": 0,
+      "spawnConfirmed": false,
+      "compConfirmed": true,
+      "monsterDir": "체력 낮은 다수·느린 등장·저방어",
+      "composition": [
+        {
+          "enemy": "infantry",
+          "count": 40,
+          "hp": 270,
+          "def": 1
+        }
+      ]
+    },
+    {
+      "id": "S2",
+      "topic": "모듈 배치(M/R/F)",
+      "reqType": "fixed",
+      "req": 84,
+      "reqConfirmed": true,
+      "challengeTime": 120,
+      "powerModel": "logistics",
+      "enhMaterialReward": 33,
+      "spawnCap": 0,
+      "spawnInterval": 0,
+      "spawnConfirmed": false,
+      "compConfirmed": true,
+      "monsterDir": "체력 조금 상승·저방어",
+      "composition": [
+        {
+          "enemy": "infantry",
+          "count": 40,
+          "hp": 250,
+          "def": 1
+        },
+        {
+          "enemy": "artillery",
+          "count": 10,
+          "hp": 260,
+          "def": 3
+        }
+      ]
+    },
+    {
+      "id": "S3",
+      "topic": "물류 재설계(영상B)",
+      "reqType": "fixed",
+      "req": 104,
+      "reqConfirmed": true,
+      "challengeTime": 120,
+      "powerModel": "logistics",
+      "enhMaterialReward": 37,
+      "spawnCap": 0,
+      "spawnInterval": 0,
+      "spawnConfirmed": false,
+      "compConfirmed": true,
+      "monsterDir": "점점 빨리 등장(지속 DPS)·방어 낮음",
+      "composition": [
+        {
+          "enemy": "infantry",
+          "count": 40,
+          "hp": 230,
+          "def": 2
+        },
+        {
+          "enemy": "artillery",
+          "count": 15,
+          "hp": 280,
+          "def": 3
+        },
+        {
+          "enemy": "armor",
+          "count": 5,
+          "hp": 440,
+          "def": 6
+        }
+      ]
+    },
+    {
+      "id": "S4",
+      "topic": "마운트 강화(벽)",
+      "reqType": "band",
+      "reqBand": [
+        149,
+        215
+      ],
+      "reqConfirmed": true,
+      "challengeTime": 120,
+      "powerModel": "enhanced",
+      "enhMaterialReward": 0,
+      "spawnCap": 0,
+      "spawnInterval": 0,
+      "spawnConfirmed": false,
+      "compConfirmed": true,
+      "monsterDir": "체력 급증(물류 천장 초과 유일 벽)",
+      "composition": [
+        {
+          "enemy": "infantry",
+          "count": 40,
+          "hp": 280,
+          "def": 3
+        },
+        {
+          "enemy": "artillery",
+          "count": 20,
+          "hp": 310,
+          "def": 5
+        },
+        {
+          "enemy": "armor",
+          "count": 12,
+          "hp": 410,
+          "def": 8
+        }
+      ]
+    },
+    {
+      "id": "S5",
+      "topic": "태그 학습",
+      "reqType": "formula",
+      "reqConfirmed": true,
+      "challengeTime": 120,
+      "powerModel": "tag",
+      "enhMaterialReward": 0,
+      "spawnCap": 0,
+      "spawnInterval": 0,
+      "spawnConfirmed": false,
+      "compConfirmed": true,
+      "monsterDir": "강력한 소수·고방어(def 45 = 분열 36.25 < 45 < 폭발 72.5 경계 — A 단독 289.5초 실패 / A+B 109.3초)",
+      "composition": [
+        {
+          "enemy": "armor",
+          "count": 15,
+          "hp": 1100,
+          "def": 45
+        }
+      ]
+    },
+    {
+      "id": "S6",
+      "topic": "합체·버스트(영상C)",
+      "reqType": "budget",
+      "reqConfirmed": true,
+      "challengeTime": 120,
+      "powerModel": "burst",
+      "enhMaterialReward": 0,
+      "spawnCap": 0,
+      "spawnInterval": 0,
+      "spawnConfirmed": false,
+      "compConfirmed": true,
+      "monsterDir": "강적 1기 — 합체 필연 밴드 34,067 < HP ≤ 39,018 · 실효 109.4초",
+      "bossHp": 36000,
+      "composition": [
+        {
+          "enemy": "boss",
+          "count": 1,
+          "hp": 36000,
+          "def": 12
+        }
+      ]
+    }
   ],
   "economy": {
     "enhMaterialSource": "clearRewardOnly",
@@ -100,11 +572,22 @@
   "enhance": {
     "s4Cost": 100,
     "s3Break": 145,
-    "s4Band": [ 186, 215 ],
-    "enhBand": [ 1.3, 1.5 ],
+    "s4Band": [
+      186,
+      215
+    ],
+    "enhBand": [
+      1.3,
+      1.5
+    ],
     "enhPoint": 1.45,
     "snapBand": 0.08,
-    "check7": { "mode": "exact", "tolerance": 1, "target": "Σ(S1..S3 enhMaterialReward) == s4Cost (±tolerance)", "rationale": "A안 닫힌 곡선: 잉여=0. 보상량 30/33/37은 역산 placeholder — 검증 대장 미기입" }
+    "check7": {
+      "mode": "exact",
+      "tolerance": 1,
+      "target": "Σ(S1..S3 enhMaterialReward) == s4Cost (±tolerance)",
+      "rationale": "A안 닫힌 곡선: 잉여=0. 보상량 30/33/37은 역산 placeholder — 검증 대장 미기입"
+    }
   },
   "spectrum": {
     "principle": "탄종 3 + 드론 2 모두 DPS 등가선 100 위 '발당피해↔발사수' 단일 축. 특수효과 없음. 방어는 히트당 뺄셈 → 다발형 불리·단발형 유리 (07 5장).",

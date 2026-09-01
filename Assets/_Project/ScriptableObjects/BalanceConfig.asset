@@ -15,7 +15,6 @@ MonoBehaviour:
   schemaVersion: 4.0
   exportedAt: TBD_STAMP_ON_EXPORT
   origin: 100
-  ceil: 1.6
   enh: 1.45
   enhBand: {x: 1.3, y: 1.5}
   snapBand: 0.08

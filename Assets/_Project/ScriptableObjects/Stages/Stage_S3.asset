@@ -15,7 +15,7 @@ MonoBehaviour:
   stageId: S3
   topic: "\uBB3C\uB958 \uC7AC\uC124\uACC4(\uC601\uC0C1B)"
   reqType: 0
-  req: 130
+  req: 104
   reqBand: {x: 0, y: 0}
   powerModel: 0
   challengeTime: 120

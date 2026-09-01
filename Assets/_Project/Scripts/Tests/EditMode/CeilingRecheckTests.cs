@@ -6,20 +6,22 @@ using NUnit.Framework;
 namespace MBI.Tests
 {
     /// <summary>
-    /// 밸런스 재검증 실측(260824_V02 §5 · 260825_V01 §0에서 밸런스 문서 11-4로 등재).
+    /// 구성별 출력 실측(260824_V02 §5 · 260825_V01 §0에서 밸런스 문서 11-4로 등재).
     ///
-    /// 물음: 소비 상한 6발/초를 채우는 최대 조합이 물류 천장 160을 넘는가, 넘으면 무엇이 막는가.
-    /// V02 §5의 표적은 「군수 6노드 구성이 전력에서 최소 40 이상 깎이는지」다.
+    /// ⚠️ **물류 천장 ×1.6은 폐기됐다**(260901_V05 §2층). 이 파일의 원래 물음은
+    /// 「6노드 최대 조합이 천장 160을 넘는가」였고, 답은 「넘는다(200)」였다.
+    /// 천장이 사라졌으므로 그 물음은 닫혔고, **남은 것은 구성별 출력이라는 사실**이다.
     ///
-    /// ⚠️ 이 파일은 **현재 데이터로 무엇이 나오는가**를 기록한다. 노드별 전력 카탈로그가
-    /// 미확정(밸런스 11-4 미결)이므로 결과는 「엔진 정합 PASS / 수치 TBD」로 읽어야 한다.
+    /// 그 사실이 여전히 값진 이유: 조합 축이 살아 있는지를 여기서 볼 수 있다.
+    /// 분열 4 + 폭발 2가 관통 6대보다 세다는 것이 라인 스펙 상한의 존재 이유다.
+    ///
+    /// ⚠️ 노드별 전력은 260901_V02에서 확정됐다 — 종전의 「수치 TBD」 표기는 해소됐다.
     /// </summary>
     public sealed class CeilingRecheckTests
     {
         private const float D = 0.001f;
         private const float PerNode = 1f;   // muniPerNode 확정치
         private const float Origin = 100f;  // params origin
-        private const float Ceil = 1.6f;    // params ceil → 천장 160
 
         private static List<MunitionsLine> Mix(int pierce, int split, int explosive) => new List<MunitionsLine>
         {
@@ -41,15 +43,20 @@ namespace MBI.Tests
         /// 출력 200, 천장 160 → **40 초과.**
         /// </summary>
         [Test]
-        public void SixNodes_SplitFourPlusExplosiveTwo_Yields200_Over160Ceiling()
+        public void SixNodes_SplitFourPlusExplosiveTwo_Yields200()
         {
             List<MunitionsLine> mix = Mix(0, 4, 2);
 
             Assert.AreEqual(6f, Rate(mix), D, "4 + 2 = 6발/초 = 소비 상한 capA와 같다");
             Assert.AreEqual(200f, AmmoLineProduction.TotalOutput(mix, PerNode), D, "100 + 100");
-            Assert.AreEqual(160f, Origin * Ceil, D, "물류 천장");
-            Assert.Greater(AmmoLineProduction.TotalOutput(mix, PerNode), Origin * Ceil,
-                "생산만으로 천장을 넘는다 — 무엇이 막는지가 재검증의 물음");
+            // 종전에는 여기서 「천장 160을 넘는다」를 쟀다. 천장이 폐기됐으므로
+            // **조합 축이 살아 있는가**를 대신 잰다 — 그것이 이 실측의 남은 값이다.
+            // 같은 6노드를 관통에 몰면 라인 스펙 5에서 잘려 100이다.
+            Assert.AreEqual(100f, AmmoLineProduction.TotalOutput(Mix(6, 0, 0), PerNode), D,
+                "관통 6대는 스펙 5에서 잘린다");
+            Assert.Greater(AmmoLineProduction.TotalOutput(mix, PerNode),
+                AmmoLineProduction.TotalOutput(Mix(6, 0, 0), PerNode),
+                "섞은 쪽이 몰아넣은 쪽보다 세다 — 라인 스펙 상한의 존재 이유");
         }
 
         /// <summary>
@@ -125,17 +132,8 @@ namespace MBI.Tests
             return n;
         }
 
-        /// <summary>
-        /// 천장을 무엇으로 막을지의 선택지 확인용 실측:
-        /// 6노드가 천장 160 안에 들어오려면 전체 배율이 0.8 이하로 깎여야 한다.
-        /// </summary>
-        [Test]
-        public void ThrottleNeededToRespectCeiling_Is0Point8()
-        {
-            float output = AmmoLineProduction.TotalOutput(Mix(0, 4, 2), PerNode);
-            float needed = (Origin * Ceil) / output;
-
-            Assert.AreEqual(0.8f, needed, D, "160 ÷ 200 — 20% 이상 깎여야 천장 안");
-        }
+        // ⚠️ `ThrottleNeededToRespectCeiling_Is0Point8`을 지웠다(260901_V05 §2층).
+        // 「천장 안에 들어오려면 0.8로 깎여야 한다」는 **막을 천장이 있을 때만** 뜻이 있는 값이다.
+        // 천장이 폐기됐으므로 그 물음 자체가 닫혔다 — 억제는 경제가 한다.
     }
 }
