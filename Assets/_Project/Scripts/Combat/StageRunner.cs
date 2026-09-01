@@ -740,7 +740,9 @@ namespace MBI.Combat
             // 상한이 하나도 없으면 Capacity가 0이다 — 이때는 「채우는 중」이 아니라 **판정 자체가 없다**.
             // 한 칸이 얼마든 받아 나머지 칸이 안 열리므로 만충이 영영 서지 않는다.
             string fullness = standby.Capacity <= 0f
-                ? "만충 판정 불가(스택 TBD)"
+                // ⚠️ 괄호를 뗐다(260901_V02 판정 3). TBD는 문서에서 하는 말이지
+                // 심사자가 볼 화면에서 하는 말이 아니다. 스택이 확정되면 이 갈래 자체가 사라진다.
+                ? "만충 판정 대기"
                 : (standby.IsFull ? "만충" : "채우는 중");
             return $"출전 {who}   ·   마운트 적재 {act.Total:F0}   ·   대기 마운트 {standby.Total:F0} ({fullness})" +
                    $"   ·   드론 {_sim.Drones.Count}기";

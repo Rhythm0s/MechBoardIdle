@@ -94,13 +94,14 @@ namespace MBI.Tests
             float draw6 = 6f * muni.resources.powerDraw;
             Assert.AreEqual(12f, draw6, D, "6노드 = 12/초 — 노드를 늘리면 실제로 늘어난다");
 
-            Assert.AreEqual(80f, ener.resources.powerSupply, D,
-                "발전 **용량 합**이 노드 한 대에 얹혀 있다 — 대당 값이 아직 없다");
-            Assert.Greater(ener.resources.powerSupply, draw6,
-                "한 대가 6노드를 다 먹여 살린다 → 전력이 천장을 막지 못한다");
+            // ⚠️ **해소됐다**(260901_V02 판정 4). 종전에는 `pwc`(발전 용량 **합** 80)가 노드 한 대에
+            // 얹혀 있어 한 대가 6노드를 다 먹여 살렸고, 그래서 **전력 축이 한 번도 작동한 적이 없었다.**
+            Assert.AreEqual(10f, ener.resources.powerSupply, D, "에너지 대당 발전량 10/초(확정)");
+            Assert.Less(ener.resources.powerSupply, draw6,
+                "한 대로는 6노드를 못 먹인다 — 전력이 실제 제약이 된다");
 
-            Assert.AreEqual(ConfirmState.Tbd, ener.resources.confirm,
-                "에너지 대당 발전량 미확정 — 확정되면 이 단언이 실패해 재산정을 알린다");
+            Assert.AreEqual(ConfirmState.Confirmed, ener.resources.confirm,
+                "대당 발전량이 확정됐다");
         }
 
         /// <summary>

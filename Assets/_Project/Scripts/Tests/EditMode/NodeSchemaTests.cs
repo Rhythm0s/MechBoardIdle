@@ -61,16 +61,14 @@ namespace MBI.Tests
         {
             foreach (NodeDefinition n in _nodes)
             {
-                // 부하 열이 **전부** 확정된 노드만 Confirmed다(260829_V03).
-                //   코어 — 고정비 0 하나뿐이고 그게 확정
-                //   군수 — 생산 1발/초 + 고정비 2 둘 다 확정
-                //   가공 — 고정비 1은 확정이나 **발열이 표에 없다**
-                //   에너지 — 고정비 0 · 발열 1은 확정이나 **대당 발전량이 미확정**
-                //   저장·부스터·쉴드 — 값 자체가 없다
+                // 부하 열이 **전부** 확정된 노드만 Confirmed다(260829_V03 · 260901_V02 갱신).
+                // 대당 전력 7종이 확정되면서 여섯이 Confirmed로 올라갔다.
+                //   코어 0 · 가공 1 · 군수 2 · 에너지 1(+발전 10) · 저장 2 · 부스터 2
+                //   **쉴드만 Tbd다** — 일곱 종 중 유일하게 대당 발열이 공백이다.
+                // ⚠️ 발열 확정치는 코드에 안 들어간다(§2층 적용 경계). 그래도 Confirmed인 이유는
+                // 이 표기가 **전력** 부하 열의 확정 여부를 가리키기 때문이다.
                 ConfirmState expected =
-                    n.type == NodeType.Munitions || n.type == NodeType.Core
-                        ? ConfirmState.Confirmed
-                        : ConfirmState.Tbd;
+                    n.type == NodeType.Shield ? ConfirmState.Tbd : ConfirmState.Confirmed;
 
                 Assert.AreEqual(expected, n.resources.confirm,
                     $"{n.displayName}: 확정분 외 노드별 수치는 Tbd 표기 필요(§7)");
@@ -96,8 +94,16 @@ namespace MBI.Tests
             Assert.AreEqual(0f, Node("core").resources.powerDraw, 0.001f, "코어 고정비 0");
             Assert.AreEqual(1f, Node("proc").resources.powerDraw, 0.001f, "가공 1/초");
             Assert.AreEqual(2f, Node("muni").resources.powerDraw, 0.001f, "군수 2/초");
-            Assert.AreEqual(0f, Node("ener").resources.powerDraw, 0.001f, "에너지는 안 먹는다");
-            Assert.AreEqual(1f, Node("ener").resources.heatGenerate, 0.001f, "발전이 열을 낸다");
+            // 노드 대당 전력 7종 확정(260901_V02 §2층). 에너지도 자기 몫을 먹는다.
+            Assert.AreEqual(1f, Node("ener").resources.powerDraw, 0.001f, "에너지 1/초");
+            Assert.AreEqual(2f, Node("stor").resources.powerDraw, 0.001f, "저장 2/초");
+            Assert.AreEqual(2f, Node("boost").resources.powerDraw, 0.001f, "부스터 2/초");
+            Assert.AreEqual(10f, Node("ener").resources.powerSupply, 0.001f, "에너지 대당 발전 10/초");
+
+            // ⚠️ **발열은 코드에 안 들어간다**(§2층 「적용 경계」). 확정치는 에너지 4지만
+            // 냉각 수단이 없는 상태에서 올리면 대응할 방법이 없는 벌이 된다 — 종전 값 그대로 둔다.
+            Assert.AreEqual(1f, Node("ener").resources.heatGenerate, 0.001f,
+                "종전 값 유지 — 확정치 4는 문서에만 있다");
 
             foreach (NodeDefinition n in _nodes)
                 Assert.AreNotEqual(66f, n.resources.powerDraw,
@@ -116,7 +122,8 @@ namespace MBI.Tests
                          + Node("muni").resources.powerDraw
                          + Node("ener").resources.powerDraw;
 
-            Assert.AreEqual(4f, draw, 0.001f);
+            // 0 + 2 + 2 + 1 = 5. 에너지가 대당 1을 먹게 되면서 4에서 5로 올랐다(260901_V02).
+            Assert.AreEqual(5f, draw, 0.001f);
         }
 
         /// <summary>

@@ -214,14 +214,16 @@ namespace MBI.Tests
         // ---- 시작 보드(온보딩) ----
 
         /// <summary>
-        /// **시작 보드가 실제로 도는지**를 여기서 잰다. GameSceneCreator의 배치와 같은 모양이라
-        /// 레이아웃을 바꾸면 이 테스트가 먼저 깨진다 — 씬은 Play로만 확인되기 때문이다.
+        /// **한 칸을 비운 배치가 실제로 도는지**를 잰다 — 「빈 벨트가 회색으로 남고, 채우면 색이 들며
+        /// 출력이 오른다」는 온보딩의 뼈대다.
         ///
-        /// 빈칸(3,6)의 벨트는 이미 깔려 있고 비어 있어(회색) 「여기 놓으라」가 색으로 보인다.
-        /// 채우면 45 → 95가 되고 S1 요구 90을 넘는다.
+        /// ⚠️ 여기 깔린 것은 **예시 배치이지 출하되는 시작 보드가 아니다.**
+        /// 실제 시작 보드는 <c>StartingBoard</c>가 쥐고 있고 관통 4 + 빈 칸 = 80 → 100이며,
+        /// 그 숫자는 <c>StartingBoardTests</c>가 지킨다(260831_V11).
+        /// 종전에는 이 테스트가 시작 보드를 자처했는데, 보드가 바뀐 뒤에도 이름만 남아 있었다.
         /// </summary>
         [Test]
-        public void StartingBoard_Yields45_And95WhenTheGapIsFilled()
+        public void OneEmptyCell_LeavesTheBeltGrey_AndFillingItRaisesOutput()
         {
             var g = Grid();
             NodeDefinition ener = Node("ener");
@@ -247,8 +249,9 @@ namespace MBI.Tests
             Assert.AreEqual(45f, Output(start), D, "관통 + 분열 = 20 + 25");
             Assert.AreEqual(FlowKind.None, BeltFlow.KindAt(g, new Vector2Int(4, 6)),
                 "빈칸의 벨트는 비어 있다 — 그것이 다음에 할 일의 표시다");
-            // 고정비도 **이어진 노드만** 센다: 코어 0 + 에너지 0 + 군수 2대 × 2 = 4.
-            Assert.AreEqual(4f, start.powerDraw, D, "군수 2대분만 든다");
+            // 고정비도 **이어진 노드만** 센다: 코어 0 + 에너지 1 + 군수 2대 × 2 = 5.
+            // 에너지가 대당 1을 먹게 되면서 4에서 5로 올랐다(260901_V02 §2층).
+            Assert.AreEqual(5f, start.powerDraw, D, "군수 2대 + 에너지 1대분");
 
             // 빈칸을 채운다.
             g.TryPlace(new Vector2Int(3, 6), _muni, out NodeInstance expl);

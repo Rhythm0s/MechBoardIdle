@@ -177,19 +177,81 @@ namespace MBI.Tests
         }
 
         /// <summary>
-        /// **전력이 모자라지 않는다.** 모자라면 출력이 감쇠해 80이 80으로 안 보인다 —
-        /// 온보딩 첫 화면에서 「왜 낮지」가 생기면 배치를 가르치는 판이 아니게 된다.
+        /// 전력 수요·공급을 **숫자로 못 박는다.** 대당 전력 7종과 발전량 10이 확정되면서
+        /// (260901_V02 §2층) 전력이 처음으로 실제 제약이 됐다.
+        ///
+        /// 시작 보드에는 **가공도 저장도 없다** — 코어 1 + 에너지 1 + 군수 4뿐이다.
+        /// 수요 = 군수 4 × 2 + 에너지 1 × 1 = 9. 공급 = 에너지 1대 × 10 = 10.
         /// </summary>
         [Test]
-        public void PowerCovers_TheFilledBoard()
+        public void PowerCovers_TheStartingBoard()
         {
-            BoardGrid g = Build(fillEmptySlot: true);
-            ICollection<Vector2Int> connected = LogisticsReach.ConnectedNodes(g);
-            NetworkAggregate agg = LogisticsNetwork.Aggregate(g, connected,
-                WorkloadRate.Compute(g, connected, _bal));
+            NetworkAggregate agg = Aggregate(Build(fillEmptySlot: false));
 
-            Assert.GreaterOrEqual(agg.powerSupply, agg.powerDraw,
-                $"공급 {agg.powerSupply} < 수요 {agg.powerDraw}");
+            Assert.AreEqual(9f, agg.powerDraw, D, "군수 4×2 + 에너지 1×1");
+            Assert.AreEqual(10f, agg.powerSupply, D, "에너지 1대 × 10");
+            Assert.GreaterOrEqual(agg.powerSupply, agg.powerDraw, "시작은 전력이 남는다");
+        }
+
+        /// <summary>
+        /// ⚠️ **빈 칸을 채우면 전력이 모자란다.** 수요 11 > 공급 10.
+        ///
+        /// 260901_V02 §3층은 「시작 66.7 → 발전 늘려 80 → 채워서 100」을 의도했는데,
+        /// 그 산술은 **가공 2 · 저장 1을 가정한 값**이다. 실제 시작 보드에는 둘 다 없어
+        /// 순서가 뒤집힌다: **시작은 충분하고, 채운 순간 모자라진다.**
+        ///
+        /// 여기서는 판단하지 않고 현실만 기록한다 — 시작 보드를 어떻게 할지는 설계 판정이다.
+        /// </summary>
+        [Test]
+        public void FillingTheEmptySlot_MakesPowerShort()
+        {
+            NetworkAggregate agg = Aggregate(Build(fillEmptySlot: true));
+
+            Assert.AreEqual(11f, agg.powerDraw, D, "군수 5×2 + 에너지 1×1");
+            Assert.AreEqual(10f, agg.powerSupply, D);
+            Assert.Less(agg.powerSupply, agg.powerDraw, "채우면 모자란다");
+        }
+
+        /// <summary>
+        /// 전력이 모자란 만큼 출력이 깎인다. 100 × (10 ÷ 11) ≈ **90.9**.
+        ///
+        /// ⚠️ S1 요구치가 90이므로 **발전소를 늘리지 않아도 겨우 통과한다.**
+        /// 설계가 의도한 「세 동작을 다 마쳐야 90을 넘는다」가 이 배치에서는 성립하지 않는다.
+        /// </summary>
+        [Test]
+        public void FilledOutput_IsThrottledToAboutNinetyOne()
+        {
+            NetworkAggregate agg = Aggregate(Build(fillEmptySlot: true));
+
+            float efficiency = Mathf.Clamp01(agg.powerSupply / agg.powerDraw);
+            float throttled = 100f * efficiency;
+
+            Assert.AreEqual(90.9f, throttled, 0.1f, "100 × 10/11");
+            Assert.Greater(throttled, 90f, "요구 90을 발전 증설 없이 넘는다 — 설계 보고 대상");
+        }
+
+        private NetworkAggregate Aggregate(BoardGrid g)
+        {
+            ICollection<Vector2Int> connected = LogisticsReach.ConnectedNodes(g);
+            return LogisticsNetwork.Aggregate(g, connected, WorkloadRate.Compute(g, connected, _bal));
+        }
+
+        /// <summary>
+        /// 시작 보드에 **가공·저장이 없다**(260901_V02 §3층 산술의 입력).
+        /// 설계는 가공 2 · 저장 1을 가정했다 — 그 차이가 위 두 테스트의 원인이다.
+        /// </summary>
+        [Test]
+        public void StartingBoard_HasNoProcessingOrStorage()
+        {
+            int proc = 0, stor = 0;
+            foreach (StartingBoard.Slot slot in StartingBoard.Nodes)
+            {
+                if (slot.nodeId == "proc") proc++;
+                if (slot.nodeId == "stor") stor++;
+            }
+
+            Assert.AreEqual(0, proc, "가공 노드 없음");
+            Assert.AreEqual(0, stor, "저장 노드 없음");
         }
     }
 }
