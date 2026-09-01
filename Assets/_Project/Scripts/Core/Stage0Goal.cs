@@ -37,7 +37,14 @@ namespace MBI.Core
         public void Observe(bool emptySlotFilled, bool mountIsFull)
         {
             if (emptySlotFilled) NodePlaced = true;
-            if (mountIsFull) MountFilled = true;
+
+            // ⚠️ **놓은 뒤부터 센다.** 순서가 수업이기 때문이다 —
+            // 「놓으면 이어진다」 다음에 「이어지면 쌓인다」를 보는 것이 이 스테이지의 내용물이다.
+            //
+            // 순서를 안 지키면 이렇게 된다: 시작 보드가 이미 정상 작동 중이라 마운트는
+            // 5초 남짓이면 저절로 찬다. 그러면 플레이어가 노드를 놓는 순간 곧바로 끝나고,
+            // 쌓이는 장면을 한 번도 못 본다 — 브라우저 실측에서 실제로 그랬다(2026-09-01).
+            if (NodePlaced && mountIsFull) MountFilled = true;
         }
 
         /// <summary>다시 시작할 때. 걸쇠를 전부 푼다.</summary>

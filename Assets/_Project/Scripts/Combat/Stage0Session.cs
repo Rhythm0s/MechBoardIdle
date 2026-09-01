@@ -50,8 +50,10 @@ namespace MBI.Combat
             CombatSimulation sim = runner.Sim;
             if (sim == null) return;
 
-            // 전투 없음 — 적이 다 죽어서 이기는 것도, 시간이 다 되어 지는 것도 없다.
-            // ⚠️ 매 프레임 다시 세운다. 러너가 재시작하면 새 시뮬이 오기 때문이다.
+            // 시간이 다 되어 지는 일이 없게 한다.
+            // ⚠️ **적이 안 나오는 것은 Endless가 아니라 스테이지 데이터가 한다** — Endless는
+            // 승패 판정만 막고 스폰은 그대로 돈다(2026-09-01 브라우저 실측에서 적 40기가 나왔다).
+            // 스테이지 0 자산의 몬스터 구성이 비어 있는 것이 전투가 없는 진짜 이유다.
             sim.Endless = true;
 
             _goal.Observe(TutorialSignals.GhostCellFilled,

@@ -128,6 +128,10 @@ namespace MBI.Editor
             // ⚠️ **되돌림 지점 — 9월 4일 게이트 2.** 스테이지 0이 안 끝나 있으면
             // 아래 블록만 지우면 종전 동작(켜면 바로 스테이지 1)으로 돌아온다.
             // StageRunner·BoardController·asmdef 어디도 손대지 않았으므로 이 블록이 전부다.
+            StageDefinition stageZero = CreateStageZero();
+            so.FindProperty("stage").objectReferenceValue = stageZero; // 켜면 스테이지 0부터
+            so.ApplyModifiedPropertiesWithoutUndo();
+
             var stage0 = go.AddComponent<Stage0Session>();
             var s0so = new SerializedObject(stage0);
             s0so.FindProperty("runner").objectReferenceValue = runner;
@@ -207,6 +211,40 @@ namespace MBI.Editor
 
         // initialLayout 배열에 (셀, 노드, 탄종) 1건 추가. 노드가 없으면 건너뛴다(생성기 미실행 상황).
         // 탄종은 군수 노드에만 의미가 있다 — 기본 관통(origin basis「관통탄 20×5발 기본 라인」).
+        /// <summary>
+        /// 스테이지 0 데이터 — **적이 없는 스테이지**(260901_V05 §3층).
+        ///
+        /// ⚠️ 적을 안 나오게 하는 것은 `Endless`가 아니다. `Endless`는 승패 **판정**만 막고
+        /// 스폰은 그대로 돈다 — 브라우저 실측에서 적 40기가 나왔다(2026-09-01).
+        /// 스폰을 없애는 유일한 자리는 **스테이지의 몬스터 구성**이다.
+        ///
+        /// `balance_v4.json`에는 넣지 않는다. 스테이지 0은 요구치가 없어 그 표의 축과 맞지 않고,
+        /// 여기서 만들면 되돌릴 때 이 메서드까지 한 블록으로 지워진다.
+        /// </summary>
+        private static StageDefinition CreateStageZero()
+        {
+            const string path = SoRoot + "/Stages/Stage_S0.asset";
+            StageDefinition s = AssetDatabase.LoadAssetAtPath<StageDefinition>(path);
+            if (s == null)
+            {
+                s = ScriptableObject.CreateInstance<StageDefinition>();
+                AssetDatabase.CreateAsset(s, path);
+            }
+
+            var so = new SerializedObject(s);
+            so.FindProperty("stageId").stringValue = "S0";
+            so.FindProperty("topic").stringValue = "벨트 — 이으면 만들어진다";
+            so.FindProperty("reqType").enumValueIndex = (int)StageReqType.Fixed;
+            so.FindProperty("req").floatValue = 0f;          // 요구치 없음 — 전투가 없다
+            so.FindProperty("challengeTime").floatValue = 0f; // 제한 시간 없음
+            so.FindProperty("composition").arraySize = 0;     // **적 0기**
+            so.ApplyModifiedPropertiesWithoutUndo();
+
+            EditorUtility.SetDirty(s);
+            AssetDatabase.SaveAssets();
+            return s;
+        }
+
         private static void AddInitial(SerializedProperty layout, Vector2Int cell, NodeDefinition node,
             AmmoKind ammoKind = AmmoKind.Pierce)
         {

@@ -1,0 +1,27 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 6591333e82aae8149bfa43a18b4865ec, type: 3}
+  m_Name: Stage_S0
+  m_EditorClassIdentifier: MBI.Data::MBI.Data.StageDefinition
+  stageId: S0
+  topic: "\uBCA8\uD2B8 \u2014 \uC774\uC73C\uBA74 \uB9CC\uB4E4\uC5B4\uC9C4\uB2E4"
+  reqType: 0
+  req: 0
+  reqBand: {x: 0, y: 0}
+  powerModel: 0
+  challengeTime: 0
+  enhMaterialReward: 0
+  spawnCap: 0
+  spawnInterval: 0
+  spawnConfirmed: 0
+  composition: []
+  bossHp: 0

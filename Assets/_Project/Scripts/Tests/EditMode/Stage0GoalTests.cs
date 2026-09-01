@@ -27,16 +27,36 @@ namespace MBI.Tests
         /// **마운트만 차서는 안 끝난다.** 이것이 조건을 둘로 둔 이유다 —
         /// 관통 4노드가 이미 정상 작동 중이라, 아무것도 안 하고 기다려도 마운트는 찬다.
         /// 그 하나만 걸면 배우는 것이 없다.
+        ///
+        /// ⚠️ 놓기 전의 만충은 **세지도 않는다**(순서 규칙). 세어 두면 플레이어가 노드를 놓는
+        /// 순간 곧바로 끝나 「쌓인다」를 한 번도 못 본다 — 브라우저 실측에서 실제로 그랬다.
         /// </summary>
         [Test]
-        public void MountAlone_DoesNotFinish()
+        public void MountBeforePlacement_IsNotCounted()
         {
             var goal = new Stage0Goal();
 
             for (int i = 0; i < 100; i++) goal.Observe(emptySlotFilled: false, mountIsFull: true);
 
-            Assert.IsTrue(goal.MountFilled);
+            Assert.IsFalse(goal.MountFilled, "놓기 전의 만충은 세지 않는다");
             Assert.IsFalse(goal.IsComplete, "기다리기만 해서는 통과하지 못한다");
+        }
+
+        /// <summary>
+        /// **놓은 뒤에 차야 끝난다.** 놓기 전에 아무리 차 있었어도 다시 차야 한다 —
+        /// 그 기다림이 「이어지면 쌓인다」를 보는 시간이다(약 8초).
+        /// </summary>
+        [Test]
+        public void MountAfterPlacement_Finishes()
+        {
+            var goal = new Stage0Goal();
+
+            goal.Observe(emptySlotFilled: false, mountIsFull: true); // 놓기 전 — 안 센다
+            goal.Observe(emptySlotFilled: true, mountIsFull: false); // 놓는다
+            Assert.IsFalse(goal.IsComplete, "놓은 직후에는 아직 아니다");
+
+            goal.Observe(emptySlotFilled: true, mountIsFull: true);  // 다시 찬다
+            Assert.IsTrue(goal.IsComplete);
         }
 
         /// <summary>놓기만 하고 아직 안 찼으면 끝나지 않는다 — 「이어지면 쌓인다」를 봐야 한다.</summary>
@@ -51,12 +71,12 @@ namespace MBI.Tests
             Assert.IsFalse(goal.IsComplete);
         }
 
+        /// <summary>같은 프레임에 둘 다 서도 성립한다 — 놓는 순간 이미 차 있던 경우.</summary>
         [Test]
-        public void BothTogether_Finishes()
+        public void BothInOneFrame_Finishes()
         {
             var goal = new Stage0Goal();
 
-            goal.Observe(emptySlotFilled: true, mountIsFull: false);
             goal.Observe(emptySlotFilled: true, mountIsFull: true);
 
             Assert.IsTrue(goal.IsComplete);
@@ -88,22 +108,10 @@ namespace MBI.Tests
         {
             var goal = new Stage0Goal();
 
-            goal.Observe(emptySlotFilled: false, mountIsFull: true);
-            goal.Observe(emptySlotFilled: false, mountIsFull: false); // 곧바로 소비돼도
+            goal.Observe(emptySlotFilled: true, mountIsFull: true);
+            goal.Observe(emptySlotFilled: true, mountIsFull: false); // 곧바로 소비돼도
 
             Assert.IsTrue(goal.MountFilled, "가득 찬 적이 있으면 본 것이다");
-        }
-
-        /// <summary>순서가 뒤바뀌어도 성립한다 — 먼저 차고 나중에 놓아도 된다.</summary>
-        [Test]
-        public void OrderDoesNotMatter()
-        {
-            var goal = new Stage0Goal();
-
-            goal.Observe(emptySlotFilled: false, mountIsFull: true);
-            goal.Observe(emptySlotFilled: true, mountIsFull: false);
-
-            Assert.IsTrue(goal.IsComplete);
         }
 
         // ---- 다시 시작 ----
