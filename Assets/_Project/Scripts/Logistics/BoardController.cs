@@ -808,8 +808,8 @@ namespace MBI.Logistics
             DrawTutorialGhost(); // 라벨보다 먼저 — 고스트는 배경이지 글자가 아니다
             DrawCellLabels(); // 버튼보다 먼저 — 팔레트/모드 버튼이 라벨 위에 온다
             DrawBottleneckHint();
-            DrawModeButton();
             DrawMiniMap();
+            DrawModeButton();
             DrawZoom();
 
             if (palette == null || palette.Count == 0) return;
@@ -1078,7 +1078,15 @@ namespace MBI.Logistics
         private void DrawModeButton()
         {
             var style = new GUIStyle(GUI.skin.button) { fontSize = 16 };
-            var rect = new Rect(Screen.width - 152f, Screen.height - 78f, 140f, 46f);
+
+            // ⚠️ **왼쪽 위로 옮긴다.** 종전에는 화면 바닥(height-78)에 고정돼 있었는데,
+            // 팔레트는 y 300에서 아래로 자라므로 창 높이에 따라 **중간에서 만난다** —
+            // 800×450 · 1024×600 · 1280×800 세 크기 전부에서 「제거」 버튼과 겹쳤다
+            // (2026-09-02 실측). 팔레트 아래에 붙여도 팔레트가 화면보다 길면 다시 겹친다.
+            //
+            // 화면 바닥과 화면 위를 각각 기준으로 삼는 두 요소는 언젠가 반드시 만난다.
+            // 그래서 같은 기준(왼쪽 위)을 쓰는 배율 줄 옆으로 보낸다.
+            var rect = new Rect(12f, 300f, 140f, 46f);
             if (rect.Contains(Event.current.mousePosition)) _pointerOverPalette = true;
 
             string label = _mode == BoardMode.Pan ? "이동 모드" : "조립 모드";
@@ -1118,7 +1126,8 @@ namespace MBI.Logistics
             // (2026-09-02 브라우저 실측 — UI 겹침 네 번째). 전투 HUD가 y 290에서 끝나고
             // 전투 조작 버튼이 y 300에서 시작하는데, 그 조작 버튼은 이제 조립 화면에서
             // 그려지지 않으므로(StageRunner) 이 줄이 300을 통째로 쓴다.
-            const float x = 12f, y = 300f, bw = 40f, bh = 30f, pad = 6f;
+            // 모드 버튼(12..152)의 오른쪽. 같은 줄에서 세로 가운데를 맞춘다.
+            const float x = 164f, y = 308f, bw = 40f, bh = 30f, pad = 6f;
 
             var minus = new Rect(x, y, bw, bh);
             var plus = new Rect(x + bw + pad, y, bw, bh);

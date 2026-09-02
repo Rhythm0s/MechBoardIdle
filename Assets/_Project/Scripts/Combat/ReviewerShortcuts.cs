@@ -107,15 +107,19 @@ namespace MBI.Combat
 
             if (!GUI.Button(new Rect(x, y, w, h), "처음부터 (저장 초기화)", style)) return;
 
-            IdleSignals.RequestSaveReset();               // 저장 — 방치 런타임이 지운다
-            TutorialSignals.ClearEmptySlotRequested = true; // 비워 둔 칸 — 보드가 비운다
-            runner.ResetCarry();                          // 창고와 마운트
+            IdleSignals.RequestSaveReset(); // 저장 — 방치 런타임이 지운다
+            runner.ResetCarry();            // 창고와 마운트
 
             if (tutorialStage != null)
             {
                 runner.LoadStage(tutorialStage);
                 if (stage0 != null) stage0.Reenter();
             }
+
+            // ⚠️ **비워 둔 칸은 맨 마지막에 요청한다.** Reenter가 고스트를 다시 걸면서
+            // TutorialSignals.Reset()을 부르는데, 그것이 이 요청까지 지운다 —
+            // 앞에 두었더니 병합기가 안 지워져 넷 중 셋만 되돌아갔다(2026-09-02 실측).
+            TutorialSignals.ClearEmptySlotRequested = true;
         }
 
         /// <summary>
