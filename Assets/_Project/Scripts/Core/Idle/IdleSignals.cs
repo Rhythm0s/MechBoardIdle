@@ -23,6 +23,21 @@ namespace MBI.Core
         private static ClearReport _clear;
         private static bool _hasClear;
 
+        /// <summary>
+        /// 스테이지 0(튜토리얼)의 고정 식별자. **스테이지가 아니지만 클리어 여부는 저장에 남는다**
+        /// (260902_W08 §2-2) — 미클리어면 켤 때마다 튜토리얼로 들어가야 하기 때문이다.
+        /// </summary>
+        public const string TutorialId = "S0";
+
+        /// <summary>
+        /// 튜토리얼을 이미 끝냈는가 — **방치 런타임이 저장에서 읽어 게시하고 전투가 읽는다.**
+        ///
+        /// 이 한 칸 때문에 `MBI.Combat`이 `MBI.Idle`을 참조하지 않아도 된다.
+        /// 기본값 false = 「아직 안 했다」이므로, 저장 계층이 없는 씬(격리 전투 씬)에서도
+        /// 튜토리얼이 정상으로 열린다.
+        /// </summary>
+        public static bool TutorialCleared;
+
         /// <summary>처치 보고(전투 측). CombatSimulation.ConsumeKills로 가져온 값을 넣는다.</summary>
         public static void AddKills(int count)
         {
@@ -61,6 +76,7 @@ namespace MBI.Core
             _kills = 0;
             _clear = default;
             _hasClear = false;
+            TutorialCleared = false;
         }
     }
 }

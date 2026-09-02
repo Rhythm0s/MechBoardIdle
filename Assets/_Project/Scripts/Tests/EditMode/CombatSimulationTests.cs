@@ -40,7 +40,7 @@ namespace MBI.Tests
             // 이 파일은 발사 메커니즘을 본다 — 재고가 병목이 되지 않게 넉넉히 채운다.
             // 재고 자체의 규칙(소진 시 발사 정지)은 AmmoInventoryTests가 따로 검증한다.
             ammoCapacity = 100000f,
-            ammoInitialStock = 100000f,
+            ammoStore = AmmoFixture.Stocked(100000f, RepresentativeLines(), 100000f),
         };
 
         private static void Run(CombatSimulation sim, float seconds, float dt = 0.1f)

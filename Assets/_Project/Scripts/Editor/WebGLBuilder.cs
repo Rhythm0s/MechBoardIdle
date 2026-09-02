@@ -23,8 +23,24 @@ namespace MBI.Editor
         private const string OutputDir = "Build/WebGL";
         private const string MainScene = "Assets/_Project/Scenes/Game.unity";
 
+        /// <summary>
+        /// 배포 빌드 — **심사자에게 링크로 가는 것.** 튜토리얼 복귀 버튼은 여기에 없다
+        /// (260902_W08 §2-2: 스테이지 0은 스테이지 이동 목록에 뜨지 않는다).
+        /// </summary>
         [MenuItem("MBI/Build WebGL")]
-        public static void Build()
+        public static void Build() => Build(development: false);
+
+        /// <summary>
+        /// **촬영·리허설용 개발 빌드**(260902_W08 §2-3). 같은 코드인데 스테이지 0 복귀가 열린다 —
+        /// <c>Debug.isDebugBuild</c>가 참이 되기 때문이다.
+        ///
+        /// 복귀 경로가 없으면 9월 6일에 A구간 재테이크가 불가능해지고 **첫 테이크가 곧 최종본**이 된다.
+        /// 그래서 이것은 편의가 아니라 촬영 조건이다.
+        /// </summary>
+        [MenuItem("MBI/Build WebGL (개발 — 촬영용)")]
+        public static void BuildDevelopment() => Build(development: true);
+
+        private static void Build(bool development)
         {
             string[] scenes = { MainScene };
             if (!File.Exists(MainScene))
@@ -49,7 +65,8 @@ namespace MBI.Editor
                 scenes = scenes,
                 locationPathName = OutputDir,
                 target = BuildTarget.WebGL,
-                options = BuildOptions.None,
+                // 개발 빌드에서만 Debug.isDebugBuild가 참이 된다 — 그것이 튜토리얼 복귀의 문이다.
+                options = development ? BuildOptions.Development : BuildOptions.None,
             };
 
             BuildReport report = BuildPipeline.BuildPlayer(options);
@@ -58,7 +75,8 @@ namespace MBI.Editor
             if (s.result == BuildResult.Succeeded)
             {
                 double mb = s.totalSize / (1024.0 * 1024.0);
-                Debug.Log($"[MBI] WebGL 빌드 성공: {OutputDir} · {mb:F1} MB · {s.totalTime.TotalSeconds:F0}초");
+                string kind = development ? "개발(촬영용)" : "배포";
+                Debug.Log($"[MBI] WebGL {kind} 빌드 성공: {OutputDir} · {mb:F1} MB · {s.totalTime.TotalSeconds:F0}초");
                 EditorApplication.Exit(0);
             }
             else

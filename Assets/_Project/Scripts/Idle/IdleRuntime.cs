@@ -48,6 +48,11 @@ namespace MBI.Idle
             Data = _store.TryLoad(out SaveDataV1 loaded) ? loaded : new SaveDataV1();
             Wallet = new CurrencyWallet(Data.scrap, Data.enhMaterial);
 
+            // 튜토리얼을 이미 했는지 전투 쪽에 알린다. **Awake에서 한다** —
+            // Stage0Session이 자기 Awake에서 이 값을 읽어 들어갈지 말지를 정하므로,
+            // 실행 순서(-100 → -50)가 뒤집히면 매번 튜토리얼이 다시 열린다.
+            IdleSignals.TutorialCleared = Data.HasCleared(IdleSignals.TutorialId);
+
             SettleOffline();
         }
 

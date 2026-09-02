@@ -144,6 +144,7 @@ namespace MBI.Editor
             var rso = new SerializedObject(shortcuts);
             rso.FindProperty("runner").objectReferenceValue = runner;
             rso.FindProperty("stage0").objectReferenceValue = stage0;
+            rso.FindProperty("tutorialStage").objectReferenceValue = stageZero;
             SerializedProperty rsl = rso.FindProperty("stages");
             rsl.arraySize = stageList.Count + 1;
             rsl.GetArrayElementAtIndex(0).objectReferenceValue = stageZero; // 맨 앞이 스테이지 0

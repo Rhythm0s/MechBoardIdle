@@ -41,8 +41,13 @@ namespace MBI.Logistics
         /// <summary>레이어 버튼 위에 포인터가 있으면 true — BoardController가 보드 입력을 무시(오배치 방지).</summary>
         public static bool PointerOverButton { get; private set; }
 
-        /// <summary>조립(물류 보드) 레이어가 활성인가 — BoardController가 팔레트 표시 여부 판단.</summary>
-        public static bool BoardViewActive { get; private set; }
+        /// <summary>
+        /// 조립(물류 보드) 레이어가 활성인가 — BoardController가 팔레트 표시 여부 판단.
+        ///
+        /// **값은 <see cref="GameViewSignals"/>가 들고 있다.** 여기 따로 두면 원천이 둘이 되고,
+        /// 전투 쪽(다른 어셈블리)이 읽는 값과 보드가 읽는 값이 갈릴 수 있다.
+        /// </summary>
+        public static bool BoardViewActive => GameViewSignals.BoardViewActive;
 
         private void Start()
         {
@@ -52,7 +57,7 @@ namespace MBI.Logistics
 
         private void Update()
         {
-            BoardViewActive = _boardView;
+            GameViewSignals.BoardViewActive = _boardView;
             if (cam == null) return;
             Vector2 tc = _boardView ? boardCenter : combatCenter;
             float ts = _boardView ? boardSize : combatSize;

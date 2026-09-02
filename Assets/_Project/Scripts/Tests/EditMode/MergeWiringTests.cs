@@ -30,7 +30,7 @@ namespace MBI.Tests
             attackRange = 100f, radius = 0f,
             multiShotCount = 1, aoeRadius = 0f, aoeSplashFactor = 1f,
             lines = new List<AmmoLine> { new AmmoLine(AmmoKind.Pierce, damagePerShot, 1f) },
-            ammoCapacity = 1000f, ammoInitialStock = 1000f,
+            ammoCapacity = 1000f, ammoStore = AmmoFixture.Pierce(1000f, 1000f),
             droneSlots = 0, droneReleaseRate = 0f, droneCharge = 0f, droneAttackRange = 0f,
         };
 

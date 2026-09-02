@@ -127,7 +127,8 @@ namespace MBI.Tests
             hp = 1000f, mountCoef = 1f, moduleMult = 1f, attackRange = 100f,
             multiShotCount = 1, aoeRadius = 0f, aoeSplashFactor = 1f,
             lines = PierceLine(rate),
-            ammoCapacity = capacity, ammoInitialStock = initial,
+            ammoCapacity = capacity,
+            ammoStore = AmmoFixture.Stocked(capacity, PierceLine(rate), initial),
         };
 
         private static List<EnemySpawn> Sandbag() => new List<EnemySpawn>

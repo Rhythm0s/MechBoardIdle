@@ -32,7 +32,7 @@ namespace MBI.Tests
             attackRange = 100f, radius = 0f,
             multiShotCount = 1, aoeRadius = 0f, aoeSplashFactor = 1f,
             lines = new List<AmmoLine> { new AmmoLine(AmmoKind.Pierce, 20f, 1f) },
-            ammoCapacity = 40f, ammoInitialStock = 0f,
+            ammoCapacity = 40f,
             droneSlots = 0, droneReleaseRate = 0f, droneCharge = 0f, droneAttackRange = 0f,
         };
 
@@ -374,7 +374,6 @@ namespace MBI.Tests
         {
             RobotSetup r = Robot();
             r.lines = new List<AmmoLine>();
-            r.ammoInitialStock = 0f;
             r.droneSlots = 3;
             r.droneReleaseRate = 1f;
             r.droneCharge = 100f;

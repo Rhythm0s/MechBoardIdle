@@ -36,7 +36,28 @@ namespace MBI.Core
         public float aoeSplashFactor; // AoE 스플래시 데미지 배율(TBD). 1이면 풀 데미지.
         public List<AmmoLine> lines; // 탄종별 발사 라인(ShotAllocator.AllocateRates 산출)
         public float ammoCapacity;   // 재고 용량(발). 확정치 40 — 재고는 단일 층
-        public float ammoInitialStock; // 전투 시작 재고. ⚠️ 초기값은 원천 미규정 — 러너가 만재로 둔다
+
+        /// <summary>
+        /// 창고 본체. **러너가 들고 있어 스테이지를 넘어도 그대로 이어진다**(260902_W08 §1 확정).
+        /// null이면 빈 창고를 새로 만든다 — 새 저장의 자연 상태가 0이다.
+        ///
+        /// ⚠️ 종전에는 <c>ammoInitialStock</c>으로 **전투가 열릴 때마다 재고를 만들어 줬다**(만재 40).
+        /// 원천에 없는 값을 러너가 고른 것이었고, 그 탓에 생산이 0인 스테이지 0에서도
+        /// 마운트가 놓기 전에 이미 차 있어 「쌓인다」가 한 번도 안 보였다.
+        /// 스테이지를 여는 순간 40발을 주는 것도 0으로 비우는 것도 시스템의 개입이다 —
+        /// 공장은 스테이지를 넘어도 계속 돌고 있다(지침 §3).
+        /// </summary>
+        public AmmoInventory ammoStore;
+
+        /// <summary>
+        /// 마운트 본체. 창고와 같은 이유로 **러너가 들고 있다**(260902_W08 §1).
+        /// null이면 새로 만든다. 생성자에 마운트를 직접 넘기면 그쪽이 이긴다(태그 경로).
+        ///
+        /// ⚠️ 창고만 이어서는 모자란다. 창고 → 마운트 이송에 속도 제한이 없어 재고가 곧바로
+        /// 마운트로 옮겨 앉으므로, 전환 시점의 창고는 대개 비어 있다. 마운트를 안 이으면
+        /// **스테이지를 넘는 순간 재고가 통째로 사라진다.**
+        /// </summary>
+        public MountLoad mount;
 
         // ---- 드론(로봇 B) ----
         // 실효 방출량 = min(유입, 슬롯 × 방출률). 유입은 보드의 「드론 몸체」 조합표가 만든다.
@@ -508,7 +529,7 @@ namespace MBI.Core
                         def = 0f,
                         radius = r.radius,
                     },
-                    ammo = new AmmoInventory(r.ammoCapacity),
+                    ammo = r.ammoStore ?? new AmmoInventory(r.ammoCapacity),
                     bay = new DroneBay(r.droneSlots, r.droneReleaseRate, r.droneCharge),
                     // 마운트를 안 줘도 **자기 마운트는 갖는다.** 마운트는 로봇의 장비이지
                     // 태그의 부속이 아니다 — 슬롯 0을 주던 동안 단일 로봇 시뮬은 드론을
@@ -516,7 +537,8 @@ namespace MBI.Core
                     // 슬롯 수는 setup에서 나온다: 드론을 모는 쪽이 로봇 B다.
                     mount = mounts != null && i < mounts.Length && mounts[i] != null
                         ? mounts[i]
-                        : new MountLoad(r.droneSlots > 0 ? MountLoad.SlotsRobotB : MountLoad.SlotsRobotA,
+                        : r.mount
+                        ?? new MountLoad(r.droneSlots > 0 ? MountLoad.SlotsRobotB : MountLoad.SlotsRobotA,
                             r.mountStackLimit > 0f ? MountLoad.StandardStacks(r.mountStackLimit) : null),
                 };
                 side.lineTimers = new float[r.lines != null ? r.lines.Count : 0];
@@ -526,13 +548,8 @@ namespace MBI.Core
             _spawnQueue = new List<EnemySpawn>(spawns ?? new List<EnemySpawn>());
             _spawnPositions = BuildSpawnPositions(_spawnQueue.Count, arenaRadius);
 
-            // 초기 재고는 각 로봇의 창고에 넣는다.
-            for (int i = 0; i < _sides.Length; i++)
-            {
-                _active = i;
-                LoadInitialStock(_sides[i].setup.ammoInitialStock);
-            }
-            _active = 0;
+            // ⚠️ **여기서 재고를 만들지 않는다**(260902_W08 §1). 창고는 러너가 들고 있고
+            // 시뮬은 빌려 쓸 뿐이다 — 스테이지 전환이 재고에 손대지 않는 것이 그 뜻이다.
 
             if (_sides.Length > 1)
             {
@@ -563,18 +580,6 @@ namespace MBI.Core
             if (total <= 0f) return 0f;
 
             return Mathf.Max(0f, lines[lineIndex].shotsPerSec) / total;
-        }
-
-        /// <summary>전투 시작 재고를 탄종별로 적재한다. 총량 캡을 넘는 분은 버려진다.</summary>
-        private void LoadInitialStock(float rounds)
-        {
-            if (rounds <= 0f) return;
-
-            List<AmmoLine> lines = Act.setup.lines;
-            if (lines == null || lines.Count == 0) return;
-
-            for (int i = 0; i < lines.Count; i++)
-                Act.ammo.Add(lines[i].kind, rounds * DemandShare(i));
         }
 
         /// <summary>군수 → 창고 유입을 탄종별로 넣는다. 용량은 셋이 나눠 쓴다(잠식).</summary>

@@ -508,6 +508,8 @@ namespace MBI.Logistics
 
         private void Update()
         {
+            ApplyZoom(); // 보드를 볼 때만 확대한다 — 나가면 원래 시야로 돌아간다
+
             if (_panning)
             {
                 if (TryPointerWorld(out Vector2 world))
@@ -780,6 +782,7 @@ namespace MBI.Logistics
             DrawBottleneckHint();
             DrawModeButton();
             DrawMiniMap();
+            DrawZoom();
 
             if (palette == null || palette.Count == 0) return;
 
@@ -1056,6 +1059,58 @@ namespace MBI.Logistics
 
         // 미니맵 — 부유 요소 띠 좌측(UI 문서 2장). 실루엣 전체 + 현재 보고 있는 범위.
         // 보드가 화면 밖으로 나가는 것은 허용된 설계이므로, 지금 어디를 보는지는 이것이 알린다(9-3).
+        // ---- 보드 배율 (영상 D구간 보드 클로즈업) ----
+        //
+        // 촬영에서 보드를 크게 잡아야 노드 색·벨트 품목 색·배선이 화면에서 읽힌다.
+        // 카메라를 손으로 옮기지 않고 버튼으로 재현 가능하게 두는 이유는 **재테이크 때문이다** —
+        // 테이크마다 배율이 다르면 편집에서 컷이 안 붙는다.
+
+        /// <summary>보드 배율. 1이 기본이고 버튼이 단계로 움직인다.</summary>
+        private float _zoom = 1f;
+
+        /// <summary>씬이 준 원래 시야. 처음 볼 때 한 번 기억한다.</summary>
+        private float _baseOrtho = -1f;
+
+        private const float ZoomMin = 1f, ZoomMax = 2.5f, ZoomStep = 0.25f;
+
+        private void DrawZoom()
+        {
+            var label = new GUIStyle(GUI.skin.label) { fontSize = 14 };
+            var style = new GUIStyle(GUI.skin.button) { fontSize = 16 };
+
+            // ⚠️ 왼쪽 위 — 전투 HUD는 (12,10)에서 280 높이라 **y 290에서 끝난다.**
+            // 라벨이 버튼보다 22 위에 붙으므로 버튼을 330에 둬야 라벨이 308로 내려와 안 겹친다.
+            // 팔레트는 오른쪽이고 미니맵은 아래다. 여기가 비어 있다(2026-09-02).
+            const float x = 12f, y = 330f, bw = 40f, bh = 30f, pad = 6f;
+
+            GUI.Label(new Rect(x, y - 22f, 160f, 20f), $"보드 배율 ×{_zoom:0.00}", label);
+
+            var minus = new Rect(x, y, bw, bh);
+            var plus = new Rect(x + bw + pad, y, bw, bh);
+            if (minus.Contains(Event.current.mousePosition) ||
+                plus.Contains(Event.current.mousePosition)) _pointerOverPalette = true;
+
+            if (GUI.Button(minus, "−", style)) SetZoom(_zoom - ZoomStep);
+            if (GUI.Button(plus, "+", style)) SetZoom(_zoom + ZoomStep);
+        }
+
+        private void SetZoom(float z) => _zoom = Mathf.Clamp(z, ZoomMin, ZoomMax);
+
+        /// <summary>
+        /// 배율을 카메라에 먹인다. **보드를 볼 때만** — 전투 화면으로 나가면 원래 시야로 돌린다.
+        /// 안 돌리면 조립을 확대해 둔 채 나갔을 때 전투가 통째로 확대된 채 찍힌다.
+        /// </summary>
+        private void ApplyZoom()
+        {
+            Camera cam = boardCamera != null ? boardCamera : Camera.main;
+            if (cam == null || !cam.orthographic) return;
+
+            if (_baseOrtho < 0f) _baseOrtho = cam.orthographicSize;
+            cam.orthographicSize = GameLayerController.BoardViewActive
+                ? _baseOrtho / Mathf.Max(0.01f, _zoom)
+                : _baseOrtho;
+        }
+
         private void DrawMiniMap()
         {
             if (_pan == null || config == null) return;
@@ -1144,6 +1199,10 @@ namespace MBI.Logistics
         }
 
         // 벨트 마커: 회색 셀 사각 + outFace 쪽 밝은 방향 표시(플레이스홀더).
+        /// <summary>벨트 흐름 무늬. 화살표를 밀어 주는 쪽이다(셀 → 무늬).</summary>
+        private readonly Dictionary<Vector2Int, BeltFlowAnimator> _beltFlows =
+            new Dictionary<Vector2Int, BeltFlowAnimator>();
+
         private void SpawnBeltMarker(Vector2Int cell, PortFace outFace)
         {
             var m = new GameObject($"Belt_{cell.x}_{cell.y}");
@@ -1167,6 +1226,14 @@ namespace MBI.Logistics
             // 여기에 SortingLayers.Tile(-20)을 쓰면 화살표가 벨트 몸통(0) 뒤로 들어가 안 보인다 —
             // 실제로 그래서 방향 표시가 화면에 없었다.
             asr.sortingOrder = BeltArrowOrder;
+
+            // 흐름 무늬 — 입력 면은 격자에서 읽는다(직선·코너·병합기 다 같은 규칙).
+            var flow = m.AddComponent<BeltFlowAnimator>();
+            flow.arrow = asr;
+            BeltInstance be = _grid.GetBeltAt(cell);
+            PortFace inFace = be != null ? be.InFace : NodeConnectionRules.Opposite(outFace);
+            flow.SetPath(BeltFlowAnimator.Offset(inFace), BeltFlowAnimator.Offset(outFace));
+            _beltFlows[cell] = flow;
 
             // 끝단 미연결 경고(§5-4 ⑤): 셀 위쪽 모서리에 작은 표식. 기본 off — RefreshConnections가 켠다.
             var warn = new GameObject("warn");
@@ -1207,6 +1274,24 @@ namespace MBI.Logistics
             foreach (KeyValuePair<Vector2Int, SpriteRenderer> kv in _beltArrows)
                 if (kv.Value != null)
                     kv.Value.color = connected.Contains(kv.Key) ? BeltConnectedColor : BeltArrowColor;
+
+            // 흐름 무늬 — **이어져 있고 품목이 잡힌 벨트만** 흐른다.
+            // 이어졌는데 품목이 None이면 배선만 있고 아무것도 안 지나가는 것이다.
+            foreach (KeyValuePair<Vector2Int, BeltFlowAnimator> kv in _beltFlows)
+            {
+                if (kv.Value == null) continue;
+
+                // ⚠️ **방향을 여기서 다시 잡는다.** 마커를 만들 때 잡아 둔 면은 곧 낡는다 —
+                // 바로 위 BeltAutoOrient.Resolve가 이웃을 보고 면을 갈아 끼우기 때문이다.
+                // 그대로 두면 무늬가 실제 흐름과 반대로 흐르는 벨트가 생긴다.
+                BeltInstance b = _grid.GetBeltAt(kv.Key);
+                if (b != null)
+                    kv.Value.SetPath(BeltFlowAnimator.Offset(b.InFace),
+                        BeltFlowAnimator.Offset(b.OutFace));
+
+                kv.Value.Flowing = connected.Contains(kv.Key)
+                    && BeltFlow.KindAt(_grid, kv.Key) != FlowKind.None;
+            }
 
             // 판정은 전부 Core(BeltRouting) — 여기서는 켜고 끄기만 한다(§3 UI는 매핑만).
             // (아래) 끝단 미연결 경고.

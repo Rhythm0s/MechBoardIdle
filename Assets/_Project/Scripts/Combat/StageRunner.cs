@@ -129,6 +129,32 @@ namespace MBI.Combat
         }
 
         /// <summary>시뮬·뷰 구성(최초 및 재시작 공용).</summary>
+        // ---- 창고 승계 (260902_W08 §1) ----
+        //
+        // **스테이지 전환은 재고에 손대지 않는다.** 그래서 창고를 시뮬이 아니라 러너가 든다 —
+        // 시뮬은 판마다 새로 만들어지지만 이 둘은 살아남아 그대로 다음 판으로 넘어간다.
+        //
+        // 새 세션의 자연 상태는 **빈 창고**다. 스테이지 0이 0에서 시작하는 것은 예외 규칙이
+        // 아니라 그 자연 상태이고, 그 뒤로는 물류가 이어 붙인다.
+        private AmmoInventory _storeA;
+        private AmmoInventory _storeB;
+        private MountLoad _mountA;
+        private MountLoad _mountB;
+
+        private AmmoInventory StoreA(float capacity) =>
+            _storeA ?? (_storeA = new AmmoInventory(capacity));
+
+        private AmmoInventory StoreB(float capacity) =>
+            _storeB ?? (_storeB = new AmmoInventory(capacity));
+
+        // ⚠️ **마운트도 함께 든다.** 창고만 이으면 전환 때 재고가 사라진다 —
+        // 이송에 속도 제한이 없어 창고는 대개 비어 있고 물건은 마운트에 앉아 있기 때문이다.
+        private MountLoad MountA(float stack) =>
+            _mountA ?? (_mountA = new MountLoad(MountLoad.SlotsRobotA, MountLoad.StandardStacks(stack)));
+
+        private MountLoad MountB(float stack) =>
+            _mountB ?? (_mountB = new MountLoad(MountLoad.SlotsRobotB, MountLoad.StandardStacks(stack)));
+
         private void Begin()
         {
             // 마운트계수: 물류(S1~S3)=base, 그 외(강화/태그/버스트)=enhanced(1.45).
@@ -160,9 +186,9 @@ namespace MBI.Combat
                 aoeSplashFactor = tuning.aoeSplashFactorTbd,
                 lines = new List<AmmoLine>(_lineBuffer),
                 // 재고는 단일 층(마운트 적재 = 창고 비축). 용량은 확정치 40(balance store).
-                // ⚠️ 전투 시작 재고는 원천 미규정 — 만재로 둔다(보고 대상).
+                // **창고는 러너가 들고 있다** — 스테이지를 넘어도 그대로다(260902_W08 §1).
                 ammoCapacity = ammoCapacity,
-                ammoInitialStock = ammoCapacity,
+                ammoStore = StoreA(ammoCapacity),
             };
 
             List<EnemySpawn> spawns = BuildSpawns();
@@ -175,10 +201,10 @@ namespace MBI.Combat
             // `StackLimitOf`가 전부 0 → `IsFull`이 영영 false → **태그 스킬이 한 번도 발동하지
             // 않았다.** 배선은 있는데 조건이 서지 않는 상태였다.
             float stack = robot.balanceRef != null ? robot.balanceRef.mountStackLimit : 10f;
+            setup.mount = MountA(stack); // 단일 로봇 경로는 setup으로 받는다
             _sim = robotB != null
                 ? new CombatSimulation(setup, BuildRobotBSetup(),
-                    new MountLoad(MountLoad.SlotsRobotA, MountLoad.StandardStacks(stack)),
-                    new MountLoad(MountLoad.SlotsRobotB, MountLoad.StandardStacks(stack)),
+                    MountA(stack), MountB(stack),
                     spawns, tuning.arenaRadiusTbd, stage.challengeTime, tuning.spawnCadenceTbd)
                 : new CombatSimulation(setup, spawns,
                     tuning.arenaRadiusTbd, stage.challengeTime, tuning.spawnCadenceTbd);
@@ -216,7 +242,7 @@ namespace MBI.Combat
                 lines = new List<AmmoLine>(),
                 // 탄약 라인이 없으니 창고도 쓰지 않는다. 용량만 남겨 HUD가 0/40을 그린다.
                 ammoCapacity = bal != null ? bal.storeCapacity : 40f,
-                ammoInitialStock = 0f,
+                ammoStore = StoreB(bal != null ? bal.storeCapacity : 40f),
                 droneSlots = bal != null ? bal.droneSlots : 3,
                 droneReleaseRate = bal != null ? bal.droneReleaseRate : 1f,
                 droneCharge = bal != null ? bal.droneCharge : 100f,

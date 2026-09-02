@@ -23,7 +23,7 @@ namespace MBI.Tests
             attackRange = 100f, radius = 0f,
             multiShotCount = 1, aoeRadius = 0f, aoeSplashFactor = 1f,
             lines = new List<AmmoLine>(),   // 본체는 쏘지 않는다
-            ammoCapacity = 0f, ammoInitialStock = 0f,
+            ammoCapacity = 0f,
             droneSlots = 3, droneReleaseRate = 1f, droneCharge = 100f, droneAttackRange = 100f,
         };
 

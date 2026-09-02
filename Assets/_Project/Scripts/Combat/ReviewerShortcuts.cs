@@ -31,10 +31,31 @@ namespace MBI.Combat
         [Tooltip("스테이지를 바꿀 때 함께 꺼야 하는 튜토리얼 세션. 없으면 비워 둔다.")]
         public Stage0Session stage0;
 
+        [Tooltip("튜토리얼(스테이지 0) 자산. 이 버튼은 개발 빌드에만 뜬다.")]
+        public StageDefinition tutorialStage;
+
+        /// <summary>
+        /// 튜토리얼 복귀를 보여 줄 것인가 — **개발 빌드에서만**(260902_W08 §2-2).
+        ///
+        /// 스테이지 0은 스테이지가 아니라 튜토리얼이므로 스테이지 이동 목록에 뜨지 않는다.
+        /// 그런데 촬영은 개발 빌드로 하고 A구간 재테이크에는 복귀가 필요하다 —
+        /// 배포 빌드(심사자용)와 촬영용 빌드는 같은 코드이므로 여기서 갈린다.
+        /// <c>Debug.isDebugBuild</c>는 에디터와 Development Build에서만 참이다.
+        /// </summary>
+        private static bool ShowTutorial => Debug.isDebugBuild;
+
         private bool _open;
 
         private void OnGUI()
         {
+            // ⚠️ **조립 화면에서는 그리지 않는다.** 우측 하단이 조립 화면에서는 노드 팔레트 자리라,
+            // 그대로 두면 「병합기」 버튼을 통째로 덮어 **보드에서 병합기를 고를 수 없다**
+            // (2026-09-02 브라우저 실측 — A구간 촬영이 막혔다).
+            //
+            // 없애는 대신 화면을 가린 것이 아니다. 스테이지 이동은 전투 화면의 일이고,
+            // 조립 중에 스테이지를 갈아 끼울 이유도 없다.
+            if (GameViewSignals.BoardViewActive) return;
+
             KoreanFont.Apply();
 
             var button = new GUIStyle(GUI.skin.button) { fontSize = 13 };
@@ -77,7 +98,7 @@ namespace MBI.Combat
             // ⚠️ 폭을 패널에서 역산한다. 40으로 고정했더니 일곱 개가 S4에서 잘렸다
             // (2026-09-01 브라우저 실측). 스테이지가 늘어도 안 잘리게 나눠 쓴다.
             int count = 0;
-            for (int i = 0; i < stages.Count; i++) if (stages[i] != null) count++;
+            for (int i = 0; i < stages.Count; i++) if (Shows(stages[i])) count++;
             if (count == 0) return;
             float bw = (236f - pad * (count - 1)) / count;
             float bx = x;
@@ -85,7 +106,7 @@ namespace MBI.Combat
             for (int i = 0; i < stages.Count; i++)
             {
                 StageDefinition s = stages[i];
-                if (s == null) continue;
+                if (!Shows(s)) continue;
 
                 bool here = runner.CurrentStage == s;
                 Color prev = GUI.color;
@@ -97,6 +118,10 @@ namespace MBI.Combat
                 bx += bw + pad;
             }
         }
+
+        /// <summary>목록에 뜨는 항목인가. 튜토리얼은 개발 빌드에서만 뜬다.</summary>
+        private bool Shows(StageDefinition s) =>
+            s != null && (s != tutorialStage || ShowTutorial);
 
         private void DrawGaugeButton(float y, float x, float w, float h, GUIStyle style)
         {
@@ -115,6 +140,14 @@ namespace MBI.Combat
         /// </summary>
         private void GoTo(StageDefinition s)
         {
+            // 튜토리얼로 돌아가는 것만은 반대다 — 끄는 것이 아니라 다시 켠다.
+            if (s == tutorialStage && tutorialStage != null)
+            {
+                runner.LoadStage(s);
+                if (stage0 != null) stage0.Reenter();
+                return;
+            }
+
             if (stage0 != null && stage0.enabled) stage0.enabled = false;
             runner.LoadStage(s);
         }
