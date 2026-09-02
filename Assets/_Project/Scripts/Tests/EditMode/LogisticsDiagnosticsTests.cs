@@ -93,9 +93,17 @@ namespace MBI.Tests
             Assert.AreEqual(ConstraintCause.Blocked, CauseAt(starved, new Vector2Int(0, 0)));
         }
 
-        /// <summary>힌트 우선순위 2단계(전력 → 발열): 전력이 멀쩡하면 발열이 원인으로 표출된다.</summary>
+        /// <summary>
+        /// **발열 축 폐기를 테스트로 고정한다** (2026-09-02 · 260902_W15).
+        ///
+        /// 구 테스트는 「전력이 멀쩡하면 발열이 원인으로 표출된다」를 검증했다. 발열이 폐기되어
+        /// 그 기대를 **뒤집는다** — 감쇠가 걸려 있어도 원인은 나오지 않아야 한다.
+        ///
+        /// 테스트를 지우지 않고 뒤집는 이유: 지우면 발열 분기가 되살아나도 아무 데서도 안 걸린다.
+        /// 산출률(0.5)은 그대로 두는데, 그것은 계산부의 값이고 폐기 대상은 **화면에 나오는 원인**이다.
+        /// </summary>
         [Test]
-        public void Diagnose_HeatCause_WhenPowerHealthy()
+        public void Diagnose_HeatNeverSurfaces_AfterAxisRetired()
         {
             var grid = new BoardGrid(4, 4, 1f, Vector2.zero);
             grid.TryPlace(new Vector2Int(1, 2),
@@ -104,12 +112,13 @@ namespace MBI.Tests
                 MakeNode(NodeType.Core, new NodePort(PortFace.West, PortIO.Input, FlowKind.Power)), out _);
 
             LogisticsResult r = HeatThrottled();
-            Assert.AreEqual(1f, r.powerEfficiency, Delta, "전력은 정상이어야 발열 원인이 표출된다");
+            Assert.AreEqual(1f, r.powerEfficiency, Delta, "전력이 정상이어야 발열만 남은 상태가 된다");
+            Assert.Less(r.heatThrottle, 1f, "감쇠 자체는 계산부에 남아 있다 — 표출만 폐기됐다");
 
             List<NodeDiagnostic> ds = LogisticsDiagnostics.Evaluate(grid, r);
-            Assert.AreEqual(ConstraintCause.Heat, CauseAt(ds, new Vector2Int(1, 2)));
-            Assert.AreEqual(ConstraintCause.Heat, CauseAt(ds, new Vector2Int(2, 2)));
-            Assert.AreEqual(0.5f, RateAt(ds, new Vector2Int(2, 2)), Delta); // 노랑(감속)
+            Assert.AreEqual(ConstraintCause.None, CauseAt(ds, new Vector2Int(1, 2)));
+            Assert.AreEqual(ConstraintCause.None, CauseAt(ds, new Vector2Int(2, 2)));
+            Assert.AreEqual(0.5f, RateAt(ds, new Vector2Int(2, 2)), Delta); // 산출률은 그대로
         }
     }
 }

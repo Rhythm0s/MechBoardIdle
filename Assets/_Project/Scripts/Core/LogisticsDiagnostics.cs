@@ -54,12 +54,16 @@ namespace MBI.Core
                     else { hasIn = true; if (neighbor) inLinked = true; }
                 }
 
-                // 우선순위: 구조(Blocked/NoInput) → 전역(Power → Heat). 전역 힌트는 Power→Heat 2단계(§3-4-1).
+                // 우선순위: 구조(Blocked/NoInput) → 전역(Power). 전역은 이제 전력 하나다.
+                //
+                // ⚠️ **발열 축 폐기(2026-09-02 · 260902_W15).** 감쇠가 걸려도 원인으로 표출하지 않는다.
+                //    화면에 보이는 것(변수 패널 배지 · 병목 힌트)이 여기서만 나오므로, 이 한 줄이
+                //    빠지면 발열은 사용자에게 완전히 사라진다. 되살리려면 밸런스 문서
+                //    「노드 대당 값과 모듈 부하」의 폐기 표기부터 되돌린다.
                 ConstraintCause cause;
                 if (hasOut && !outLinked) cause = ConstraintCause.Blocked;          // 뒤로 안 빠짐
                 else if (hasIn && !inLinked) cause = ConstraintCause.NoInput;        // 앞에서 안 옴
                 else if (result.powerEfficiency < 1f) cause = ConstraintCause.Power; // 전역 전력
-                else if (result.heatThrottle < 1f) cause = ConstraintCause.Heat;     // 전역 발열
                 else cause = ConstraintCause.None;
 
                 bool stopped = cause == ConstraintCause.Blocked || cause == ConstraintCause.NoInput;
