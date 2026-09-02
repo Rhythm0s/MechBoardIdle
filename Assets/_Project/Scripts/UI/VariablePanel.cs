@@ -44,6 +44,16 @@ namespace MBI.UI
             GUILayout.BeginArea(rect, GUI.skin.box);
             GUILayout.Label("물류 변수", _head);
 
+            // ⚠️ **병목 경고가 맨 위다.** 종전에는 맨 아래였는데 패널 높이가 250 고정이라
+            // 마지막 줄이 영역 밖으로 밀려 **한 번도 화면에 뜬 적이 없었다**(2026-09-02 실측).
+            // 점멸 코드도 문구도 있는데 잘려 있었다 — 「그리는가」가 아니라 「보이는가」의 문제다.
+            //
+            // 높이를 늘리는 쪽은 못 쓴다. 패널은 y 12에서 시작하고 노드 팔레트 라벨이 y 274라,
+            // 250을 넘기면 그쪽과 겹친다(같은 날 겹침 넷을 고친 뒤라 더 만들지 않는다).
+            // 순서를 바꾸면 높이가 그대로다. 병목이 이 패널에서 가장 급한 줄이기도 하다.
+            string cause = CauseText(LogisticsOutputBridge.GlobalCause);
+            if (cause != null && Blink()) GUILayout.Label(cause, Warn(_label));
+
             GUILayout.Label($"예상 {r.expected:F1}   실제 {r.actual:F1}   갭 {r.gap:F1}", _label);
             GUILayout.Space(4f);
 
@@ -59,20 +69,24 @@ namespace MBI.UI
             // 전력 수요가 이 값을 타므로 갭 발생원 「전력」과 같은 눈길에서 읽혀야 한다.
             GUILayout.Label($"일감률 평균 {Pct(WorkloadAverage)}   (노는 노드는 전력 0)", _label);
 
-            string cause = CauseText(LogisticsOutputBridge.GlobalCause);
-            if (cause != null && Blink())
-                GUILayout.Label(cause, Warn(_label));
-
             GUILayout.EndArea();
         }
 
-        // 전역 원인 → 문구. 우선순위 판정은 Provider가 이미 했다(여기선 매핑만).
+        /// <summary>
+        /// 전역 원인 → 문구. 우선순위 판정은 Provider가 이미 했다(여기선 매핑만).
+        ///
+        /// ⚠️ **이모지를 쓰지 않는다.** 「⚡」·「🔥」로 두었더니 WebGL에서 두부(□)로 찍혔다
+        /// (2026-09-02 실측). 한글 폰트에 이모지 글리프가 없고, WebGL엔 시스템 폰트 폴백도 없다
+        /// — 한글이 통째로 사라지는 것과 같은 뿌리다(KoreanFont.Apply가 있는 이유).
+        ///
+        /// 눈에 띄는 일은 색(주황)과 점멸이 이미 한다. 표기는 HUD의 「[전력 부족]」과 맞춘다.
+        /// </summary>
         private static string CauseText(ConstraintCause cause)
         {
             switch (cause)
             {
-                case ConstraintCause.Power: return "⚡ 전력 부족";
-                case ConstraintCause.Heat: return "🔥 발열 초과";
+                case ConstraintCause.Power: return "[!] 전력 부족";
+                case ConstraintCause.Heat: return "[!] 발열 초과";
                 default: return null;
             }
         }
