@@ -58,6 +58,13 @@ namespace MBI.Idle
 
         private void Update()
         {
+            // 촬영용 저장 초기화 — 요청이 왔을 때만. 기록이 사라지므로 튜토리얼도 다시 열린다.
+            if (IdleSignals.DrainSaveReset())
+            {
+                ResetSave();
+                IdleSignals.TutorialCleared = false;
+            }
+
             CreditSignals();
             if (_autosave.TryConsume(Time.unscaledDeltaTime, out _)) Save();
         }

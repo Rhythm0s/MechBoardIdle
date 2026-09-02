@@ -25,7 +25,7 @@ namespace MBI.Combat
     [DefaultExecutionOrder(-50)]
     public sealed class Stage0Session : MonoBehaviour
     {
-        [Tooltip("전투 러너. 스테이지 0 동안 적 스폰만 막고 시뮬은 그대로 돌린다.")]
+        [Tooltip("전투 러너. 튜토리얼 동안 적 스폰만 막고 시뮬은 그대로 돌린다.")]
         public StageRunner runner;
 
         [Tooltip("완료 시 넘어갈 스테이지. 비우면 넘어가지 않고 목표만 판정한다.")]
@@ -61,6 +61,9 @@ namespace MBI.Combat
             TutorialSignals.HighlightBoardButton = true;
             // 채우는 것이 병합기라 팔레트에서 「병합기」를 골라야 한다 — 그것도 빛나게 한다.
             TutorialSignals.HighlightMerger = true;
+            // 그리고 **조립 모드로 바꿔야 놓을 수 있다**(T-7). 기본 모드가 이동이라
+            // 이 강조가 없으면 팔레트를 눌러도 아무 일이 일어나지 않는다.
+            TutorialSignals.HighlightBuildMode = true;
         }
 
         private void OnDisable() => TutorialSignals.Reset();

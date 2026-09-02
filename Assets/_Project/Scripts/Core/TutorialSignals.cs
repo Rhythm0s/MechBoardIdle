@@ -43,6 +43,28 @@ namespace MBI.Core
         /// </summary>
         public static bool HighlightMerger;
 
+        /// <summary>
+        /// **조립 모드 버튼**을 빛나게 한다 — 강제 버튼(튜토리얼 기획서 T-7 확정, 2026-08-24).
+        ///
+        /// ⚠️ 이것이 없으면 첫 조작에서 막힌다. 기본 모드가 **이동**이라 팔레트를 눌러도
+        /// 배치가 되지 않는데, 화면에는 그 이유가 없다 — 2026-09-02 브라우저 실측에서
+        /// 실제로 병합기를 못 놓았다. 「첫 조작에서 막히는 것은 이탈률 최우선 원칙에
+        /// 정면으로 위배된다」(T-7 근거).
+        ///
+        /// 보드가 **이동 모드일 때만** 그린다. 조립 모드로 바꾸면 할 일이 끝난 표시다.
+        /// </summary>
+        public static bool HighlightBuildMode;
+
+        /// <summary>
+        /// 비워 둔 칸을 **다시 비워 달라** — 촬영 복귀 전용(260902_W09 §1-2).
+        ///
+        /// 병합기가 놓인 채로 튜토리얼에 돌아가면 조립 화면에 들어가는 순간 통과해 버린다
+        /// (2026-09-02 실측: 경과 0.7초). A구간을 다시 찍으려면 그 칸이 비어 있어야 한다.
+        ///
+        /// 보드가 가져가며 내린다 — 안 내리면 플레이어가 놓는 족족 지워진다.
+        /// </summary>
+        public static bool ClearEmptySlotRequested;
+
         /// <summary>도메인 리로드 비활성 시 이전 Play의 값이 남는 것을 막는다.</summary>
         public static void Reset()
         {
@@ -50,6 +72,8 @@ namespace MBI.Core
             HighlightBoardButton = false;
             GhostCellFilled = false;
             HighlightMerger = false;
+            HighlightBuildMode = false;
+            ClearEmptySlotRequested = false;
         }
     }
 }

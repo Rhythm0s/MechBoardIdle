@@ -358,6 +358,17 @@ namespace MBI.Logistics
         }
 
         // 시작 배치를 깐다. 배치 경로는 플레이어 조작과 동일(TryPlace + 마커) — 별도 경로를 만들지 않는다.
+        /// <summary>비워 둔 칸을 채우는 병합기를 놓는다. 시작 배치와 촬영 복귀가 함께 쓴다.</summary>
+        private void PlaceTutorialFill()
+        {
+            StartingBoard.Run run = StartingBoard.FillsEmptySlot;
+            if (_grid.HasBelt(run.cell) || _grid.IsOccupied(run.cell)) return;
+
+            if (_grid.TryPlaceBeltElement(run.cell, BeltElementKind.Merger,
+                    new[] { run.inFace }, new[] { run.outFace }, FlowKind.None, out _))
+                SpawnBeltMarker(run.cell, run.outFace);
+        }
+
         private void ApplyInitialLayout()
         {
             if (initialLayout != null)
@@ -378,6 +389,15 @@ namespace MBI.Logistics
                         : _grid.TryPlaceBelt(b.cell, b.inFace, b.outFace, FlowKind.None, out _);
                     if (ok) SpawnBeltMarker(b.cell, b.outFace);
                 }
+
+            // 튜토리얼을 이미 끝냈으면 **비워 둔 칸이 채워진 채로 시작한다**(260902_W09 §1-1 안 A).
+            //
+            // 그러지 않으면 클리어한 사람이 다시 들어왔을 때 끊긴 보드를 보게 된다 —
+            // 고스트도 안내도 없이 방금 배운 것을 다시 해야 하는 화면이다.
+            //
+            // ⚠️ 이것은 **근본 해결이 아니다.** 진짜 구멍은 보드 배치가 저장되지 않는 것이고,
+            // 플레이어가 확장한 보드는 여전히 사라진다(불일치 목록 등재분).
+            if (IdleSignals.TutorialCleared) PlaceTutorialFill();
 
             RefreshConnections();
         }
@@ -509,6 +529,13 @@ namespace MBI.Logistics
         private void Update()
         {
             ApplyZoom(); // 보드를 볼 때만 확대한다 — 나가면 원래 시야로 돌아간다
+
+            // 촬영 복귀 요청 — 가져가며 내린다.
+            if (TutorialSignals.ClearEmptySlotRequested)
+            {
+                TutorialSignals.ClearEmptySlotRequested = false;
+                RemoveAt(StartingBoard.EmptySlot);
+            }
 
             if (_panning)
             {
@@ -762,6 +789,7 @@ namespace MBI.Logistics
                 if (_beltMarkers.TryGetValue(cell, out GameObject bm) && bm != null) Destroy(bm);
                 _beltMarkers.Remove(cell);
                 _beltArrows.Remove(cell);
+                _beltFlows.Remove(cell);    // 무늬도 마커의 자식이라 함께 사라진다 — 목록만 비운다
                 _beltWarnings.Remove(cell); // 아이콘 GameObject는 마커의 자식이라 위 Destroy로 함께 사라짐
             }
             else return;
@@ -1054,7 +1082,15 @@ namespace MBI.Logistics
             if (rect.Contains(Event.current.mousePosition)) _pointerOverPalette = true;
 
             string label = _mode == BoardMode.Pan ? "이동 모드" : "조립 모드";
-            if (GUI.Button(rect, label, style)) ToggleMode();
+
+            // 강제 버튼(T-7) — **이동 모드일 때만** 빛난다. 바꾸고 나면 할 일이 끝났다.
+            bool urge = TutorialSignals.HighlightBuildMode && _mode == BoardMode.Pan;
+            Color prev = GUI.color;
+            if (urge) GUI.color = new Color(1f, 0.92f, 0.45f);
+
+            if (GUI.Button(rect, urge ? "조립 모드로 →" : label, style)) ToggleMode();
+
+            GUI.color = prev;
         }
 
         // 미니맵 — 부유 요소 띠 좌측(UI 문서 2장). 실루엣 전체 + 현재 보고 있는 범위.
@@ -1078,15 +1114,17 @@ namespace MBI.Logistics
             var label = new GUIStyle(GUI.skin.label) { fontSize = 14 };
             var style = new GUIStyle(GUI.skin.button) { fontSize = 16 };
 
-            // ⚠️ 왼쪽 위 — 전투 HUD는 (12,10)에서 280 높이라 **y 290에서 끝난다.**
-            // 라벨이 버튼보다 22 위에 붙으므로 버튼을 330에 둬야 라벨이 308로 내려와 안 겹친다.
-            // 팔레트는 오른쪽이고 미니맵은 아래다. 여기가 비어 있다(2026-09-02).
-            const float x = 12f, y = 330f, bw = 40f, bh = 30f, pad = 6f;
-
-            GUI.Label(new Rect(x, y - 22f, 160f, 20f), $"보드 배율 ×{_zoom:0.00}", label);
+            // ⚠️ **한 줄로 눕힌다.** 라벨을 버튼 위에 얹었더니 y 308이 되어 태그 버튼과 겹쳤다
+            // (2026-09-02 브라우저 실측 — UI 겹침 네 번째). 전투 HUD가 y 290에서 끝나고
+            // 전투 조작 버튼이 y 300에서 시작하는데, 그 조작 버튼은 이제 조립 화면에서
+            // 그려지지 않으므로(StageRunner) 이 줄이 300을 통째로 쓴다.
+            const float x = 12f, y = 300f, bw = 40f, bh = 30f, pad = 6f;
 
             var minus = new Rect(x, y, bw, bh);
             var plus = new Rect(x + bw + pad, y, bw, bh);
+
+            GUI.Label(new Rect(x + (bw + pad) * 2f, y + 6f, 160f, 20f),
+                $"보드 배율 ×{_zoom:0.00}", label);
             if (minus.Contains(Event.current.mousePosition) ||
                 plus.Contains(Event.current.mousePosition)) _pointerOverPalette = true;
 

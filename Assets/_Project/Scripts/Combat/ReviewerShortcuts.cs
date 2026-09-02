@@ -31,7 +31,7 @@ namespace MBI.Combat
         [Tooltip("스테이지를 바꿀 때 함께 꺼야 하는 튜토리얼 세션. 없으면 비워 둔다.")]
         public Stage0Session stage0;
 
-        [Tooltip("튜토리얼(스테이지 0) 자산. 이 버튼은 개발 빌드에만 뜬다.")]
+        [Tooltip("튜토리얼 전용 스테이지 자산. 이 버튼은 개발 빌드에만 뜬다.")]
         public StageDefinition tutorialStage;
 
         /// <summary>
@@ -79,13 +79,43 @@ namespace MBI.Combat
             // 안내 한 줄 — 이것이 있어야 「밸런스를 못 맞춰 넣었나」로 안 읽힌다.
             var note = new GUIStyle(GUI.skin.label) { fontSize = 12, wordWrap = true };
             GUI.Label(new Rect(x, y, w, 30f),
-                "포트폴리오용 바로가기입니다. 원래 진행은 스테이지 0부터 순서대로입니다", note);
+                "포트폴리오용 바로가기입니다. 원래 진행은 튜토리얼부터 순서대로입니다", note);
             y += 32f;
 
             DrawStageButtons(y, x, h, pad, button);
             y += h + pad;
 
             DrawGaugeButton(y, x, w, h, button);
+            y += h + pad;
+
+            DrawResetButton(y, x, w, h, button);
+        }
+
+        /// <summary>
+        /// 저장 초기화 — **개발 빌드 전용 촬영 도구**(260902_W09 §1-2 승인).
+        ///
+        /// 없으면 9월 6일에 A구간을 **한 번밖에 못 찍는다.** 병합기를 지우고 복귀해도
+        /// 마운트 40이 남아 「8초 쌓이는」 장면이 재현되지 않는다(2026-09-02 실측).
+        /// 완충일이 0인 일정에서 첫 테이크가 곧 최종본이 되는 것은 받을 수 없다.
+        ///
+        /// 처음 상태로 되돌리는 것은 넷이다 — 저장 · 창고와 마운트 · 비워 둔 칸 · 튜토리얼 진행.
+        /// 하나라도 빠지면 「다시 찍을 수 있다」가 성립하지 않는다.
+        /// </summary>
+        private void DrawResetButton(float y, float x, float w, float h, GUIStyle style)
+        {
+            if (!ShowTutorial || runner == null) return; // 배포 빌드에는 없다
+
+            if (!GUI.Button(new Rect(x, y, w, h), "처음부터 (저장 초기화)", style)) return;
+
+            IdleSignals.RequestSaveReset();               // 저장 — 방치 런타임이 지운다
+            TutorialSignals.ClearEmptySlotRequested = true; // 비워 둔 칸 — 보드가 비운다
+            runner.ResetCarry();                          // 창고와 마운트
+
+            if (tutorialStage != null)
+            {
+                runner.LoadStage(tutorialStage);
+                if (stage0 != null) stage0.Reenter();
+            }
         }
 
         /// <summary>
@@ -112,7 +142,9 @@ namespace MBI.Combat
                 Color prev = GUI.color;
                 if (here) GUI.color = new Color(1f, 0.92f, 0.45f); // 지금 있는 곳
 
-                if (GUI.Button(new Rect(bx, y, bw, h), s.stageId, style)) GoTo(s);
+                // 튜토리얼은 번호를 안 쓴다(260902_W09 §2). 버튼이 좁아 짧게 적는다.
+                string label = s == tutorialStage ? "튜토" : s.stageId;
+                if (GUI.Button(new Rect(bx, y, bw, h), label, style)) GoTo(s);
 
                 GUI.color = prev;
                 bx += bw + pad;

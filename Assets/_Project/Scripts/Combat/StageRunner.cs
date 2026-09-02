@@ -141,6 +141,18 @@ namespace MBI.Combat
         private MountLoad _mountA;
         private MountLoad _mountB;
 
+        /// <summary>
+        /// 창고와 마운트를 버린다 — **촬영용 저장 초기화 전용**(260902_W09 §1-2).
+        /// 다음 <c>Begin</c>이 빈 것을 새로 만든다. 정상 플레이에는 이 경로가 없다.
+        /// </summary>
+        public void ResetCarry()
+        {
+            _storeA = null;
+            _storeB = null;
+            _mountA = null;
+            _mountB = null;
+        }
+
         private AmmoInventory StoreA(float capacity) =>
             _storeA ?? (_storeA = new AmmoInventory(capacity));
 
@@ -623,7 +635,7 @@ namespace MBI.Combat
             var big = new GUIStyle(GUI.skin.label) { fontSize = 34, fontStyle = FontStyle.Bold };
 
             GUILayout.BeginArea(new Rect(12, 10, 560, 280));
-            GUILayout.Label($"스테이지 {stage.stageId}  ·  {stage.topic}", style);
+            GUILayout.Label($"{StageTitle()}  ·  {stage.topic}", style);
             GUILayout.Label(OutputLine(), style);
             GUILayout.Label(AmmoLine(), style);
             GUILayout.Label($"저장고(군수 생산) {LogisticsOutputBridge.AmmoProduce:F1} 발/초", style);
@@ -635,17 +647,29 @@ namespace MBI.Combat
             GUILayout.Label("이동 WASD / 화살표   ·   회피 = 화면 플릭", style);
             GUILayout.EndArea();
 
-            if (_sim.Result != CombatResult.InProgress)
+            // ⚠️ **전투 조작 버튼은 조립 화면에서 그리지 않는다**(260902_W09 §5-3).
+            //
+            // 좌측 y 300~460은 전투가 쓰는 자리인데, 조립 화면에서도 그대로 떠서
+            // 보드 쪽 UI가 놓일 자리가 없었다. 배율 라벨이 태그 버튼과 겹친 것이 그 증상이다.
+            // 자리를 또 옮기는 대신 **화면마다 무엇을 그릴지**를 정한다 —
+            // 조립 중에 태그·합체·다시를 누를 이유가 없다(기능은 그대로 남는다).
+            //
+            // 물류 출력 줄(위 HUD)은 남긴다. 재설계하면서 수치가 따라 움직이는 것을
+            // 보는 것이 조립 화면의 내용물이기 때문이다.
+            if (!GameViewSignals.BoardViewActive)
             {
-                GUILayout.BeginArea(new Rect(12, 300, 560, 160));
-                GUILayout.Label(ResultText(), big);
-                if (GUILayout.Button("다시 (Restart)", GUILayout.Width(160), GUILayout.Height(34)))
-                    Restart();
-                GUILayout.EndArea();
-            }
-            else
-            {
-                TagMergeButtons(style);
+                if (_sim.Result != CombatResult.InProgress)
+                {
+                    GUILayout.BeginArea(new Rect(12, 300, 560, 160));
+                    GUILayout.Label(ResultText(), big);
+                    if (GUILayout.Button("다시 (Restart)", GUILayout.Width(160), GUILayout.Height(34)))
+                        Restart();
+                    GUILayout.EndArea();
+                }
+                else
+                {
+                    TagMergeButtons(style);
+                }
             }
 
             // IMGUI는 나중에 그린 것이 위에 온다 — 연출은 결과 화면 위에도 덮여야 한다.
@@ -828,7 +852,22 @@ namespace MBI.Combat
             return $"탄약 마운트(용량 {cap}/종)  관통 {pierce:F0} · 분열 {split:F0} · 폭발 {expl:F0} 발/초";
         }
 
-        /// <summary>요구치가 있는 스테이지인가. 전투가 없는 스테이지 0은 없다.</summary>
+        /// <summary>
+        /// 화면에 뜨는 스테이지 이름 — **튜토리얼에는 번호를 붙이지 않는다**(260902_W09 §2).
+        ///
+        /// 이름에 0이 남아 있으면 스테이지 1~6과 같은 줄에 선 것으로 읽히고,
+        /// 그러면 「요구치 없음 · 보상 없음 · 선택 불가 · 실패 없음」이 전부 예외로 보인다.
+        /// 종류가 다른 것이지 순번이 앞선 것이 아니다.
+        ///
+        /// ⚠️ 코드 식별자(<c>stageId</c> = "S0")는 그대로다 — 저장의 클리어 목록 키이기도 하고,
+        /// 게이트 2가 9월 4일이다. 읽는 사람이 있는 곳만 바꾼다.
+        /// </summary>
+        private string StageTitle() =>
+            stage.stageId == IdleSignals.TutorialId
+                ? "튜토리얼 전용 스테이지"
+                : $"스테이지 {stage.stageId}";
+
+        /// <summary>요구치가 있는 스테이지인가. 전투가 없는 튜토리얼에는 없다.</summary>
         private bool HasRequirement =>
             stage != null && (stage.reqType != StageReqType.Fixed || stage.req > 0f);
 

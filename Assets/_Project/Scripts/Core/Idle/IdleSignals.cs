@@ -38,6 +38,23 @@ namespace MBI.Core
         /// </summary>
         public static bool TutorialCleared;
 
+        /// <summary>
+        /// 저장을 지워 달라 — **개발 빌드 전용 촬영 도구**(260902_W09 §1-2 승인).
+        /// 방치 런타임이 가져가며 내린다.
+        /// </summary>
+        private static bool _resetSave;
+
+        /// <summary>저장 초기화를 요청한다(바로가기 버튼).</summary>
+        public static void RequestSaveReset() => _resetSave = true;
+
+        /// <summary>요청을 가져가며 비운다. 방치 런타임만 부른다.</summary>
+        public static bool DrainSaveReset()
+        {
+            bool had = _resetSave;
+            _resetSave = false;
+            return had;
+        }
+
         /// <summary>처치 보고(전투 측). CombatSimulation.ConsumeKills로 가져온 값을 넣는다.</summary>
         public static void AddKills(int count)
         {
@@ -76,6 +93,7 @@ namespace MBI.Core
             _kills = 0;
             _clear = default;
             _hasClear = false;
+            _resetSave = false;
             TutorialCleared = false;
         }
     }
