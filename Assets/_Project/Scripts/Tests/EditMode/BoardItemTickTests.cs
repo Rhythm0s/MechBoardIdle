@@ -118,6 +118,47 @@ namespace MBI.Tests
         }
 
         /// <summary>
+        /// **미선택 기본값은 이름으로 정해진다 — 목록 순서가 아니다** (`260903_W03` 3-2).
+        ///
+        /// 종전에는 「돌릴 수 있는 첫 후보」였다. 그러면 조합표를 하나 더했을 때 기본값이
+        /// 조용히 바뀐다. 이 테스트는 관통탄이 목록의 **둘째**여도 골리는지를 본다.
+        /// </summary>
+        [Test]
+        public void UnselectedRecipe_UsesNamedDefault_NotListOrder()
+        {
+            var def = ScriptableObject.CreateInstance<NodeDefinition>();
+            def.type = NodeType.Munitions;
+            def.implemented = true;
+            def.ports = new List<NodePort>
+            {
+                new NodePort(PortFace.East, PortIO.Output, FlowKind.Ammo),
+            };
+            def.recipes = new List<NodeRecipe>
+            {
+                // 추진제를 앞에 둔다 — 「첫 후보」 규칙이었다면 이것이 골렸다.
+                new NodeRecipe
+                {
+                    kind = RecipeKind.Propellant, displayName = "추진제",
+                    output = FlowKind.Propellant, outputPerSec = 1f,
+                    stackLimitTbd = 10f, implemented = true,
+                },
+                new NodeRecipe
+                {
+                    kind = RecipeKind.Ammo, displayName = "탄약",
+                    output = FlowKind.Ammo, outputPerSec = 1f,
+                    stackLimitTbd = 10f, implemented = true,
+                },
+            };
+            _created.Add(def);
+
+            var node = new NodeInstance(def, Vector2Int.zero);
+
+            Assert.AreEqual(RecipeKind.Ammo, node.CurrentRecipe.kind,
+                "군수 노드의 기본값은 관통탄이다 — 목록 순서와 무관하다");
+            Assert.AreEqual(AmmoKind.Pierce, node.AmmoKind, "탄종 기본값도 관통이다");
+        }
+
+        /// <summary>
         /// **돌릴 수 있는 조합표가 하나도 없는 노드**는 아무것도 만들지 않는다.
         ///
         /// 「고르지 않았으면 안 만든다」가 아니다 — `NodeInstance.CurrentRecipe`는 미선택일 때

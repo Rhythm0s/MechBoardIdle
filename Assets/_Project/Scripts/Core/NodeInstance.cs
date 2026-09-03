@@ -48,7 +48,22 @@ namespace MBI.Core
         /// <summary>지금 왜 멈춰 있는가. 멈추지 않았으면 None.</summary>
         public NodeStallReason StallReason => NodeProduction.StallReason(CurrentRecipe, OutputBuffer, BufferKind);
 
-        /// <summary>현재 조합표. 고르지 않았으면 후보 첫 줄(돌릴 수 있는 것)로 본다.</summary>
+        /// <summary>
+        /// 현재 조합표. 고르지 않았으면 **노드 종류가 정한 기본값**을 쓴다.
+        ///
+        /// 기본값이 있는 이유는 노드를 놓았는데 아무것도 안 하면 플레이어가 무엇을 더 해야
+        /// 하는지 모르기 때문이다. 「시스템은 개입하지 않는다」에 어긋나지 않는다 —
+        /// **답을 정해 주는 것이 아니라 바꾸기 전의 자리를 정하는 것**이다
+        /// (조립 시스템 문서「노드 종류」· `260903_W03` 3장).
+        ///
+        /// ⚠️ **「첫 후보」로 두지 않는다.** 그러면 목록에 항목을 하나 더했을 때 기본값이
+        /// 조용히 바뀐다. 종전 구현이 그랬고, 같은 함정이 `RefillMount`의 탄종 열거 순서에도
+        /// 있었다(`260903_V01` 5-1).
+        ///
+        /// **재고를 보지 않는다.** 판정 기준은 자산의 정적 속성뿐이라 매번 같은 답이 나온다 —
+        /// 부품이 떨어졌다고 노드가 다른 조합표로 갈아타지 않는다. 재고가 없으면 그 조합표를
+        /// 잡은 채 멈추고, 멈춘 것이 병목으로 화면에 나온다.
+        /// </summary>
         public NodeRecipe CurrentRecipe
         {
             get
@@ -59,13 +74,27 @@ namespace MBI.Core
                 for (int i = 0; i < candidates.Count; i++)
                     if (candidates[i].kind == SelectedRecipe) return candidates[i];
 
-                // 미선택 → 돌릴 수 있는 첫 후보. 노드를 놓자마자 아무것도 안 하는 상태를 피한다.
+                RecipeKind fallback = DefaultRecipeFor(Definition.type);
                 for (int i = 0; i < candidates.Count; i++)
-                    if (candidates[i].IsRunnable) return candidates[i];
+                    if (candidates[i].kind == fallback && candidates[i].IsRunnable) return candidates[i];
 
                 return default;
             }
         }
+
+        /// <summary>
+        /// 노드 종류별 기본 조합표 (2026-09-03 확정 · `260903_W03` 3-2).
+        ///
+        /// 군수 노드가 관통탄인 근거는 튜토리얼 전용 스테이지의 시작 보드가 관통 4노드라는 것이다 —
+        /// 처음 보는 탄종과 기본값이 같아야 학습이 어긋나지 않는다. 탄종 자체는
+        /// <see cref="AmmoKind"/>가 들고 있고 그 기본값도 관통이다.
+        ///
+        /// ⚠️ **가공 노드의 기본값 「기초재료·부품」은 아직 넣지 못했다.** 그 조합표가
+        /// <see cref="RecipeKind"/>에도 자산에도 없다 — 가공 단계가 통째로 비어 있는
+        /// 상태이기 때문이다(`260902_V10` 2장). 레시피가 생기면 여기에 한 줄 더한다.
+        /// </summary>
+        private static RecipeKind DefaultRecipeFor(NodeType type) =>
+            type == NodeType.Munitions ? RecipeKind.Ammo : RecipeKind.None;
 
         /// <summary>
         /// 조합표를 바꾼다. 후보에 없거나 돌릴 수 없는 것은 거절한다.
