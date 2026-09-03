@@ -1,7 +1,9 @@
+using System.Collections.Generic;
 using MBI.Core;
 using MBI.Data;
 using NUnit.Framework;
 using UnityEngine;
+using Object = UnityEngine.Object;
 
 namespace MBI.Tests
 {
@@ -14,8 +16,17 @@ namespace MBI.Tests
     public sealed class BeltItemFlowTests
     {
         private const float Delta = 1e-3f;
+        private readonly List<Object> _created = new List<Object>();
+
+        [TearDown]
+        public void TearDown()
+        {
+            foreach (Object o in _created) Object.DestroyImmediate(o);
+            _created.Clear();
+        }
 
         // 서→동 직선 벨트를 x=0..n-1에 깐다. 마지막 칸의 출력면은 동쪽이므로 그 앞이 라인의 끝이다.
+        // **끝에 소비처가 없다** — 그래서 물건이 거기 쌓인다(2026-09-03 개정).
         private static BoardGrid StraightLine(int length)
         {
             var grid = new BoardGrid(length + 2, 3, 1f, Vector2.zero);
@@ -24,6 +35,29 @@ namespace MBI.Tests
                 grid.TryPlaceBelt(new Vector2Int(x, 1),
                     PortFace.West, PortFace.East, FlowKind.Ammo, out _);
             }
+            return grid;
+        }
+
+        // 서쪽 면으로 탄약을 받는 소비 노드. 벨트 끝에 두면 도착지가 된다.
+        private NodeDefinition MakeConsumer()
+        {
+            var def = ScriptableObject.CreateInstance<NodeDefinition>();
+            def.type = NodeType.Storage;
+            def.implemented = true;
+            def.ports = new List<NodePort>
+            {
+                new NodePort(PortFace.West, PortIO.Input, FlowKind.Ammo),
+            };
+            def.recipes = new List<NodeRecipe>();
+            _created.Add(def);
+            return def;
+        }
+
+        // 위 StraightLine에 소비처를 하나 붙인 것. 마지막 벨트의 동쪽 이웃이 노드다.
+        private BoardGrid StraightLineIntoConsumer(int length)
+        {
+            BoardGrid grid = StraightLine(length);
+            grid.TryPlace(new Vector2Int(length, 1), MakeConsumer(), out _);
             return grid;
         }
 
@@ -45,10 +79,11 @@ namespace MBI.Tests
             Assert.AreEqual(1, flow.ItemsAt(new Vector2Int(1, 1)).Count, "다음 칸에 들어와야 한다");
         }
 
+        /// <summary>소비처(노드)에 닿으면 도착으로 센다. 품목별로도 센다.</summary>
         [Test]
-        public void EndOfLine_CountsAsDelivered()
+        public void EndOfLine_WithConsumer_CountsAsArrived()
         {
-            BoardGrid grid = StraightLine(1);
+            BoardGrid grid = StraightLineIntoConsumer(1);
             var flow = new BeltItemFlow();
             flow.Rebuild(grid);
 
@@ -57,8 +92,34 @@ namespace MBI.Tests
 
             flow.Tick(SecondsPerCell);
 
-            Assert.AreEqual(1, flow.DeliveredCount, "다음 칸이 없으면 배출로 센다");
-            Assert.AreEqual(0, flow.ItemsAt(new Vector2Int(0, 1)).Count);
+            Assert.AreEqual(1, flow.DeliveredCount, "소비처가 받았으면 도착이다");
+            Assert.AreEqual(1, flow.ArrivedOf(FlowKind.Ammo), "품목별로도 세어야 한다");
+            Assert.AreEqual(0, flow.ItemsAt(new Vector2Int(0, 1)).Count, "벨트에서 빠졌다");
+            Assert.AreEqual(0, flow.ItemsAt(new Vector2Int(1, 1)).Count,
+                "노드 칸에는 아이템을 얹지 않는다 — 노드는 벨트가 아니다");
+        }
+
+        /// <summary>
+        /// **이 테스트가 4번 덩어리의 본체다.** 소비처 없는 라인 끝에서는 물건이 사라지지 않는다.
+        ///
+        /// 종전에는 다음 칸이 없으면 무조건 배출로 세고 지웠다. 그러면 벨트를 허공으로 뻗어
+        /// 놓아도 물건이 계속 빠져나가, 조립 시스템 문서가 말하는 **「단절 — 출력 면에 붙어
+        /// 멈춰 있다」가 화면에 성립하지 않았다.**
+        /// </summary>
+        [Test]
+        public void EndOfLine_WithoutConsumer_ItemStopsAndStacks()
+        {
+            BoardGrid grid = StraightLine(1);
+            var flow = new BeltItemFlow();
+            flow.Rebuild(grid);
+
+            var cell = new Vector2Int(0, 1);
+            flow.TryInsert(cell, FlowKind.Ammo);
+            flow.Tick(SecondsPerCell * 4f); // 끝까지 밀고도 남을 시간
+
+            Assert.AreEqual(0, flow.DeliveredCount, "가져가는 곳이 없으면 도착이 아니다");
+            Assert.AreEqual(1, flow.ItemsAt(cell).Count, "그 자리에 남아 있어야 한다");
+            Assert.IsTrue(flow.IsBlocked(cell), "출력면에 붙어 멈춘 상태다 — 이것이 단절이다");
         }
 
         /// <summary>
@@ -175,10 +236,24 @@ namespace MBI.Tests
             Assert.IsFalse(flow.TryInsert(merger, FlowKind.Ammo),
                 "합류량이 한 줄 용량을 넘으면 더 받지 못한다");
 
-            // ⚠️ 상류가 **계속** 서 있는 것까지는 아직 검사할 수 없다.
-            //    지금 모델은 라인의 끝에서 아이템을 무조건 배출하므로(소비처가 없어도)
-            //    병합기가 곧 비워지고 자리가 다시 생긴다. 「소비처가 안 가져가면 쌓인다」는
-            //    마운트 도착(4번 덩어리)이 들어와야 성립하며, 그때 이 검사를 늘린다.
+            // **계속** 서 있는지까지 본다 (2026-09-03 · 4번 덩어리로 검사를 늘렸다).
+            // 종전에는 라인 끝에서 무조건 배출해 병합기가 곧 비워졌고, 그래서 이 검사를 둘 수 없었다.
+            flow.Tick(SecondsPerCell * 10f);
+
+            Assert.AreEqual(0, flow.DeliveredCount, "동쪽에 소비처가 없으므로 나간 것이 없다");
+            Assert.IsFalse(flow.TryInsert(merger, FlowKind.Ammo),
+                "시간이 지나도 자리가 안 생긴다 — 이것이 상류가 계속 서는 이유다");
+
+            // 상류 벨트도 같이 선다. 신호를 보내서가 아니라 앞이 안 비어서다.
+            var upstream = new Vector2Int(1, 2);
+            for (int i = 0; i < BeltItemFlow.MaxPerCell; i++)
+            {
+                flow.TryInsert(upstream, FlowKind.Ammo);
+                flow.Tick(BeltItemFlow.MinGapCells / BeltItemFlow.CellsPerSecondTbd);
+            }
+            flow.Tick(SecondsPerCell * 10f);
+
+            Assert.IsTrue(flow.IsBlocked(upstream), "상류도 출력면에 붙어 멈춘다");
         }
 
         [Test]

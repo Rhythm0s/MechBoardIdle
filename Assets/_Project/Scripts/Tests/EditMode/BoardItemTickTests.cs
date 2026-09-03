@@ -57,6 +57,21 @@ namespace MBI.Tests
             return node;
         }
 
+        // 서쪽 면으로 탄약을 받기만 하는 노드. 라인 끝에 두면 도착지가 된다.
+        private void PlaceConsumer(BoardGrid grid, Vector2Int cell)
+        {
+            var def = ScriptableObject.CreateInstance<NodeDefinition>();
+            def.type = NodeType.Storage;
+            def.implemented = true;
+            def.ports = new List<NodePort>
+            {
+                new NodePort(PortFace.West, PortIO.Input, FlowKind.Ammo),
+            };
+            def.recipes = new List<NodeRecipe>();
+            _created.Add(def);
+            grid.TryPlace(cell, def, out _);
+        }
+
         /// <summary>
         /// **가져가는 곳이 없으면 버퍼가 차고 그 노드가 멈춘다.**
         /// 이것이 상류 전파의 본체다 — 막힘이 거슬러 오르는 것이 아니라
@@ -85,12 +100,13 @@ namespace MBI.Tests
             var grid = new BoardGrid(6, 3, 1f, Vector2.zero);
             NodeInstance node = PlaceProducer(grid, new Vector2Int(0, 1), perSec: 2f, stackLimit: 5f);
 
-            // 노드 동쪽에 벨트를 두 칸 깐다. 끝 칸은 라인의 끝이라 배출된다.
+            // 노드 동쪽에 벨트를 두 칸 깔고 **그 끝에 소비처를 둔다.**
             for (int x = 1; x <= 2; x++)
             {
                 grid.TryPlaceBelt(new Vector2Int(x, 1),
                     PortFace.West, PortFace.East, FlowKind.Ammo, out _);
             }
+            PlaceConsumer(grid, new Vector2Int(3, 1));
 
             var flow = new BeltItemFlow();
             flow.Rebuild(grid);
@@ -98,7 +114,41 @@ namespace MBI.Tests
             for (int i = 0; i < 20; i++) BoardItemTick.Step(grid, flow, 0.1f);
 
             Assert.Less(node.OutputBuffer, 5f, "흘러 나가므로 상한까지 차지 않는다");
-            Assert.Greater(flow.DeliveredCount, 0, "라인 끝으로 나간 것이 있어야 한다");
+            Assert.Greater(flow.DeliveredCount, 0, "소비처로 도착한 것이 있어야 한다");
+            Assert.AreEqual(flow.DeliveredCount, flow.ArrivedOf(FlowKind.Ammo),
+                "탄약만 흘렀으므로 총계와 품목별이 같다");
+        }
+
+        /// <summary>
+        /// **벨트가 허공으로 뻗어 있으면 결국 생산까지 멈춘다** (2026-09-03 · 4번 덩어리).
+        ///
+        /// 위 테스트에서 소비처만 뺀 것이다. 벨트가 차고 → 버퍼가 안 비고 → 노드가 정지한다.
+        /// 종전 모델에서는 라인 끝이 무조건 배출해서 **이 상태에 영영 도달하지 못했다.**
+        /// </summary>
+        [Test]
+        public void BeltIntoNowhere_FillsUp_ThenStallsProducer()
+        {
+            var grid = new BoardGrid(6, 3, 1f, Vector2.zero);
+            NodeInstance node = PlaceProducer(grid, new Vector2Int(0, 1), perSec: 10f, stackLimit: 5f);
+
+            for (int x = 1; x <= 2; x++)
+            {
+                grid.TryPlaceBelt(new Vector2Int(x, 1),
+                    PortFace.West, PortFace.East, FlowKind.Ammo, out _);
+            }
+            // 소비처를 두지 않는다.
+
+            var flow = new BeltItemFlow();
+            flow.Rebuild(grid);
+
+            for (int i = 0; i < 60; i++) BoardItemTick.Step(grid, flow, 0.1f);
+
+            Assert.AreEqual(0, flow.DeliveredCount, "가져가는 곳이 없으므로 나간 것이 없다");
+            Assert.AreEqual(BeltItemFlow.MaxPerCell, flow.ItemsAt(new Vector2Int(2, 1)).Count,
+                "끝 칸이 가득 찬다");
+            Assert.AreEqual(5f, node.OutputBuffer, Delta, "벨트가 안 받으니 버퍼가 상한까지 찬다");
+            Assert.IsTrue(NodeProduction.IsStalled(node.CurrentRecipe, node.OutputBuffer),
+                "그리고 생산이 멈춘다 — 막힘이 상류로 거슬러 올랐다");
         }
 
         /// <summary>생산이 실제로 버퍼를 채운다 — 호출자 0건이던 자리가 이제 불린다.</summary>

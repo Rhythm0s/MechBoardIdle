@@ -64,8 +64,25 @@ namespace MBI.Core
         private readonly Dictionary<Vector2Int, FlowKind> _cellKind =
             new Dictionary<Vector2Int, FlowKind>();
 
-        /// <summary>라인 끝에서 빠져나간 누적 개수. 도착량을 세는 자리다.</summary>
+        // 노드가 놓인 칸. **벨트가 아니므로 아이템을 얹지 않고 받아 삼킨다.**
+        private readonly HashSet<Vector2Int> _consumers = new HashSet<Vector2Int>();
+
+        // 품목 → 소비처로 도착한 누적 개수. 출력 교체(6번 덩어리)가 읽을 값이다.
+        private readonly Dictionary<FlowKind, int> _arrived = new Dictionary<FlowKind, int>();
+
+        /// <summary>
+        /// 소비처(노드)로 도착한 누적 개수.
+        ///
+        /// ⚠️ **소비처 없는 라인 끝은 여기 안 들어온다** (2026-09-03 · `260903_W01` 7-1).
+        /// 종전에는 다음 칸이 없으면 무조건 이 값을 올리고 아이템을 지웠다. 그러면 벨트를
+        /// 허공으로 뻗어 놓아도 물건이 계속 빠져나가 **「단절」이라는 상태가 성립하지 않았다** —
+        /// 병합기가 영영 안 차고 상류가 멈추지 않았다.
+        /// </summary>
         public int DeliveredCount { get; private set; }
+
+        /// <summary>이 품목이 소비처에 도착한 누적 개수.</summary>
+        public int ArrivedOf(FlowKind kind) =>
+            _arrived.TryGetValue(kind, out int n) ? n : 0;
 
         /// <summary>
         /// 배치가 바뀔 때마다 부른다. 링크를 다시 잡고 **없어진 칸의 아이템은 버린다** —
@@ -76,14 +93,18 @@ namespace MBI.Core
             _next.Clear();
             _cursor.Clear();
             _cellKind.Clear();
+            _consumers.Clear();
             if (grid == null) { _lanes.Clear(); return; }
 
             // 칸마다 무엇을 나르는 벨트인지 미리 적어 둔다. 분류기가 갈래를 고를 때 읽는다 —
             // 매번 격자를 다시 묻지 않기 위해서다.
+            // 노드 칸은 따로 적어 둔다. `BeltRouting.BuildLinks`가 벨트에서 노드의 입력면으로도
+            // 링크를 만들기 때문에(그쪽 TryLink), 노드 셀이 `_next`의 목적지로 들어온다.
             for (int x = 0; x < grid.Columns; x++)
             for (int y = 0; y < grid.Rows; y++)
             {
                 var c = new Vector2Int(x, y);
+                if (grid.GetAt(c) != null) { _consumers.Add(c); continue; }
                 BeltInstance belt = grid.GetBeltAt(c);
                 if (belt != null) _cellKind[c] = belt.Kind;
             }
@@ -104,14 +125,28 @@ namespace MBI.Core
             foreach (Vector2Int cell in gone) _lanes.Remove(cell);
         }
 
-        /// <summary>이 칸에 아이템을 하나 올린다. 자리가 없으면 <c>false</c> — 그것이 상류 정지 신호다.</summary>
+        /// <summary>
+        /// 이 칸에 아이템을 하나 올린다. 자리가 없으면 <c>false</c> — 그것이 상류 정지 신호다.
+        ///
+        /// **목적지가 노드면 얹지 않고 도착으로 센다.** 노드끼리 맞붙은 배치에서
+        /// <see cref="BoardItemTick"/>이 이 함수로 바로 넘기기 때문이다.
+        /// </summary>
         public bool TryInsert(Vector2Int cell, FlowKind kind)
         {
+            if (_consumers.Contains(cell)) { Arrive(kind); return true; }
+
             List<BeltItem> lane = LaneOf(cell);
             if (!HasRoomAtEntry(lane)) return false;
 
             lane.Add(new BeltItem { kind = kind, progress = 0f });
             return true;
+        }
+
+        // 소비처가 받았다. 총계와 품목별을 함께 올린다.
+        private void Arrive(FlowKind kind)
+        {
+            DeliveredCount++;
+            _arrived[kind] = (_arrived.TryGetValue(kind, out int n) ? n : 0) + 1;
         }
 
         /// <summary>
@@ -198,7 +233,11 @@ namespace MBI.Core
             i == 0 ? 1f : lane[i - 1].progress - MinGapCells;
 
         /// <summary>
-        /// 다음 칸으로 넘긴다. 다음이 없으면 라인의 끝이므로 배출로 센다.
+        /// 다음 칸으로 넘긴다. **넘길 곳이 없으면 <c>false</c> — 그 자리에 선다.**
+        ///
+        /// 소비처(노드)에 닿으면 도착으로 세고, 아무 데도 안 닿은 라인 끝에서는 쌓인다.
+        /// 종전에는 끝에서 무조건 배출해 **벨트를 허공으로 뻗어 놔도 물건이 계속 빠져나갔다** —
+        /// 그래서 조립 시스템 문서가 말하는 「단절」이 화면에 성립하지 않았다.
         ///
         /// **분류기가 뜻을 갖는 자리다.** 갈래가 여럿이면 품목이 맞는 쪽을 먼저 보고,
         /// 맞는 곳이 없거나 다 찼으면 돌아가며 고른다 — 한쪽만 계속 먹으면 나머지 갈래가
@@ -207,14 +246,16 @@ namespace MBI.Core
         private bool TryHandOff(Vector2Int cell, BeltItem item)
         {
             if (!_next.TryGetValue(cell, out List<Vector2Int> outs) || outs.Count == 0)
-            {
-                DeliveredCount++;
-                return true;
-            }
+                return false; // 소비처 없는 라인 끝 — 출력면에 붙어 멈춘다
 
             for (int i = 0; i < outs.Count; i++)
             {
                 Vector2Int to = outs[i];
+
+                // 노드로 가는 링크는 품목이 맞을 때만 서므로(`BeltRouting.TryLink`의 HasInputPort)
+                // 여기 왔다는 것 자체가 받을 수 있다는 뜻이다. 노드 칸에는 아이템을 얹지 않는다.
+                if (_consumers.Contains(to)) { Arrive(item.kind); return true; }
+
                 if (!_cellKind.TryGetValue(to, out FlowKind kind) || kind != item.kind) continue;
                 if (!HasRoomAtEntry(LaneOf(to))) continue;
 
