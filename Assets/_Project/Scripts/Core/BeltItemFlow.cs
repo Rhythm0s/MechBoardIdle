@@ -52,9 +52,17 @@ namespace MBI.Core
         private readonly Dictionary<Vector2Int, List<BeltItem>> _lanes =
             new Dictionary<Vector2Int, List<BeltItem>>();
 
-        // 셀 → 다음 셀. 링크가 없으면 그 칸이 라인의 끝이다.
-        private readonly Dictionary<Vector2Int, Vector2Int> _next =
-            new Dictionary<Vector2Int, Vector2Int>();
+        // 셀 → 나갈 수 있는 다음 칸들. 비었으면 그 칸이 라인의 끝이다.
+        // **분류기는 여럿이다** — 한 입력면에서 여러 출력면으로 갈린다(조립 문서「연결 규칙」).
+        private readonly Dictionary<Vector2Int, List<Vector2Int>> _next =
+            new Dictionary<Vector2Int, List<Vector2Int>>();
+
+        // 분류기에서 마지막으로 고른 갈래. 품목이 안 맞을 때 돌아가며 고르기 위한 자리다.
+        private readonly Dictionary<Vector2Int, int> _cursor = new Dictionary<Vector2Int, int>();
+
+        // 칸 → 그 벨트가 나르는 품목. 분류기가 갈래를 고를 때 읽는다.
+        private readonly Dictionary<Vector2Int, FlowKind> _cellKind =
+            new Dictionary<Vector2Int, FlowKind>();
 
         /// <summary>라인 끝에서 빠져나간 누적 개수. 도착량을 세는 자리다.</summary>
         public int DeliveredCount { get; private set; }
@@ -66,13 +74,28 @@ namespace MBI.Core
         public void Rebuild(BoardGrid grid)
         {
             _next.Clear();
+            _cursor.Clear();
+            _cellKind.Clear();
             if (grid == null) { _lanes.Clear(); return; }
+
+            // 칸마다 무엇을 나르는 벨트인지 미리 적어 둔다. 분류기가 갈래를 고를 때 읽는다 —
+            // 매번 격자를 다시 묻지 않기 위해서다.
+            for (int x = 0; x < grid.Columns; x++)
+            for (int y = 0; y < grid.Rows; y++)
+            {
+                var c = new Vector2Int(x, y);
+                BeltInstance belt = grid.GetBeltAt(c);
+                if (belt != null) _cellKind[c] = belt.Kind;
+            }
 
             foreach (BeltLink link in BeltRouting.BuildLinks(grid))
             {
-                // 분류기는 출력이 여럿이라 한 칸이 여러 다음을 가질 수 있다.
-                // 개체 단위 분배는 3번 덩어리 소관이므로 여기서는 첫 링크만 잡는다.
-                if (!_next.ContainsKey(link.fromCell)) _next[link.fromCell] = link.toCell;
+                if (!_next.TryGetValue(link.fromCell, out List<Vector2Int> outs))
+                {
+                    outs = new List<Vector2Int>();
+                    _next[link.fromCell] = outs;
+                }
+                if (!outs.Contains(link.toCell)) outs.Add(link.toCell);
             }
 
             var gone = new List<Vector2Int>();
@@ -129,7 +152,17 @@ namespace MBI.Core
         /// **노드 셀도 키가 된다** — <see cref="BeltRouting.BuildLinks"/>가 노드의 출력 포트에서도
         /// 링크를 만들기 때문이다. 노드가 출력 버퍼를 벨트로 밀어 넣을 때 이것으로 목적지를 찾는다.
         /// </summary>
-        public bool TryNextOf(Vector2Int cell, out Vector2Int to) => _next.TryGetValue(cell, out to);
+        /// <remarks>
+        /// 갈래가 여럿이면 **첫 번째**를 준다. 노드의 출력 포트는 보통 하나라 이것으로 충분하고,
+        /// 여럿인 노드가 생기면 <see cref="TryHandOff"/>처럼 골라 주는 쪽으로 바꿔야 한다.
+        /// </remarks>
+        public bool TryNextOf(Vector2Int cell, out Vector2Int to)
+        {
+            to = default;
+            if (!_next.TryGetValue(cell, out List<Vector2Int> outs) || outs.Count == 0) return false;
+            to = outs[0];
+            return true;
+        }
 
         /// <summary>이 칸의 아이템들. 렌더링과 진단이 읽는다.</summary>
         public IReadOnlyList<BeltItem> ItemsAt(Vector2Int cell) =>
@@ -164,19 +197,44 @@ namespace MBI.Core
         private static float CeilingFor(List<BeltItem> lane, int i) =>
             i == 0 ? 1f : lane[i - 1].progress - MinGapCells;
 
-        // 다음 칸으로 넘긴다. 다음이 없으면 라인의 끝이므로 배출로 센다.
+        /// <summary>
+        /// 다음 칸으로 넘긴다. 다음이 없으면 라인의 끝이므로 배출로 센다.
+        ///
+        /// **분류기가 뜻을 갖는 자리다.** 갈래가 여럿이면 품목이 맞는 쪽을 먼저 보고,
+        /// 맞는 곳이 없거나 다 찼으면 돌아가며 고른다 — 한쪽만 계속 먹으면 나머지 갈래가
+        /// 영영 비어 「섞으려면 분류기를 놓는다」가 성립하지 않는다.
+        /// </summary>
         private bool TryHandOff(Vector2Int cell, BeltItem item)
         {
-            if (!_next.TryGetValue(cell, out Vector2Int to))
+            if (!_next.TryGetValue(cell, out List<Vector2Int> outs) || outs.Count == 0)
             {
                 DeliveredCount++;
                 return true;
             }
 
-            if (!HasRoomAtEntry(LaneOf(to))) return false;
+            for (int i = 0; i < outs.Count; i++)
+            {
+                Vector2Int to = outs[i];
+                if (!_cellKind.TryGetValue(to, out FlowKind kind) || kind != item.kind) continue;
+                if (!HasRoomAtEntry(LaneOf(to))) continue;
 
-            LaneOf(to).Add(new BeltItem { kind = item.kind, progress = 0f });
-            return true;
+                LaneOf(to).Add(new BeltItem { kind = item.kind, progress = 0f });
+                return true;
+            }
+
+            int start = _cursor.TryGetValue(cell, out int c) ? c : 0;
+            for (int n = 0; n < outs.Count; n++)
+            {
+                int idx = (start + n) % outs.Count;
+                Vector2Int to = outs[idx];
+                if (!HasRoomAtEntry(LaneOf(to))) continue;
+
+                LaneOf(to).Add(new BeltItem { kind = item.kind, progress = 0f });
+                _cursor[cell] = (idx + 1) % outs.Count;
+                return true;
+            }
+
+            return false; // 모든 갈래가 찼다 — 이 칸이 정체된다
         }
 
         // 하류가 먼저 오도록 정렬한다. 링크를 거슬러 깊이를 재고 깊은 쪽(끝단)부터 돌린다.
@@ -190,9 +248,11 @@ namespace MBI.Core
                 int d = 0;
                 Vector2Int at = cell;
                 // 순환 벨트가 허용돼 있으므로(조립 문서「연결 규칙」) 칸 수로 상한을 둔다.
-                while (_next.TryGetValue(at, out Vector2Int nxt) && d < cells.Count)
+                // 갈래가 여럿이면 첫 번째만 따라간다 — 깊이는 순서를 정하는 근사치면 충분하다.
+                while (_next.TryGetValue(at, out List<Vector2Int> outs) && outs.Count > 0
+                       && d < cells.Count)
                 {
-                    at = nxt;
+                    at = outs[0];
                     d++;
                 }
                 depth[cell] = d;
