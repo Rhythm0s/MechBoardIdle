@@ -123,6 +123,14 @@ namespace MBI.Core
             }
         }
 
+        /// <summary>
+        /// 이 칸에서 물건이 나가는 다음 칸. 없으면 라인의 끝이다.
+        ///
+        /// **노드 셀도 키가 된다** — <see cref="BeltRouting.BuildLinks"/>가 노드의 출력 포트에서도
+        /// 링크를 만들기 때문이다. 노드가 출력 버퍼를 벨트로 밀어 넣을 때 이것으로 목적지를 찾는다.
+        /// </summary>
+        public bool TryNextOf(Vector2Int cell, out Vector2Int to) => _next.TryGetValue(cell, out to);
+
         /// <summary>이 칸의 아이템들. 렌더링과 진단이 읽는다.</summary>
         public IReadOnlyList<BeltItem> ItemsAt(Vector2Int cell) =>
             _lanes.TryGetValue(cell, out List<BeltItem> lane) ? lane : System.Array.Empty<BeltItem>();
