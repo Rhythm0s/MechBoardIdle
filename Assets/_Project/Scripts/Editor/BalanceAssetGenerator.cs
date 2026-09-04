@@ -31,6 +31,11 @@ namespace MBI.Editor
         // ⚠️ 원천은 **밸런스 문서 하나다.** 조립 시스템 문서의 부하 열은 낡았고 정정 후에 넘어온다.
         private const float CorePowerDraw = 0f;    // 코어 — 소비처지 생산자가 아니다
         private const float ProcPowerDraw = 1f;    // 가공 — 물질을 바꾸는 자리
+
+        // 가공 대당 산출(개/초). 밸런스 문서「노드 생산력과 레시피」의 「노드 1대 산출 1개/초」다.
+        // ⚠️ 2026-09-04 레시피 개정으로 **필요 생산치가 재산출 대상**이 됐다(`260904_W02` 6장).
+        // 확정될 때까지 문서에 있던 값을 그대로 쓰되 이름으로 미확정임을 남긴다.
+        private const float ProcOutputPerSecTbd = 1f;
         private const float MuniPowerDraw = 2f;    // 군수 — 만들기도 하고 나르기도 한다
         private const float EnergyPowerDraw = 1f;  // 에너지 — 내는 쪽도 자기 몫을 먹는다
         private const float StoragePowerDraw = 2f; // 저장 — 쌓아둘 뿐 아무것도 바꾸지 않는다
@@ -144,20 +149,31 @@ namespace MBI.Editor
                 {
                     new NodePort(PortFace.West, PortIO.Input, FlowKind.Ammo),
                     new NodePort(PortFace.South, PortIO.Input, FlowKind.Power),
-                    new NodePort(PortFace.North, PortIO.Output, FlowKind.Material),
-                });
+                    // 산출을 코어 에너지로 (2026-09-04 · `260904_W01` 3-2).
+                    // 종전에는 Material 하나였고, 그래서 가공이 무엇을 먹는지가 없었다.
+                    new NodePort(PortFace.North, PortIO.Output, FlowKind.CoreEnergy),
+                },
+                BuildRecipes(NodeType.Core, ProcOutputPerSecTbd));
 
             // 가공 — 물류 품목 처리. 전력 1/초(확정).
             // ⚠️ 가공의 **발열**은 부하 열에 없다. 표에 있는 발열원은 에너지 하나뿐이라
             // 0으로 두고 보고한다 — 차원이 비슷하다고 옛 합계(8)를 되넣지 않는다(§7 08-24).
+            // 가공 — 조합표 셋 (2026-09-04 · `260904_W01` 3장).
+            //
+            // ⚠️ **어제까지 이 노드의 조합표가 0개였다.** 밸런스 문서「노드 생산력과 레시피」가
+            // 「기초재료·부품」을 확정치로 갖고 있는데 코드에는 없었고, 그래서 탄약 체인의
+            // 앞단이 통째로 비어 있었다(`260903_W04` 3장). 이 줄이 그 자리를 채운다.
+            //
+            // 입력면은 하나다. 세 조합표가 전부 1종을 먹으므로 면이 남지 않는다.
             WriteNode(config, "proc", "가공", NodeType.Processing, true,
                 new NodeResourceProfile { powerDraw = ProcPowerDraw, heatGenerate = 0f,
                     confirm = ConfirmState.Confirmed },
                 new List<NodePort>
                 {
-                    new NodePort(PortFace.West, PortIO.Input, FlowKind.Material),
-                    new NodePort(PortFace.East, PortIO.Output, FlowKind.Material),
-                });
+                    new NodePort(PortFace.West, PortIO.Input, FlowKind.CoreEnergy),
+                    new NodePort(PortFace.East, PortIO.Output, FlowKind.BasicParts),
+                },
+                BuildRecipes(NodeType.Processing, ProcOutputPerSecTbd));
 
             // 군수 — 조합표 4종 중 **하나**를 돌린다(260827_V01 §3).
             // 갈래를 늘리는 방법은 노드를 더 놓는 것이지 노드 하나를 넓히는 것이 아니므로,

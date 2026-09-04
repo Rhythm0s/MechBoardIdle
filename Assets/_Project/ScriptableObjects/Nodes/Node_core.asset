@@ -23,7 +23,14 @@ MonoBehaviour:
     ammoConsume: 0
     heatGenerate: 0
     confirm: 0
-  recipes: []
+  recipes:
+  - kind: 5
+    displayName: "\uCF54\uC5B4 \uC5D0\uB108\uC9C0"
+    inputs: []
+    output: 7
+    outputPerSec: 1
+    stackLimitTbd: 0
+    implemented: 1
   ports:
   - face: 3
     io: 0
@@ -33,5 +40,5 @@ MonoBehaviour:
     kind: 2
   - face: 0
     io: 1
-    kind: 0
+    kind: 7
   balanceRef: {fileID: 11400000, guid: a00911652af86014e9b4ea1c7d0b41d5, type: 2}

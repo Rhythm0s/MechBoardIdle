@@ -56,6 +56,62 @@ namespace MBI.EditorTools
                 sb.AppendLine();
                 sb.AppendLine(Measure(muni, stor, lineLength));
             }
+
+            sb.AppendLine();
+            sb.AppendLine(MeasureChain());
+            return sb.ToString();
+        }
+
+        /// <summary>
+        /// **4단 체인의 첫 도착** (2026-09-04 · `260904_W02` 2-2 요청).
+        ///
+        /// 코어 → 가공 → 기초 군수 → 복합 군수 → 마운트. 단계마다 생산 시간이 붙고
+        /// 그 사이마다 벨트가 있어, 1단 라인의 지연과는 자릿수가 다르다. 60초 창의
+        /// **상한**(첫 도착이 영영 안 오면 0으로 확정)을 정하는 근거가 이 값이다.
+        ///
+        /// 몸통 y=6 한 줄에 노드 넷과 벨트를 번갈아 놓아 12칸을 채운다.
+        /// </summary>
+        private static string MeasureChain()
+        {
+            NodeDefinition core = Load("Node_core");
+            NodeDefinition proc = Load("Node_proc");
+            NodeDefinition muni = Load("Node_muni");
+            NodeDefinition munix = Load("Node_munix");
+            if (core == null || proc == null || muni == null || munix == null)
+                return "[4단 체인] 노드 자산이 모자란다";
+
+            var grid = new BoardGrid(12, 13, 1f, Vector2.zero, PartLayout.BuildMask());
+
+            // 노드 · 벨트 · 노드 · 벨트 … 로 y=6을 채운다. 노드는 서쪽에서 받고 동쪽으로 낸다.
+            var placed = new List<string>();
+            int x = 0;
+            foreach (NodeDefinition def in new[] { core, proc, muni, munix })
+            {
+                if (grid.TryPlace(new Vector2Int(x, 6), def, out _)) placed.Add($"{def.displayName}@{x}");
+                x++;
+                // 노드 사이에 벨트 두 칸.
+                for (int k = 0; k < 2 && x < 11; k++, x++)
+                {
+                    grid.TryPlaceBelt(new Vector2Int(x, 6), PortFace.West, PortFace.East,
+                        FlowKind.None, out _);
+                }
+            }
+
+            var flow = new BeltItemFlow();
+            flow.Rebuild(grid);
+
+            int steps = Mathf.RoundToInt(ObserveSeconds / StepSeconds);
+            float firstAt = -1f;
+            for (int i = 1; i <= steps; i++)
+            {
+                BoardItemTick.Step(grid, flow, StepSeconds, 1f);
+                if (firstAt < 0f && flow.DeliveredCount > 0) firstAt = i * StepSeconds;
+            }
+
+            var sb = new StringBuilder();
+            sb.AppendLine($"[4단 체인] {string.Join(" → ", placed)}");
+            sb.AppendLine($"  첫 도착: {(firstAt < 0f ? "60초 안에 없음" : firstAt.ToString("F2") + "초")}");
+            sb.AppendLine($"  60초 총 도착: {flow.DeliveredCount}개");
             return sb.ToString();
         }
 

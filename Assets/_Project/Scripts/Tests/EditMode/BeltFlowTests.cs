@@ -63,14 +63,20 @@ namespace MBI.Tests
             Assert.AreEqual(FlowKind.Drone, BeltFlow.OutputKindOf(muni));
         }
 
-        /// <summary>조합표가 없는 노드는 포트에 적힌 것이 그대로 산출이다.</summary>
+        /// <summary>
+        /// 코어의 산출은 **코어 에너지**다 (2026-09-04 개정 · `260904_W01` 3-2).
+        ///
+        /// 종전에는 Material 하나였고, 그래서 「가공이 무엇을 먹는가」가 코드에 없었다.
+        /// 체인의 뿌리에 이름이 붙으면서 가공 → 기초 군수 → 복합 군수가 이어진다.
+        /// </summary>
         [Test]
-        public void NodesWithoutRecipes_UseTheirPort()
+        public void Core_OutputsCoreEnergy()
         {
             var g = Grid();
             g.TryPlace(new Vector2Int(1, 1), _core, out NodeInstance core);
 
-            Assert.AreEqual(FlowKind.Material, BeltFlow.OutputKindOf(core), "코어는 물류 품목을 낸다");
+            Assert.AreEqual(FlowKind.CoreEnergy, BeltFlow.OutputKindOf(core),
+                "코어는 코어 에너지를 낸다 — 가공이 그것을 먹는다");
         }
 
         // ---- 전파 ----

@@ -23,12 +23,39 @@ MonoBehaviour:
     ammoConsume: 0
     heatGenerate: 0
     confirm: 0
-  recipes: []
+  recipes:
+  - kind: 6
+    displayName: "\uAE30\uCD08\uC7AC\uB8CC\xB7\uBD80\uD488"
+    inputs:
+    - kind: 7
+      perOutput: 1
+    output: 8
+    outputPerSec: 1
+    stackLimitTbd: 0
+    implemented: 1
+  - kind: 7
+    displayName: "\uBC1C\uC804\uC7AC\uB8CC"
+    inputs:
+    - kind: 7
+      perOutput: 1
+    output: 9
+    outputPerSec: 1
+    stackLimitTbd: 0
+    implemented: 1
+  - kind: 8
+    displayName: "\uBC30\uD130\uB9AC"
+    inputs:
+    - kind: 9
+      perOutput: 1
+    output: 10
+    outputPerSec: 1
+    stackLimitTbd: 0
+    implemented: 1
   ports:
   - face: 3
     io: 0
-    kind: 0
+    kind: 7
   - face: 1
     io: 1
-    kind: 0
+    kind: 8
   balanceRef: {fileID: 11400000, guid: a00911652af86014e9b4ea1c7d0b41d5, type: 2}
