@@ -25,9 +25,26 @@ namespace MBI.Core
         /// <summary>아이템 하나로 세는 단위. 낱개로 나간다.</summary>
         private const float OneItem = 1f;
 
-        public static void Step(BoardGrid grid, BeltItemFlow flow, float dt)
+        public static void Step(BoardGrid grid, BeltItemFlow flow, float dt) =>
+            Step(grid, flow, dt, 1f);
+
+        /// <summary>
+        /// 전력 효율을 반영해 한 틱 돈다 (2026-09-04 · `260903_W02` 2-2).
+        ///
+        /// **전력이 모자라면 노드가 덜 만든다.** 도착량을 실제 출력으로 쓰려면 그 인과가
+        /// 생산 단계에 있어야 한다 — 없으면 도착량이 전력을 반영하지 않아, 감쇠 배율을
+        /// 지운 뒤에 전력이 **아예 안 걸리는** 상태가 된다.
+        ///
+        /// 산출률에 곱하지 않고 <paramref name="dt"/>에 곱한다. 결과는 같고, 버퍼 상한과
+        /// 재료 한도가 원래 값 그대로 걸리므로 상한 판정이 효율에 흔들리지 않는다.
+        /// </summary>
+        public static void Step(BoardGrid grid, BeltItemFlow flow, float dt, float powerEfficiency)
         {
             if (grid == null || flow == null || dt <= 0f) return;
+
+            // 벨트는 전력과 무관하게 돈다 — 이미 실린 물건이 전력이 모자라다고 멈추지 않는다.
+            // 줄어드는 것은 새로 만들어지는 양이다.
+            float produceDt = dt * Mathf.Clamp01(powerEfficiency);
 
             // 벨트를 먼저 민다. 앞이 비워야 이번 틱에 뒤가 들어갈 자리가 생긴다 —
             // 나중에 밀면 생산분이 한 틱씩 늦게 출발한다.
@@ -55,7 +72,7 @@ namespace MBI.Core
 
                 // 버퍼가 가득하거나 재료가 없으면 0을 돌려준다 — 둘 다 정지다.
                 // 여기서 사유를 가리지 않는다. 가리는 것은 진단의 몫이다.
-                float made = NodeProduction.Produce(recipe, node.OutputBuffer, dt, node.InputBuffer);
+                float made = NodeProduction.Produce(recipe, node.OutputBuffer, produceDt, node.InputBuffer);
                 if (made <= 0f) return;
 
                 // 만든 만큼만 먹는다. 순서를 바꾸면 버릴 산출의 재료까지 먼저 사라진다.

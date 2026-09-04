@@ -153,6 +153,41 @@ namespace MBI.Tests
         }
 
         /// <summary>
+        /// **전력이 모자라면 그만큼 덜 만든다** (2026-09-04 · `260903_W02` 2-2).
+        ///
+        /// 도착량을 실제 출력으로 쓰려면 이 인과가 생산 단계에 있어야 한다. 없으면
+        /// 감쇠 배율을 지운 뒤 전력이 아예 안 걸린다.
+        /// </summary>
+        [Test]
+        public void PowerEfficiency_ScalesProduction()
+        {
+            var grid = new BoardGrid(4, 3, 1f, Vector2.zero);
+            NodeInstance node = PlaceProducer(grid, new Vector2Int(0, 1), perSec: 10f, stackLimit: 100f);
+
+            var flow = new BeltItemFlow();
+            flow.Rebuild(grid);
+
+            BoardItemTick.Step(grid, flow, 1f, 0.5f);
+
+            Assert.AreEqual(5f, node.OutputBuffer, Delta, "10개/초 × 1초 × 효율 0.5 = 5개");
+        }
+
+        /// <summary>효율 0이면 한 개도 안 만든다 — 전력이 끊긴 보드는 멈춘다.</summary>
+        [Test]
+        public void ZeroPower_ProducesNothing()
+        {
+            var grid = new BoardGrid(4, 3, 1f, Vector2.zero);
+            NodeInstance node = PlaceProducer(grid, new Vector2Int(0, 1), perSec: 10f, stackLimit: 100f);
+
+            var flow = new BeltItemFlow();
+            flow.Rebuild(grid);
+
+            BoardItemTick.Step(grid, flow, 1f, 0f);
+
+            Assert.AreEqual(0f, node.OutputBuffer, Delta);
+        }
+
+        /// <summary>
         /// **재료가 없으면 안 돈다** (2026-09-04 · `260904_W01` 3장).
         ///
         /// 어제까지 `NodeRecipe`에는 입력 항목이 아예 없어서 군수 노드가 아무것도 안 먹고

@@ -62,6 +62,14 @@ namespace MBI.Logistics
         /// <summary>배치 상태 격자(§5-5 출력 집계용). Awake 후 유효.</summary>
         public BoardGrid Grid => _grid;
 
+        /// <summary>
+        /// 벨트 위 개별 아이템 (2026-09-04 배선 · `260904_W01` 6장).
+        ///
+        /// **보드가 소유한다.** 도는 것은 <see cref="LogisticsOutputProvider"/>이고 그리는 것은
+        /// 벨트 흐름 애니메이션이라, 둘이 같은 객체를 봐야 화면과 숫자가 갈리지 않는다.
+        /// </summary>
+        public BeltItemFlow ItemFlow { get; } = new BeltItemFlow();
+
         private BoardGrid _grid;
         private InputAction _press;
         private readonly Dictionary<Vector2Int, GameObject> _markers = new Dictionary<Vector2Int, GameObject>();
@@ -1306,6 +1314,11 @@ namespace MBI.Logistics
             // 면이 안 잡히면 링크가 안 서고, 링크가 안 서면 품목이 못 흐른다.
             BeltAutoOrient.Resolve(_grid);
             BeltFlow.Resolve(_grid);
+
+            // 배치가 바뀌면 아이템 흐름의 링크도 다시 잡는다. **면·품목이 정해진 뒤**여야 한다 —
+            // 먼저 부르면 아직 안 붙은 면으로 링크를 만든다.
+            ItemFlow.Rebuild(_grid);
+
             RefreshBeltColors();
             foreach (Vector2Int cell in _portMarkers.Keys) RefreshPortColors(cell);
 

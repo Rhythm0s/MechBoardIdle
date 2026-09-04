@@ -145,6 +145,20 @@ namespace MBI.Logistics
             LogisticsOutputBridge.GlobalCause = GlobalCause(r);
 
             board.ApplyDiagnostics(LogisticsDiagnostics.Evaluate(grid, r)); // 노드 상태색
+
+            // 개별 아이템을 실제로 민다 (2026-09-04 배선 · `260904_W01` 6장).
+            //
+            // ⚠️ **어제까지 이 호출이 없었다.** `BoardItemTick`도 `BeltItemFlow`도 만들어만
+            // 두고 부르는 곳이 0건이라 테스트 안에서만 돌았다 — 불일치 3번과 같은 형태가
+            // 한 층 위에서 반복된 것이다(`260904_V02`).
+            //
+            // **전력 효율을 여기서 곱한다.** 전력이 모자라면 노드가 덜 만들고, 덜 만들면
+            // 덜 도착한다(`260903_W02` 2-2). 도착량을 실제 출력으로 쓰려면 그 인과가
+            // 생산 단계에 있어야 하며, 없으면 전력이 아예 안 걸린다.
+            //
+            // 진단 뒤에 두는 이유는 **같은 프레임의 효율**을 쓰기 위해서다. 앞에 두면
+            // 직전 프레임 값을 쓰게 되어 배치를 바꾼 첫 프레임이 어긋난다.
+            BoardItemTick.Step(grid, board.ItemFlow, Time.deltaTime, r.powerEfficiency);
         }
 
         /// <summary>전역 원인(변수패널 아이콘·점멸): Power → Heat 우선(§3-4-1). 벨트는 아이콘 아님(gapBelt 담당).</summary>
