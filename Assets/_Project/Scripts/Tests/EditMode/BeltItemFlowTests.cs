@@ -256,6 +256,57 @@ namespace MBI.Tests
             Assert.IsTrue(flow.IsBlocked(upstream), "상류도 출력면에 붙어 멈춘다");
         }
 
+        /// <summary>
+        /// **마운트 고정 포트로 나가면 도착이다** (2026-09-04 · `260904_W01` 2-2).
+        ///
+        /// 포트는 격자 밖을 향하므로 `BuildLinks`가 링크를 만들지 않는다. 그래서 종전이라면
+        /// 소비처 없는 라인 끝으로 보여 물건이 그 자리에 섰다. 이제는 나간다.
+        /// </summary>
+        [Test]
+        public void MountPort_CountsAsArrival()
+        {
+            // 실루엣 마스크를 씌운 진짜 보드여야 파츠 좌표가 맞는다.
+            var grid = new BoardGrid(12, 13, 1f, Vector2.zero, PartLayout.BuildMask());
+
+            // 로봇 A 포트는 (0,6)의 서쪽이다. 그 칸에 서쪽으로 내보내는 벨트를 깐다.
+            grid.TryPlaceBelt(new Vector2Int(0, 6), PortFace.East, PortFace.West, FlowKind.Ammo, out _);
+
+            var flow = new BeltItemFlow();
+            flow.Rebuild(grid);
+
+            var cell = new Vector2Int(0, 6);
+            Assert.IsTrue(flow.TryInsert(cell, FlowKind.Ammo));
+            flow.Tick(SecondsPerCell);
+
+            Assert.AreEqual(1, flow.MountArrivedOf(FlowKind.Ammo), "마운트로 나갔다");
+            Assert.AreEqual(0, flow.ItemsAt(cell).Count, "그 자리에 안 남는다");
+            Assert.AreEqual(1, flow.PendingMountArrivals.Count);
+            Assert.AreEqual(MountOwner.RobotA, flow.PendingMountArrivals[0].owner,
+                "왼팔 포트는 로봇 A의 것이다");
+        }
+
+        /// <summary>
+        /// 같은 칸이라도 **면이 다르면** 마운트가 아니다. 포트는 칸이 아니라 칸의 경계에 붙는다.
+        /// </summary>
+        [Test]
+        public void MountPort_WrongFace_IsNotArrival()
+        {
+            var grid = new BoardGrid(12, 13, 1f, Vector2.zero, PartLayout.BuildMask());
+
+            // (0,6)에서 동쪽으로 내보낸다 — 마운트는 서쪽이다. 동쪽 이웃 (1,6)은 팔 안쪽 빈 칸.
+            grid.TryPlaceBelt(new Vector2Int(0, 6), PortFace.West, PortFace.East, FlowKind.Ammo, out _);
+
+            var flow = new BeltItemFlow();
+            flow.Rebuild(grid);
+
+            var cell = new Vector2Int(0, 6);
+            flow.TryInsert(cell, FlowKind.Ammo);
+            flow.Tick(SecondsPerCell * 4f);
+
+            Assert.AreEqual(0, flow.MountArrivedOf(FlowKind.Ammo), "면이 다르면 안 나간다");
+            Assert.AreEqual(1, flow.ItemsAt(cell).Count, "출력면에 붙어 멈춘다");
+        }
+
         [Test]
         public void RemovingBelt_DropsItemsOnIt()
         {

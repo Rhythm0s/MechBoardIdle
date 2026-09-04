@@ -17,6 +17,19 @@ namespace MBI.Core
         }
     }
 
+    /// <summary>마운트 고정 포트로 물건 하나가 나간 사건. 도착이 곧 적재다(`260904_W01` 2-2).</summary>
+    public readonly struct MountArrival
+    {
+        public readonly MountOwner owner;
+        public readonly FlowKind kind;
+
+        public MountArrival(MountOwner owner, FlowKind kind)
+        {
+            this.owner = owner;
+            this.kind = kind;
+        }
+    }
+
     /// <summary>벨트 한 칸 위에 얹힌 아이템 하나.</summary>
     public struct BeltItem
     {
@@ -86,6 +99,14 @@ namespace MBI.Core
         // 이번 틱에 도착한 것들. BoardItemTick이 노드 입력 버퍼로 옮기고 비운다.
         private readonly List<Arrival> _pending = new List<Arrival>();
 
+        // 벨트 출력면이 마운트 고정 포트로 향하는 칸 → 그 마운트의 주인.
+        private readonly Dictionary<Vector2Int, MountOwner> _mountExits =
+            new Dictionary<Vector2Int, MountOwner>();
+
+        // 마운트로 나간 누적 개수와 이번 틱분.
+        private readonly Dictionary<FlowKind, int> _mountArrived = new Dictionary<FlowKind, int>();
+        private readonly List<MountArrival> _pendingMount = new List<MountArrival>();
+
         /// <summary>
         /// 소비처(노드)로 도착한 누적 개수.
         ///
@@ -110,6 +131,19 @@ namespace MBI.Core
         public void ClearPendingArrivals() => _pending.Clear();
 
         /// <summary>
+        /// 마운트 고정 포트로 나간 누적 개수 (2026-09-04 · `260904_W01` 2-2).
+        /// **이것이 실제 전투력의 재료다** — 출력 교체(6번 덩어리)가 읽는다.
+        /// </summary>
+        public int MountArrivedOf(FlowKind kind) =>
+            _mountArrived.TryGetValue(kind, out int n) ? n : 0;
+
+        /// <summary>이번 틱에 마운트로 나간 것들. 전투 쪽이 적재로 옮기고 비운다.</summary>
+        public IReadOnlyList<MountArrival> PendingMountArrivals => _pendingMount;
+
+        /// <summary>옮긴 뒤 비운다.</summary>
+        public void ClearPendingMountArrivals() => _pendingMount.Clear();
+
+        /// <summary>
         /// 배치가 바뀔 때마다 부른다. 링크를 다시 잡고 **없어진 칸의 아이템은 버린다** —
         /// 벨트를 걷어내면 그 위의 물건도 같이 사라지는 것이 자연스럽다.
         /// </summary>
@@ -119,6 +153,7 @@ namespace MBI.Core
             _cursor.Clear();
             _cellKind.Clear();
             _consumers.Clear();
+            _mountExits.Clear();
             if (grid == null) { _lanes.Clear(); return; }
 
             // 칸마다 무엇을 나르는 벨트인지 미리 적어 둔다. 분류기가 갈래를 고를 때 읽는다 —
@@ -131,7 +166,18 @@ namespace MBI.Core
                 var c = new Vector2Int(x, y);
                 if (grid.GetAt(c) != null) { _consumers.Add(c); continue; }
                 BeltInstance belt = grid.GetBeltAt(c);
-                if (belt != null) _cellKind[c] = belt.Kind;
+                if (belt == null) continue;
+
+                _cellKind[c] = belt.Kind;
+
+                // 출력면이 마운트 고정 포트로 향하면 그 칸이 라인의 도착지가 된다.
+                // 포트는 격자 밖을 향하므로 `BuildLinks`가 링크를 만들지 않는다 — 여기서 잡는다.
+                foreach (PortFace outFace in belt.OutFaces)
+                {
+                    if (!PartLayout.TryGetMountPort(c, outFace, out MountPort port)) continue;
+                    _mountExits[c] = port.owner;
+                    break;
+                }
             }
 
             foreach (BeltLink link in BeltRouting.BuildLinks(grid))
@@ -173,6 +219,15 @@ namespace MBI.Core
             DeliveredCount++;
             _arrived[kind] = (_arrived.TryGetValue(kind, out int n) ? n : 0) + 1;
             _pending.Add(new Arrival(cell, kind));
+        }
+
+        // 마운트가 받았다. 노드 도착과 세는 곳을 나눈다 — 하나는 재료가 되고
+        // 하나는 전투로 나가므로, 섞으면 도착량이 두 뜻을 갖는다.
+        private void ArriveMount(MountOwner owner, FlowKind kind)
+        {
+            DeliveredCount++;
+            _mountArrived[kind] = (_mountArrived.TryGetValue(kind, out int n) ? n : 0) + 1;
+            _pendingMount.Add(new MountArrival(owner, kind));
         }
 
         /// <summary>
@@ -272,7 +327,15 @@ namespace MBI.Core
         private bool TryHandOff(Vector2Int cell, BeltItem item)
         {
             if (!_next.TryGetValue(cell, out List<Vector2Int> outs) || outs.Count == 0)
+            {
+                // 마운트 고정 포트로 나가는 자리면 도착이다. 아니면 그 자리에 선다.
+                if (_mountExits.TryGetValue(cell, out MountOwner owner))
+                {
+                    ArriveMount(owner, item.kind);
+                    return true;
+                }
                 return false; // 소비처 없는 라인 끝 — 출력면에 붙어 멈춘다
+            }
 
             for (int i = 0; i < outs.Count; i++)
             {

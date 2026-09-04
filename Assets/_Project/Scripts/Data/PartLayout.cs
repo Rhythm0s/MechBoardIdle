@@ -17,6 +17,38 @@ namespace MBI.Data
         LegR,
     }
 
+    /// <summary>마운트가 붙은 로봇. 마운트 수는 A·B 각 1개다 — 포트가 둘이어도 마운트는 하나다.</summary>
+    public enum MountOwner
+    {
+        RobotA,
+        RobotB,
+    }
+
+    /// <summary>
+    /// 마운트 고정 포트 — 보드에서 만든 것이 마운트 적재로 넘어가는 자리
+    /// (2026-09-04 신설 · `260904_W01` 2장).
+    ///
+    /// **노드가 아니다.** 지침 3장이 노드를 「더 놓으면 결과가 바뀌는 것」으로 정의하는데
+    /// 이것은 붙박이라 더 놓을 수도 뺄 수도 없다. **격자도 안 먹는다** — 칸이 아니라 칸의
+    /// 경계에 붙으므로 117칸은 그대로다.
+    ///
+    /// <see cref="face"/>는 그 칸에서 **바깥을 향하는 면**이다. 벨트의 출력면이 이 면과
+    /// 같으면 물건이 마운트로 나가며, 그 도착이 곧 적재다 — 사이에 층을 두지 않는다(W01 2-2).
+    /// </summary>
+    public readonly struct MountPort
+    {
+        public readonly Vector2Int cell;
+        public readonly PortFace face;
+        public readonly MountOwner owner;
+
+        public MountPort(Vector2Int cell, PortFace face, MountOwner owner)
+        {
+            this.cell = cell;
+            this.face = face;
+            this.owner = owner;
+        }
+    }
+
     /// <summary>파츠 한 개가 차지하는 직사각 영역(셀 단위, 좌하단 기준).</summary>
     [System.Serializable]
     public struct PartRect
@@ -83,6 +115,43 @@ namespace MBI.Data
         };
 
         public static IReadOnlyList<PartRect> Parts => Layout;
+
+        /// <summary>
+        /// 마운트 고정 포트 셋 (2026-09-04 · `260904_W01` 2-3).
+        ///
+        /// A는 팔 바깥면 1개, B는 어깨 L·R 바깥면 각 1개다. 바깥 경계면에 둔 근거는
+        /// 안쪽이나 아래에 두면 벨트가 어깨를 지나갈 필요가 없어져 **어깨 9칸이 물류에서
+        /// 빠지기** 때문이다 — 로봇 B는 라인을 두 갈래로 갈라야 하고, 그래서 병합기·분류기를
+        /// 쓸 이유가 늘어난다.
+        ///
+        /// ⚠️ **좌우와 셀은 구현이 고른 가정이다** (`260904_V02`에 명기). 문서는 「팔 한쪽」
+        /// 이라고만 적었다. 왼팔을 골랐고 각 면의 세로 중앙 칸에 두었다 — 라인이 어느 쪽에서
+        /// 와도 거리가 같아지는 자리다. 설계가 다른 칸을 정하면 이 배열만 고치면 된다.
+        /// </summary>
+        private static readonly MountPort[] Mounts =
+        {
+            // 로봇 A — 왼팔(x 0~2 · y 4~8) 서쪽 바깥면, 세로 중앙 y=6
+            new MountPort(new Vector2Int(0, 6), PortFace.West, MountOwner.RobotA),
+
+            // 로봇 B — 어깨 L(x 0~2 · y 9~11) 서쪽, 어깨 R(x 9~11) 동쪽. 세로 중앙 y=10
+            new MountPort(new Vector2Int(0, 10), PortFace.West, MountOwner.RobotB),
+            new MountPort(new Vector2Int(11, 10), PortFace.East, MountOwner.RobotB),
+        };
+
+        public static IReadOnlyList<MountPort> MountPorts => Mounts;
+
+        /// <summary>이 칸의 이 면에 마운트 고정 포트가 붙어 있는가.</summary>
+        public static bool TryGetMountPort(Vector2Int cell, PortFace face, out MountPort port)
+        {
+            for (int i = 0; i < Mounts.Length; i++)
+            {
+                if (Mounts[i].cell != cell || Mounts[i].face != face) continue;
+                port = Mounts[i];
+                return true;
+            }
+            port = default;
+            return false;
+        }
 
         /// <summary>이 셀이 속한 파츠. 유효 셀이 아니면 None.</summary>
         public static RobotPart PartAt(Vector2Int cell)
