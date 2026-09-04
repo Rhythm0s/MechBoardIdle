@@ -4,6 +4,19 @@ using UnityEngine;
 
 namespace MBI.Core
 {
+    /// <summary>소비처에 물건 하나가 닿은 사건. 어느 칸의 노드가 무엇을 받았는가.</summary>
+    public readonly struct Arrival
+    {
+        public readonly Vector2Int cell;
+        public readonly FlowKind kind;
+
+        public Arrival(Vector2Int cell, FlowKind kind)
+        {
+            this.cell = cell;
+            this.kind = kind;
+        }
+    }
+
     /// <summary>벨트 한 칸 위에 얹힌 아이템 하나.</summary>
     public struct BeltItem
     {
@@ -70,6 +83,9 @@ namespace MBI.Core
         // 품목 → 소비처로 도착한 누적 개수. 출력 교체(6번 덩어리)가 읽을 값이다.
         private readonly Dictionary<FlowKind, int> _arrived = new Dictionary<FlowKind, int>();
 
+        // 이번 틱에 도착한 것들. BoardItemTick이 노드 입력 버퍼로 옮기고 비운다.
+        private readonly List<Arrival> _pending = new List<Arrival>();
+
         /// <summary>
         /// 소비처(노드)로 도착한 누적 개수.
         ///
@@ -83,6 +99,15 @@ namespace MBI.Core
         /// <summary>이 품목이 소비처에 도착한 누적 개수.</summary>
         public int ArrivedOf(FlowKind kind) =>
             _arrived.TryGetValue(kind, out int n) ? n : 0;
+
+        /// <summary>
+        /// 아직 노드 입력 버퍼로 옮기지 않은 도착분 (2026-09-04 · `260904_W01` 3장).
+        /// <see cref="BoardItemTick"/>이 매 틱 비운다 — 여기 쌓아 두는 것이 아니다.
+        /// </summary>
+        public IReadOnlyList<Arrival> PendingArrivals => _pending;
+
+        /// <summary>옮긴 뒤 비운다. 안 비우면 같은 물건이 매 틱 다시 들어간다.</summary>
+        public void ClearPendingArrivals() => _pending.Clear();
 
         /// <summary>
         /// 배치가 바뀔 때마다 부른다. 링크를 다시 잡고 **없어진 칸의 아이템은 버린다** —
@@ -133,7 +158,7 @@ namespace MBI.Core
         /// </summary>
         public bool TryInsert(Vector2Int cell, FlowKind kind)
         {
-            if (_consumers.Contains(cell)) { Arrive(kind); return true; }
+            if (_consumers.Contains(cell)) { Arrive(cell, kind); return true; }
 
             List<BeltItem> lane = LaneOf(cell);
             if (!HasRoomAtEntry(lane)) return false;
@@ -142,11 +167,12 @@ namespace MBI.Core
             return true;
         }
 
-        // 소비처가 받았다. 총계와 품목별을 함께 올린다.
-        private void Arrive(FlowKind kind)
+        // 소비처가 받았다. 총계·품목별을 올리고, 어느 노드가 받았는지 남긴다.
+        private void Arrive(Vector2Int cell, FlowKind kind)
         {
             DeliveredCount++;
             _arrived[kind] = (_arrived.TryGetValue(kind, out int n) ? n : 0) + 1;
+            _pending.Add(new Arrival(cell, kind));
         }
 
         /// <summary>
@@ -254,7 +280,7 @@ namespace MBI.Core
 
                 // 노드로 가는 링크는 품목이 맞을 때만 서므로(`BeltRouting.TryLink`의 HasInputPort)
                 // 여기 왔다는 것 자체가 받을 수 있다는 뜻이다. 노드 칸에는 아이템을 얹지 않는다.
-                if (_consumers.Contains(to)) { Arrive(item.kind); return true; }
+                if (_consumers.Contains(to)) { Arrive(to, item.kind); return true; }
 
                 if (!_cellKind.TryGetValue(to, out FlowKind kind) || kind != item.kind) continue;
                 if (!HasRoomAtEntry(LaneOf(to))) continue;

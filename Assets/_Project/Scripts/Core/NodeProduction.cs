@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using MBI.Data;
 using UnityEngine;
 
@@ -27,6 +28,79 @@ namespace MBI.Core
             if (room <= 0f) return 0f; // 가득 참 → 정지
 
             return Mathf.Min(recipe.outputPerSec * dt, room);
+        }
+
+        /// <summary>
+        /// 재료를 보는 산출량 (2026-09-04 신설 · `260904_W01` 3장).
+        ///
+        /// 위 <see cref="Produce"/>에 **재료 한도**를 하나 더 씌운 것이다. 재료가 모자라면
+        /// 있는 만큼만 만들고, 아예 없으면 0을 낸다 — 그것이 「재료가 끊겨 멈췄다」이다.
+        ///
+        /// **소비는 여기서 하지 않는다.** 얼마나 만들지와 얼마나 먹을지를 한 함수가 같이 하면
+        /// 호출자가 산출을 버릴 때 재료만 사라진다. <see cref="ConsumeFor"/>로 나눠 두었다.
+        /// </summary>
+        public static float Produce(in NodeRecipe recipe, float bufferNow, float dt,
+            IReadOnlyDictionary<FlowKind, float> stock)
+        {
+            float byRoom = Produce(recipe, bufferNow, dt);
+            if (byRoom <= 0f) return 0f;
+
+            return Mathf.Min(byRoom, InputCap(recipe, stock));
+        }
+
+        /// <summary>
+        /// 지금 재고로 만들 수 있는 최대 산출 개수. 재료를 안 먹는 조합표는 무제한이다.
+        ///
+        /// **가장 모자란 재료가 상한을 정한다** — 하나라도 없으면 0이 되고, 그 하나가 병목이다.
+        /// </summary>
+        public static float InputCap(in NodeRecipe recipe,
+            IReadOnlyDictionary<FlowKind, float> stock)
+        {
+            List<RecipeInput> inputs = recipe.inputs;
+            if (inputs == null || inputs.Count == 0) return float.PositiveInfinity;
+
+            float cap = float.PositiveInfinity;
+            for (int i = 0; i < inputs.Count; i++)
+            {
+                RecipeInput need = inputs[i];
+                if (need.perOutput <= 0f) continue; // 0을 먹는 줄은 제약이 아니다
+
+                float have = 0f;
+                stock?.TryGetValue(need.kind, out have);
+                cap = Mathf.Min(cap, have / need.perOutput);
+                if (cap <= 0f) return 0f;
+            }
+            return cap;
+        }
+
+        /// <summary>
+        /// 산출 <paramref name="made"/>개를 만들면서 먹은 재료를 재고에서 뺀다.
+        /// **음수로 내려가지 않는다** — 부동소수 오차로 아주 작은 음수가 남으면 다음 틱의
+        /// <see cref="InputCap"/>이 0을 내어 노드가 이유 없이 멈춘다.
+        /// </summary>
+        public static void ConsumeFor(in NodeRecipe recipe, float made,
+            IDictionary<FlowKind, float> stock)
+        {
+            List<RecipeInput> inputs = recipe.inputs;
+            if (inputs == null || inputs.Count == 0 || made <= 0f || stock == null) return;
+
+            for (int i = 0; i < inputs.Count; i++)
+            {
+                RecipeInput need = inputs[i];
+                if (need.perOutput <= 0f) continue;
+
+                float have = 0f;
+                stock.TryGetValue(need.kind, out have);
+                stock[need.kind] = Mathf.Max(0f, have - need.perOutput * made);
+            }
+        }
+
+        /// <summary>재료가 모자라 멈춰 있는가. 버퍼 만충(<see cref="IsStalled"/>)과 사유가 다르다.</summary>
+        public static bool IsStarved(in NodeRecipe recipe,
+            IReadOnlyDictionary<FlowKind, float> stock)
+        {
+            if (!recipe.IsRunnable) return false;
+            return InputCap(recipe, stock) <= 0f;
         }
 
         /// <summary>남은 버퍼 공간(개). 상한이 미설정(0 이하)이면 무제한으로 본다.</summary>

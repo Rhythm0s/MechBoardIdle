@@ -45,6 +45,25 @@ namespace MBI.Core
         /// </summary>
         public FlowKind BufferKind { get; set; }
 
+        /// <summary>
+        /// 입력 버퍼 — 벨트로 도착한 재료가 품목별로 쌓이는 자리 (2026-09-04 신설 · `260904_W01` 3장).
+        ///
+        /// **어느 면으로 들어왔는지는 기억하지 않는다.** 입력면은 재료 종류를 가리지 않으며
+        /// 노드가 안에서 맞추므로(W01 3-2), 면이 아니라 품목으로만 센다.
+        /// </summary>
+        public Dictionary<FlowKind, float> InputBuffer { get; } = new Dictionary<FlowKind, float>();
+
+        /// <summary>도착한 재료를 입력 버퍼에 넣는다.</summary>
+        public void TakeInput(FlowKind kind, float amount)
+        {
+            if (amount <= 0f) return;
+            InputBuffer.TryGetValue(kind, out float have);
+            InputBuffer[kind] = have + amount;
+        }
+
+        /// <summary>재료가 모자라 멈춰 있는가. 출력 버퍼 만충과 사유가 다르다.</summary>
+        public bool IsStarved => NodeProduction.IsStarved(CurrentRecipe, InputBuffer);
+
         /// <summary>지금 왜 멈춰 있는가. 멈추지 않았으면 None.</summary>
         public NodeStallReason StallReason => NodeProduction.StallReason(CurrentRecipe, OutputBuffer, BufferKind);
 

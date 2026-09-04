@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using UnityEngine;
 
 namespace MBI.Data
@@ -23,8 +24,29 @@ namespace MBI.Data
     }
 
     /// <summary>
+    /// 조합표가 산출 1개를 내기 위해 먹는 재료 한 줄 (2026-09-04 신설 · `260904_W01` 3장).
+    ///
+    /// **품목과 양만 적고 어느 면으로 들어오는지는 적지 않는다.** 입력면은 재료 종류를 가리지
+    /// 않으며 노드가 안에서 맞춘다 — 조립 시스템 문서「연결 규칙」이 연결을 면과 방향의 물리로만
+    /// 판정하는 것과 같은 결이다.
+    /// </summary>
+    [Serializable]
+    public struct RecipeInput
+    {
+        [Tooltip("먹는 품목.")]
+        public FlowKind kind;
+
+        [Tooltip("산출 1개당 먹는 개수.")]
+        public float perOutput;
+    }
+
+    /// <summary>
     /// 조합표 한 행. **노드 코드를 건드리지 않고 데이터만 늘려 레시피를 추가**할 수 있어야 하므로
     /// 입력·출력·주기를 전부 여기에 둔다(260827_V01 §3-1-2).
+    ///
+    /// ⚠️ **입력이 2026-09-04까지 이 구조체에 없었다.** 위 문장이 처음부터 있었는데 필드가
+    /// 없었고, 그래서 군수 노드가 아무것도 안 먹고 돌았다(`260904_V01` 2-1). 문서가 있다고
+    /// 말해 온 것이 코드에 없던 자리이며, 입력이 없으니 검사도 실패도 없어 아무 신호가 없었다.
     ///
     /// 레퍼런스: 새티스팩토리 제작기 · 쉐이퍼즈 2 가공 플랫폼 — 기계가 조합표를 여러 개 갖되
     /// 한 번에 하나만 돌린다.
@@ -36,6 +58,9 @@ namespace MBI.Data
         public RecipeKind kind;
         [Tooltip("표시명.")]
         public string displayName;
+
+        [Tooltip("먹는 재료. 비어 있으면 아무것도 안 먹는다(코어처럼 원천에서 나는 것).")]
+        public List<RecipeInput> inputs;
 
         [Tooltip("산출 흐름 종류 — 포트 연결 판정에 쓴다.")]
         public FlowKind output;

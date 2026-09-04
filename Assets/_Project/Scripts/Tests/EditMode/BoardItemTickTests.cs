@@ -119,6 +119,106 @@ namespace MBI.Tests
                 "탄약만 흘렀으므로 총계와 품목별이 같다");
         }
 
+        // 코어 에너지를 먹어 탄약을 내는 노드. 재료 체인의 최소 단위다.
+        private NodeInstance PlaceEater(BoardGrid grid, Vector2Int cell, float perSec, float perOutput)
+        {
+            var def = ScriptableObject.CreateInstance<NodeDefinition>();
+            def.type = NodeType.Munitions;
+            def.implemented = true;
+            def.ports = new List<NodePort>
+            {
+                new NodePort(PortFace.West, PortIO.Input, FlowKind.Power),
+                new NodePort(PortFace.East, PortIO.Output, FlowKind.Ammo),
+            };
+            def.recipes = new List<NodeRecipe>
+            {
+                new NodeRecipe
+                {
+                    kind = RecipeKind.Ammo,
+                    displayName = "탄약",
+                    inputs = new List<RecipeInput>
+                    {
+                        new RecipeInput { kind = FlowKind.Power, perOutput = perOutput },
+                    },
+                    output = FlowKind.Ammo,
+                    outputPerSec = perSec,
+                    stackLimitTbd = 100f,
+                    implemented = true,
+                },
+            };
+            _created.Add(def);
+            grid.TryPlace(cell, def, out NodeInstance node);
+            node.SelectRecipe(RecipeKind.Ammo);
+            return node;
+        }
+
+        /// <summary>
+        /// **재료가 없으면 안 돈다** (2026-09-04 · `260904_W01` 3장).
+        ///
+        /// 어제까지 `NodeRecipe`에는 입력 항목이 아예 없어서 군수 노드가 아무것도 안 먹고
+        /// 돌았다(`260904_V01` 2-1). 이 테스트가 그 자리를 막는다.
+        /// </summary>
+        [Test]
+        public void NoInput_DoesNotProduce()
+        {
+            var grid = new BoardGrid(4, 3, 1f, Vector2.zero);
+            NodeInstance node = PlaceEater(grid, new Vector2Int(1, 1), perSec: 10f, perOutput: 1f);
+
+            var flow = new BeltItemFlow();
+            flow.Rebuild(grid);
+
+            for (int i = 0; i < 10; i++) BoardItemTick.Step(grid, flow, 0.1f);
+
+            Assert.AreEqual(0f, node.OutputBuffer, Delta, "재료가 없으면 한 개도 못 만든다");
+            Assert.IsTrue(node.IsStarved, "정지 사유는 만충이 아니라 재료 없음이다");
+        }
+
+        /// <summary>재료를 넣은 만큼만 만들고, 먹은 만큼 재고가 준다.</summary>
+        [Test]
+        public void WithInput_ProducesUpToStock_AndConsumes()
+        {
+            var grid = new BoardGrid(4, 3, 1f, Vector2.zero);
+            NodeInstance node = PlaceEater(grid, new Vector2Int(1, 1), perSec: 10f, perOutput: 2f);
+
+            var flow = new BeltItemFlow();
+            flow.Rebuild(grid);
+
+            node.TakeInput(FlowKind.Power, 6f); // 2개당 1산출 → 최대 3개
+
+            for (int i = 0; i < 20; i++) BoardItemTick.Step(grid, flow, 0.1f);
+
+            Assert.AreEqual(3f, node.OutputBuffer, Delta, "재고 6 ÷ 개당 2 = 3개까지만");
+            Assert.AreEqual(0f, node.InputBuffer[FlowKind.Power], Delta, "먹은 만큼 줄었다");
+            Assert.IsTrue(node.IsStarved, "다 먹었으면 다시 재료 없음이다");
+        }
+
+        /// <summary>
+        /// **벨트로 도착한 재료가 실제로 생산에 쓰인다.** 도착과 소비를 잇는 자리(`DrainArrivals`).
+        /// </summary>
+        [Test]
+        public void ArrivalsFeedProduction()
+        {
+            var grid = new BoardGrid(6, 3, 1f, Vector2.zero);
+
+            // 전력을 흘리는 벨트 두 칸 → 그 동쪽에 먹는 노드.
+            for (int x = 0; x <= 1; x++)
+            {
+                grid.TryPlaceBelt(new Vector2Int(x, 1),
+                    PortFace.West, PortFace.East, FlowKind.Power, out _);
+            }
+            NodeInstance node = PlaceEater(grid, new Vector2Int(2, 1), perSec: 1f, perOutput: 1f);
+
+            var flow = new BeltItemFlow();
+            flow.Rebuild(grid);
+
+            Assert.IsTrue(flow.TryInsert(new Vector2Int(0, 1), FlowKind.Power));
+            for (int i = 0; i < 20; i++) BoardItemTick.Step(grid, flow, 0.1f);
+
+            Assert.AreEqual(1, flow.ArrivedOf(FlowKind.Power), "한 개가 노드에 닿았다");
+            Assert.Greater(node.OutputBuffer, 0f, "닿은 재료로 실제로 만들었다");
+            Assert.AreEqual(0, flow.PendingArrivals.Count, "옮긴 뒤 비워야 두 번 안 들어간다");
+        }
+
         /// <summary>
         /// **벨트가 허공으로 뻗어 있으면 결국 생산까지 멈춘다** (2026-09-03 · 4번 덩어리).
         ///

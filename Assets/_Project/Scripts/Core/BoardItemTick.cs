@@ -33,6 +33,10 @@ namespace MBI.Core
             // 나중에 밀면 생산분이 한 틱씩 늦게 출발한다.
             flow.Tick(dt);
 
+            // 도착한 재료를 노드 입력 버퍼로 옮긴다. **생산보다 먼저** — 나중에 옮기면
+            // 이번 틱에 닿은 재료가 한 틱 늦게 쓰이고 그만큼 라인 전체가 밀린다.
+            DrainArrivals(grid, flow);
+
             for (int x = 0; x < grid.Columns; x++)
             for (int y = 0; y < grid.Rows; y++)
             {
@@ -49,13 +53,34 @@ namespace MBI.Core
                 NodeRecipe recipe = node.CurrentRecipe;
                 if (!recipe.IsRunnable) return;
 
-                // 버퍼가 가득하면 0을 돌려준다 — 그것이 정지다. 여기서 따로 판정하지 않는다.
-                float made = NodeProduction.Produce(recipe, node.OutputBuffer, dt);
+                // 버퍼가 가득하거나 재료가 없으면 0을 돌려준다 — 둘 다 정지다.
+                // 여기서 사유를 가리지 않는다. 가리는 것은 진단의 몫이다.
+                float made = NodeProduction.Produce(recipe, node.OutputBuffer, dt, node.InputBuffer);
                 if (made <= 0f) return;
+
+                // 만든 만큼만 먹는다. 순서를 바꾸면 버릴 산출의 재료까지 먼저 사라진다.
+                NodeProduction.ConsumeFor(recipe, made, node.InputBuffer);
 
                 node.OutputBuffer += made;
                 node.BufferKind = recipe.output;
             }
+        }
+
+        /// <summary>
+        /// 소비처에 닿은 물건을 그 노드의 입력 버퍼로 옮긴다 (2026-09-04 · `260904_W01` 3장).
+        ///
+        /// <see cref="BeltItemFlow"/>는 도착을 세기만 하고 노드를 모른다 — 순수를 지키기
+        /// 위해서다. 둘을 잇는 것이 이 자리다.
+        /// </summary>
+        private static void DrainArrivals(BoardGrid grid, BeltItemFlow flow)
+        {
+            System.Collections.Generic.IReadOnlyList<Arrival> pending = flow.PendingArrivals;
+            for (int i = 0; i < pending.Count; i++)
+            {
+                NodeInstance node = grid.GetAt(pending[i].cell);
+                node?.TakeInput(pending[i].kind, OneItem);
+            }
+            flow.ClearPendingArrivals();
         }
 
         /// <summary>
