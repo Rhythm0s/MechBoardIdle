@@ -100,7 +100,7 @@ namespace MBI.Core
                     if (!linked) return 0f;
                     return boosterPropellantFull ? 0f : 1f;
 
-                case NodeType.Munitions:
+                case NodeType.MunitionsBasic:
                     return linked ? MunitionsRate(node, balance, perNodeRate, seen) : 0f;
 
                 default:

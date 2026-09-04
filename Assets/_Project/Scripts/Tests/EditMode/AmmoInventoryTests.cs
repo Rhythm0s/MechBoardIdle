@@ -185,7 +185,7 @@ namespace MBI.Tests
             // 2026-08-21 정정 전에는 저장 노드 포트가 Material이라 군수(Ammo) 출력과 kind가 안 맞아
             // 연결 자체가 성립하지 않았다.
             var grid = new BoardGrid(4, 4, 1f, UnityEngine.Vector2.zero);
-            NodeDefinition muni = Node(NodeType.Munitions, new NodePort(PortFace.East, PortIO.Output, FlowKind.Ammo));
+            NodeDefinition muni = Node(NodeType.MunitionsBasic, new NodePort(PortFace.East, PortIO.Output, FlowKind.Ammo));
             NodeDefinition stor = Node(NodeType.Storage, new NodePort(PortFace.West, PortIO.Input, FlowKind.Ammo));
 
             grid.TryPlace(new UnityEngine.Vector2Int(0, 0), muni, out _);

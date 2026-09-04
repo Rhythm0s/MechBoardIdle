@@ -44,7 +44,7 @@ namespace MBI.Tests
             var grid = new BoardGrid(8, 8, 1f, Vector2.zero);
             foreach ((Vector2Int cell, NodeType type, AmmoKind kind) in items)
             {
-                float produce = type == NodeType.Munitions ? PerNode : 0f;
+                float produce = type == NodeType.MunitionsBasic ? PerNode : 0f;
                 grid.TryPlace(cell, Node(type, produce), out NodeInstance placed);
                 if (placed != null) placed.AmmoKind = kind;
             }
@@ -58,10 +58,10 @@ namespace MBI.Tests
         {
             BoardGrid grid = GridWith(
                 (new Vector2Int(0, 0), NodeType.Core, AmmoKind.Pierce),
-                (new Vector2Int(1, 0), NodeType.Munitions, AmmoKind.Pierce),
-                (new Vector2Int(2, 0), NodeType.Munitions, AmmoKind.Split),
-                (new Vector2Int(3, 0), NodeType.Munitions, AmmoKind.Explosive),
-                (new Vector2Int(4, 0), NodeType.Munitions, AmmoKind.Explosive));
+                (new Vector2Int(1, 0), NodeType.MunitionsBasic, AmmoKind.Pierce),
+                (new Vector2Int(2, 0), NodeType.MunitionsBasic, AmmoKind.Split),
+                (new Vector2Int(3, 0), NodeType.MunitionsBasic, AmmoKind.Explosive),
+                (new Vector2Int(4, 0), NodeType.MunitionsBasic, AmmoKind.Explosive));
 
             NetworkAggregate agg = LogisticsNetwork.Aggregate(grid);
 
@@ -100,10 +100,10 @@ namespace MBI.Tests
         {
             BoardGrid grid = GridWith(
                 (new Vector2Int(0, 0), NodeType.Core, AmmoKind.Pierce),
-                (new Vector2Int(1, 0), NodeType.Munitions, AmmoKind.Pierce),
-                (new Vector2Int(2, 0), NodeType.Munitions, AmmoKind.Split),
-                (new Vector2Int(3, 0), NodeType.Munitions, AmmoKind.Explosive),
-                (new Vector2Int(4, 0), NodeType.Munitions, AmmoKind.Explosive));
+                (new Vector2Int(1, 0), NodeType.MunitionsBasic, AmmoKind.Pierce),
+                (new Vector2Int(2, 0), NodeType.MunitionsBasic, AmmoKind.Split),
+                (new Vector2Int(3, 0), NodeType.MunitionsBasic, AmmoKind.Explosive),
+                (new Vector2Int(4, 0), NodeType.MunitionsBasic, AmmoKind.Explosive));
 
             NetworkAggregate agg = LogisticsNetwork.Aggregate(grid);
             Assert.AreEqual(145f, AmmoLineProduction.TotalOutput(LinesFrom(agg), PerNode), D);
@@ -115,14 +115,14 @@ namespace MBI.Tests
         {
             BoardGrid start = GridWith(
                 (new Vector2Int(0, 0), NodeType.Core, AmmoKind.Pierce),
-                (new Vector2Int(1, 0), NodeType.Munitions, AmmoKind.Pierce),
-                (new Vector2Int(2, 0), NodeType.Munitions, AmmoKind.Split),
-                (new Vector2Int(3, 0), NodeType.Munitions, AmmoKind.Explosive));
+                (new Vector2Int(1, 0), NodeType.MunitionsBasic, AmmoKind.Pierce),
+                (new Vector2Int(2, 0), NodeType.MunitionsBasic, AmmoKind.Split),
+                (new Vector2Int(3, 0), NodeType.MunitionsBasic, AmmoKind.Explosive));
 
             NetworkAggregate before = LogisticsNetwork.Aggregate(start);
             Assert.AreEqual(95f, AmmoLineProduction.TotalOutput(LinesFrom(before), PerNode), D, "20 + 25 + 50");
 
-            start.TryPlace(new Vector2Int(4, 0), Node(NodeType.Munitions, PerNode), out NodeInstance added);
+            start.TryPlace(new Vector2Int(4, 0), Node(NodeType.MunitionsBasic, PerNode), out NodeInstance added);
             added.AmmoKind = AmmoKind.Explosive;
 
             NetworkAggregate after = LogisticsNetwork.Aggregate(start);
@@ -139,17 +139,17 @@ namespace MBI.Tests
         {
             BoardGrid allPierce = GridWith(
                 (new Vector2Int(0, 0), NodeType.Core, AmmoKind.Pierce),
-                (new Vector2Int(1, 0), NodeType.Munitions, AmmoKind.Pierce),
-                (new Vector2Int(2, 0), NodeType.Munitions, AmmoKind.Pierce),
-                (new Vector2Int(3, 0), NodeType.Munitions, AmmoKind.Pierce),
-                (new Vector2Int(4, 0), NodeType.Munitions, AmmoKind.Pierce));
+                (new Vector2Int(1, 0), NodeType.MunitionsBasic, AmmoKind.Pierce),
+                (new Vector2Int(2, 0), NodeType.MunitionsBasic, AmmoKind.Pierce),
+                (new Vector2Int(3, 0), NodeType.MunitionsBasic, AmmoKind.Pierce),
+                (new Vector2Int(4, 0), NodeType.MunitionsBasic, AmmoKind.Pierce));
 
             BoardGrid mixed = GridWith(
                 (new Vector2Int(0, 0), NodeType.Core, AmmoKind.Pierce),
-                (new Vector2Int(1, 0), NodeType.Munitions, AmmoKind.Pierce),
-                (new Vector2Int(2, 0), NodeType.Munitions, AmmoKind.Split),
-                (new Vector2Int(3, 0), NodeType.Munitions, AmmoKind.Explosive),
-                (new Vector2Int(4, 0), NodeType.Munitions, AmmoKind.Explosive));
+                (new Vector2Int(1, 0), NodeType.MunitionsBasic, AmmoKind.Pierce),
+                (new Vector2Int(2, 0), NodeType.MunitionsBasic, AmmoKind.Split),
+                (new Vector2Int(3, 0), NodeType.MunitionsBasic, AmmoKind.Explosive),
+                (new Vector2Int(4, 0), NodeType.MunitionsBasic, AmmoKind.Explosive));
 
             float pierceOnly = AmmoLineProduction.TotalOutput(
                 LinesFrom(LogisticsNetwork.Aggregate(allPierce)), PerNode);
@@ -176,7 +176,7 @@ namespace MBI.Tests
                     (new Vector2Int(0, 1), NodeType.Core, AmmoKind.Pierce),
                 };
                 for (int i = 0; i < n; i++)
-                    items.Add((new Vector2Int(i, 0), NodeType.Munitions, AmmoKind.Pierce));
+                    items.Add((new Vector2Int(i, 0), NodeType.MunitionsBasic, AmmoKind.Pierce));
 
                 NetworkAggregate agg = LogisticsNetwork.Aggregate(GridWith(items.ToArray()));
                 float output = AmmoLineProduction.TotalOutput(LinesFrom(agg), PerNode);

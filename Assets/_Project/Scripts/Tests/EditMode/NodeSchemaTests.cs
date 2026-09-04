@@ -64,11 +64,15 @@ namespace MBI.Tests
                 // 부하 열이 **전부** 확정된 노드만 Confirmed다(260829_V03 · 260901_V02 갱신).
                 // 대당 전력 7종이 확정되면서 여섯이 Confirmed로 올라갔다.
                 //   코어 0 · 가공 1 · 군수 2 · 에너지 1(+발전 10) · 저장 2 · 부스터 2
-                //   **쉴드만 Tbd다** — 일곱 종 중 유일하게 대당 발열이 공백이다.
+                //   **쉴드만 Tbd였다** — 일곱 종 중 유일하게 대당 발열이 공백이었다.
+                //
+                // 2026-09-04에 **복합 군수가 여덟째로 늘면서 Tbd가 둘이 됐다**(`260904_W01` 3장).
+                // 확정된 것은 「대당 전력 7종」이고 복합 군수는 그 표에 없다 — 기초 군수 값을
+                // 가져다 쓰면 값을 발명하는 것이므로 비워 두었다.
                 // ⚠️ 발열 확정치는 코드에 안 들어간다(§2층 적용 경계). 그래도 Confirmed인 이유는
                 // 이 표기가 **전력** 부하 열의 확정 여부를 가리키기 때문이다.
-                ConfirmState expected =
-                    n.type == NodeType.Shield ? ConfirmState.Tbd : ConfirmState.Confirmed;
+                bool valueMissing = n.type == NodeType.Shield || n.type == NodeType.MunitionsComplex;
+                ConfirmState expected = valueMissing ? ConfirmState.Tbd : ConfirmState.Confirmed;
 
                 Assert.AreEqual(expected, n.resources.confirm,
                     $"{n.displayName}: 확정분 외 노드별 수치는 Tbd 표기 필요(§7)");

@@ -42,7 +42,7 @@ namespace MBI.Tests
         private NodeDefinition Node(params NodeRecipe[] recipes)
         {
             var n = ScriptableObject.CreateInstance<NodeDefinition>();
-            n.type = NodeType.Munitions;
+            n.type = NodeType.MunitionsBasic;
             n.implemented = true;
             n.ports = new List<NodePort>();
             n.recipes = new List<NodeRecipe>(recipes);

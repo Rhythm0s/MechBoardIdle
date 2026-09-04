@@ -19,8 +19,45 @@ namespace MBI.Data
         DroneBody,
         /// <summary>쉴드 재료 → 쉴드 발생 노드. 범위 밖.</summary>
         ShieldMaterial,
-        /// <summary>추진제 → 부스터 노드(회피). 착수 금지 — 노드 6종→7종 개편이 선행.</summary>
+        /// <summary>추진제 → 부스터 노드(회피). 기초 군수 소관 (2026-09-04 개정).</summary>
         Propellant,
+
+        // ─── 레시피 전면 개정 (2026-09-04 · `260904_W01` 3장) ───
+        //
+        // 종전에는 조합표가 다섯이었고 **가공 노드의 것이 하나도 없었다.** 밸런스 문서가
+        // 「기초재료·부품」을 확정치로 갖고 있는데 코드에 레시피가 0개였던 자리다.
+        //
+        // ⚠️ 맨 뒤에 붙인다 — 위 다섯의 정수 값이 자산에 박혀 있다.
+
+        /// <summary>코어 에너지 — 코어의 산출. 먹는 것이 없다.</summary>
+        CoreEnergy,
+
+        /// <summary>기초재료·부품 ← 코어 에너지 (가공).</summary>
+        BasicParts,
+
+        /// <summary>발전재료 ← 코어 에너지 (가공).</summary>
+        PowerMaterial,
+
+        /// <summary>배터리 ← **발전재료** (가공). 코어 에너지가 아니다 — 그래서 다툼이 생긴다.</summary>
+        Battery,
+
+        /// <summary>표준탄 ← 기초재료·부품 (기초 군수). 구 분열탄 자리이며 특수탄의 재료다.</summary>
+        StandardAmmo,
+
+        /// <summary>방어 재료 ← 기초재료·부품 (기초 군수).</summary>
+        DefenseMaterial,
+
+        /// <summary>관통탄 ← 표준탄 + 기초재료·부품 (복합 군수).</summary>
+        PierceAmmo,
+
+        /// <summary>폭발탄 ← 표준탄 + 발전재료 (복합 군수).</summary>
+        ExplosiveAmmo,
+
+        /// <summary>누적형 드론 ← 배터리 + 드론 몸체 부품 (복합 군수).</summary>
+        StackDrone,
+
+        /// <summary>광역형 드론 ← 배터리 + 드론 몸체 부품 (복합 군수).</summary>
+        AoeDrone,
     }
 
     /// <summary>

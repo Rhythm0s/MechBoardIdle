@@ -26,24 +26,28 @@ MonoBehaviour:
   recipes:
   - kind: 1
     displayName: "\uD0C4\uC57D"
+    inputs: []
     output: 1
     outputPerSec: 1
     stackLimitTbd: 0
     implemented: 1
   - kind: 2
     displayName: "\uB4DC\uB860 \uBAB8\uCCB4"
+    inputs: []
     output: 4
     outputPerSec: 1
     stackLimitTbd: 0
     implemented: 1
   - kind: 3
     displayName: "\uC274\uB4DC \uC7AC\uB8CC"
+    inputs: []
     output: 0
     outputPerSec: 0
     stackLimitTbd: 0
     implemented: 0
   - kind: 4
     displayName: "\uCD94\uC9C4\uC81C"
+    inputs: []
     output: 5
     outputPerSec: 0.06666667
     stackLimitTbd: 3

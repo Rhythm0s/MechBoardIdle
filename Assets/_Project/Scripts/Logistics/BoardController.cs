@@ -167,7 +167,7 @@ namespace MBI.Logistics
             {
                 case NodeType.Core: return new Color(0.98f, 0.85f, 0.35f);       // 코어 — 금색(허브)
                 case NodeType.Processing: return new Color(0.60f, 0.70f, 0.95f); // 가공 — 청색
-                case NodeType.Munitions: return new Color(0.95f, 0.50f, 0.45f);  // 군수 — 적색
+                case NodeType.MunitionsBasic: return new Color(0.95f, 0.50f, 0.45f);  // 군수 — 적색
                 case NodeType.Energy: return new Color(0.55f, 0.90f, 0.60f);     // 에너지 — 녹색
                 case NodeType.Storage: return new Color(0.75f, 0.72f, 0.66f);    // 저장 — 회백
                 case NodeType.Booster: return new Color(0.80f, 0.55f, 0.95f);    // 부스터 — 보라
@@ -215,7 +215,7 @@ namespace MBI.Logistics
         private static string NodeLabel(NodeInstance inst)
         {
             if (inst == null || inst.Definition == null) return "";
-            if (inst.Definition.type != NodeType.Munitions) return inst.Definition.displayName;
+            if (inst.Definition.type != NodeType.MunitionsBasic) return inst.Definition.displayName;
 
             switch (inst.CurrentRecipe.kind)
             {

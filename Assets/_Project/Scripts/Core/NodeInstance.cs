@@ -113,7 +113,7 @@ namespace MBI.Core
         /// 상태이기 때문이다(`260902_V10` 2장). 레시피가 생기면 여기에 한 줄 더한다.
         /// </summary>
         private static RecipeKind DefaultRecipeFor(NodeType type) =>
-            type == NodeType.Munitions ? RecipeKind.Ammo : RecipeKind.None;
+            type == NodeType.MunitionsBasic ? RecipeKind.Ammo : RecipeKind.None;
 
         /// <summary>
         /// 조합표를 바꾼다. 후보에 없거나 돌릴 수 없는 것은 거절한다.

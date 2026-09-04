@@ -101,7 +101,7 @@ namespace MBI.Core
                 // 승인 범위 밖이다. 노드 대당 발열은 영상 이후로 연기된 항목이기도 하다.
                 a.heatGenerate += r.heatGenerate;
 
-                if (node.Definition.type != NodeType.Munitions)
+                if (node.Definition.type != NodeType.MunitionsBasic)
                 {
                     a.ammoProduce += r.ammoProduce;
                 }

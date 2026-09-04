@@ -63,7 +63,7 @@ namespace MBI.Tests
 
             // Blocked: 출력 포트 East, 인접(1,0) 비어 있음 → 뒤로 안 빠짐.
             grid.TryPlace(new Vector2Int(0, 0),
-                MakeNode(NodeType.Munitions, new NodePort(PortFace.East, PortIO.Output, FlowKind.Ammo)), out _);
+                MakeNode(NodeType.MunitionsBasic, new NodePort(PortFace.East, PortIO.Output, FlowKind.Ammo)), out _);
 
             // NoInput: 입력 포트 West, 인접(2,3) 비어 있음 → 앞에서 안 옴.
             grid.TryPlace(new Vector2Int(3, 3),

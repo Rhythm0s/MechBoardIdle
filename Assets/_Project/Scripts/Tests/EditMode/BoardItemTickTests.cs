@@ -28,7 +28,7 @@ namespace MBI.Tests
         private NodeDefinition MakeProducer(float perSec, float stackLimit)
         {
             var def = ScriptableObject.CreateInstance<NodeDefinition>();
-            def.type = NodeType.Munitions;
+            def.type = NodeType.MunitionsBasic;
             def.implemented = true;
             def.ports = new List<NodePort>
             {
@@ -123,7 +123,7 @@ namespace MBI.Tests
         private NodeInstance PlaceEater(BoardGrid grid, Vector2Int cell, float perSec, float perOutput)
         {
             var def = ScriptableObject.CreateInstance<NodeDefinition>();
-            def.type = NodeType.Munitions;
+            def.type = NodeType.MunitionsBasic;
             def.implemented = true;
             def.ports = new List<NodePort>
             {
@@ -312,7 +312,7 @@ namespace MBI.Tests
         public void UnselectedRecipe_UsesNamedDefault_NotListOrder()
         {
             var def = ScriptableObject.CreateInstance<NodeDefinition>();
-            def.type = NodeType.Munitions;
+            def.type = NodeType.MunitionsBasic;
             def.implemented = true;
             def.ports = new List<NodePort>
             {
@@ -354,7 +354,7 @@ namespace MBI.Tests
         public void NoRunnableRecipe_ProducesNothing()
         {
             var def = ScriptableObject.CreateInstance<NodeDefinition>();
-            def.type = NodeType.Munitions;
+            def.type = NodeType.MunitionsBasic;
             def.implemented = true;
             def.ports = new List<NodePort>
             {

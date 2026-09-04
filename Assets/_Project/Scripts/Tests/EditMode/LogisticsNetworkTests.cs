@@ -47,7 +47,7 @@ namespace MBI.Tests
             var g = Grid();
             g.TryPlace(new Vector2Int(0, 0), Node(NodeType.Core, new NodeResourceProfile { powerDraw = 66f }), out _);
             g.TryPlace(new Vector2Int(1, 0), Node(NodeType.Energy, new NodeResourceProfile { powerSupply = 80f }), out _);
-            g.TryPlace(new Vector2Int(2, 0), Node(NodeType.Munitions, new NodeResourceProfile { ammoProduce = 6f }), out _);
+            g.TryPlace(new Vector2Int(2, 0), Node(NodeType.MunitionsBasic, new NodeResourceProfile { ammoProduce = 6f }), out _);
 
             NetworkAggregate a = LogisticsNetwork.Aggregate(g);
             Assert.IsTrue(a.hasCore);

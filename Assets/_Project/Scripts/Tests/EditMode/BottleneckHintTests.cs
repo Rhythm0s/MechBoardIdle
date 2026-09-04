@@ -17,7 +17,7 @@ namespace MBI.Tests
         private static NodeDiagnostic Diag(ConstraintCause cause, int x = 0) => new NodeDiagnostic
         {
             cell = new Vector2Int(x, 0),
-            type = NodeType.Munitions,
+            type = NodeType.MunitionsBasic,
             targetRate = 1f,
             actualRate = 0f,
             cause = cause,

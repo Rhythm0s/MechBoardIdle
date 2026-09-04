@@ -163,7 +163,7 @@ namespace MBI.Editor
             // 갈래를 늘리는 방법은 노드를 더 놓는 것이지 노드 하나를 넓히는 것이 아니므로,
             // 출력 포트는 단일이고 산출 종류는 선택된 조합표가 정한다.
             // 스택 상한은 미확정(조립 「품목과 재고」 신설 중) — 0 = 미설정 센티넬로 두고 하드코딩하지 않는다.
-            WriteNode(config, "muni", "군수", NodeType.Munitions, true,
+            WriteNode(config, "muni", "군수", NodeType.MunitionsBasic, true,
                 new NodeResourceProfile { ammoProduce = muniPerNode, powerDraw = MuniPowerDraw,
                     confirm = ConfirmState.Confirmed },
                 new List<NodePort>
@@ -189,6 +189,28 @@ namespace MBI.Editor
                         output = FlowKind.Propellant, outputPerSec = 1f / 15f,
                         stackLimitTbd = PropellantItemStack, implemented = true },
                 });
+
+            // 복합 군수 — 입력면 **둘** (2026-09-04 신설 · `260904_W01` 3장).
+            //
+            // 기초 군수와 갈린 이유는 입력면 수가 노드에 고정되기 때문이다. 레시피를 바꿔도
+            // 면이 늘거나 줄지 않으므로, 1종을 먹는 조합표와 2종을 먹는 조합표는 한 노드에
+            // 같이 못 산다.
+            //
+            // 조합표는 `RecipeCatalog`에서 읽는다 — 표를 두 곳에 적으면 갈린다.
+            // ⚠️ 산출 속도와 개당 소비량은 **아직 미확정**이다. 값을 만들지 않고 카탈로그의
+            // 센티넬을 그대로 쓰며, 밸런스가 정하면 그쪽만 고치면 된다.
+            WriteNode(config, "munix", "복합 군수", NodeType.MunitionsComplex, true,
+                // ⚠️ **대당 전력이 없다.** 밸런스가 확정한 것은 「대당 전력 7종」이고 복합 군수는
+                // 여덟째라 그 표에 없다. 기초 군수 값을 가져다 쓰면 값을 발명하는 것이므로
+                // 0(미설정 센티넬)으로 두고 Tbd로 표기한다.
+                new NodeResourceProfile { confirm = ConfirmState.Tbd },
+                new List<NodePort>
+                {
+                    new NodePort(PortFace.West, PortIO.Input, FlowKind.StandardAmmo),
+                    new NodePort(PortFace.South, PortIO.Input, FlowKind.BasicParts),
+                    new NodePort(PortFace.East, PortIO.Output, FlowKind.PierceAmmo),
+                },
+                BuildRecipes(NodeType.MunitionsComplex, muniPerNode));
 
             // 에너지 — 발전(전력 공급). 고정비 0 · 발열 1/초는 확정,
             // **대당 발전량은 미확정**이라 프로필 전체는 Tbd다.
@@ -229,6 +251,36 @@ namespace MBI.Editor
             WriteNode(config, "shield", "쉴드 발생", NodeType.Shield, false,
                 new NodeResourceProfile { powerDraw = ShieldPowerDraw, confirm = ConfirmState.Tbd },
                 new List<NodePort>());
+        }
+
+        /// <summary>
+        /// <see cref="RecipeCatalog"/>의 행을 자산용 조합표로 옮긴다 (2026-09-04).
+        ///
+        /// **표를 두 곳에 적지 않기 위한 자리다.** 산출 속도는 확정치가 없어 군수 대당
+        /// 산출을 그대로 쓰고, 개당 소비량은 카탈로그의 미확정 센티넬을 쓴다 —
+        /// 둘 다 밸런스가 정하면 그쪽만 고친다.
+        /// </summary>
+        private static List<NodeRecipe> BuildRecipes(NodeType type, float outputPerSec)
+        {
+            var list = new List<NodeRecipe>();
+            foreach (RecipeCatalog.Row row in RecipeCatalog.For(type))
+            {
+                var inputs = new List<RecipeInput>();
+                foreach (FlowKind need in row.inputs)
+                    inputs.Add(new RecipeInput { kind = need, perOutput = RecipeCatalog.PerOutputTbd });
+
+                list.Add(new NodeRecipe
+                {
+                    kind = row.kind,
+                    displayName = row.displayName,
+                    inputs = inputs,
+                    output = row.output,
+                    outputPerSec = outputPerSec,
+                    stackLimitTbd = 0f, // 미설정 센티넬 — 하드코딩하지 않는다
+                    implemented = true,
+                });
+            }
+            return list;
         }
 
         private static void WriteNode(BalanceConfig config, string id, string display, NodeType type,
