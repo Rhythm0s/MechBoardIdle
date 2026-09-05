@@ -3,7 +3,17 @@ using UnityEngine;
 
 namespace MBI.Data
 {
-    /// <summary>로봇 파츠 8종. 격자 소속 태그이자 시각 표시 단위(UI 문서 9-2 「파츠 경계가 또렷해진다」).</summary>
+    /// <summary>
+    /// 로봇 파츠 8종. 격자 소속 태그이자 시각 표시 단위(UI 문서 9-2 「파츠 경계가 또렷해진다」).
+    ///
+    /// ⚠️ **L·R은 로봇 기준이다** (2026-09-05 확정 · `260905_W01` 1장).
+    /// 로봇이 카메라를 마주 보므로(`Direction: South`) **로봇의 오른쪽이 화면 왼쪽**이고,
+    /// 격자에서 x가 작은 쪽이다. 즉 `ArmR`이 x 0~2, `ArmL`이 x 9~11이다.
+    ///
+    /// 2026-09-05까지 이 라벨이 **화면 기준으로 붙어 있었다** — x 0~2가 `ArmL`이었다.
+    /// 그 상태로 「마운트는 팔R」이라는 조립 문서를 읽으면 마운트가 반대쪽 팔에 붙는다.
+    /// 좌표는 처음부터 화면 왼쪽이라 맞았고, 어긋난 것은 이름뿐이었다.
+    /// </summary>
     public enum RobotPart
     {
         None = 0,
@@ -84,9 +94,9 @@ namespace MBI.Data
     ///
     /// ⚠️ **파츠의 실루엣 내 위치는 원천 문서에 없다**(조립 11장은 칸 수만, UI 9장은 화면만 정함).
     /// 아래 배치는 확정된 크기에서 산술로 도출한 것이다:
-    ///   가로 = 팔L 3 + 몸통 6 + 팔R 3 = 12 (정확히 일치)
+    ///   가로 = 팔R 3 + 몸통 6 + 팔L 3 = 12 (정확히 일치 · L·R은 로봇 기준이라 R이 화면 왼쪽)
     ///   세로 = 머리 3 + 몸통 6 + 다리 4 = 13 (정확히 일치)
-    ///   다리L 3 + 다리R 3 = 6 = 몸통 폭 (정확히 일치)
+    ///   다리R 3 + 다리L 3 = 6 = 몸통 폭 (정확히 일치)
     /// 세 변이 모두 딱 떨어지므로 배치는 사실상 강제된다. 남는 자유도는 둘뿐이고 아래처럼 두었다:
     ///   (1) 머리의 좌우 오프셋 — 몸통 6칸 중앙에 3칸을 두되 좌측 정렬(x 4~6)
     ///   (2) 어깨·팔의 세로 위치 — 어깨를 몸통 상단에 맞추고 팔을 그 아래로
@@ -104,13 +114,14 @@ namespace MBI.Data
         //   y 10~12 머리 (3칸)
         private static readonly PartRect[] Layout =
         {
-            new PartRect(RobotPart.LegL,      3,  0, 3, 4),
-            new PartRect(RobotPart.LegR,      6,  0, 3, 4),
+            // x가 작은 쪽 = 화면 왼쪽 = **로봇의 오른쪽**이다(위 열거 주석 참조).
+            new PartRect(RobotPart.LegR,      3,  0, 3, 4),
+            new PartRect(RobotPart.LegL,      6,  0, 3, 4),
             new PartRect(RobotPart.Torso,     3,  4, 6, 6),
-            new PartRect(RobotPart.ArmL,      0,  4, 3, 5),
-            new PartRect(RobotPart.ArmR,      9,  4, 3, 5),
-            new PartRect(RobotPart.ShoulderL, 0,  9, 3, 3),
-            new PartRect(RobotPart.ShoulderR, 9,  9, 3, 3),
+            new PartRect(RobotPart.ArmR,      0,  4, 3, 5),
+            new PartRect(RobotPart.ArmL,      9,  4, 3, 5),
+            new PartRect(RobotPart.ShoulderR, 0,  9, 3, 3),
+            new PartRect(RobotPart.ShoulderL, 9,  9, 3, 3),
             new PartRect(RobotPart.Head,      4, 10, 3, 3),
         };
 
@@ -124,16 +135,20 @@ namespace MBI.Data
         /// 빠지기** 때문이다 — 로봇 B는 라인을 두 갈래로 갈라야 하고, 그래서 병합기·분류기를
         /// 쓸 이유가 늘어난다.
         ///
-        /// ⚠️ **좌우와 셀은 구현이 고른 가정이다** (`260904_V02`에 명기). 문서는 「팔 한쪽」
-        /// 이라고만 적었다. 왼팔을 골랐고 각 면의 세로 중앙 칸에 두었다 — 라인이 어느 쪽에서
-        /// 와도 거리가 같아지는 자리다. 설계가 다른 칸을 정하면 이 배열만 고치면 된다.
+        /// ✅ **좌우가 확정됐다** (2026-09-05 · `260905_W01` 1장). 「로봇 기준 오른팔, 화면 기준
+        /// 왼쪽」이다. 근거는 승인본 실측(화면 왼쪽 팔이 아래까지 내려와 끝이 평평한 총구이고,
+        /// 오른쪽 팔은 둥근 주먹으로 끝난다)과 프롬프트의 `Direction: South (facing camera)`다.
+        ///
+        /// 종전에 「구현이 고른 가정」이라 적어 두었던 것이 **결과적으로 맞았다** — 화면 왼쪽을
+        /// 골랐고 그것이 로봇의 오른팔이다. 다만 그때 부른 이름(`팔L`)이 화면 기준이라 틀렸다.
+        /// 세로 중앙 칸에 둔 것은 그대로 유지한다 — 라인이 어느 쪽에서 와도 거리가 같은 자리다.
         /// </summary>
         private static readonly MountPort[] Mounts =
         {
-            // 로봇 A — 왼팔(x 0~2 · y 4~8) 서쪽 바깥면, 세로 중앙 y=6
+            // 로봇 A — 팔R(x 0~2 · y 4~8) 서쪽 바깥면, 세로 중앙 y=6. 화면에서는 왼쪽 팔이다.
             new MountPort(new Vector2Int(0, 6), PortFace.West, MountOwner.RobotA),
 
-            // 로봇 B — 어깨 L(x 0~2 · y 9~11) 서쪽, 어깨 R(x 9~11) 동쪽. 세로 중앙 y=10
+            // 로봇 B — 어깨R(x 0~2 · y 9~11) 서쪽, 어깨L(x 9~11) 동쪽. 세로 중앙 y=10
             new MountPort(new Vector2Int(0, 10), PortFace.West, MountOwner.RobotB),
             new MountPort(new Vector2Int(11, 10), PortFace.East, MountOwner.RobotB),
         };

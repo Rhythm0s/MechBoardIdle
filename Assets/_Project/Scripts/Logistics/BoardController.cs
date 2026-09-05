@@ -51,7 +51,7 @@ namespace MBI.Logistics
         [SerializeField] private List<NodeDefinition> palette = new List<NodeDefinition>();
         [Tooltip("좌표 변환 카메라. 비우면 Camera.main.")]
         [SerializeField] private Camera boardCamera;
-        [Tooltip("시작 배치(온보딩). 빈 보드로 시작하면 플레이어가 무엇을 해야 할지 알 수 없다 — 거의 완성된 라인을 주고 한 칸만 비워 둔다(튜토리얼 10장 '왼팔만 비움'을 보드에 적용).")]
+        [Tooltip("시작 배치(온보딩). 빈 보드로 시작하면 플레이어가 무엇을 해야 할지 알 수 없다 — 거의 완성된 라인을 주고 한 칸만 비워 둔다(튜토리얼 10장 '한쪽 팔만 비움'을 보드에 적용).")]
         [SerializeField] private List<InitialNode> initialLayout = new List<InitialNode>();
         [Tooltip("시작 배선. 노드만 있고 벨트가 없으면 연결성 게이트에 걸려 출력이 0이다.")]
         [SerializeField] private List<InitialBelt> initialBelts = new List<InitialBelt>();

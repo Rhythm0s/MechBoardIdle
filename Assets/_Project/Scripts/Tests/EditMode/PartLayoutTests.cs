@@ -28,12 +28,12 @@ namespace MBI.Tests
             var expected = new Dictionary<RobotPart, Vector2Int>
             {
                 { RobotPart.Torso, new Vector2Int(6, 6) },
-                { RobotPart.ArmL, new Vector2Int(3, 5) },
                 { RobotPart.ArmR, new Vector2Int(3, 5) },
-                { RobotPart.LegL, new Vector2Int(3, 4) },
+                { RobotPart.ArmL, new Vector2Int(3, 5) },
                 { RobotPart.LegR, new Vector2Int(3, 4) },
-                { RobotPart.ShoulderL, new Vector2Int(3, 3) },
+                { RobotPart.LegL, new Vector2Int(3, 4) },
                 { RobotPart.ShoulderR, new Vector2Int(3, 3) },
+                { RobotPart.ShoulderL, new Vector2Int(3, 3) },
                 { RobotPart.Head, new Vector2Int(3, 3) },
             };
 
@@ -95,9 +95,9 @@ namespace MBI.Tests
         [Test]
         public void Arrangement_IsForcedByDimensions()
         {
-            Assert.AreEqual(12, 3 + 6 + 3, "팔L + 몸통 + 팔R = 가로 12");
+            Assert.AreEqual(12, 3 + 6 + 3, "팔R + 몸통 + 팔L = 가로 12 (L·R은 로봇 기준)");
             Assert.AreEqual(13, 3 + 6 + 4, "머리 + 몸통 + 다리 = 세로 13");
-            Assert.AreEqual(6, 3 + 3, "다리L + 다리R = 몸통 폭 6");
+            Assert.AreEqual(6, 3 + 3, "다리R + 다리L = 몸통 폭 6");
         }
 
         // ---- 격자 연동 ----
@@ -111,7 +111,7 @@ namespace MBI.Tests
             BoardGrid grid = MaskedGrid();
 
             Assert.IsTrue(grid.IsInside(new Vector2Int(5, 6)), "몸통 한가운데는 유효");
-            Assert.IsTrue(grid.IsInside(new Vector2Int(0, 5)), "팔L은 유효");
+            Assert.IsTrue(grid.IsInside(new Vector2Int(0, 5)), "팔R(화면 왼쪽)은 유효");
 
             // (0, 0)은 실루엣 사각 안이지만 다리(x 3~8)가 아니라 빈 공간이다.
             Assert.IsFalse(grid.IsInside(new Vector2Int(0, 0)), "팔 아래 빈칸은 무효");
@@ -151,8 +151,9 @@ namespace MBI.Tests
         {
             Assert.AreEqual(RobotPart.Torso, PartLayout.PartAt(new Vector2Int(5, 6)));
             Assert.AreEqual(RobotPart.Head, PartLayout.PartAt(new Vector2Int(5, 11)));
-            Assert.AreEqual(RobotPart.LegL, PartLayout.PartAt(new Vector2Int(3, 0)));
-            Assert.AreEqual(RobotPart.LegR, PartLayout.PartAt(new Vector2Int(6, 0)));
+            // L·R은 **로봇 기준**이다 — x가 작은 쪽이 화면 왼쪽이고 로봇의 오른쪽이다.
+            Assert.AreEqual(RobotPart.LegR, PartLayout.PartAt(new Vector2Int(3, 0)));
+            Assert.AreEqual(RobotPart.LegL, PartLayout.PartAt(new Vector2Int(6, 0)));
             Assert.AreEqual(RobotPart.None, PartLayout.PartAt(new Vector2Int(0, 0)));
         }
 
@@ -163,12 +164,13 @@ namespace MBI.Tests
         [Test]
         public void TorsoAndArms_AreAdjacent_SoBeltsCanCross()
         {
-            // 몸통 좌단 x=3, 팔L 우단 x=2 — y가 겹치는 구간에서 맞닿는다.
-            Assert.AreEqual(RobotPart.ArmL, PartLayout.PartAt(new Vector2Int(2, 5)));
+            // 몸통 좌단 x=3, 팔R 우단 x=2 — y가 겹치는 구간에서 맞닿는다.
+            // (팔R이 화면 왼쪽이다 — L·R은 로봇 기준이다)
+            Assert.AreEqual(RobotPart.ArmR, PartLayout.PartAt(new Vector2Int(2, 5)));
             Assert.AreEqual(RobotPart.Torso, PartLayout.PartAt(new Vector2Int(3, 5)));
 
             Assert.AreEqual(RobotPart.Torso, PartLayout.PartAt(new Vector2Int(8, 5)));
-            Assert.AreEqual(RobotPart.ArmR, PartLayout.PartAt(new Vector2Int(9, 5)));
+            Assert.AreEqual(RobotPart.ArmL, PartLayout.PartAt(new Vector2Int(9, 5)));
         }
 
         /// <summary>몸통과 다리도 맞닿아야 한다(생산 허브 → 보조 파츠 라인).</summary>
@@ -176,7 +178,7 @@ namespace MBI.Tests
         public void TorsoAndLegs_AreAdjacent()
         {
             Assert.AreEqual(RobotPart.Torso, PartLayout.PartAt(new Vector2Int(5, 4)));
-            Assert.AreEqual(RobotPart.LegL, PartLayout.PartAt(new Vector2Int(5, 3)));
+            Assert.AreEqual(RobotPart.LegR, PartLayout.PartAt(new Vector2Int(5, 3)));
         }
     }
 }

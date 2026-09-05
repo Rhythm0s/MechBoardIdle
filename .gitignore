@@ -46,3 +46,7 @@ ignore.conf
 # Crashlytics / misc
 crashlytics-build.properties
 sysinfo.txt
+
+# 아트 후처리 원본 보관 — git 히스토리가 진짜 원본이라 리포에 두 벌 넣지 않는다.
+# Unity도 물결표로 끝나는 폴더는 임포트하지 않는다.
+*_raw~/

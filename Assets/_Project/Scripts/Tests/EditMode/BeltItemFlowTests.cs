@@ -282,7 +282,7 @@ namespace MBI.Tests
             Assert.AreEqual(0, flow.ItemsAt(cell).Count, "그 자리에 안 남는다");
             Assert.AreEqual(1, flow.PendingMountArrivals.Count);
             Assert.AreEqual(MountOwner.RobotA, flow.PendingMountArrivals[0].owner,
-                "왼팔 포트는 로봇 A의 것이다");
+                "팔R 포트(화면 왼쪽)는 로봇 A의 것이다");
         }
 
         /// <summary>
