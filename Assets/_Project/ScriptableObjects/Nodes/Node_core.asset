@@ -32,9 +32,6 @@ MonoBehaviour:
     stackLimitTbd: 0
     implemented: 1
   ports:
-  - face: 3
-    io: 0
-    kind: 1
   - face: 2
     io: 0
     kind: 2

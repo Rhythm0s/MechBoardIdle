@@ -178,32 +178,78 @@ namespace MBI.Logistics
         /// <summary>
         /// 벨트가 나르는 품목의 색. 비어 있으면(상류 없음) 짙은 회색 —
         /// 「깔았는데 아무것도 안 흐른다」가 색으로 먼저 보인다.
+        ///
+        /// ⚠️ **품목 열한 종이 2026-09-05에 들어왔다**(`260904_W01` 3-2). 여기를 같이 안 고치면
+        /// 시작 보드의 벨트가 **전부 짙은 회색**으로 뜬다 — 「아무것도 안 흐른다」와
+        /// 「색을 아직 안 정했다」가 화면에서 똑같이 보이는데, 앞은 고칠 일이고 뒤는 아니다.
+        ///
+        /// 계열로 묶었다: 탄약은 주황 계열 · 재료는 베이지 계열 · 전력계는 하늘 계열 ·
+        /// 드론은 연두 계열. 계열 안에서 명도로 갈라 색각 이상에서도 라벨과 함께 읽히게 했다.
         /// </summary>
         private static Color FlowColor(FlowKind kind)
         {
             switch (kind)
             {
                 case FlowKind.Material: return new Color(0.70f, 0.68f, 0.62f);   // 물류 품목 — 베이지
-                case FlowKind.Ammo: return new Color(0.95f, 0.55f, 0.40f);       // 탄약 — 주황
+                case FlowKind.Ammo: return new Color(0.95f, 0.55f, 0.40f);       // 구 탄약(폐기) — 주황
                 case FlowKind.Power: return new Color(0.55f, 0.85f, 0.98f);      // 전력 — 하늘
                 case FlowKind.Heat: return new Color(0.95f, 0.40f, 0.30f);       // 발열 — 적
-                case FlowKind.Drone: return new Color(0.60f, 0.95f, 0.70f);      // 드론 몸체 — 연두
+                case FlowKind.Drone: return new Color(0.60f, 0.95f, 0.70f);      // 구 드론 몸체 — 연두
                 case FlowKind.Propellant: return new Color(0.82f, 0.60f, 0.96f); // 추진제 — 보라(부스터와 짝)
+
+                // 원천·재료 계열
+                case FlowKind.CoreEnergy: return new Color(0.98f, 0.90f, 0.45f);      // 코어 에너지 — 노랑
+                case FlowKind.BasicParts: return new Color(0.78f, 0.74f, 0.66f);      // 기초재료·부품 — 밝은 베이지
+                case FlowKind.PowerMaterial: return new Color(0.45f, 0.72f, 0.88f);   // 발전재료 — 짙은 하늘
+                case FlowKind.Battery: return new Color(0.35f, 0.90f, 0.85f);         // 배터리 — 청록
+                case FlowKind.DefenseMaterial: return new Color(0.62f, 0.66f, 0.78f); // 방어 재료 — 청회색
+
+                // 탄약 계열 — 주황에서 갈라진다
+                case FlowKind.StandardAmmo: return new Color(0.95f, 0.55f, 0.40f);    // 표준탄 — 주황
+                case FlowKind.PierceAmmo: return new Color(0.99f, 0.72f, 0.35f);      // 관통탄 — 밝은 주황
+                case FlowKind.ExplosiveAmmo: return new Color(0.88f, 0.38f, 0.30f);   // 폭발탄 — 붉은 주황
+
+                // 드론 계열 — 연두에서 갈라진다
+                case FlowKind.DroneBodyParts: return new Color(0.60f, 0.95f, 0.70f);  // 드론 몸체 부품 — 연두
+                case FlowKind.StackDrone: return new Color(0.40f, 0.85f, 0.55f);      // 누적형 드론 — 짙은 연두
+                case FlowKind.AoeDrone: return new Color(0.75f, 0.98f, 0.50f);        // 광역형 드론 — 라임
+
                 default: return new Color(0.32f, 0.34f, 0.38f);                  // None — 비어 있다
             }
         }
 
-        /// <summary>품목 라벨(벨트 위 표시). 색만으로는 색각 이상에서 안 갈린다.</summary>
+        /// <summary>
+        /// 품목 라벨(벨트 위 표시). 색만으로는 색각 이상에서 안 갈린다.
+        ///
+        /// 한 글자로 붙는 자리라 계열이 겹치는 것은 **둘째 글자**로 가른다
+        /// (관통탄 「관」 · 폭발탄 「폭」 · 표준탄 「탄」). 색이 비슷한 것끼리 글자가
+        /// 달라야 라벨이 색의 보조가 아니라 대체가 된다.
+        /// </summary>
         private static string FlowLabel(FlowKind kind)
         {
             switch (kind)
             {
                 case FlowKind.Material: return "품";
-                case FlowKind.Ammo: return "탄";
+                case FlowKind.Ammo: return "탄";   // 구 탄약(폐기)
                 case FlowKind.Power: return "전";
                 case FlowKind.Heat: return "열";
-                case FlowKind.Drone: return "드";
+                case FlowKind.Drone: return "드";  // 구 드론 몸체(폐기)
                 case FlowKind.Propellant: return "추";
+
+                case FlowKind.CoreEnergy: return "코";
+                case FlowKind.BasicParts: return "부";
+                case FlowKind.PowerMaterial: return "발";
+                case FlowKind.Battery: return "배";
+                case FlowKind.DefenseMaterial: return "방";
+
+                case FlowKind.StandardAmmo: return "탄";
+                case FlowKind.PierceAmmo: return "관";
+                case FlowKind.ExplosiveAmmo: return "폭";
+
+                case FlowKind.DroneBodyParts: return "드";
+                case FlowKind.StackDrone: return "누";
+                case FlowKind.AoeDrone: return "광";
+
                 default: return "";
             }
         }
@@ -366,15 +412,39 @@ namespace MBI.Logistics
         }
 
         // 시작 배치를 깐다. 배치 경로는 플레이어 조작과 동일(TryPlace + 마커) — 별도 경로를 만들지 않는다.
-        /// <summary>비워 둔 칸을 채우는 병합기를 놓는다. 시작 배치와 촬영 복귀가 함께 쓴다.</summary>
+        /// <summary>
+        /// 비워 둔 칸을 채우는 **기초 군수 노드**를 놓는다 (2026-09-05 · `260904_W03` 1-1).
+        ///
+        /// 종전에는 병합기였다. 시작 보드가 표준탄 단일 라인으로 바뀌면서 합칠 갈래가
+        /// 없어졌고, 빈 칸은 **부품을 탄으로 바꿀 노드**의 자리가 됐다.
+        /// </summary>
         private void PlaceTutorialFill()
         {
-            StartingBoard.Run run = StartingBoard.FillsEmptySlot;
-            if (_grid.HasBelt(run.cell) || _grid.IsOccupied(run.cell)) return;
+            StartingBoard.Slot slot = StartingBoard.FillsEmptySlot;
+            if (_grid.HasBelt(slot.cell) || _grid.IsOccupied(slot.cell)) return;
 
-            if (_grid.TryPlaceBeltElement(run.cell, BeltElementKind.Merger,
-                    new[] { run.inFace }, new[] { run.outFace }, FlowKind.None, out _))
-                SpawnBeltMarker(run.cell, run.outFace);
+            NodeDefinition def = FindStartingNode(slot.nodeId);
+            if (def == null) return;
+
+            if (_grid.TryPlace(slot.cell, def, out NodeInstance placed))
+            {
+                placed.AmmoKind = slot.ammo;
+                SpawnNodeMarker(slot.cell);
+            }
+        }
+
+        // 시작 배치가 쓰는 노드 자산을 인스펙터 목록에서 찾는다. 시작 보드는 id로만 적고
+        // 자산 참조를 갖지 않으므로(순수 데이터), 씬 쪽에서 이어 준다.
+        private NodeDefinition FindStartingNode(string nodeId)
+        {
+            if (initialLayout == null) return null;
+            foreach (InitialNode item in initialLayout)
+                if (item.node != null && item.node.nodeId == nodeId) return item.node;
+
+            if (palette == null) return null;
+            foreach (NodeDefinition d in palette)
+                if (d != null && d.nodeId == nodeId) return d;
+            return null;
         }
 
         private void ApplyInitialLayout()

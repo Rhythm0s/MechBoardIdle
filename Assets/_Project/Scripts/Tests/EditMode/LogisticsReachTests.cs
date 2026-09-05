@@ -20,7 +20,7 @@ namespace MBI.Tests
     {
         private const float D = 0.001f;
 
-        private NodeDefinition _muni, _core, _boost;
+        private NodeDefinition _muni, _core, _boost, _stor;
         private BalanceConfig _bal;
 
         [SetUp]
@@ -29,9 +29,10 @@ namespace MBI.Tests
             _muni = Node("muni");
             _core = Node("core");
             _boost = Node("boost");
+            _stor = Node("stor");
             _bal = AssetDatabase.LoadAssetAtPath<BalanceConfig>(
                 "Assets/_Project/ScriptableObjects/BalanceConfig.asset");
-            if (_muni == null || _core == null || _boost == null || _bal == null)
+            if (_muni == null || _core == null || _boost == null || _stor == null || _bal == null)
                 Assert.Ignore("자산 없음 — 먼저 메뉴 'MBI/Generate Balance + Nodes' 실행.");
         }
 
@@ -61,12 +62,18 @@ namespace MBI.Tests
         }
 
         /// <summary>
-        /// 코어(cx, cy) 서쪽에 병합기를 두고, 그 서·북·남 세 면에서 군수 라인을 받는다.
-        /// 코어의 탄약 입구가 **한 면뿐**이라 여러 라인을 모으려면 병합기가 있어야 한다.
+        /// 저장(5,5) 서쪽에 병합기를 두고, 그 서·북·남 세 면에서 군수 라인을 받는다.
+        /// 저장의 탄약 입구가 **한 면뿐**이라 여러 라인을 모으려면 병합기가 있어야 한다.
+        ///
+        /// ⚠️ **도착지가 코어에서 저장으로 바뀌었다**(2026-09-05 · `260904_W03` 1장).
+        /// 코어가 탄약을 받던 동안에는 여기가 코어였는데, 「코어는 시작이다」 판정으로
+        /// 코어에서 탄약 입력면이 사라졌다. **값은 하나도 안 건드렸다** — 20·45·80·145는
+        /// 「이어진 군수 노드의 공칭 출력 합」이라 도착지가 무엇이든 같은 뜻이다.
+        /// 바뀐 것은 라인이 어디서 끝나는가뿐이다.
         /// </summary>
         private void BuildHub(BoardGrid g, out Vector2Int merger)
         {
-            g.TryPlace(new Vector2Int(5, 5), _core, out _);
+            g.TryPlace(new Vector2Int(5, 5), _stor, out _);
             merger = new Vector2Int(4, 5);
             g.TryPlaceBeltElement(merger, BeltElementKind.Merger,
                 new[] { PortFace.West }, new[] { PortFace.East }, FlowKind.None, out _);
@@ -128,7 +135,7 @@ namespace MBI.Tests
         public void WiringTheSameNode_TurnsItOn()
         {
             var g = Grid();
-            g.TryPlace(new Vector2Int(5, 5), _core, out _);
+            g.TryPlace(new Vector2Int(5, 5), _stor, out _);
             g.TryPlace(new Vector2Int(3, 5), _muni, out NodeInstance m);
             m.AmmoKind = AmmoKind.Pierce;
 
@@ -228,7 +235,7 @@ namespace MBI.Tests
             var g = Grid();
             NodeDefinition ener = Node("ener");
 
-            g.TryPlace(new Vector2Int(5, 7), _core, out _);
+            g.TryPlace(new Vector2Int(5, 7), _stor, out _);
             g.TryPlaceBeltElement(new Vector2Int(4, 7), BeltElementKind.Merger,
                 new[] { PortFace.West }, new[] { PortFace.East }, FlowKind.None, out _);
 
@@ -241,9 +248,13 @@ namespace MBI.Tests
 
             g.TryPlaceBelt(new Vector2Int(4, 6), PortFace.West, PortFace.North, FlowKind.None, out _);
 
+            // 전력 라인은 **코어**로 간다 — 저장은 전력 입력이 없다. 탄약 도착지가 저장으로
+            // 옮겨 가면서 둘을 갈라 놓아야 했다(2026-09-05). 코어는 남쪽으로만 받으므로
+            // 바로 아래 칸에서 북으로 꺾어 올린다.
             g.TryPlace(new Vector2Int(4, 5), ener, out _);
-            g.TryPlaceBelt(new Vector2Int(5, 5), PortFace.West, PortFace.North, FlowKind.None, out _);
-            g.TryPlaceBelt(new Vector2Int(5, 6), PortFace.South, PortFace.North, FlowKind.None, out _);
+            g.TryPlaceBelt(new Vector2Int(5, 5), PortFace.West, PortFace.East, FlowKind.None, out _);
+            g.TryPlaceBelt(new Vector2Int(6, 5), PortFace.West, PortFace.North, FlowKind.None, out _);
+            g.TryPlace(new Vector2Int(6, 6), _core, out _);
 
             NetworkAggregate start = Settle(g);
             Assert.AreEqual(45f, Output(start), D, "관통 + 분열 = 20 + 25");
@@ -259,7 +270,8 @@ namespace MBI.Tests
 
             NetworkAggregate filled = Settle(g);
             Assert.AreEqual(95f, Output(filled), D, "+ 폭발 50");
-            Assert.AreEqual(FlowKind.Ammo, BeltFlow.KindAt(g, new Vector2Int(4, 6)), "벨트에 색이 든다");
+            Assert.AreEqual(FlowKind.StandardAmmo, BeltFlow.KindAt(g, new Vector2Int(4, 6)),
+                "벨트에 색이 든다");
         }
 
         // ---- 부스터 ----
@@ -305,7 +317,7 @@ namespace MBI.Tests
         public void LengtheningALine_DoesNotAddBandwidth()
         {
             var g = Grid();
-            g.TryPlace(new Vector2Int(8, 5), _core, out _);
+            g.TryPlace(new Vector2Int(8, 5), _stor, out _);
             g.TryPlace(new Vector2Int(3, 5), _muni, out _);
             for (int x = 4; x <= 7; x++)
                 g.TryPlaceBelt(new Vector2Int(x, 5), PortFace.West, PortFace.East, FlowKind.None, out _);
@@ -336,8 +348,8 @@ namespace MBI.Tests
         public void DirectAdjacency_CountsAsAPath()
         {
             var g = Grid();
-            g.TryPlace(new Vector2Int(5, 5), _core, out _);
-            g.TryPlace(new Vector2Int(4, 5), _muni, out _); // 군수 East → 코어 West
+            g.TryPlace(new Vector2Int(5, 5), _stor, out _);
+            g.TryPlace(new Vector2Int(4, 5), _muni, out _); // 군수 East → 저장 West
 
             Assert.AreEqual(1, Settle(g).ammoPaths, "직결도 한 경로");
         }

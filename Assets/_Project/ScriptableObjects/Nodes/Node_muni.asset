@@ -13,7 +13,7 @@ MonoBehaviour:
   m_Name: Node_muni
   m_EditorClassIdentifier: MBI.Data::MBI.Data.NodeDefinition
   nodeId: muni
-  displayName: "\uAD70\uC218"
+  displayName: "\uAE30\uCD08 \uAD70\uC218"
   type: 2
   implemented: 1
   resources:
@@ -24,30 +24,38 @@ MonoBehaviour:
     heatGenerate: 0
     confirm: 0
   recipes:
-  - kind: 1
-    displayName: "\uD0C4\uC57D"
-    inputs: []
-    output: 1
+  - kind: 9
+    displayName: "\uD45C\uC900\uD0C4"
+    inputs:
+    - kind: 8
+      perOutput: 1
+    output: 11
     outputPerSec: 1
     stackLimitTbd: 0
     implemented: 1
   - kind: 2
-    displayName: "\uB4DC\uB860 \uBAB8\uCCB4"
-    inputs: []
-    output: 4
+    displayName: "\uB4DC\uB860 \uBAB8\uCCB4 \uBD80\uD488"
+    inputs:
+    - kind: 8
+      perOutput: 1
+    output: 12
     outputPerSec: 1
     stackLimitTbd: 0
     implemented: 1
-  - kind: 3
-    displayName: "\uC274\uB4DC \uC7AC\uB8CC"
-    inputs: []
-    output: 0
-    outputPerSec: 0
+  - kind: 10
+    displayName: "\uBC29\uC5B4 \uC7AC\uB8CC"
+    inputs:
+    - kind: 8
+      perOutput: 1
+    output: 13
+    outputPerSec: 1
     stackLimitTbd: 0
-    implemented: 0
+    implemented: 1
   - kind: 4
     displayName: "\uCD94\uC9C4\uC81C"
-    inputs: []
+    inputs:
+    - kind: 9
+      perOutput: 1
     output: 5
     outputPerSec: 0.06666667
     stackLimitTbd: 3
@@ -55,8 +63,8 @@ MonoBehaviour:
   ports:
   - face: 3
     io: 0
-    kind: 0
+    kind: 8
   - face: 1
     io: 1
-    kind: 1
+    kind: 11
   balanceRef: {fileID: 11400000, guid: a00911652af86014e9b4ea1c7d0b41d5, type: 2}

@@ -82,27 +82,31 @@ namespace MBI.Tests
             var kinds = new HashSet<RecipeKind>();
             foreach (NodeRecipe r in muni.recipes) kinds.Add(r.kind);
 
-            Assert.IsTrue(kinds.Contains(RecipeKind.Ammo), "탄약");
-            Assert.IsTrue(kinds.Contains(RecipeKind.DroneBody), "드론 몸체");
-            Assert.IsTrue(kinds.Contains(RecipeKind.ShieldMaterial), "쉴드 재료(자리만)");
+            // 2026-09-05 개명(`260904_W01` 3-2): 탄약 → **표준탄** · 쉴드 재료 → **방어 재료** ·
+            // 드론 몸체 → 드론 몸체 부품. 넷이라는 수와 「자산이 후보를 갖는다」는 요점은 그대로다.
+            Assert.IsTrue(kinds.Contains(RecipeKind.StandardAmmo), "표준탄");
+            Assert.IsTrue(kinds.Contains(RecipeKind.DroneBody), "드론 몸체 부품");
+            Assert.IsTrue(kinds.Contains(RecipeKind.DefenseMaterial), "방어 재료");
             Assert.IsTrue(kinds.Contains(RecipeKind.Propellant), "추진제(2026-08-29 가동)");
         }
 
         /// <summary>
-        /// 범위 밖 조합표는 자리만 있고 돌지 않는다 — 착수 금지가 데이터로 표현된다.
-        /// 추진제는 2026-08-29 회피 원천이 닫히며 착수 금지가 풀려 가동으로 넘어갔고,
-        /// 남은 범위 밖은 쉴드 재료 하나다(쉴드 발생 노드 자체가 MVP 밖).
+        /// 기초 군수의 조합표는 **넷 다 돈다**(2026-09-05).
+        ///
+        /// 종전에는 쉴드 재료 하나가 「자리만 있고 안 도는」 범위 밖이었는데, W01 3-2 개정에서
+        /// 그 자리를 **방어 재료**가 이어받으며 가동으로 넘어갔다. 쉴드 발생 노드 자체는
+        /// 여전히 MVP 밖이지만, 그 노드가 없다는 것과 재료가 안 나온다는 것은 다른 이야기다.
+        ///
+        /// ⚠️ 그래서 이 테스트는 지금 **범위 밖이 하나도 없음**을 고정한다. 나중에 안 도는
+        /// 조합표를 다시 넣으면 여기가 먼저 깨져서 알려 준다.
         /// </summary>
         [Test]
-        public void OutOfScopeRecipes_ArePresentButNotRunnable()
+        public void EveryMunitionsRecipe_IsRunnable()
         {
             var muni = AssetDatabase.LoadAssetAtPath<NodeDefinition>(MuniPath);
 
             foreach (NodeRecipe r in muni.recipes)
-            {
-                bool inScope = r.kind != RecipeKind.ShieldMaterial;
-                Assert.AreEqual(inScope, r.IsRunnable, $"{r.kind} 가동 여부");
-            }
+                Assert.IsTrue(r.IsRunnable, $"{r.kind} 가동 여부");
         }
 
         // ---- ③ 언제든 교체 ----
@@ -135,14 +139,23 @@ namespace MBI.Tests
             Assert.AreEqual(7f, inst.OutputBuffer, D, "남은 산출물은 그대로 둔다");
         }
 
+        /// <summary>
+        /// 안 고른 노드도 **이름 붙은 기본값**으로 돈다 — 놓자마자 아무것도 안 하는 상태를 피한다.
+        ///
+        /// ⚠️ **「첫 후보」가 아니다.** 이 테스트는 2026-09-05까지 이름이
+        /// `UnselectedNode_FallsBackToFirstRunnableRecipe`였는데, 규칙은 이미 이름 붙은
+        /// 기본값으로 바뀐 뒤였다(`260903_W03` 3장 · <see cref="NodeInstance.CurrentRecipe"/>).
+        /// 목록에 항목을 하나 더했을 때 기본값이 조용히 바뀌는 것을 막는 것이 그 개정의 이유다.
+        /// 여기서 기본값을 **목록 둘째**에 두어, 순서로 고르면 틀리게 만들어 둔다.
+        /// </summary>
         [Test]
-        public void UnselectedNode_FallsBackToFirstRunnableRecipe()
+        public void UnselectedNode_UsesTheNamedDefault_NotListOrder()
         {
-            var inst = new NodeInstance(Node(Recipe(RecipeKind.ShieldMaterial, 0f, 0f, impl: false),
-                                             Recipe(RecipeKind.Ammo, 1f, 0f)), Vector2Int.zero);
+            var inst = new NodeInstance(Node(Recipe(RecipeKind.DroneBody, 1f, 0f),
+                                             Recipe(RecipeKind.StandardAmmo, 1f, 0f)), Vector2Int.zero);
 
-            Assert.AreEqual(RecipeKind.Ammo, inst.CurrentRecipe.kind,
-                "놓자마자 아무것도 안 하는 상태를 피한다");
+            Assert.AreEqual(RecipeKind.StandardAmmo, inst.CurrentRecipe.kind,
+                "기초 군수의 기본값은 표준탄이다 — 목록 순서와 무관하다");
         }
 
         // ---- ④ 버퍼 상한 = 생산 정지 조건 ----

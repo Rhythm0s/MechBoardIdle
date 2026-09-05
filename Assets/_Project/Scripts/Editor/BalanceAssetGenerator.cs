@@ -63,6 +63,9 @@ namespace MBI.Editor
         /// </summary>
         private const float PropellantItemStack = 3f;
 
+        /// <summary>추진제 산출 주기 — 15초에 1개. **선언치**이며 시뮬 실측 후 확정된다.</summary>
+        private const float PropellantPerSec = 1f / 15f;
+
         [MenuItem("MBI/Generate Balance + Nodes")]
         public static void Generate()
         {
@@ -147,10 +150,11 @@ namespace MBI.Editor
                 new NodeResourceProfile { powerDraw = CorePowerDraw, confirm = ConfirmState.Confirmed },
                 new List<NodePort>
                 {
-                    new NodePort(PortFace.West, PortIO.Input, FlowKind.Ammo),
+                    // ⚠️ **탄약 입력을 폐기했다** (2026-09-05 · `260904_W03` 1장).
+                    // 코드에만 있던 것이다 — 조립 문서는 처음부터 「코어 = 입력 없음 · 모든
+                    // 라인의 시작」이라 적고 있었고, 「코어가 탄약을 받는다」는 근거가 어느
+                    // 문서에도 없었다. 도착지는 마운트 고정 포트다(W01 2-2).
                     new NodePort(PortFace.South, PortIO.Input, FlowKind.Power),
-                    // 산출을 코어 에너지로 (2026-09-04 · `260904_W01` 3-2).
-                    // 종전에는 Material 하나였고, 그래서 가공이 무엇을 먹는지가 없었다.
                     new NodePort(PortFace.North, PortIO.Output, FlowKind.CoreEnergy),
                 },
                 BuildRecipes(NodeType.Core, ProcOutputPerSecTbd));
@@ -175,36 +179,22 @@ namespace MBI.Editor
                 },
                 BuildRecipes(NodeType.Processing, ProcOutputPerSecTbd));
 
-            // 군수 — 조합표 4종 중 **하나**를 돌린다(260827_V01 §3).
-            // 갈래를 늘리는 방법은 노드를 더 놓는 것이지 노드 하나를 넓히는 것이 아니므로,
+            // 기초 군수 — 조합표 넷 중 **하나**를 돌린다 (2026-09-05 · `260904_W01` 3-2).
+            //
+            // 갈래를 늘리는 방법은 노드를 더 놓는 것이지 노드 하나를 넓히는 것이 아니므로
             // 출력 포트는 단일이고 산출 종류는 선택된 조합표가 정한다.
-            // 스택 상한은 미확정(조립 「품목과 재고」 신설 중) — 0 = 미설정 센티넬로 두고 하드코딩하지 않는다.
-            WriteNode(config, "muni", "군수", NodeType.MunitionsBasic, true,
+            //
+            // 바뀐 것: 탄약 → **표준탄**(특수탄의 재료가 된다) · 쉴드 재료 → **방어 재료** ·
+            // 드론 몸체 → **드론 몸체 부품**. 추진제만 발전재료를 먹고 나머지 셋은 부품을 먹는다.
+            WriteNode(config, "muni", "기초 군수", NodeType.MunitionsBasic, true,
                 new NodeResourceProfile { ammoProduce = muniPerNode, powerDraw = MuniPowerDraw,
                     confirm = ConfirmState.Confirmed },
                 new List<NodePort>
                 {
-                    new NodePort(PortFace.West, PortIO.Input, FlowKind.Material),
-                    new NodePort(PortFace.East, PortIO.Output, FlowKind.Ammo),
+                    new NodePort(PortFace.West, PortIO.Input, FlowKind.BasicParts),
+                    new NodePort(PortFace.East, PortIO.Output, FlowKind.StandardAmmo),
                 },
-                new List<NodeRecipe>
-                {
-                    new NodeRecipe { kind = RecipeKind.Ammo, displayName = "탄약",
-                        output = FlowKind.Ammo, outputPerSec = muniPerNode,
-                        stackLimitTbd = 0f, implemented = true },
-                    new NodeRecipe { kind = RecipeKind.DroneBody, displayName = "드론 몸체",
-                        output = FlowKind.Drone, outputPerSec = droneInflow,
-                        stackLimitTbd = 0f, implemented = true },
-                    // 쉴드 재료는 자리만 — 쉴드 발생 노드가 범위 밖이다(§4).
-                    new NodeRecipe { kind = RecipeKind.ShieldMaterial, displayName = "쉴드 재료",
-                        output = FlowKind.Material, outputPerSec = 0f,
-                        stackLimitTbd = 0f, implemented = false },
-                    // 추진제 — 회피 1회분. 주기 15초/1개는 **선언치**(시뮬 실측 후 확정)이고
-                    // 아이템 최대 스택 3은 확정치다. 회피 스택 상한(부스터 대수 × 2)과는 별개 축이다.
-                    new NodeRecipe { kind = RecipeKind.Propellant, displayName = "추진제",
-                        output = FlowKind.Propellant, outputPerSec = 1f / 15f,
-                        stackLimitTbd = PropellantItemStack, implemented = true },
-                });
+                BuildRecipes(NodeType.MunitionsBasic, muniPerNode));
 
             // 복합 군수 — 입력면 **둘** (2026-09-04 신설 · `260904_W01` 3장).
             //
@@ -246,8 +236,11 @@ namespace MBI.Editor
                 new NodeResourceProfile { powerDraw = StoragePowerDraw, confirm = ConfirmState.Confirmed },
                 new List<NodePort>
                 {
-                    new NodePort(PortFace.West, PortIO.Input, FlowKind.Ammo),
-                    new NodePort(PortFace.East, PortIO.Output, FlowKind.Ammo),
+                    // 2026-09-05: 구 `FlowKind.Ammo`가 있던 자리를 표준탄이 잇는다(W01 3-2 품목 개정).
+                    // 기초 군수의 산출이 표준탄으로 바뀌었으므로 저장이 Ammo를 물고 있으면
+                    // 군수→저장 링크가 통째로 안 선다 — 2026-08-21에 Material로 겪었던 것과 같은 결함이다.
+                    new NodePort(PortFace.West, PortIO.Input, FlowKind.StandardAmmo),
+                    new NodePort(PortFace.East, PortIO.Output, FlowKind.StandardAmmo),
                 });
 
             // 부스터 — 추진제를 받아 회피 스택을 공급(2026-08-29 신설, 노드 7종).
@@ -285,14 +278,24 @@ namespace MBI.Editor
                 foreach (FlowKind need in row.inputs)
                     inputs.Add(new RecipeInput { kind = need, perOutput = RecipeCatalog.PerOutputTbd });
 
+                // ⚠️ **추진제는 주기도 스택도 다르다.** 15초에 1개와 스택 3은 둘 다
+                // 자산에 있던 **선언치**이며, 표를 돌며 전부 같은 값을 넣으면 그것을 잃는다 —
+                // 실제로 한 번 잃었다(둘 다 0이 됐다). 회피 1회분이라 탄약과 같은 속도로
+                // 나오면 회피가 무제한이 되고, 스택이 0이면 부스터가 영영 안 찬다.
+                //
+                // 나머지 조합표의 스택은 **미설정 센티넬 0**이다 — 값을 발명하지 않는다.
+                bool isPropellant = row.kind == RecipeKind.Propellant;
+                float rate = isPropellant ? PropellantPerSec : outputPerSec;
+                float stack = isPropellant ? PropellantItemStack : 0f;
+
                 list.Add(new NodeRecipe
                 {
                     kind = row.kind,
                     displayName = row.displayName,
                     inputs = inputs,
                     output = row.output,
-                    outputPerSec = outputPerSec,
-                    stackLimitTbd = 0f, // 미설정 센티넬 — 하드코딩하지 않는다
+                    outputPerSec = rate,
+                    stackLimitTbd = stack,
                     implemented = true,
                 });
             }

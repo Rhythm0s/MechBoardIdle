@@ -5,40 +5,35 @@ using UnityEngine;
 namespace MBI.Core
 {
     /// <summary>
-    /// 온보딩 시작 보드 — **관통 4노드 + 빈 칸 하나**(260831_V11 정정).
+    /// 온보딩 시작 보드 — **표준탄 3단 단일 라인 + 빈 칸 하나** (2026-09-05 재작성 · `260904_W03` 1-1).
     ///
-    /// 시작 80, 빈 칸을 채우면 100. 노드 1개 = 1발/초이고 관통 발당 20이므로
-    /// 4노드 = 80, 5노드 = 100이다(관통 라인 스펙 5라 다섯째까지 전부 일한다).
+    /// **왜 다시 짰는가.** 코어의 탄약 입력이 폐기되면서(W03 1장) 종전 구조가 통째로 무너졌다.
+    /// 그 구조는 「군수 다섯 대 → 병합기 사다리 → 코어」였고, **코어가 라인의 끝**이라는
+    /// 전제 위에 서 있었다. 이제 코어는 시작이고 도착지는 마운트 고정 포트다.
     ///
-    /// **왜 데이터로 빼는가**: 종전에는 이 배치가 `GameSceneCreator` 안에 좌표 리터럴로만
-    /// 있어서 「정말 80이 나오는가」를 확인할 방법이 씬을 열어 보는 것뿐이었다.
-    /// 여기 두면 씬 생성기와 테스트가 **같은 것**을 읽어, 숫자가 어긋나면 배치모드에서 깨진다.
+    /// **왜 표준탄인가.** 관통탄은 복합 군수 소관이고 표준탄을 먹는다. 그걸로 시작 보드를
+    /// 짜면 튜토리얼에서 복합 군수까지 가르쳐야 하는데, 스테이지의 학습 목표는
+    /// 「벨트를 이으면 물건이 만들어진다」 하나다. **표준탄은 기초 군수만으로 완성되는
+    /// 유일한 탄이라** 3단으로 끝난다.
     ///
-    /// 배치 원칙(종전과 같다): 빈 보드로 시작하면 출력 0 = 전투 정지라 「게임이 고장난 것」처럼
-    /// 보이고, 완성된 라인을 주면 물류 보드를 열 이유가 사라진다. **한 칸만 비운다.**
-    ///
-    /// 지형(전부 몸통 x3~8 · y4~9 안이다 — 몸통이 생산 허브라는 11-3 결론):
+    /// 지형 — 노드는 서쪽에서 받아 동쪽으로 내므로 나란히 붙이면 벨트 없이 직결된다.
+    /// 마운트는 왼팔 바깥면이라 라인이 한 번 돌아 나간다.
     /// <code>
-    ///   y=8   [빈 칸](3,8) → 벨트(4,8) W→S ↓          에너지(5,8) → 벨트(6,8) W→S
-    ///   y=7   관통(3,7)    → 병합기 M1(4,7) → 코어(5,7)          벨트(6,7) N→S
-    ///   y=6   관통(3,6)    → 병합기 M2(4,6) ↑           벨트(5,6) E→N ← 벨트(6,6) N→W
-    ///   y=5   관통(3,5)    → 병합기 M3(4,5) ↑
-    ///   y=4   관통(3,4)    → 벨트(4,4) W→N ↑
+    ///   y=7   벨트(1,7)←(2,7)←(3,7)←(4,7)←(5,7)←(6,7)  ← 서향 운반로
+    ///   y=6   마운트◀(0,6) 벨트(1,6)  코어(3,6)→가공(4,6)→[빈 칸](5,6)  벨트(6,6)
+    ///   y=5   에너지(2,5) → 벨트(3,5)↑ → 코어 남쪽 전력
     /// </code>
     ///
-    /// ⚠️ **병합기 사다리가 북향인 이유.** <c>BeltAutoOrient</c>는 병합기 출력면을
-    /// 노드 → 벨트 순으로 찾고, 벨트끼리는 **N→E→S→W 순서로 처음 만난 면**을 쓴다.
-    /// 남향으로 흘리려 하면 북쪽 이웃이 출력면을 가로채 라인이 통째로 끊긴다 —
-    /// 실제로 그렇게 짰다가 4줄 중 1줄만 새는 것이 아니라 3줄만 이어졌다.
-    /// 직선 벨트는 면이 고정이라(자동 배향 대상이 아니다) (4,8)만 남향으로 쓴다.
+    /// ⚠️ **코어는 남쪽으로만 전력을 받는다.** 에너지는 동쪽으로만 내므로 둘을 나란히
+    /// 붙일 수 없고, 코어 **바로 아래 칸**에 벨트를 두어 북으로 꺾어 넣어야 한다.
+    /// 그 칸에 에너지를 놓으면 출력면이 동쪽이라 코어를 스쳐 지나간다 —
+    /// 2026-09-05 첫 배선이 그래서 발전이 통째로 0이었다.
     ///
-    /// ⚠️ **병합기가 셋인 이유.** 코어의 탄약 입구는 서쪽 한 면뿐이고 병합기 하나가 여는
-    /// 입구는 셋이다. 다섯 줄을 모으려면 병합기를 물려야 한다 — 그것이 「대역을 늘리려면
-    /// 병렬 경로」의 실제 모습이고, 플레이어가 여섯째 줄을 놓을 때 똑같은 문제를 만난다.
+    /// ⚠️ **병합기가 사라졌다.** 단일 라인이면 합칠 갈래가 없어 병합기가 논다.
+    /// 종전에 셋이었던 근거(「코어의 탄약 입구가 서쪽 한 면뿐」)도 그 입구와 함께 없어졌다.
     ///
-    /// ⚠️ 군수 노드는 **동쪽으로만** 낸다(포트가 West 입력 / East 출력 고정). 벨트와 달리
-    /// 면을 못 돌리므로 노드는 전부 병합기·벨트의 서쪽에 선다.
-    /// 에너지도 동쪽으로만 내므로 전력선은 코어를 오른쪽으로 돌아 남쪽 입구로 들어간다.
+    /// ⚠️ **노드 수와 전투력 값은 여기서 정하지 않는다** (`260904_W04` 4장).
+    /// 4단 체인 실측 전이며, 밸런스 문서의 100과 80은 이미 재산출 대상에 올라 있다.
     /// </summary>
     public static class StartingBoard
     {
@@ -78,56 +73,53 @@ namespace MBI.Core
         }
 
         public const string CoreId = "core";
+        public const string ProcId = "proc";
         public const string MuniId = "muni";
         public const string EnergyId = "ener";
 
         /// <summary>
-        /// **비워 둔 칸 — 코어 직전 병합기 자리다**(촬영 스크립트 A구간 확정, 2026-09-01).
+        /// **비워 둔 칸 — 기초 군수 자리다** (2026-09-05).
         ///
-        /// 종전에는 다섯째 노드 자리(3,8)였다. 그러면 나머지 네 대가 계속 돌아 마운트가
-        /// 저절로 차고, 플레이어가 놓는 순간 곧바로 끝나 **「쌓인다」를 한 번도 못 본다.**
-        /// 여기를 비우면 코어로 가는 유일한 입구가 막혀 **출력이 0**이 되고,
-        /// 놓는 순간부터 5발/초로 8초를 채운다 — 순서가 물리로 강제된다.
+        /// 코어와 가공은 놓여 있어 부품까지는 만들어지는데, **그것을 탄으로 바꿀 노드가 없다.**
+        /// 그래서 마운트 도착이 0이고 출력도 0이다. 놓는 순간 라인이 이어져 물건이 흐른다.
         ///
-        /// 그리고 목표 문구와 같은 말이 된다. 스테이지 0의 목표는 「벨트를 이으면 물건이
-        /// 만들어진다」인데, 병합기는 벨트 요소이므로 **놓는 것이 곧 잇는 것**이다.
+        /// 빈 칸을 하나만 두는 원칙은 그대로다 — 빈 보드로 시작하면 「게임이 고장난 것」처럼
+        /// 보이고, 완성된 라인을 주면 물류 보드를 열 이유가 사라진다.
         /// </summary>
-        public static readonly Vector2Int EmptySlot = new Vector2Int(4, 7);
+        public static readonly Vector2Int EmptySlot = new Vector2Int(5, 6);
 
-        /// <summary>빈 칸을 채우는 것 — **노드가 아니라 병합기**다.</summary>
-        public static readonly Run FillsEmptySlot = Run.Merger(4, 7);
+        /// <summary>빈 칸을 채우는 것 — **기초 군수 노드**다.</summary>
+        public static readonly Slot FillsEmptySlot = new Slot(5, 6, MuniId);
 
         /// <summary>
-        /// 시작 노드. **관통 5대가 전부 놓여 있다** — 빈 칸은 이제 노드 자리가 아니다.
-        /// 다섯 대가 다 돌아도 병합기가 없으면 코어에 닿지 못해 출력은 0이다.
+        /// 시작 노드. **기초 군수가 빠져 있다** — 그 자리가 비워 둔 칸이다.
         /// </summary>
         public static readonly IReadOnlyList<Slot> Nodes = new[]
         {
-            new Slot(5, 7, CoreId),
-            new Slot(5, 8, EnergyId),
-            new Slot(3, 4, MuniId, AmmoKind.Pierce),
-            new Slot(3, 5, MuniId, AmmoKind.Pierce),
-            new Slot(3, 6, MuniId, AmmoKind.Pierce),
-            new Slot(3, 7, MuniId, AmmoKind.Pierce),
-            new Slot(3, 8, MuniId, AmmoKind.Pierce),
+            new Slot(3, 6, CoreId),
+            new Slot(4, 6, ProcId),
+            new Slot(2, 5, EnergyId),
         };
 
         /// <summary>
-        /// 시작 배선. **M1(4,7)이 빠져 있다** — 그 자리가 비워 둔 칸이다.
+        /// 시작 배선. 기초 군수(5,6)의 동쪽 출구에서 받아 **북으로 돌아 서쪽으로** 흘려
+        /// 왼팔 바깥면의 마운트 고정 포트로 보낸다.
         /// </summary>
         public static readonly IReadOnlyList<Run> Belts = new[]
         {
-            Run.Merger(4, 6), // M2 — 북쪽 M1 자리로
-            Run.Merger(4, 5), // M3 — 북쪽 M2로
+            // 운반로 — 군수 동쪽 출구 → 북 → 서향 → 남 → 마운트
+            new Run(6, 6, PortFace.West, PortFace.North),
+            new Run(6, 7, PortFace.South, PortFace.West),
+            new Run(5, 7, PortFace.East, PortFace.West),
+            new Run(4, 7, PortFace.East, PortFace.West),
+            new Run(3, 7, PortFace.East, PortFace.West),
+            new Run(2, 7, PortFace.East, PortFace.West),
+            new Run(1, 7, PortFace.East, PortFace.South),
+            new Run(1, 6, PortFace.North, PortFace.West),
+            new Run(0, 6, PortFace.East, PortFace.West), // 서쪽 면이 마운트 고정 포트다
 
-            new Run(4, 8, PortFace.West, PortFace.South), // 관통(3,8) → M1 자리
-            new Run(4, 4, PortFace.West, PortFace.North),  // 관통(3,4) → M3 남쪽
-
-            // 전력 — 에너지도 동쪽으로만 내므로 코어를 오른쪽으로 돌아 남쪽 입구로 들어간다.
-            new Run(6, 8, PortFace.West, PortFace.South),
-            new Run(6, 7, PortFace.North, PortFace.South),
-            new Run(6, 6, PortFace.North, PortFace.West),
-            new Run(5, 6, PortFace.East, PortFace.North), // → 코어 남쪽(전력)
+            // 전력 — 에너지(2,5) 동쪽 출구를 받아 코어(3,6) 남쪽 면으로 꺾어 올린다.
+            new Run(3, 5, PortFace.West, PortFace.North),
         };
     }
 }

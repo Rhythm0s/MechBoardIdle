@@ -54,13 +54,13 @@ namespace MBI.Tests
             var g = Grid();
             g.TryPlace(new Vector2Int(1, 1), _muni, out NodeInstance muni);
 
-            Assert.AreEqual(FlowKind.Ammo, BeltFlow.OutputKindOf(muni), "기본 조합표는 탄약");
+            Assert.AreEqual(FlowKind.StandardAmmo, BeltFlow.OutputKindOf(muni), "기본 조합표는 탄약");
 
             muni.SelectRecipe(RecipeKind.Propellant);
             Assert.AreEqual(FlowKind.Propellant, BeltFlow.OutputKindOf(muni), "조합표가 이긴다");
 
             muni.SelectRecipe(RecipeKind.DroneBody);
-            Assert.AreEqual(FlowKind.Drone, BeltFlow.OutputKindOf(muni));
+            Assert.AreEqual(FlowKind.DroneBodyParts, BeltFlow.OutputKindOf(muni));
         }
 
         /// <summary>
@@ -90,7 +90,7 @@ namespace MBI.Tests
             LayStraight(g, 2, 1);
 
             Assert.AreEqual(1, BeltFlow.Resolve(g));
-            Assert.AreEqual(FlowKind.Ammo, KindAt(g, 2, 1));
+            Assert.AreEqual(FlowKind.StandardAmmo, KindAt(g, 2, 1));
         }
 
         /// <summary>체인 전체가 같은 것을 나른다 — 한 칸만 정해지면 라인이 끊긴다.</summary>
@@ -103,7 +103,7 @@ namespace MBI.Tests
 
             Assert.AreEqual(5, BeltFlow.Resolve(g));
             for (int x = 2; x <= 6; x++)
-                Assert.AreEqual(FlowKind.Ammo, KindAt(g, x, 1), $"{x}칸");
+                Assert.AreEqual(FlowKind.StandardAmmo, KindAt(g, x, 1), $"{x}칸");
         }
 
         /// <summary>
@@ -118,7 +118,7 @@ namespace MBI.Tests
             for (int x = 2; x <= 5; x++) LayStraight(g, x, 1);
 
             BeltFlow.Resolve(g);
-            Assert.AreEqual(FlowKind.Ammo, KindAt(g, 5, 1));
+            Assert.AreEqual(FlowKind.StandardAmmo, KindAt(g, 5, 1));
 
             muni.SelectRecipe(RecipeKind.Propellant);
             BeltFlow.Resolve(g);
@@ -195,22 +195,26 @@ namespace MBI.Tests
             Assert.Greater(after, before, "흘린 뒤에 링크가 선다");
         }
 
-        /// <summary>군수 → 벨트 → 코어가 실제로 이어진다(탄약 라인 전 구간).</summary>
+        /// <summary>
+        /// 군수 → 벨트 → 저장이 실제로 이어진다(탄약 라인 전 구간).
+        /// 2026-09-05에 받는 쪽이 코어에서 저장으로 바뀌었다 — 코어는 이제 시작이라
+        /// 탄약 입력면이 없다(`260904_W03` 1장).
+        /// </summary>
         [Test]
-        public void MunitionsToCore_ConnectsThroughTheBelt()
+        public void MunitionsToStorage_ConnectsThroughTheBelt()
         {
             var g = Grid();
-            g.TryPlace(new Vector2Int(1, 1), _muni, out _);   // East 출력(탄약)
+            g.TryPlace(new Vector2Int(1, 1), _muni, out _);   // East 출력(표준탄)
             LayStraight(g, 2, 1);
-            g.TryPlace(new Vector2Int(3, 1), _core, out _);   // West 입력(탄약)
+            g.TryPlace(new Vector2Int(3, 1), _stor, out _);   // West 입력(표준탄)
 
             BeltFlow.Resolve(g);
 
             bool reachesCore = false;
             foreach (BeltLink l in BeltRouting.BuildLinks(g))
-                if (l.toCell == new Vector2Int(3, 1) && l.kind == FlowKind.Ammo) reachesCore = true;
+                if (l.toCell == new Vector2Int(3, 1) && l.kind == FlowKind.StandardAmmo) reachesCore = true;
 
-            Assert.IsTrue(reachesCore, "벨트가 탄약을 코어까지 나른다");
+            Assert.IsTrue(reachesCore, "벨트가 탄약을 저장까지 나른다");
         }
 
         /// <summary>

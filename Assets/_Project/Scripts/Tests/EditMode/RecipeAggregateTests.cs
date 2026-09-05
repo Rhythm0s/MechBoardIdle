@@ -38,7 +38,7 @@ namespace MBI.Tests
         private static BoardGrid Grid() => new BoardGrid(8, 8, 1f, Vector2.zero);
 
         /// <summary>군수 노드 한 대를 놓고 탄종·조합표를 지정한다.</summary>
-        private NodeInstance PlaceMuni(BoardGrid g, int x, AmmoKind kind, RecipeKind recipe = RecipeKind.Ammo)
+        private NodeInstance PlaceMuni(BoardGrid g, int x, AmmoKind kind, RecipeKind recipe = RecipeKind.StandardAmmo)
         {
             g.TryPlace(new Vector2Int(x, 0), _muni, out NodeInstance inst);
             inst.AmmoKind = kind;

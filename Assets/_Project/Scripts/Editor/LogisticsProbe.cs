@@ -135,7 +135,7 @@ namespace MBI.EditorTools
             for (int x = 1; x <= lineLength; x++)
             {
                 grid.TryPlaceBelt(new Vector2Int(x, 6), PortFace.West, PortFace.East,
-                    FlowKind.Ammo, out _);
+                    FlowKind.StandardAmmo, out _);
             }
 
             var sinkCell = new Vector2Int(lineLength + 1, 6);
@@ -154,7 +154,7 @@ namespace MBI.EditorTools
             {
                 BoardItemTick.Step(grid, flow, StepSeconds, 1f);
 
-                int arrived = flow.ArrivedOf(FlowKind.Ammo);
+                int arrived = flow.ArrivedOf(FlowKind.StandardAmmo);
                 if (firstArrivalAt < 0f && arrived > 0) firstArrivalAt = i * StepSeconds;
 
                 if (i % Mathf.RoundToInt(10f / StepSeconds) != 0) continue;
@@ -162,7 +162,7 @@ namespace MBI.EditorTools
                 lastMark = arrived;
             }
 
-            int total = flow.ArrivedOf(FlowKind.Ammo);
+            int total = flow.ArrivedOf(FlowKind.StandardAmmo);
             var sb = new StringBuilder();
             sb.AppendLine($"[라인 {lineLength}칸] 군수 {nodeCell} → 벨트 {lineLength}칸 → 저장 {sinkCell}");
             sb.AppendLine($"  첫 도착: {(firstArrivalAt < 0f ? "없음" : firstArrivalAt.ToString("F2") + "초")}");

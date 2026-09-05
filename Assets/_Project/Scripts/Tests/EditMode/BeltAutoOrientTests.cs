@@ -14,14 +14,15 @@ namespace MBI.Tests
     /// </summary>
     public sealed class BeltAutoOrientTests
     {
-        private NodeDefinition _muni, _core;
+        private NodeDefinition _muni, _core, _stor;
 
         [SetUp]
         public void SetUp()
         {
             _muni = Load("muni");
             _core = Load("core");
-            if (_muni == null || _core == null)
+            _stor = Load("stor");
+            if (_muni == null || _core == null || _stor == null)
                 Assert.Ignore("노드 자산 없음 — 먼저 메뉴 'MBI/Generate Balance + Nodes' 실행.");
         }
 
@@ -67,14 +68,17 @@ namespace MBI.Tests
         }
 
         /// <summary>
-        /// **세 방향에서 받는다.** 코어의 탄약 입력이 한 면뿐이라, 병합기가 없으면
-        /// 군수 노드 하나만 코어에 닿을 수 있다 — 145를 만들 방법이 없어진다.
+        /// **세 방향에서 받는다.** 받는 쪽의 탄약 입력이 한 면뿐이라, 병합기가 없으면
+        /// 군수 노드 하나만 닿을 수 있다 — 145를 만들 방법이 없어진다.
+        ///
+        /// ⚠️ 2026-09-05에 받는 쪽이 **코어에서 저장으로** 바뀌었다(`260904_W03` 1장 —
+        /// 「코어는 시작이다」). 병합기가 왜 필요한가는 그대로다: 입구가 한 면뿐인 것은 같다.
         /// </summary>
         [Test]
-        public void Merger_CollectsFromThreeSides_IntoOneCoreInput()
+        public void Merger_CollectsFromThreeSides_IntoOneStorageInput()
         {
             var g = Grid();
-            g.TryPlace(new Vector2Int(3, 3), _core, out _);
+            g.TryPlace(new Vector2Int(3, 3), _stor, out _);
             BeltInstance m = Place(g, new Vector2Int(2, 3), BeltElementKind.Merger);
 
             // 병합기의 북·남·서에 군수 노드를 붙인다. 셋 다 East 출력이므로
@@ -84,13 +88,13 @@ namespace MBI.Tests
             BeltFlow.Resolve(g);
 
             Assert.IsTrue(Has(m.InFaces, PortFace.West), "서쪽 입구가 열려 있다");
-            Assert.AreEqual(FlowKind.Ammo, m.Kind, "군수가 밀어 넣은 것이 흐른다");
+            Assert.AreEqual(FlowKind.StandardAmmo, m.Kind, "군수가 밀어 넣은 것이 흐른다");
 
             bool reachesCore = false;
             foreach (BeltLink l in BeltRouting.BuildLinks(g))
-                if (l.toCell == new Vector2Int(3, 3) && l.kind == FlowKind.Ammo) reachesCore = true;
+                if (l.toCell == new Vector2Int(3, 3) && l.kind == FlowKind.StandardAmmo) reachesCore = true;
 
-            Assert.IsTrue(reachesCore, "군수 → 병합기 → 코어가 이어진다");
+            Assert.IsTrue(reachesCore, "군수 → 병합기 → 저장이 이어진다");
         }
 
         // ---- 분류기 ----

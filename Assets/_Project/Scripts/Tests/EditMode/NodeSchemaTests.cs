@@ -17,6 +17,7 @@ namespace MBI.Tests
         private const string NodesDir = "Assets/_Project/ScriptableObjects/Nodes";
         private const string CorePath = NodesDir + "/Node_core.asset";
         private const string MuniPath = NodesDir + "/Node_muni.asset";
+        private const string StorPath = NodesDir + "/Node_stor.asset";
         private const string ShieldPath = NodesDir + "/Node_shield.asset";
 
         private List<NodeDefinition> _nodes;
@@ -159,19 +160,23 @@ namespace MBI.Tests
                 "6은 마운트 소비 상한(capA)이다 — 생산 자리에 들어가면 안 된다");
         }
 
-        // ---- (d) 연결 규칙: 군수 출력(Ammo) → 코어 입력(Ammo) 대칭 성립 ----
+        // ---- (d) 연결 규칙: 기초 군수 출력(표준탄) → 저장 입력(표준탄) 대칭 성립 ----
+        //
+        // ⚠️ 2026-09-05까지 이 테스트는 **군수 → 코어**였다. 「코어는 시작이다」 판정으로
+        // 코어에서 탄약 입력면이 사라져(`260904_W03` 1장) 그 대칭은 폐기됐다.
+        // 보는 것은 같다 — 산출 품목과 입력 품목이 맞아야 링크가 선다는 규칙이다.
         [Test]
-        public void ConnectionRule_MunitionsAmmo_ConnectsToCore()
+        public void ConnectionRule_MunitionsAmmo_ConnectsToStorage()
         {
-            NodeDefinition core = AssetDatabase.LoadAssetAtPath<NodeDefinition>(CorePath);
+            NodeDefinition stor = AssetDatabase.LoadAssetAtPath<NodeDefinition>(StorPath);
             NodeDefinition muni = AssetDatabase.LoadAssetAtPath<NodeDefinition>(MuniPath);
-            Assert.NotNull(core, "코어 자산");
+            Assert.NotNull(stor, "저장 자산");
             Assert.NotNull(muni, "군수 자산");
 
-            // 군수 East(Output, Ammo) ↔ 코어 West(Input, Ammo). Opposite(East)=West.
-            bool ok = NodeConnectionRules.TryConnect(muni, PortFace.East, core, out FlowKind kind);
-            Assert.IsTrue(ok, "군수→코어 탄약 연결 성립");
-            Assert.AreEqual(FlowKind.Ammo, kind);
+            // 군수 East(Output, 표준탄) ↔ 저장 West(Input, 표준탄). Opposite(East)=West.
+            bool ok = NodeConnectionRules.TryConnect(muni, PortFace.East, stor, out FlowKind kind);
+            Assert.IsTrue(ok, "군수→저장 탄약 연결 성립");
+            Assert.AreEqual(FlowKind.StandardAmmo, kind);
         }
 
         // ---- (d') 반대 방향/스텁은 연결 불가 ----

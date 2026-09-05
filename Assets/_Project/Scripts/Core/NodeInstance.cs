@@ -108,12 +108,24 @@ namespace MBI.Core
         /// 처음 보는 탄종과 기본값이 같아야 학습이 어긋나지 않는다. 탄종 자체는
         /// <see cref="AmmoKind"/>가 들고 있고 그 기본값도 관통이다.
         ///
-        /// ⚠️ **가공 노드의 기본값 「기초재료·부품」은 아직 넣지 못했다.** 그 조합표가
-        /// <see cref="RecipeKind"/>에도 자산에도 없다 — 가공 단계가 통째로 비어 있는
-        /// 상태이기 때문이다(`260902_V10` 2장). 레시피가 생기면 여기에 한 줄 더한다.
+        /// **가공의 기본값이 2026-09-04에 들어왔다** — 그때까지 그 조합표가 `RecipeKind`에도
+        /// 자산에도 없어 가공 단계가 통째로 비어 있었다(`260903_W04` 3장).
+        ///
+        /// 기초 군수의 기본값은 **표준탄**이다. 구 「탄약」 자리이며 특수탄의 재료이므로
+        /// 로봇 A는 이 노드를 반드시 거친다. 복합 군수는 관통탄이 기본인데, 원점 100의
+        /// basis가 「관통탄 20×5발 기본 라인」이기 때문이다.
         /// </summary>
-        private static RecipeKind DefaultRecipeFor(NodeType type) =>
-            type == NodeType.MunitionsBasic ? RecipeKind.Ammo : RecipeKind.None;
+        private static RecipeKind DefaultRecipeFor(NodeType type)
+        {
+            switch (type)
+            {
+                case NodeType.Core:             return RecipeKind.CoreEnergy;
+                case NodeType.Processing:       return RecipeKind.BasicParts;
+                case NodeType.MunitionsBasic:   return RecipeKind.StandardAmmo;
+                case NodeType.MunitionsComplex: return RecipeKind.PierceAmmo;
+                default:                        return RecipeKind.None;
+            }
+        }
 
         /// <summary>
         /// 조합표를 바꾼다. 후보에 없거나 돌릴 수 없는 것은 거절한다.
