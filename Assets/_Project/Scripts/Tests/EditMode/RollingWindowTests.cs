@@ -70,12 +70,15 @@ namespace MBI.Tests
         public void Linearity_GapDecompositionHoldsAfterRolling()
         {
             var w = new RollingWindow(5, 60f, 0f); // 솎기 없이 전부 담아 검증
+
+            // 배율과 도착량을 함께 준다(2026-09-05 개정). 앞 셋은 「만든 만큼 다 닿았다」이고
+            // 넷째만 운송에서 절반을 잃는다 — 갭의 출처가 프레임마다 다른 구간을 섞는 것이 요점이다.
             LogisticsResult[] frames =
             {
-                LogisticsSimulation.Compute(145f, 80f, 66f, 8f, 0f, 12f, 14f, 10f, 100f),  // 병목 없음
-                LogisticsSimulation.Compute(145f, 33f, 66f, 8f, 0f, 12f, 14f, 10f, 100f),  // 전력 0.5
-                LogisticsSimulation.Compute(145f, 33f, 66f, 24f, 0f, 12f, 14f, 10f, 100f), // 전력·발열
-                LogisticsSimulation.Compute(145f, 80f, 66f, 8f, 0f, 12f, 14f, 28f, 100f),  // 벨트 초과
+                Frame(1f,   1f,   145f),    // 병목 없음
+                Frame(0.5f, 1f,   72.5f),   // 전력 0.5 → 절반만 만든다
+                Frame(0.5f, 0.5f, 36.25f),  // 전력·발열
+                Frame(1f,   1f,   72.5f),   // 생산은 멀쩡한데 운송에서 절반을 잃었다
             };
 
             for (int i = 0; i < frames.Length; i++)
@@ -88,7 +91,11 @@ namespace MBI.Tests
             float decomposed = w.Average(2) + w.Average(3) + w.Average(4);
 
             Assert.AreEqual(expected - actual, decomposed, Delta, "분해 합 == 총갭이 롤링 후에도 성립해야 한다");
-            Assert.GreaterOrEqual(expected - actual, 0f, "actual은 항상 expected 이하 → 갭에 Max(0,…) 클램프가 필요 없다");
+            Assert.Greater(expected - actual, 0f, "잃은 프레임이 섞여 있으므로 총갭은 양수다");
         }
+
+        /// <summary>배율과 관측 도착으로 한 프레임을 만든다.</summary>
+        private static LogisticsResult Frame(float power, float heat, float observed) =>
+            LogisticsSimulation.Compute(145f, new ProductionThrottle(power, heat), observed, 100f);
     }
 }

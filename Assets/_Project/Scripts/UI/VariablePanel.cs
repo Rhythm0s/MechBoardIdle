@@ -54,13 +54,18 @@ namespace MBI.UI
             string cause = CauseText(LogisticsOutputBridge.GlobalCause);
             if (cause != null && Blink()) GUILayout.Label(cause, Warn(_label));
 
+            // 「실제」는 **마운트에 닿은 것**이다(2026-09-05 · `260904_W04` 2-1 4번).
+            // 종전에는 계산값이라 벨트를 어떻게 깔든 노드 수만 같으면 같은 수가 떴다.
             GUILayout.Label($"예상 {r.expected:F1}   실제 {r.actual:F1}   갭 {r.gap:F1}", _label);
             GUILayout.Space(4f);
 
             GUILayout.Label("갭 발생원", _head);
             GUILayout.Label($"전력  {r.gapPower:F1}   (효율 {Pct(r.powerEfficiency)})", _label);
             GUILayout.Label($"발열  {r.gapHeat:F1}   (감쇠 {Pct(r.heatThrottle)})", _label);
-            GUILayout.Label($"벨트  {r.gapBelt:F1}   (감쇠 {Pct(r.beltThrottle)})", _label);
+            // 벨트는 다른 둘과 축이 다르다(2026-09-05). 전력·발열은 **식**으로 구한 감쇠이고,
+            // 벨트는 「만든 것 중 실제로 닿은 비율」을 **역산**한 값이다 — 정체·갈래·거리가
+            // 전부 여기 섞여 들어온다. 그래서 「감쇠」가 아니라 「도달」로 적는다.
+            GUILayout.Label($"벨트  {r.gapBelt:F1}   (도달 {Pct(r.beltThrottle)})", _label);
             GUILayout.Space(4f);
 
             GUILayout.Label($"명목 배율 ×{r.multiple:F2}", _label);

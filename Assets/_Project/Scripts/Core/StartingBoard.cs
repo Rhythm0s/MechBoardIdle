@@ -16,18 +16,25 @@ namespace MBI.Core
     /// 「벨트를 이으면 물건이 만들어진다」 하나다. **표준탄은 기초 군수만으로 완성되는
     /// 유일한 탄이라** 3단으로 끝난다.
     ///
-    /// 지형 — 노드는 서쪽에서 받아 동쪽으로 내므로 나란히 붙이면 벨트 없이 직결된다.
-    /// 마운트는 왼팔 바깥면이라 라인이 한 번 돌아 나간다.
+    /// 지형 — 가공과 군수는 서쪽에서 받아 동쪽으로 내므로 나란히 붙이면 벨트 없이 직결된다.
+    /// **코어만 다르다**(남으로 받아 북으로 낸다). 마운트는 왼팔 바깥면이라 라인이 돌아 나간다.
     /// <code>
-    ///   y=7   벨트(1,7)←(2,7)←(3,7)←(4,7)←(5,7)←(6,7)  ← 서향 운반로
-    ///   y=6   마운트◀(0,6) 벨트(1,6)  코어(3,6)→가공(4,6)→[빈 칸](5,6)  벨트(6,6)
-    ///   y=5   에너지(2,5) → 벨트(3,5)↑ → 코어 남쪽 전력
+    ///   y=6   마운트◀(0,6)←(1,6)←(2,6)←(3,6)←(4,6)←(5,6)←(6,6)←(7,6)   ← 서향 운반로
+    ///   y=5   벨트(4,5)  가공(5,5) → [빈 칸](6,5) → 벨트(7,5)↑
+    ///   y=4   코어(4,4)↑
+    ///   y=3   에너지(3,3) → 벨트(4,3)↑ → 코어 남쪽 전력
     /// </code>
     ///
-    /// ⚠️ **코어는 남쪽으로만 전력을 받는다.** 에너지는 동쪽으로만 내므로 둘을 나란히
-    /// 붙일 수 없고, 코어 **바로 아래 칸**에 벨트를 두어 북으로 꺾어 넣어야 한다.
-    /// 그 칸에 에너지를 놓으면 출력면이 동쪽이라 코어를 스쳐 지나간다 —
-    /// 2026-09-05 첫 배선이 그래서 발전이 통째로 0이었다.
+    /// ⚠️ **코어를 무엇과도 나란히 붙일 수 없다.** 남으로 받아 북으로 내므로, 동쪽 이웃에게
+    /// 아무것도 안 주고 서쪽 이웃에게서 아무것도 안 받는다. 위아래로 벨트를 물려야 한다.
+    /// 2026-09-05 첫 배선이 이것을 놓쳐 두 번 끊겨 있었다 —
+    /// 처음에는 전력이 코어를 스쳐 지나가 **발전이 0**이었고, 고친 뒤에도 가공을 동쪽에
+    /// 붙여 두어 **코어 에너지가 갈 곳이 없었다.** 둘 다 「노드는 서→동」이라는
+    /// 습관에서 나온 같은 실수다.
+    ///
+    /// 그 상태에서도 <see cref="LogisticsReach"/>의 도달 판정은 통과한다 — 군수에서 마운트까지는
+    /// 이어져 있기 때문이다. 도달은 「무엇이 오는가」를 안 보므로, 라인이 실제로 도는지는
+    /// **마운트에 물건이 닿는지**로만 알 수 있다(`MountDeliveryTests`).
     ///
     /// ⚠️ **병합기가 사라졌다.** 단일 라인이면 합칠 갈래가 없어 병합기가 논다.
     /// 종전에 셋이었던 근거(「코어의 탄약 입구가 서쪽 한 면뿐」)도 그 입구와 함께 없어졌다.
@@ -86,40 +93,46 @@ namespace MBI.Core
         /// 빈 칸을 하나만 두는 원칙은 그대로다 — 빈 보드로 시작하면 「게임이 고장난 것」처럼
         /// 보이고, 완성된 라인을 주면 물류 보드를 열 이유가 사라진다.
         /// </summary>
-        public static readonly Vector2Int EmptySlot = new Vector2Int(5, 6);
+        public static readonly Vector2Int EmptySlot = new Vector2Int(6, 5);
 
         /// <summary>빈 칸을 채우는 것 — **기초 군수 노드**다.</summary>
-        public static readonly Slot FillsEmptySlot = new Slot(5, 6, MuniId);
+        public static readonly Slot FillsEmptySlot = new Slot(6, 5, MuniId);
 
         /// <summary>
         /// 시작 노드. **기초 군수가 빠져 있다** — 그 자리가 비워 둔 칸이다.
         /// </summary>
         public static readonly IReadOnlyList<Slot> Nodes = new[]
         {
-            new Slot(3, 6, CoreId),
-            new Slot(4, 6, ProcId),
-            new Slot(2, 5, EnergyId),
+            new Slot(4, 4, CoreId),
+            new Slot(5, 5, ProcId),
+            new Slot(3, 3, EnergyId),
         };
 
         /// <summary>
-        /// 시작 배선. 기초 군수(5,6)의 동쪽 출구에서 받아 **북으로 돌아 서쪽으로** 흘려
-        /// 왼팔 바깥면의 마운트 고정 포트로 보낸다.
+        /// 시작 배선. 코어의 북쪽 출구를 가공으로 올리고, 기초 군수(6,5)의 동쪽 출구에서 받아
+        /// **북으로 한 칸 올라 서쪽으로** 흘려 왼팔 바깥면의 마운트 고정 포트로 보낸다.
+        ///
+        /// ⚠️ **마지막에서 둘째 칸이 (1,6)이다.** `MountDeliveryTests`가 「벨트 한 칸을 끊으면
+        /// 출력이 0」을 잴 때 이 순서를 읽으므로, 항목을 뒤에 덧붙일 때 그 자리가 밀리지 않게 한다.
         /// </summary>
         public static readonly IReadOnlyList<Run> Belts = new[]
         {
-            // 운반로 — 군수 동쪽 출구 → 북 → 서향 → 남 → 마운트
-            new Run(6, 6, PortFace.West, PortFace.North),
-            new Run(6, 7, PortFace.South, PortFace.West),
-            new Run(5, 7, PortFace.East, PortFace.West),
-            new Run(4, 7, PortFace.East, PortFace.West),
-            new Run(3, 7, PortFace.East, PortFace.West),
-            new Run(2, 7, PortFace.East, PortFace.West),
-            new Run(1, 7, PortFace.East, PortFace.South),
-            new Run(1, 6, PortFace.North, PortFace.West),
+            // 코어 → 가공. 코어는 북으로만 내므로 한 칸 올려 동으로 꺾는다.
+            new Run(4, 5, PortFace.South, PortFace.East),
+
+            // 운반로 — 군수 동쪽 출구 → 북 → 서향 → 마운트
+            new Run(7, 5, PortFace.West, PortFace.North),
+            new Run(7, 6, PortFace.South, PortFace.West),
+            new Run(6, 6, PortFace.East, PortFace.West),
+            new Run(5, 6, PortFace.East, PortFace.West),
+            new Run(4, 6, PortFace.East, PortFace.West),
+            new Run(3, 6, PortFace.East, PortFace.West),
+            new Run(2, 6, PortFace.East, PortFace.West),
+            new Run(1, 6, PortFace.East, PortFace.West),
             new Run(0, 6, PortFace.East, PortFace.West), // 서쪽 면이 마운트 고정 포트다
 
-            // 전력 — 에너지(2,5) 동쪽 출구를 받아 코어(3,6) 남쪽 면으로 꺾어 올린다.
-            new Run(3, 5, PortFace.West, PortFace.North),
+            // 전력 — 에너지(3,3) 동쪽 출구를 받아 코어(4,4) 남쪽 면으로 꺾어 올린다.
+            new Run(4, 3, PortFace.West, PortFace.North),
         };
     }
 }

@@ -24,15 +24,14 @@ namespace MBI.Combat
 
             float baseOutput = RobotOutput.Nominal(robot.weapons, mountCoef, moduleMult);
 
-            // 라이브 네트워크 미구현(격리 전투 씬) → 병목 없는 항등 입력으로 시뮬 통과(actual==expected==baseOutput).
-            LogisticsResult r = LogisticsSimulation.Compute(
+            // 라이브 네트워크가 없는 격리 전투 씬이다 — 보드도 벨트도 없으므로 **잴 도착이 없다.**
+            // 병목 없는 배율에 「명목만큼 도착했다」를 넣어 actual == expected == baseOutput으로 만든다.
+            // 2026-09-05에 actual이 관측치가 되면서, 여기서는 그 관측을 대신 적어 주는 자리가 됐다.
+            return LogisticsSimulation.Compute(
                 baseOutput,
-                powerSupply: 1f, powerDraw: 1f,
-                heatGenerate: 0f, heatDissipate: 0f, heatThreshold: 1f,
-                beltCapacity: 1f, beltDemand: 0f,
+                new ProductionThrottle(1f, 1f),
+                observedActual: baseOutput,
                 origin: origin);
-
-            return r;
         }
     }
 }

@@ -45,5 +45,35 @@ namespace MBI.Data
                 default: return AmmoKind.Explosive;
             }
         }
+
+        /// <summary>
+        /// **벨트를 흐르는 품목 → 탄종** (2026-09-05 · `260904_W01` 3-2 품목 개정).
+        ///
+        /// 마운트에 도착한 것이 전투력으로 얼마인지 세려면 이 대응이 있어야 한다. 종전에는
+        /// 출력이 「노드 수 × 라인 스펙」이라 벨트를 흐르는 품목을 볼 일이 없었다.
+        ///
+        /// **표준탄이 분열 자리다.** `FlowKind.StandardAmmo` 선언에 「구 분열탄 자리」로
+        /// 적혀 있는 대응을 그대로 쓴다 — 여기서 새로 정하는 것이 아니다.
+        ///
+        /// ⚠️ 탄약이 아닌 것은 <see cref="AmmoKind"/>로 옮길 자리가 없다. 드론은 별도 장치이고
+        /// 부품·배터리는 마운트에 안 간다 — 그래서 <c>false</c>를 돌려주고, 부르는 쪽이
+        /// **세지 않는다.** 기본값으로 폭발탄을 돌려주면 부품이 발당 50으로 세어진다.
+        /// </summary>
+        public static bool TryAmmoKindOf(FlowKind flow, out AmmoKind kind)
+        {
+            switch (flow)
+            {
+                case FlowKind.PierceAmmo:
+                    kind = AmmoKind.Pierce; return true;
+                case FlowKind.StandardAmmo:
+                    kind = AmmoKind.Split; return true;   // 표준탄이 구 분열탄 자리다
+                case FlowKind.ExplosiveAmmo:
+                    kind = AmmoKind.Explosive; return true;
+                case FlowKind.Ammo:
+                    kind = AmmoKind.Pierce; return true;  // 폐기된 구 품목 — 구 자산 호환용
+                default:
+                    kind = default; return false;
+            }
+        }
     }
 }

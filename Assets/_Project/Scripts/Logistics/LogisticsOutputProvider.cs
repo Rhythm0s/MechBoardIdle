@@ -6,11 +6,22 @@ using UnityEngine;
 namespace MBI.Logistics
 {
     /// <summary>
-    /// 라이브 물류 네트워크 → 출력 반영(§5-6, L4-R). 배치 노드 집계(LogisticsNetwork) → 흐름시뮬
-    /// (LogisticsSimulation: expected/actual/gap) → LogisticsOutputBridge(Output=actual·Expected·Gap·GlobalCause).
-    /// 노드별 진단(LogisticsDiagnostics) → BoardController 상태색. actual은 60초 롤링(움직이는 거울).
+    /// 라이브 물류 네트워크 → 출력 반영(§5-6, L4-R).
     ///
-    /// ⚠️ 연결성/체인 미강제(합계 기반) — 정밀 흐름/노드 cause는 근사(R1). 병목 수치 전부 TBD(LogisticsConfig).
+    /// **한 프레임의 순서가 이 파일의 요점이다** (2026-09-05 개정 · `260904_W04` 2-1 4번):
+    /// <code>
+    ///   집계 → 배율(전력·발열) → 아이템을 민다(배율을 먹여) → 마운트 도착을 센다 → 조립 → 게시
+    /// </code>
+    /// 배율이 생산 앞에 와야 도착량이 그 배율을 반영하고, 도착을 센 뒤에 조립해야
+    /// **같은 프레임의 관측치**가 결과에 들어간다. 순서를 바꾸면 한 프레임씩 어긋나
+    /// 배치를 바꾼 직후가 틀리게 나온다.
+    ///
+    /// ⚠️ **actual이 계산값에서 관측치로 바뀌었다.** 종전에는
+    /// 「노드 수 × 라인 스펙 × 전력 × 발열 × 벨트」였고, 그러면 벨트를 어떻게 깔든 노드 수만
+    /// 같으면 같은 수가 나왔다 — 최적화의 결과가 숫자에 안 보였다. 이제 마운트를 통과한 것만
+    /// 센다(<see cref="MountDelivery"/>).
+    ///
+    /// ⚠️ 노드 cause는 여전히 근사(R1)다. 병목 수치는 전부 TBD(LogisticsConfig).
     /// </summary>
     public sealed class LogisticsOutputProvider : MonoBehaviour
     {
@@ -32,6 +43,24 @@ namespace MBI.Logistics
         // 탄종별 생산 입력 버퍼(§1). 매 프레임 재사용 — GC 0.
         private readonly System.Collections.Generic.List<MunitionsLine> _muniLines =
             new System.Collections.Generic.List<MunitionsLine>(3);
+
+        /// <summary>
+        /// 마운트 도착 관측기 — 이 컴포넌트가 게시하는 `actual`의 원천이다.
+        ///
+        /// 롤링 창과 같은 주기(0.1초)로 비율을 낸다. 더 짧게 내면 한 개 닿을 때마다 비율이
+        /// 튀고, 더 길게 내면 롤링에 들어가는 샘플이 성겨진다.
+        /// </summary>
+        private readonly MountDelivery _delivery = new MountDelivery();
+        private const float DeliverySampleSeconds = 0.1f;
+
+        /// <summary>탄종별 발당피해를 무기 스펙에서 찾는다. 없으면 0 — 세지 않는다는 뜻이다.</summary>
+        private float DamageOf(AmmoKind kind)
+        {
+            if (robot == null || robot.weapons == null) return 0f;
+            for (int i = 0; i < robot.weapons.Count; i++)
+                if (robot.weapons[i].kind == kind) return robot.weapons[i].damagePerShot;
+            return 0f;
+        }
 
         /// <summary>군수 노드 1개당 생산(발/초). 원천 = balance_v4 muniPerNode 확정치 1.</summary>
         private float PerNodeRate => robot != null && robot.balanceRef != null ? robot.balanceRef.muniPerNode : 1f;
@@ -61,6 +90,7 @@ namespace MBI.Logistics
         {
             LogisticsOutputBridge.Reset(); // 도메인 리로드 비활성 시 이전 Play 값이 남는 것 방지
             _roll = new RollingWindow(5, rollingWindow);
+            _delivery.Reset();
         }
 
         private void Update()
@@ -98,6 +128,7 @@ namespace MBI.Logistics
                 LogisticsOutputBridge.GlobalCause = ConstraintCause.None;
                 board.ClearDiagnostics();
                 _roll.Reset();
+                _delivery.Reset(); // 모으던 구간을 버린다 — 코어가 돌아왔을 때 옛 도착이 섞이면 안 된다
                 return;
             }
 
@@ -110,18 +141,30 @@ namespace MBI.Logistics
 
             float heatThreshold = config != null ? config.heatThreshold : 12f;
 
-            // 총 대역 = **경로 수 × 한 줄 처리량**. 길게 늘이면 지연이 늘 뿐이고,
-            // 늘리려면 **병렬 경로**를 놓아야 한다 — 그래서 병합기·분류기가 대역의 수단이다.
-            float perLane = config != null ? config.beltCapacity : 14f;
-            float beltCapacity = perLane * agg.ammoPaths;
-
-            LogisticsResult r = LogisticsSimulation.Compute(
-                baseEff,
+            // ① 배율 먼저. 생산에 걸리는 것이라 아이템을 밀기 전에 나와야 한다.
+            //    냉각은 노드 합이 아니라 모듈 F가 든다(260829_V03) — 모듈이 없으면 0이다.
+            ProductionThrottle throttle = LogisticsSimulation.Throttles(
                 agg.powerSupply, agg.powerDraw,
-                // 냉각은 노드 합이 아니라 모듈 F가 든다(260829_V03) — 모듈이 없으면 0이다.
-                agg.heatGenerate, config != null ? config.moduleCoolingTbd : 0f, heatThreshold,
-                beltCapacity, agg.ammoProduce, // 운송 필요 proxy = 탄약 생산량
-                origin);
+                agg.heatGenerate, config != null ? config.moduleCoolingTbd : 0f, heatThreshold);
+
+            // ② 개별 아이템을 실제로 민다 (2026-09-04 배선 · `260904_W01` 6장).
+            //
+            // ⚠️ **9월 3일까지 이 호출이 없었다.** `BoardItemTick`도 `BeltItemFlow`도 만들어만
+            // 두고 부르는 곳이 0건이라 테스트 안에서만 돌았다 — 불일치 3번과 같은 형태가
+            // 한 층 위에서 반복된 것이다(`260904_V02`).
+            //
+            // **전력·발열을 여기서 곱한다.** 둘이 모자라면 노드가 덜 만들고, 덜 만들면 덜
+            // 도착한다(`260903_W02` 2-2). 도착량을 출력으로 쓰는 이상 그 인과는 생산 단계에만
+            // 있어야 하며, 조립에서 또 곱하면 제곱이 된다.
+            BoardItemTick.Step(grid, board.ItemFlow, Time.deltaTime, throttle.Scale);
+
+            // ③ 마운트에 닿은 것을 센다. 읽고 나면 비운다 — 안 비우면 같은 도착이 계속 세어진다.
+            _delivery.Observe(board.ItemFlow.PendingMountArrivals, DamageOf, Time.deltaTime);
+            board.ItemFlow.ClearPendingMountArrivals();
+            _delivery.TryDrain(DeliverySampleSeconds, out float deliveredRate);
+
+            // ④ 조립. actual은 계산이 아니라 위에서 잰 값이다.
+            LogisticsResult r = LogisticsSimulation.Compute(baseEff, throttle, deliveredRate, origin);
 
             // 크기값(예상·실제·갭 분해)은 전부 같은 창으로 굴린다 → 분해합 == 총갭이 유지된다.
             // 배율·플래그(powerEfficiency/heatThrottle/beltThrottle/multiple)는 즉시값 그대로 —
@@ -139,26 +182,15 @@ namespace MBI.Logistics
             pub.gapPower = _roll.Average(ChGapPower);
             pub.gapHeat = _roll.Average(ChGapHeat);
             pub.gapBelt = _roll.Average(ChGapBelt);
-            pub.gap = pub.expected - pub.actual; // Max(0,…)로 덮지 않는다 — 음수가 나오면 그건 버그 신호다
+            // Max(0,…)로 덮지 않는다. actual이 관측치가 된 뒤로는 음수가 **버그가 아니라
+            // 버퍼가 비워지는 중**이라는 뜻일 수 있다 — 쌓여 있던 것이 한꺼번에 빠지면
+            // 그 구간의 도착이 생산 능력보다 많다. 덮으면 분해 합이 총갭과 안 맞는다.
+            pub.gap = pub.expected - pub.actual;
 
             LogisticsOutputBridge.Result = pub;
             LogisticsOutputBridge.GlobalCause = GlobalCause(r);
 
             board.ApplyDiagnostics(LogisticsDiagnostics.Evaluate(grid, r)); // 노드 상태색
-
-            // 개별 아이템을 실제로 민다 (2026-09-04 배선 · `260904_W01` 6장).
-            //
-            // ⚠️ **어제까지 이 호출이 없었다.** `BoardItemTick`도 `BeltItemFlow`도 만들어만
-            // 두고 부르는 곳이 0건이라 테스트 안에서만 돌았다 — 불일치 3번과 같은 형태가
-            // 한 층 위에서 반복된 것이다(`260904_V02`).
-            //
-            // **전력 효율을 여기서 곱한다.** 전력이 모자라면 노드가 덜 만들고, 덜 만들면
-            // 덜 도착한다(`260903_W02` 2-2). 도착량을 실제 출력으로 쓰려면 그 인과가
-            // 생산 단계에 있어야 하며, 없으면 전력이 아예 안 걸린다.
-            //
-            // 진단 뒤에 두는 이유는 **같은 프레임의 효율**을 쓰기 위해서다. 앞에 두면
-            // 직전 프레임 값을 쓰게 되어 배치를 바꾼 첫 프레임이 어긋난다.
-            BoardItemTick.Step(grid, board.ItemFlow, Time.deltaTime, r.powerEfficiency);
         }
 
         /// <summary>전역 원인(변수패널 아이콘·점멸): Power → Heat 우선(§3-4-1). 벨트는 아이콘 아님(gapBelt 담당).</summary>

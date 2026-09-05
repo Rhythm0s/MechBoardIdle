@@ -47,14 +47,18 @@ namespace MBI.Tests
             return -1f;
         }
 
-        private static LogisticsResult NoBottleneck() =>
-            LogisticsSimulation.Compute(145f, 80f, 66f, 8f, 0f, 12f, 14f, 10f, 100f);
+        // 2026-09-05: actual이 관측치가 되면서 인자가 「배율 + 도착량」으로 바뀌었다.
+        // 진단이 보는 것은 배율과 갭이라 여기서는 「만든 만큼 다 닿았다」로 둔다 —
+        // 운송 손실을 섞으면 진단의 원인 귀속과 관측 잡음이 한 테스트에 겹친다.
+        private static LogisticsResult Assemble(float power, float heat) =>
+            LogisticsSimulation.Compute(
+                145f, new ProductionThrottle(power, heat), 145f * power * heat, 100f);
 
-        private static LogisticsResult PowerStarved() =>
-            LogisticsSimulation.Compute(145f, 33f, 66f, 8f, 0f, 12f, 14f, 10f, 100f); // eff 0.5
+        private static LogisticsResult NoBottleneck() => Assemble(1f, 1f);
 
-        private static LogisticsResult HeatThrottled() =>
-            LogisticsSimulation.Compute(145f, 80f, 66f, 24f, 0f, 12f, 14f, 10f, 100f); // 전력 정상 · 발열 0.5
+        private static LogisticsResult PowerStarved() => Assemble(0.5f, 1f); // 공급 33 / 소비 66
+
+        private static LogisticsResult HeatThrottled() => Assemble(1f, 0.5f); // 순발열 24 > 임계 12
 
         [Test]
         public void Diagnose_StructuralAndGlobalCauses()
