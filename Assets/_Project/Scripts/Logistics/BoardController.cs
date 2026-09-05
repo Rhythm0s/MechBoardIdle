@@ -277,8 +277,20 @@ namespace MBI.Logistics
         private const int MarkerOrder = 0;
         private const int BeltArrowOrder = 1;
         private const int BeltWarningOrder = 2;
+        // 물건은 화살표 위, 경고 아래. 경고는 「고쳐야 할 것」이라 무엇에도 가려지면 안 된다.
+        private const int BeltItemOrder = 2;
         private const int PortInOrder = 1;   // 노드 몸통(0) 위
         private const int PortOutOrder = 2;  // 출력이 입력보다 위 — 겹칠 일은 없지만 의도를 남긴다
+
+        /// <summary>
+        /// 벨트 위 물건을 그리는 스프라이트 풀 (2026-09-05 신설).
+        ///
+        /// **매 프레임 만들고 지우지 않는다.** 한 칸에 최대 셋(<see cref="BeltItemFlow.MaxPerCell"/>)이고
+        /// 격자가 117칸이라 최악에 350개인데, 그걸 프레임마다 Instantiate/Destroy 하면
+        /// GC가 끊임없이 돈다. 쓰는 만큼 꺼내 쓰고 남는 것은 꺼 둔다.
+        /// </summary>
+        private readonly List<SpriteRenderer> _itemPool = new List<SpriteRenderer>();
+        private Transform _itemRoot;
 
         private static Sprite _unitSprite;
 
@@ -604,6 +616,18 @@ namespace MBI.Logistics
             _dragCells.Add(cell);
         }
 
+        /// <summary>
+        /// 물건 그림은 <see cref="LateUpdate"/>에서 옮긴다.
+        ///
+        /// <see cref="LogisticsOutputProvider"/>가 자기 `Update`에서 아이템을 미는데, 실행 순서가
+        /// 정해져 있지 않아 이쪽 `Update`가 먼저 돌 수 있다. 그러면 **한 프레임 전 자리**를
+        /// 그리게 되어 물건이 끊겨 보인다. `LateUpdate`는 모든 `Update` 뒤라 그 경합이 없다.
+        /// </summary>
+        private void LateUpdate()
+        {
+            RefreshBeltItems();
+        }
+
         private void Update()
         {
             ApplyZoom(); // 보드를 볼 때만 확대한다 — 나가면 원래 시야로 돌아간다
@@ -704,6 +728,87 @@ namespace MBI.Logistics
 
         /// <summary>셀 중심의 화면상 월드 좌표(스크롤 반영). 마커 배치는 전부 이걸 쓴다.</summary>
         private Vector3 CellWorld(Vector2Int cell) => (Vector3)(Vector2)_grid.CellToWorld(cell) + (Vector3)PanOffset;
+
+        /// <summary>
+        /// **벨트 위 물건을 그린다** (2026-09-05 신설 · 아이템 모델 5번).
+        ///
+        /// ⚠️ **9월 5일까지 이 그림이 없었다.** <see cref="BeltItemFlow"/>가 물건을 칸마다 옮기고
+        /// 그 도착이 곧 전투력이 되는데(`260904_W04` 2-1 4번), 화면에는 아무것도 안 지나갔다.
+        /// 그러면 「물류 라인을 최적화하는 행위가 재미있는가」에서 **최적화한 결과가 안 보인다** —
+        /// 라인이 막혀 물건이 쌓이는 것도, 갈래에서 갈리는 것도 숫자로만 알 수 있었다.
+        ///
+        /// 색과 글자는 벨트가 쓰는 것과 같은 표를 쓴다(<see cref="FlowColor"/>). 같은 품목이
+        /// 벨트에서와 다른 색으로 보이면 그 둘이 같은 것인 줄 모른다.
+        ///
+        /// 스프라이트는 아직 <see cref="UnitSprite"/>(흰 사각형)에 색을 입힌 것이다.
+        /// 품목 그림 10종은 시점 실패로 재생성 대기 중이고(`260905_W01` 3-4), 임포트도
+        /// 아직 금지라(같은 문서 8장) 여기서 참조를 걸 자리만 남겨 둔다.
+        /// </summary>
+        private void RefreshBeltItems()
+        {
+            if (_grid == null) return;
+
+            int used = 0;
+            for (int x = 0; x < _grid.Columns; x++)
+            for (int y = 0; y < _grid.Rows; y++)
+            {
+                var cell = new Vector2Int(x, y);
+                BeltInstance belt = _grid.GetBeltAt(cell);
+                if (belt == null) continue;
+
+                IReadOnlyList<BeltItem> items = ItemFlow.ItemsAt(cell);
+                if (items == null || items.Count == 0) continue;
+
+                Vector3 centre = CellWorld(cell);
+                for (int i = 0; i < items.Count; i++)
+                {
+                    // 코너에서 꺾이는 경로는 `BeltItemPose`가 안다 — 여기서 다시 풀지 않는다.
+                    Vector2 off = BeltItemPose.LocalOffset(
+                        belt.InFace, belt.OutFace, items[i].progress);
+
+                    SpriteRenderer sr = RentItemSprite(used++);
+                    sr.color = FlowColor(items[i].kind);
+                    sr.transform.position = centre + (Vector3)(off * _grid.CellSize);
+                }
+            }
+
+            // 이번 프레임에 안 쓴 것은 꺼 둔다. 지우지 않는 이유는 다음 프레임에 도로 쓰기 때문이다.
+            for (int i = used; i < _itemPool.Count; i++)
+                if (_itemPool[i].enabled) _itemPool[i].enabled = false;
+        }
+
+        /// <summary>풀에서 <paramref name="index"/>번째를 꺼낸다. 모자라면 하나 더 만든다.</summary>
+        private SpriteRenderer RentItemSprite(int index)
+        {
+            if (_itemRoot == null)
+            {
+                var root = new GameObject("BeltItems");
+                root.transform.SetParent(transform, false);
+                _itemRoot = root.transform;
+            }
+
+            while (_itemPool.Count <= index)
+            {
+                var go = new GameObject($"item_{_itemPool.Count}");
+                go.transform.SetParent(_itemRoot, false);
+                var sr = go.AddComponent<SpriteRenderer>();
+                sr.sprite = UnitSprite();
+                sr.sortingOrder = BeltItemOrder;
+                // 한 칸에 셋이 서므로 최소 간격(1/3칸)보다 작아야 서로 안 겹친다.
+                go.transform.localScale = Vector3.one * (_grid.CellSize * ItemDrawSize);
+                _itemPool.Add(sr);
+            }
+
+            SpriteRenderer got = _itemPool[index];
+            if (!got.enabled) got.enabled = true;
+            return got;
+        }
+
+        /// <summary>
+        /// 물건 한 개의 크기(칸 대비). 최소 간격이 1/3칸이라 그보다 작아야 셋이 나란히 선다 —
+        /// 겹쳐 보이면 몇 개가 흐르는지 셀 수 없고, 그 수가 곧 대역이다.
+        /// </summary>
+        private const float ItemDrawSize = 0.26f;
 
         // 보드 전체를 스크롤한다. 카메라를 옮기지 않는 이유는 같은 카메라에 전투 화면이
         // 상단 30%로 병존하기 때문이다(UI 문서 9-5 연속성 원칙).
