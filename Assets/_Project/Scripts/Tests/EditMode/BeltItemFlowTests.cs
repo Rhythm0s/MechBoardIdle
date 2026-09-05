@@ -323,5 +323,59 @@ namespace MBI.Tests
 
             Assert.AreEqual(0, flow.ItemsAt(cell).Count, "벨트를 걷으면 그 위의 물건도 사라진다");
         }
+
+        // ---- 분류기가 갈래를 나누는가 (2026-09-05 회귀) ----
+
+        /// <summary>
+        /// **갈래가 둘이면 번갈아 간다** — 첫 갈래가 전부 가져가지 않는다.
+        ///
+        /// 2026-09-05까지 <c>TryHandOff</c>의 1차 루프가 늘 `outs[0]`부터 돌고 소비처를
+        /// 만나는 즉시 반환했다. 그래서 분류기가 갈래를 **안 나눴고**, 4단 체인 실측에서
+        /// 부품이 기초 군수로만 흘러 복합 군수가 60초 내내 굶었다(표준탄은 56개 도착,
+        /// 부품 0개, 관통탄 한 발도 없음).
+        ///
+        /// 겉으로는 「마지막 노드가 안 돈다」로만 보여서 원인이 분류기에 있는 줄 몰랐다 —
+        /// 라인은 전부 이어져 있었고 벨트 상태도 정상이었다. 그래서 여기서 못 박는다.
+        /// </summary>
+        [Test]
+        public void Sorter_AlternatesBetweenBranches_NotAllToTheFirst()
+        {
+            var grid = new BoardGrid(5, 5, 1f, Vector2.zero);
+
+            // 분류기(1,2): 서쪽에서 받아 동·북 두 갈래로 낸다.
+            grid.TryPlaceBeltElement(new Vector2Int(1, 2), BeltElementKind.Sorter,
+                new[] { PortFace.West }, new[] { PortFace.East, PortFace.North },
+                FlowKind.Ammo, out _);
+
+            // 두 갈래 끝에 소비처를 하나씩. 둘 다 서쪽으로 받으므로 각각 동쪽·북쪽 이웃이다.
+            grid.TryPlace(new Vector2Int(2, 2), MakeConsumer(), out _);
+
+            grid.TryPlaceBelt(new Vector2Int(1, 3), PortFace.South, PortFace.East,
+                FlowKind.Ammo, out _);
+            grid.TryPlace(new Vector2Int(2, 3), MakeConsumer(), out _);
+
+            var flow = new BeltItemFlow();
+            flow.Rebuild(grid);
+
+            // 분류기에 여섯 개를 차례로 밀어 넣고 흘린다.
+            for (int i = 0; i < 6; i++)
+            {
+                Assert.IsTrue(flow.TryInsert(new Vector2Int(1, 2), FlowKind.Ammo), $"{i}번째 투입");
+                flow.Tick(SecondsPerCell * 2f);
+            }
+            flow.Tick(SecondsPerCell * 6f); // 남은 것을 다 밀어낸다
+
+            int east = 0, north = 0;
+            foreach (Arrival a in flow.PendingArrivals)
+            {
+                if (a.cell == new Vector2Int(2, 2)) east++;
+                if (a.cell == new Vector2Int(2, 3)) north++;
+            }
+
+            Assert.AreEqual(6, east + north, "여섯 개가 다 도착한다");
+            Assert.Greater(north, 0, "둘째 갈래도 받는다 — 첫 갈래가 전부 가져가면 안 된다");
+            Assert.Greater(east, 0, "첫 갈래도 계속 받는다");
+        }
+
     }
 }

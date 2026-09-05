@@ -337,26 +337,47 @@ namespace MBI.Core
                 return false; // 소비처 없는 라인 끝 — 출력면에 붙어 멈춘다
             }
 
-            for (int i = 0; i < outs.Count; i++)
-            {
-                Vector2Int to = outs[i];
+            // ⚠️ **커서에서 시작한다 — 0번부터가 아니다** (2026-09-05 수정).
+            //
+            // 종전에는 1차 루프가 늘 `outs[0]`부터 돌고 소비처를 만나는 즉시 반환했다.
+            // 그러면 갈래가 여럿이어도 **첫 갈래가 전부 가져간다** — 분류기가 갈래를 안 나눈다.
+            // 실제로 4단 체인 실측에서 부품이 기초 군수로만 흘러 복합 군수가 60초 내내
+            // 굶었고(표준탄 56개는 도착, 부품 0개), 관통탄이 한 발도 안 나왔다.
+            //
+            // 「대역을 늘리려면 병렬 경로」라는 규칙도 여기가 안 돌면 성립하지 않는다.
+            // 커서를 두 루프가 함께 쓰고, 넘길 때마다 한 칸 전진시킨다.
+            int start = _cursor.TryGetValue(cell, out int c) ? c : 0;
 
-                // 노드로 가는 링크는 품목이 맞을 때만 서므로(`BeltRouting.TryLink`의 HasInputPort)
-                // 여기 왔다는 것 자체가 받을 수 있다는 뜻이다. 노드 칸에는 아이템을 얹지 않는다.
-                if (_consumers.Contains(to)) { Arrive(to, item.kind); return true; }
+            // 1차 — **품목이 맞는** 갈래. 노드로 가는 링크는 품목이 맞을 때만 서므로
+            // (`BeltRouting.TryLink`의 HasInputPort) 거기 왔다는 것 자체가 받을 수 있다는 뜻이다.
+            // 노드 칸에는 아이템을 얹지 않는다.
+            for (int n = 0; n < outs.Count; n++)
+            {
+                int idx = (start + n) % outs.Count;
+                Vector2Int to = outs[idx];
+
+                if (_consumers.Contains(to))
+                {
+                    Arrive(to, item.kind);
+                    _cursor[cell] = (idx + 1) % outs.Count;
+                    return true;
+                }
 
                 if (!_cellKind.TryGetValue(to, out FlowKind kind) || kind != item.kind) continue;
                 if (!HasRoomAtEntry(LaneOf(to))) continue;
 
                 LaneOf(to).Add(new BeltItem { kind = item.kind, progress = 0f });
+                _cursor[cell] = (idx + 1) % outs.Count;
                 return true;
             }
 
-            int start = _cursor.TryGetValue(cell, out int c) ? c : 0;
+            // 2차 — 품목이 안 맞아도 자리가 있는 갈래. 라인 끝에서 물건이 사라지는 것보다
+            // 엉뚱한 갈래로라도 흘러 정체가 눈에 보이는 편이 낫다.
             for (int n = 0; n < outs.Count; n++)
             {
                 int idx = (start + n) % outs.Count;
                 Vector2Int to = outs[idx];
+                if (_consumers.Contains(to)) continue; // 1차에서 이미 봤다
                 if (!HasRoomAtEntry(LaneOf(to))) continue;
 
                 LaneOf(to).Add(new BeltItem { kind = item.kind, progress = 0f });
