@@ -290,6 +290,7 @@ namespace MBI.Logistics
         /// GC가 끊임없이 돈다. 쓰는 만큼 꺼내 쓰고 남는 것은 꺼 둔다.
         /// </summary>
         private readonly List<SpriteRenderer> _itemPool = new List<SpriteRenderer>();
+        private readonly List<SpriteRenderer> _itemBodies = new List<SpriteRenderer>();
         private Transform _itemRoot;
 
         private static Sprite _unitSprite;
@@ -766,19 +767,28 @@ namespace MBI.Logistics
                     Vector2 off = BeltItemPose.LocalOffset(
                         belt.InFace, belt.OutFace, items[i].progress);
 
-                    SpriteRenderer sr = RentItemSprite(used++);
-                    sr.color = FlowColor(items[i].kind);
+                    SpriteRenderer sr = RentItemSprite(used++, out SpriteRenderer body);
+                    body.color = ItemColor(items[i].kind);
                     sr.transform.position = centre + (Vector3)(off * _grid.CellSize);
                 }
             }
 
             // 이번 프레임에 안 쓴 것은 꺼 둔다. 지우지 않는 이유는 다음 프레임에 도로 쓰기 때문이다.
             for (int i = used; i < _itemPool.Count; i++)
+            {
                 if (_itemPool[i].enabled) _itemPool[i].enabled = false;
+                if (_itemBodies[i].enabled) _itemBodies[i].enabled = false;
+            }
         }
 
-        /// <summary>풀에서 <paramref name="index"/>번째를 꺼낸다. 모자라면 하나 더 만든다.</summary>
-        private SpriteRenderer RentItemSprite(int index)
+        /// <summary>
+        /// 풀에서 <paramref name="index"/>번째를 꺼낸다. 모자라면 하나 더 만든다.
+        ///
+        /// **테두리와 본체 두 겹이다.** 부모가 어두운 사각형이고 그 위에 조금 작은 본체가 얹힌다 —
+        /// 스프라이트가 흰 사각형 하나뿐이라 외곽선을 그릴 수 없어 겹쳐서 만든다.
+        /// <paramref name="body"/>에 색을 칠하고, 반환된 부모로 위치를 옮긴다.
+        /// </summary>
+        private SpriteRenderer RentItemSprite(int index, out SpriteRenderer body)
         {
             if (_itemRoot == null)
             {
@@ -793,15 +803,48 @@ namespace MBI.Logistics
                 go.transform.SetParent(_itemRoot, false);
                 var sr = go.AddComponent<SpriteRenderer>();
                 sr.sprite = UnitSprite();
+                sr.color = ItemEdgeColor;
                 sr.sortingOrder = BeltItemOrder;
                 // 한 칸에 셋이 서므로 최소 간격(1/3칸)보다 작아야 서로 안 겹친다.
                 go.transform.localScale = Vector3.one * (_grid.CellSize * ItemDrawSize);
+
+                var inner = new GameObject("body");
+                inner.transform.SetParent(go.transform, false);
+                inner.transform.localScale = Vector3.one * ItemBodyRatio;
+                var isr = inner.AddComponent<SpriteRenderer>();
+                isr.sprite = UnitSprite();
+                isr.sortingOrder = BeltItemOrder + 1;
+
                 _itemPool.Add(sr);
+                _itemBodies.Add(isr);
             }
 
             SpriteRenderer got = _itemPool[index];
             if (!got.enabled) got.enabled = true;
+            body = _itemBodies[index];
+            if (!body.enabled) body.enabled = true;
             return got;
+        }
+
+        /// <summary>
+        /// 벨트 위 물건의 색. **벨트 몸통보다 밝다.**
+        ///
+        /// ⚠️ 처음에는 <see cref="FlowColor"/>를 그대로 썼는데 **물건이 통째로 안 보였다.**
+        /// <see cref="RefreshBeltColors"/>가 벨트 몸통을 같은 <see cref="FlowColor"/>로 칠하고,
+        /// 물건은 그 벨트가 나르는 바로 그 품목이라 **언제나 배경과 정확히 같은 색**이 된다.
+        /// 「같은 품목은 같은 색」이 맞는 원칙이었는데 그것이 물건을 지웠다.
+        ///
+        /// 색상은 유지하고 밝기만 올린다 — 품목을 알아보는 단서는 그대로 두면서 배경에서 떠오른다.
+        /// 어두운 테두리(<see cref="ItemEdgeColor"/>)가 밝은 벨트 위에서도 같은 일을 한다.
+        /// </summary>
+        private static Color ItemColor(FlowKind kind)
+        {
+            Color c = FlowColor(kind);
+            return new Color(
+                Mathf.Min(1f, c.r * 1.45f + 0.10f),
+                Mathf.Min(1f, c.g * 1.45f + 0.10f),
+                Mathf.Min(1f, c.b * 1.45f + 0.10f),
+                1f);
         }
 
         /// <summary>
@@ -809,6 +852,12 @@ namespace MBI.Logistics
         /// 겹쳐 보이면 몇 개가 흐르는지 셀 수 없고, 그 수가 곧 대역이다.
         /// </summary>
         private const float ItemDrawSize = 0.26f;
+
+        /// <summary>물건의 테두리. 밝은 벨트 위에서 물건이 묻히지 않게 하는 어두운 바탕이다.</summary>
+        private static readonly Color ItemEdgeColor = new Color(0.10f, 0.10f, 0.12f, 1f);
+
+        /// <summary>테두리 대비 본체 크기. 사방에 테두리가 한 겹 남을 만큼만 줄인다.</summary>
+        private const float ItemBodyRatio = 0.62f;
 
         // 보드 전체를 스크롤한다. 카메라를 옮기지 않는 이유는 같은 카메라에 전투 화면이
         // 상단 30%로 병존하기 때문이다(UI 문서 9-5 연속성 원칙).
