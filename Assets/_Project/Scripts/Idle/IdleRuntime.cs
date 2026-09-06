@@ -66,6 +66,7 @@ namespace MBI.Idle
             }
 
             CreditSignals();
+            PublishWallet();
             if (_autosave.TryConsume(Time.unscaledDeltaTime, out _)) Save();
         }
 
@@ -106,6 +107,14 @@ namespace MBI.Idle
             LastOfflineReward = r;
 
             if (r.scrap > 0d) Wallet.AddScrap(r.scrap);
+            PublishWallet(); // 첫 프레임 HUD가 오프라인 지급까지 반영된 잔액을 읽도록
+        }
+
+        /// <summary>잔액을 중립 채널에 게시한다 — 전투 HUD가 여기서 읽는다(IdleSignals 주석).</summary>
+        private void PublishWallet()
+        {
+            IdleSignals.WalletScrap = Wallet.Scrap;
+            IdleSignals.WalletEnhMaterial = Wallet.EnhMaterial;
         }
 
         // 웹빌드에서 탭 전환·최소화가 여기로 온다. 종료(OnApplicationQuit)는 브라우저에서 보장되지

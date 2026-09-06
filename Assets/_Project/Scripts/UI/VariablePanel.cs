@@ -40,6 +40,9 @@ namespace MBI.UI
 
             LogisticsResult r = LogisticsOutputBridge.Result;
             var rect = new Rect(Screen.width - width - margin, margin, width, 250f);
+            // 이 패널 위 클릭은 보드에 닿지 않아야 한다 — 종전에는 자리를 안 내서
+            // 패널을 눌러도 그 아래 칸에 노드가 놓였다(UiBlockers 주석).
+            UiBlockers.Add(rect);
 
             GUILayout.BeginArea(rect, GUI.skin.box);
             GUILayout.Label("물류 변수", _head);

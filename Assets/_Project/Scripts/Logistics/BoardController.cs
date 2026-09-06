@@ -57,18 +57,7 @@ namespace MBI.Logistics
         [SerializeField] private List<InitialBelt> initialBelts = new List<InitialBelt>();
 
         private int _selectedNode; // 팔레트에서 선택된 노드 인덱스
-        /// <summary>
-        /// 이번 프레임 OnGUI가 그린 **버튼 자리들**. 누른 순간 포인터가 여기 있으면 보드는 무시한다.
-        ///
-        /// ⚠️ 종전에는 OnGUI에서 `bool` 하나를 세워 두고 눌릴 때 그 값을 읽었다. 그런데 입력
-        /// 콜백은 그 프레임의 OnGUI **앞**에서 돈다 — 읽는 값이 항상 한 프레임 전 것이다.
-        /// 마우스는 커서가 이미 그 자리에 얹혀 있었으니 맞았지만, **터치에는 얹혀 있는 시간이
-        /// 없다.** 손가락이 닿는 첫 프레임에는 값이 false라서, 팔레트 버튼을 눌러도 그 아래
-        /// 보드까지 같이 눌렸다. 배포가 WebGL이고 조작은 터치 기준이라 실기에서 늘 그랬다.
-        ///
-        /// 그래서 값이 아니라 **자리**를 남기고, 판정은 누르는 순간의 포인터로 한다.
-        /// </summary>
-        private readonly List<Rect> _uiRects = new List<Rect>();
+        // 버튼 자리는 MBI.UI.UiBlockers가 모은다 — 다른 어셈블리가 그린 패널까지 함께 막기 위해서다.
 
         /// <summary>배치 상태 격자(§5-5 출력 집계용). Awake 후 유효.</summary>
         public BoardGrid Grid => _grid;
@@ -778,7 +767,7 @@ namespace MBI.Logistics
         }
 
         /// <summary>
-        /// 지금 포인터가 OnGUI 버튼 위에 있는가 — <see cref="_uiRects"/> 참조.
+        /// 지금 포인터가 OnGUI 버튼 위에 있는가 — <see cref="UiBlockers"/> 참조.
         ///
         /// IMGUI 좌표는 **위에서 아래로** 재고 포인터는 아래에서 위로 재므로 y를 뒤집는다.
         /// </summary>
@@ -788,10 +777,7 @@ namespace MBI.Logistics
             Vector2 p = Pointer.current.position.ReadValue();
             var gui = new Vector2(p.x, Screen.height - p.y);
 
-            if (GameLayerController.ButtonRect.Contains(gui)) return true;
-            for (int i = 0; i < _uiRects.Count; i++)
-                if (_uiRects[i].Contains(gui)) return true;
-            return false;
+            return UiBlockers.Contains(gui);
         }
 
         /// <summary>포인터의 월드 좌표(보드 평면 z=0).</summary>
@@ -1118,7 +1104,6 @@ namespace MBI.Logistics
         // 조립 뷰에서만 노드 팔레트(우측 세로 버튼) — 선택으로 탭 배치 노드 변경 + 제거 모드.
         private void OnGUI()
         {
-            _uiRects.Clear();
             if (!GameLayerController.BoardViewActive) return;
             KoreanFont.Apply(); // WebGL엔 시스템 폰트 폴백이 없다
 
@@ -1148,7 +1133,7 @@ namespace MBI.Logistics
             {
                 if (palette[i] == null) continue;
                 var rect = new Rect(x, y0 + i * (h + pad), w, h);
-                _uiRects.Add(rect);
+                UiBlockers.Add(rect);
 
                 bool sel = !_removeMode && i == _selectedNode;
                 if (GUI.Button(rect, (sel ? "● " : "") + palette[i].displayName, style))
@@ -1169,7 +1154,7 @@ namespace MBI.Logistics
             foreach (BeltElementKind e in new[] { BeltElementKind.Merger, BeltElementKind.Sorter })
             {
                 var eRect = new Rect(x, ey, w, h);
-                _uiRects.Add(eRect);
+                UiBlockers.Add(eRect);
 
                 bool on = !_removeMode && _elementMode == e;
 
@@ -1193,7 +1178,7 @@ namespace MBI.Logistics
 
             // 제거 토글.
             var rmRect = new Rect(x, ey + 4f, w, h);
-            _uiRects.Add(rmRect);
+            UiBlockers.Add(rmRect);
             if (GUI.Button(rmRect, (_removeMode ? "● " : "") + "제거", style))
             {
                 _removeMode = !_removeMode;
@@ -1371,7 +1356,7 @@ namespace MBI.Logistics
             foreach (NodeRecipe r in candidates)
             {
                 var rect = new Rect(x, y, w, h);
-                _uiRects.Add(rect);
+                UiBlockers.Add(rect);
 
                 // 돌릴 수 없는 후보도 **자리는 보여 준다** — 감추면 「왜 못 만드나」가 아니라
                 // 「그런 게 있었나」가 된다. 착수 금지가 화면에서도 자리로 표현된다.
@@ -1396,7 +1381,7 @@ namespace MBI.Logistics
             {
                 var kind = (AmmoKind)k;
                 var rect = new Rect(x + k * (64f + pad), y, 64f, h);
-                _uiRects.Add(rect);
+                UiBlockers.Add(rect);
 
                 if (GUI.Button(rect, (inst.AmmoKind == kind ? "● " : "") + AmmoLabel(kind), style))
                     inst.AmmoKind = kind; // 탄종은 흐르는 품목(탄약)을 바꾸지 않는다 — 라벨만 갈린다
@@ -1426,7 +1411,7 @@ namespace MBI.Logistics
 
             const float w = 540f, h = 32f;
             var rect = new Rect((Screen.width - w) * 0.5f, 12f, w, h);
-            _uiRects.Add(rect);
+            UiBlockers.Add(rect);
 
             Color prev = GUI.color;
             GUI.color = HintColor;
@@ -1456,7 +1441,7 @@ namespace MBI.Logistics
             // 화면 바닥과 화면 위를 각각 기준으로 삼는 두 요소는 언젠가 반드시 만난다.
             // 그래서 같은 기준(왼쪽 위)을 쓰는 배율 줄 옆으로 보낸다.
             var rect = new Rect(12f, 300f, 140f, 46f);
-            _uiRects.Add(rect);
+            UiBlockers.Add(rect);
 
             string label = _mode == BoardMode.Pan ? "이동 모드" : "조립 모드";
 
@@ -1503,8 +1488,8 @@ namespace MBI.Logistics
 
             GUI.Label(new Rect(x + (bw + pad) * 2f, y + 6f, 160f, 20f),
                 $"보드 배율 ×{_zoom:0.00}", label);
-            _uiRects.Add(minus);
-            _uiRects.Add(plus);
+            UiBlockers.Add(minus);
+            UiBlockers.Add(plus);
 
             if (GUI.Button(minus, "−", style)) SetZoom(_zoom - ZoomStep);
             if (GUI.Button(plus, "+", style)) SetZoom(_zoom + ZoomStep);
@@ -1534,7 +1519,7 @@ namespace MBI.Logistics
             const float mapW = 96f;
             float mapH = mapW * config.rows / Mathf.Max(1, config.columns);
             var box = new Rect(12f, Screen.height - mapH - 32f, mapW, mapH);
-            _uiRects.Add(box);
+            UiBlockers.Add(box);
 
             GUI.Box(box, GUIContent.none);
 

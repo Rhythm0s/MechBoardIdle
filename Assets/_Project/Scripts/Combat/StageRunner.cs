@@ -644,6 +644,10 @@ namespace MBI.Combat
                             $"   {DodgeLine()}", style);
             if (robotB != null) GUILayout.Label(TagLine(), style);
             GUILayout.Label($"경과 {_sim.Elapsed:F1}s / {stage.challengeTime:F0}s", style);
+            // 재화는 방치 런타임이 게시한 값을 그대로 읽는다(IdleSignals). 여기서 계산하지 않는다 —
+            // 적립 규칙은 방치 런타임 한 곳에만 산다. 화면에 새 패널을 놓을 자리가 없어
+            // 이 상태 칸에 붙였다. 방치 씬이 없는 격리 전투 씬에서는 둘 다 0으로 뜬다.
+            GUILayout.Label($"고철 {IdleSignals.WalletScrap:N0}   ·   강화재료 {IdleSignals.WalletEnhMaterial:N0}", style);
             GUILayout.Label("이동 WASD / 화살표   ·   회피 = 화면 플릭", style);
             GUILayout.EndArea();
 

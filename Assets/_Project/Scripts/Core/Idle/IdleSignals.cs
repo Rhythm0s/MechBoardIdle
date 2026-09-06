@@ -39,6 +39,22 @@ namespace MBI.Core
         public static bool TutorialCleared;
 
         /// <summary>
+        /// 지갑 잔액 게시 — **방치 런타임이 쓰고 전투 HUD가 읽는다.** 고철.
+        ///
+        /// ⚠️ 위의 처치·클리어와 달리 **가져가며 비우지 않는다.** 저건 「무슨 일이 있었나」라
+        /// 두 번 세면 재화가 불어나지만, 이건 「지금 얼마인가」라 늘 같은 값을 읽어야 한다.
+        /// 사건과 상태를 한 파일에 두는 대신, 이름과 이 주석으로 갈라 둔다.
+        ///
+        /// 이 두 칸 덕분에 `MBI.Combat`이 `MBI.Idle`을 참조하지 않고도 잔액을 그릴 수 있다.
+        /// 화면에 자리가 없어 새 패널을 놓지 못하고 전투 상태 칸에 한 줄로 붙였다 —
+        /// 재화가 안 보이면 방치 사슬이 도는지 확인할 방법이 없다.
+        /// </summary>
+        public static double WalletScrap;
+
+        /// <summary>지갑 잔액 게시 — 강화재료. <see cref="WalletScrap"/>와 같은 규약이다.</summary>
+        public static double WalletEnhMaterial;
+
+        /// <summary>
         /// 저장을 지워 달라 — **개발 빌드 전용 촬영 도구**(260902_W09 §1-2 승인).
         /// 방치 런타임이 가져가며 내린다.
         /// </summary>
@@ -95,6 +111,8 @@ namespace MBI.Core
             _hasClear = false;
             _resetSave = false;
             TutorialCleared = false;
+            WalletScrap = 0d;
+            WalletEnhMaterial = 0d;
         }
     }
 }

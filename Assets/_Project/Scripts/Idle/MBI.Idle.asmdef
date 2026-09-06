@@ -3,7 +3,8 @@
     "rootNamespace": "MBI.Idle",
     "references": [
         "MBI.Data",
-        "MBI.Core"
+        "MBI.Core",
+        "MBI.UI"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],

@@ -94,6 +94,7 @@ namespace MBI.Logistics
             const float w = 220f, h = 46f;
             var rect = new Rect((Screen.width - w) * 0.5f, Screen.height - h - 14f, w, h);
 
+            MBI.UI.UiBlockers.Add(rect); // 보드가 누르는 순간 판정한다 — UiBlockers 주석
             ButtonRect = rect;
             PointerOverButton = rect.Contains(Event.current.mousePosition);
 

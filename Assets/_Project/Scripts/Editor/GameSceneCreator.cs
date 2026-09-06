@@ -63,6 +63,7 @@ namespace MBI.Editor
             var idleGo = new GameObject("IdleRuntime");
             EditorSceneManager.MoveGameObjectToScene(idleGo, scene);
             var idle = idleGo.AddComponent<IdleRuntime>();
+            idleGo.AddComponent<IdleHud>(); // 오프라인 정산 알림 — 방치 사슬의 유일한 화면 증빙
             var iso = new SerializedObject(idle);
             iso.FindProperty("economy").objectReferenceValue =
                 Load<EconomyConfig>($"{SoRoot}/EconomyConfig.asset");
