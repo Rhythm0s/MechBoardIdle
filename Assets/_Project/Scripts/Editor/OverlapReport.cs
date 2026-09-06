@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
+using System.Security.Cryptography;
 using System.Text;
 using MBI.Core;
 using UnityEditor;
@@ -30,9 +31,25 @@ namespace MBI.Editor
         /// </summary>
         private const byte AlphaThreshold = 16;
 
-        private const string BoardDir = "Assets/_Project/Art/Board";
-        private const string ItemsDir = "Assets/_Project/Art/Items";
         private const string OutDir = "Docs/measure";
+
+        /// <summary>기본으로 재는 자리. 배치모드에서 <c>-artRoot</c>로 갈아 끼운다.</summary>
+        private const string DefaultRoot = "Assets/_Project/Art";
+
+        /// <summary>
+        /// 명령줄 인자 하나를 읽는다. 없으면 <paramref name="fallback"/>.
+        ///
+        ///   -artRoot   &lt;경로&gt;   Board/ · Items/ 를 담고 있는 폴더
+        ///   -outSuffix &lt;문자열&gt; 같은 날 두 번 돌릴 때 파일명을 가른다
+        /// </summary>
+        private static string Arg(string name, string fallback)
+        {
+            string[] argv = Environment.GetCommandLineArgs();
+            for (int i = 0; i < argv.Length - 1; i++)
+                if (string.Equals(argv[i], name, StringComparison.Ordinal))
+                    return argv[i + 1];
+            return fallback;
+        }
 
         [MenuItem("MBI/실루엣 측정 보고서")]
         public static void Run()
@@ -40,30 +57,39 @@ namespace MBI.Editor
             var sb = new StringBuilder();
             string stamp = DateTime.Now.ToString("yyyy-MM-dd HH:mm", CultureInfo.InvariantCulture);
 
+            string root = Arg("-artRoot", DefaultRoot).Replace(Path.DirectorySeparatorChar, '/').TrimEnd('/');
+            string suffix = Arg("-outSuffix", "");
+
             sb.AppendLine("# 실루엣 측정 보고서");
             sb.AppendLine();
             sb.AppendLine($"- 생성 시각: {stamp}");
             sb.AppendLine($"- 도구 커밋: `{HeadCommit()}`");
+            // ⚠️ **무엇을 쟀는지가 숫자보다 먼저다.** 2026-09-06에 이 줄이 없어서
+            // 09-04 구판을 잰 값이 승인본의 값으로 읽혔다 — 같은 자산 이름이 두 그림을 가리키고 있었다.
+            sb.AppendLine($"- **잰 자리: `{root}`** (`-artRoot`로 바꾼다)");
             sb.AppendLine("- 측정법: **두 스프라이트를 각자의 캔버스 그대로 겹쳐, 알파가 함께 차 있는 넓이를 "
                           + "둘을 합친 넓이로 나눈다.** 잘라내지 않고 늘이지도 않는다");
             sb.AppendLine($"- 알파 문턱: {AlphaThreshold} 초과를 「있다」로 본다");
             sb.AppendLine("- 계산: `MBI.Core.SilhouetteOverlap` · 정답 케이스는 `SilhouetteOverlapTests`가 고정한다");
+            sb.AppendLine("- ⚠️ 도구 커밋은 **실행 시점의 HEAD**다. 도구를 고치고 커밋 전에 돌리면 "
+                          + "이 해시가 가리키는 커밋에는 그 도구가 없다 — 2026-09-06에 실제로 그렇게 나왔다. "
+                          + "**잰 파일이 무엇인지는 아래 표의 md5가 말한다**");
             sb.AppendLine();
 
             int sections = 0;
-            sections += Section(sb, "노드", BoardDir, "node_", 0.90f);
-            sections += Section(sb, "품목", ItemsDir, null, 0.90f);
+            sections += Section(sb, "노드", root + "/Board", "node_", 0.90f);
+            sections += Section(sb, "품목", root + "/Items", null, 0.90f);
 
             if (sections == 0)
             {
-                Debug.LogError("[MBI] 잴 자산이 없다 — Art/Board · Art/Items 를 확인하라.");
+                Debug.LogError($"[MBI] 잴 자산이 없다 — {root}/Board · {root}/Items 를 확인하라.");
                 EditorApplication.Exit(2);
                 return;
             }
 
             Directory.CreateDirectory(OutDir);
             string path = Path.Combine(OutDir,
-                $"overlap_{DateTime.Now.ToString("yyMMdd", CultureInfo.InvariantCulture)}.md");
+                $"overlap_{DateTime.Now.ToString("yyMMdd", CultureInfo.InvariantCulture)}{suffix}.md");
             File.WriteAllText(path, sb.ToString(), new UTF8Encoding(false));
 
             Debug.Log($"[MBI] 실루엣 측정 보고서: {path}");
@@ -77,6 +103,7 @@ namespace MBI.Editor
 
             var names = new List<string>();
             var masks = new List<AlphaMask>();
+            var md5s = new List<string>();
 
             foreach (string file in Directory.GetFiles(dir, "*.png"))
             {
@@ -87,24 +114,25 @@ namespace MBI.Editor
 
                 names.Add(name);
                 masks.Add(m);
+                md5s.Add(Md5(file));
             }
 
             if (names.Count == 0) return 0;
 
             sb.AppendLine($"## {title} — {names.Count}종");
             sb.AppendLine();
-            sb.AppendLine("| 자산 | 캔버스 | 여백 (L R T B) | 가장 좁은 변 | 가로세로비 |");
-            sb.AppendLine("|---|---|---|---|---|");
+            sb.AppendLine("| 자산 | md5 | 캔버스 | 여백 (L R T B) | 가장 좁은 변 | 가로세로비 |");
+            sb.AppendLine("|---|---|---|---|---|---|");
             for (int i = 0; i < names.Count; i++)
             {
                 AlphaMask m = masks[i];
                 if (m.IsEmpty)
                 {
-                    sb.AppendLine($"| `{names[i]}` | {m.width}×{m.height} | — | — | — |");
+                    sb.AppendLine($"| `{names[i]}` | `{md5s[i]}` | {m.width}×{m.height} | — | — | — |");
                     continue;
                 }
                 MarginPx g = SilhouetteOverlap.Margins(m);
-                sb.AppendLine($"| `{names[i]}` | {m.width}×{m.height} | {g} | **{g.Min}** | "
+                sb.AppendLine($"| `{names[i]}` | `{md5s[i]}` | {m.width}×{m.height} | {g} | **{g.Min}** | "
                               + SilhouetteOverlap.AspectRatio(m).ToString("F2", CultureInfo.InvariantCulture) + " |");
             }
             sb.AppendLine();
@@ -133,6 +161,31 @@ namespace MBI.Editor
             sb.AppendLine();
 
             return names.Count;
+        }
+
+        /// <summary>
+        /// 파일 내용의 md5 앞 여덟 자리.
+        ///
+        /// **이 값이 「무엇을 쌀는가」의 유일한 증거다.** 자산 이름은 세대가 바뀜어도 같으므로
+        /// 이름만으로는 09-04판과 09-06 승인본을 가를 수 없다 — 2026-09-06에 그 둘이 섞여
+        /// 회신문 숫자가 리포와 달랐다.
+        /// </summary>
+        private static string Md5(string path)
+        {
+            try
+            {
+                using (var md5 = MD5.Create())
+                {
+                    byte[] h = md5.ComputeHash(File.ReadAllBytes(path));
+                    var hex = new StringBuilder(8);
+                    for (int i = 0; i < 4; i++) hex.Append(h[i].ToString("x2", CultureInfo.InvariantCulture));
+                    return hex.ToString();
+                }
+            }
+            catch
+            {
+                return "알 수 없음";
+            }
         }
 
         /// <summary>
