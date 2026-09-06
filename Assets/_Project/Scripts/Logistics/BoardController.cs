@@ -525,11 +525,13 @@ namespace MBI.Logistics
                     for (int y = 1; y < p.size.y; y++)
                         SpawnQuad(root.transform, px, o.y + (p.origin.y + y) * config.cellSize, pw, t, GridLineColor, -2);
 
-                    // 파츠 경계(진하게) — UI 문서 9-2 「조립 모드에서 격자와 파츠 경계가 또렷해진다」.
-                    SpawnQuad(root.transform, px, py - ph * 0.5f, pw, b, GridBorderColor, -2);
-                    SpawnQuad(root.transform, px, py + ph * 0.5f, pw, b, GridBorderColor, -2);
-                    SpawnQuad(root.transform, px - pw * 0.5f, py, b, ph, GridBorderColor, -2);
-                    SpawnQuad(root.transform, px + pw * 0.5f, py, b, ph, GridBorderColor, -2);
+                    // 구역 경계 — 점선. UI 아트 요청 문서(20)「구역 표시 배치 규격」이 값을 정한다.
+                    // 구 실선(UI 문서 9-2 「파츠 경계가 또렷해진다」)을 대신한다 — 같은 대상이고
+                    // 배치 규격 쪽이 최신이며 굵기·색·끊는 길이까지 정한다.
+                    SpawnDashedEdge(root.transform, px, py - ph * 0.5f, pw, true);
+                    SpawnDashedEdge(root.transform, px, py + ph * 0.5f, pw, true);
+                    SpawnDashedEdge(root.transform, px - pw * 0.5f, py, ph, false);
+                    SpawnDashedEdge(root.transform, px + pw * 0.5f, py, ph, false);
                 }
                 return;
             }
@@ -566,6 +568,53 @@ namespace MBI.Logistics
         }
 
         // 중심(cx,cy)·크기(w,h)의 단색 사각 스프라이트 하나.
+        // ── 구역 표시 배치 규격 (UI 아트 요청 문서(20) 10장 · `260905_W04` 4-5) ────────────
+        // 값은 **아트 픽셀** 기준이고 한 칸이 192픽셀이다. 월드 단위로 쓰려면 cellSize를 곱한다 —
+        // 칸 크기가 바뀌어도 화면에서 보이는 비율이 그대로 유지된다.
+        private const float ZonePx = 192f;      // 격자 한 칸 = 192 아트 픽셀
+        private const float ZoneLineThickPx = 4f;   // 점선 굵기
+        private const float ZoneDashPx = 16f;       // 그리는 길이
+        private const float ZoneGapPx = 16f;        // 띄우는 길이
+        private const float ZoneLabelInsetPx = 8f;  // 이름표를 구역 왼윗모서리 안쪽으로 들이는 양
+        private const int ZoneLabelFontPx = 24;     // 이름표 글자 높이
+
+        /// <summary>미색 · 불투명도 40% — 밑의 타일을 가리지 않는다(배치 규격).</summary>
+        private static readonly Color ZoneLineColor = new Color(0.96f, 0.94f, 0.86f, 0.40f);
+
+        /// <summary>
+        /// 그리는 층: **타일 위 · 품목 아래.** 물건이 지나가는 것을 가리지 않는다(배치 규격).
+        /// 지침 §1이 이 게임의 코어를 「물류와 그 애니메이션」으로 정했으므로, 구역 표시가
+        /// 품목을 가리면 코어를 가리는 것이 된다.
+        /// </summary>
+        private const int ZoneLineOrder = -1;   // 셀선(-2) 위 · 노드 마커(0)와 품목(2) 아래
+
+        /// <summary>
+        /// 구역 경계 한 변을 점선으로 그린다. <paramref name="horizontal"/>이면 가로변이다.
+        ///
+        /// 조각을 <see cref="ZoneDashPx"/>/<see cref="ZoneGapPx"/> 주기로 놓되 **변의 양 끝에서
+        /// 잘리지 않도록** 주기 수를 반올림해 간격을 변 길이에 맞춘다. 안 맞추면 파츠마다 끝
+        /// 조각 길이가 달라져 경계가 어긋나 보인다.
+        /// </summary>
+        private void SpawnDashedEdge(Transform parent, float cx, float cy, float length, bool horizontal)
+        {
+            float unit = config.cellSize / ZonePx;
+            float thick = Mathf.Max(ZoneLineThickPx * unit, 0.01f);
+            float period = (ZoneDashPx + ZoneGapPx) * unit;
+            if (period <= 0f || length <= 0f) return;
+
+            int count = Mathf.Max(1, Mathf.RoundToInt(length / period));
+            float step = length / count;                 // 변 길이에 맞춘 실제 주기
+            float dash = step * (ZoneDashPx / (ZoneDashPx + ZoneGapPx));
+            float start = (horizontal ? cx : cy) - length * 0.5f;
+
+            for (int i = 0; i < count; i++)
+            {
+                float c = start + step * i + dash * 0.5f; // 조각 중심
+                if (horizontal) SpawnQuad(parent, c, cy, dash, thick, ZoneLineColor, ZoneLineOrder);
+                else            SpawnQuad(parent, cx, c, thick, dash, ZoneLineColor, ZoneLineOrder);
+            }
+        }
+
         private void SpawnQuad(Transform parent, float cx, float cy, float w, float h, Color col, int order)
         {
             var g = new GameObject("q");
@@ -1038,6 +1087,7 @@ namespace MBI.Logistics
             KoreanFont.Apply(); // WebGL엔 시스템 폰트 폴백이 없다
 
             DrawTutorialGhost(); // 라벨보다 먼저 — 고스트는 배경이지 글자가 아니다
+            DrawZoneLabels();    // 구역 이름표 — 칸 라벨보다 먼저(구역은 바탕이고 칸 내용이 위다)
             DrawCellLabels(); // 버튼보다 먼저 — 팔레트/모드 버튼이 라벨 위에 온다
             DrawBottleneckHint();
             DrawMiniMap();
@@ -1185,6 +1235,57 @@ namespace MBI.Logistics
         /// 월드 좌표 → 화면 라벨 한 장. 화면 밖이나 카메라 뒤는 건너뛴다.
         /// <paramref name="yOffset"/>은 같은 칸에 둘째 줄을 붙일 때 쓴다(픽셀, 아래가 +).
         /// </summary>
+        /// <summary>
+        /// 구역 이름표 여덟 — 구역 왼윗모서리 안쪽에 붙인다
+        /// (UI 아트 요청 문서(20) 10장 · `260905_W04` 4-5).
+        ///
+        /// **왜 코드가 그리는가.** 구역 경계는 격자 좌표에 정확히 맞아야 하는데 생성 도구는
+        /// 픽셀 정확도를 못 낸다 — 117칸 중 어디까지가 `팔R`인지를 그림으로 맞출 수 없다.
+        /// 그래서 아트 리소스가 아니라 코드 소관이다(배경 아트 요청 문서(23) 2장).
+        ///
+        /// **IMGUI로 그리는 이유.** 보드는 SpriteRenderer로 그리지만 월드 텍스트 수단이 없고,
+        /// WebGL에는 시스템 폰트 폴백이 없어 한글이 통째로 사라진다(지침 §7). <see cref="OnGUI"/>가
+        /// 이미 <c>KoreanFont.Apply()</c>로 폰트를 물려 두었으므로 여기 얹는 것이 안전하다.
+        /// </summary>
+        private void DrawZoneLabels()
+        {
+            if (config == null || !config.usePartLayout) return;
+            Camera cam = boardCamera != null ? boardCamera : Camera.main;
+            if (cam == null) return;
+
+            var style = new GUIStyle(GUI.skin.label)
+            {
+                fontSize = ZoneLabelFontPx,
+                alignment = TextAnchor.UpperLeft,
+                fontStyle = FontStyle.Bold,
+            };
+
+            Vector2 o = _grid.Origin;
+            float inset = ZoneLabelInsetPx * (config.cellSize / ZonePx);
+
+            foreach (PartRect p in PartLayout.Parts)
+            {
+                string text = PartLayout.LabelOf(p.part);
+                if (string.IsNullOrEmpty(text)) continue;
+
+                // 구역의 왼윗모서리(격자는 좌하단 원점이라 y는 origin + size).
+                var corner = new Vector3(
+                    o.x + p.origin.x * config.cellSize + inset,
+                    o.y + (p.origin.y + p.size.y) * config.cellSize - inset,
+                    0f);
+
+                Vector3 sp = cam.WorldToScreenPoint(corner);
+                if (sp.z <= 0f) continue;
+                float y = Screen.height - sp.y;
+                if (sp.x < -120f || sp.x > Screen.width + 120f || y < -40f || y > Screen.height + 40f) continue;
+
+                Color prev = GUI.color;
+                GUI.color = ZoneLineColor; // 경계선과 같은 미색 — 한 표시의 두 부분이다
+                GUI.Label(new Rect(sp.x, y, 120f, ZoneLabelFontPx + 6f), text, style);
+                GUI.color = prev;
+            }
+        }
+
         private static void DrawLabelAt(Camera cam, Vector3 world, string text,
             GUIStyle style, Color color, float width, float yOffset = 0f)
         {

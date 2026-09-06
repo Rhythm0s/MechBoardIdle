@@ -180,5 +180,47 @@ namespace MBI.Tests
             Assert.AreEqual(RobotPart.Torso, PartLayout.PartAt(new Vector2Int(5, 4)));
             Assert.AreEqual(RobotPart.LegR, PartLayout.PartAt(new Vector2Int(5, 3)));
         }
+
+        /// <summary>
+        /// 구역 라벨 여덟은 **붙여 쓴다** (2026-09-05 확정 · `260905_W01` · 용어 사전「구역 라벨」).
+        ///
+        /// 띄어 쓰거나 빗금으로 묶으면(「팔 L / R」) 문서 전수 검색에서 안 걸려 개정이 전파되지
+        /// 않는다 — 2026-09-05에 실제로 세 문서를 놓칠 뻔했다. 화면에 그리는 문자열이
+        /// 문서 표기와 갈라지면 그 검색이 또 헛돈다.
+        /// </summary>
+        [Test]
+        public void ZoneLabels_AreWrittenWithoutSpaces()
+        {
+            Assert.AreEqual("팔R", PartLayout.LabelOf(RobotPart.ArmR));
+            Assert.AreEqual("팔L", PartLayout.LabelOf(RobotPart.ArmL));
+            Assert.AreEqual("어깨R", PartLayout.LabelOf(RobotPart.ShoulderR));
+            Assert.AreEqual("다리L", PartLayout.LabelOf(RobotPart.LegL));
+            Assert.AreEqual("머리", PartLayout.LabelOf(RobotPart.Head));
+            Assert.AreEqual("몸통", PartLayout.LabelOf(RobotPart.Torso));
+
+            foreach (PartRect p in PartLayout.Parts)
+            {
+                string label = PartLayout.LabelOf(p.part);
+                Assert.IsNotEmpty(label, $"{p.part}에 이름표가 없다 — 화면에 빈 구역이 생긴다");
+                StringAssert.DoesNotContain(" ", label, $"{p.part}: 라벨에 공백이 있으면 검색이 안 걸린다");
+                StringAssert.DoesNotContain("/", label, $"{p.part}: 빗금도 같은 이유로 쓰지 않는다");
+            }
+        }
+
+        /// <summary>
+        /// 여덟 구역이 **저마다 다른 이름표**를 가져야 한다.
+        ///
+        /// 좌우가 같은 이름이면 화면에서 어느 쪽이 로봇의 오른팔인지가 사라지고,
+        /// 마운트가 `팔R`에 붙는다는 조립 문서를 읽을 수 없게 된다.
+        /// </summary>
+        [Test]
+        public void ZoneLabels_AreAllDistinct()
+        {
+            var seen = new System.Collections.Generic.HashSet<string>();
+            foreach (PartRect p in PartLayout.Parts)
+                Assert.IsTrue(seen.Add(PartLayout.LabelOf(p.part)),
+                    $"{p.part}의 이름표가 다른 구역과 겹친다");
+            Assert.AreEqual(8, seen.Count);
+        }
     }
 }

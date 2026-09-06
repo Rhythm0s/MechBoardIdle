@@ -128,6 +128,31 @@ namespace MBI.Data
         public static IReadOnlyList<PartRect> Parts => Layout;
 
         /// <summary>
+        /// 구역 라벨 여덟 — 화면에 그리는 이름표의 문자열 (2026-09-05 확정 · `260905_W01` 1장).
+        ///
+        /// **붙여 쓴다.** 코드의 <see cref="RobotPart"/>와 한 글자씩 대응시키기 위해서다
+        /// (`ArmL` = `팔L`). 띄어 쓰거나 빗금으로 묶으면(「팔 L / R」) 문서 전수 검색에서
+        /// 안 걸려 개정이 전파되지 않는다 — 용어 사전「구역 라벨」 항목이 원천이다.
+        ///
+        /// **좌우는 로봇 기준이다.** 로봇이 카메라를 마주 보므로 `팔R`이 화면 왼쪽에 그려진다.
+        /// </summary>
+        public static string LabelOf(RobotPart part)
+        {
+            switch (part)
+            {
+                case RobotPart.Head:      return "머리";
+                case RobotPart.Torso:     return "몸통";
+                case RobotPart.ShoulderL: return "어깨L";
+                case RobotPart.ShoulderR: return "어깨R";
+                case RobotPart.ArmL:      return "팔L";
+                case RobotPart.ArmR:      return "팔R";
+                case RobotPart.LegL:      return "다리L";
+                case RobotPart.LegR:      return "다리R";
+                default:                  return string.Empty;
+            }
+        }
+
+        /// <summary>
         /// 마운트 고정 포트 셋 (2026-09-04 · `260904_W01` 2-3).
         ///
         /// A는 팔 바깥면 1개, B는 어깨 L·R 바깥면 각 1개다. 바깥 경계면에 둔 근거는
