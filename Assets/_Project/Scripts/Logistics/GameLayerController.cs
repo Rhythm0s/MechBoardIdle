@@ -42,6 +42,15 @@ namespace MBI.Logistics
         public static bool PointerOverButton { get; private set; }
 
         /// <summary>
+        /// 레이어 버튼이 차지한 자리. **누르는 순간** 판정하려면 값이 아니라 자리가 있어야 한다.
+        ///
+        /// <see cref="PointerOverButton"/>은 OnGUI에서 세워지는데 입력 콜백은 그 앞에서 돌아
+        /// 항상 한 프레임 전 값이다. 마우스는 커서가 미리 얹혀 있어 맞지만 터치는 얹혀 있는
+        /// 시간이 없어, 이 버튼을 눌러도 보드가 같이 눌렸다(BoardController._uiRects 주석).
+        /// </summary>
+        public static Rect ButtonRect { get; private set; }
+
+        /// <summary>
         /// 조립(물류 보드) 레이어가 활성인가 — BoardController가 팔레트 표시 여부 판단.
         ///
         /// **값은 <see cref="GameViewSignals"/>가 들고 있다.** 여기 따로 두면 원천이 둘이 되고,
@@ -85,6 +94,7 @@ namespace MBI.Logistics
             const float w = 220f, h = 46f;
             var rect = new Rect((Screen.width - w) * 0.5f, Screen.height - h - 14f, w, h);
 
+            ButtonRect = rect;
             PointerOverButton = rect.Contains(Event.current.mousePosition);
 
             if (!_boardView)
