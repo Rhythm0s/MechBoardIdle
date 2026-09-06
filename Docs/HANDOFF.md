@@ -286,6 +286,31 @@ U-2: 닫혔다. 지목 오류를 병기해 UI아트 9장에 반영
 품목_48/64: 64로 통일 (여섯 자리) · I-2 해소
 ```
 
+### 코드 진행 (2026-09-06)
+
+```yaml
+e0aaffe: |
+  구역 표시 — 점선 경계 + 이름표 여덟. UI아트 10장 「구역 표시 배치 규격」 이행.
+  PartLayout.LabelOf() 신설 · BoardController.SpawnDashedEdge()/DrawZoneLabels() 신설.
+  종전 실선 경계(UI 9-2)를 점선이 대체한다. 값은 아트 픽셀(192px = 한 칸) 기준이고
+  config.cellSize로 환산한다. EditMode 632 중 628 통과 · 실패 0 · 스킵 4(기존).
+belt_warning_icon: |
+  V03 ❓2-3(belt_end 폐기로 갈 곳 없어진 경고 아이콘)은 **코드가 이미 맞았다**.
+  BeltRouting.DanglingWarningCells()가 체인 끝단 셀을 주고, BoardController가 그 셀
+  마커의 자식으로 y+0.30에 아이콘을 얹는다 — W01 2-3 「벨트가 끝나는 마지막 칸 위에
+  코드로 얹는다」와 같다. 코드 변경 없음. 다음 회신문에 이 사실을 넣을 것.
+```
+
+### 뒤늦게 안 것
+
+```yaml
+batch_mode_imports_art: |
+  배치모드 테스트를 돌리면 Unity가 Assets/ 전체를 자동 임포트한다 — Art/ 아래
+  .meta가 통째로 새로 생겼다(미추적 400여 개). §7의 "Unity 임포트 금지"는
+  배치모드를 돌리는 한 지킬 수 없다. 금지의 실질은 "임포트 설정을 확정하지 말 것"
+  으로 읽고, .meta는 커밋하지 않은 채 둔다.
+```
+
 ### 측정된 결함
 
 ```yaml
