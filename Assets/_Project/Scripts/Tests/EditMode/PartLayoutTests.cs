@@ -207,6 +207,70 @@ namespace MBI.Tests
             }
         }
 
+        // ---- 구역 경계선 ----
+
+        /// <summary>
+        /// 경계 도막이 **한 칸도 겹치지 않아야** 한다.
+        ///
+        /// 파츠마다 네 변을 그리면 맞닿은 변이 두 번 그려진다. 경계선은 불투명도 40%라
+        /// 겹친 자리만 진해지고, 두 파츠의 변 길이가 달라 점선 위상까지 어긋나 그 자리가
+        /// 실선처럼 보인다 — 2026-09-06에 실제로 그렇게 그리고 있었다.
+        /// </summary>
+        [Test]
+        public void BoundaryRuns_DoNotOverlap()
+        {
+            var seen = new HashSet<(Vector2Int, bool)>();
+            foreach (PartLayout.BoundaryRun r in PartLayout.BoundaryRuns())
+                for (int i = 0; i < r.length; i++)
+                {
+                    var cell = r.horizontal
+                        ? new Vector2Int(r.from.x + i, r.from.y)
+                        : new Vector2Int(r.from.x, r.from.y + i);
+                    Assert.IsTrue(seen.Add((cell, r.horizontal)),
+                        $"{cell}(가로={r.horizontal})가 두 번 그려진다");
+                }
+        }
+
+        /// <summary>
+        /// 합친 뒤 남는 경계는 **89칸**이다. 파츠 여덟의 변을 그냥 더하면 120칸이고,
+        /// 차이 31칸이 맞닿아 공유되는 변이다(몸통↔팔·다리↔다리·팔↔어깨 등).
+        ///
+        /// 이 두 숫자가 같아지면 파츠가 서로 떨어졌다는 뜻이고, 그러면 11-3 파츠 경계 통과가
+        /// 성립하지 않는다 — <see cref="TorsoAndArms_AreAdjacent_SoBeltsCanCross"/>와 같은 계약이다.
+        /// </summary>
+        [Test]
+        public void BoundaryRuns_Cover89Edges_Of120Drawn()
+        {
+            int merged = 0;
+            foreach (PartLayout.BoundaryRun r in PartLayout.BoundaryRuns()) merged += r.length;
+
+            int naive = 0;
+            foreach (PartRect p in PartLayout.Parts) naive += 2 * (p.size.x + p.size.y);
+
+            Assert.AreEqual(120, naive, "파츠별로 그리면 이만큼");
+            Assert.AreEqual(89, merged, "합치면 이만큼 — 차이 31칸이 맞닿은 변이다");
+        }
+
+        /// <summary>
+        /// 도막은 **이어진 구간**이어야 한다. 한 칸씩 쪼개져 나오면 점선 주기가 칸마다
+        /// 새로 시작해 경계가 촘촘한 점선으로 보인다.
+        ///
+        /// 실루엣 바깥 왼변(팔R x=0 · y 4~9)과 어깨R 왼변(x=0 · y 9~12)은 한 줄로 이어지므로
+        /// x=0에는 y 4에서 시작하는 길이 8짜리 도막 하나만 있어야 한다.
+        /// </summary>
+        [Test]
+        public void BoundaryRuns_JoinAcrossParts_OnTheSameLine()
+        {
+            PartLayout.BoundaryRun found = default;
+            int count = 0;
+            foreach (PartLayout.BoundaryRun r in PartLayout.BoundaryRuns())
+                if (!r.horizontal && r.from.x == 0) { found = r; count++; }
+
+            Assert.AreEqual(1, count, "x=0 왼변은 도막 하나로 이어져야 한다");
+            Assert.AreEqual(4, found.from.y, "팔R 아랫끝에서 시작");
+            Assert.AreEqual(8, found.length, "팔R 5칸 + 어깨R 3칸");
+        }
+
         /// <summary>
         /// 여덟 구역이 **저마다 다른 이름표**를 가져야 한다.
         ///

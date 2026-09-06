@@ -524,14 +524,21 @@ namespace MBI.Logistics
                         SpawnQuad(root.transform, o.x + (p.origin.x + x) * config.cellSize, py, t, ph, GridLineColor, -2);
                     for (int y = 1; y < p.size.y; y++)
                         SpawnQuad(root.transform, px, o.y + (p.origin.y + y) * config.cellSize, pw, t, GridLineColor, -2);
+                }
 
-                    // 구역 경계 — 점선. UI 아트 요청 문서(20)「구역 표시 배치 규격」이 값을 정한다.
-                    // 구 실선(UI 문서 9-2 「파츠 경계가 또렷해진다」)을 대신한다 — 같은 대상이고
-                    // 배치 규격 쪽이 최신이며 굵기·색·끊는 길이까지 정한다.
-                    SpawnDashedEdge(root.transform, px, py - ph * 0.5f, pw, true);
-                    SpawnDashedEdge(root.transform, px, py + ph * 0.5f, pw, true);
-                    SpawnDashedEdge(root.transform, px - pw * 0.5f, py, ph, false);
-                    SpawnDashedEdge(root.transform, px + pw * 0.5f, py, ph, false);
+                // 구역 경계 — 점선. UI 아트 요청 문서(20)「구역 표시 배치 규격」이 값을 정한다.
+                // 구 실선(UI 문서 9-2 「파츠 경계가 또렷해진다」)을 대신한다 — 같은 대상이고
+                // 배치 규격 쪽이 최신이며 굵기·색·끊는 길이까지 정한다.
+                //
+                // 파츠 루프 **밖**에서 그린다. 안에서 네 변씩 그리면 몸통↔팔처럼 맞닿은 변이
+                // 두 번 그려져 그 자리만 진해지고 점선 위상이 어긋난다(PartLayout.BoundaryRuns 주석).
+                foreach (PartLayout.BoundaryRun r in PartLayout.BoundaryRuns())
+                {
+                    float len = r.length * config.cellSize;
+                    float ex = o.x + r.from.x * config.cellSize;
+                    float ey = o.y + r.from.y * config.cellSize;
+                    if (r.horizontal) SpawnDashedEdge(root.transform, ex + len * 0.5f, ey, len, true);
+                    else              SpawnDashedEdge(root.transform, ex, ey + len * 0.5f, len, false);
                 }
                 return;
             }

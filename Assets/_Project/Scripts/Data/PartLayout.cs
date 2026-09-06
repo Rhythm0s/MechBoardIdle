@@ -153,6 +153,92 @@ namespace MBI.Data
         }
 
         /// <summary>
+        /// 구역 경계선 한 도막 — 격자 **모서리** 좌표에서 시작해 한 방향으로 <see cref="length"/>칸.
+        ///
+        /// 칸이 아니라 칸의 꼭짓점 좌표다. 가로 도막 <c>(3, 4, 길이 6)</c>은 (3,4)에서 (9,4)까지의
+        /// 선이며, 그 아래위 칸이 아니라 **그 둘 사이의 금**을 가리킨다.
+        /// </summary>
+        public readonly struct BoundaryRun
+        {
+            public readonly Vector2Int from;
+            public readonly int length;      // 칸 수
+            public readonly bool horizontal;
+
+            public BoundaryRun(Vector2Int from, int length, bool horizontal)
+            {
+                this.from = from;
+                this.length = length;
+                this.horizontal = horizontal;
+            }
+        }
+
+        private static BoundaryRun[] _boundaryRuns;
+
+        /// <summary>
+        /// 구역 경계선 전체를 **겹치지 않는** 도막들로 준다.
+        ///
+        /// ⚠️ 파츠마다 네 변을 따로 그리면 **맞닿은 변이 두 번 그려진다.** 여덟 파츠의 변을
+        /// 다 더하면 120칸인데 서로 다른 변은 89칸뿐이다 — 31칸이 겹친다(몸통↔팔 등).
+        /// 경계선이 반투명(불투명도 40%)이라 겹친 자리만 진해지고, 두 파츠의 변 길이가 달라
+        /// 점선 위상까지 어긋나 그 자리가 실선처럼 보인다. 그래서 **먼저 합치고 나서 그린다.**
+        ///
+        /// 도막으로 잇는 이유는 점선 주기를 도막 길이에 맞춰야 끝에서 잘리지 않기 때문이다.
+        /// 한 칸씩 그리면 칸마다 주기가 새로 시작해 경계가 촘촘한 점선으로 보인다.
+        /// </summary>
+        public static IReadOnlyList<BoundaryRun> BoundaryRuns()
+        {
+            if (_boundaryRuns != null) return _boundaryRuns;
+
+            var horizontal = new HashSet<Vector2Int>();
+            var vertical = new HashSet<Vector2Int>();
+            foreach (PartRect p in Layout)
+            {
+                for (int x = p.origin.x; x < p.origin.x + p.size.x; x++)
+                {
+                    horizontal.Add(new Vector2Int(x, p.origin.y));                // 아랫변
+                    horizontal.Add(new Vector2Int(x, p.origin.y + p.size.y));     // 윗변
+                }
+                for (int y = p.origin.y; y < p.origin.y + p.size.y; y++)
+                {
+                    vertical.Add(new Vector2Int(p.origin.x, y));                  // 왼변
+                    vertical.Add(new Vector2Int(p.origin.x + p.size.x, y));       // 오른변
+                }
+            }
+
+            var runs = new List<BoundaryRun>();
+            AppendRuns(horizontal, true, runs);
+            AppendRuns(vertical, false, runs);
+            _boundaryRuns = runs.ToArray();
+            return _boundaryRuns;
+        }
+
+        /// <summary>한 줄(가로변은 y가, 세로변은 x가 같은 것)에서 이어진 칸들을 한 도막으로 묶는다.</summary>
+        private static void AppendRuns(HashSet<Vector2Int> edges, bool horizontal, List<BoundaryRun> into)
+        {
+            int laneMax  = horizontal ? Rows : Columns;      // 줄 번호의 상한(모서리라 칸 수 + 1개)
+            int alongMax = horizontal ? Columns : Rows;      // 줄을 따라 갈 수 있는 칸 수
+
+            for (int lane = 0; lane <= laneMax; lane++)
+            {
+                int start = -1;
+                for (int a = 0; a <= alongMax; a++)          // alongMax에서 한 번 더 돌아 끝 도막을 닫는다
+                {
+                    bool has = a < alongMax &&
+                        edges.Contains(horizontal ? new Vector2Int(a, lane) : new Vector2Int(lane, a));
+
+                    if (has && start < 0) start = a;
+                    else if (!has && start >= 0)
+                    {
+                        into.Add(new BoundaryRun(
+                            horizontal ? new Vector2Int(start, lane) : new Vector2Int(lane, start),
+                            a - start, horizontal));
+                        start = -1;
+                    }
+                }
+            }
+        }
+
+        /// <summary>
         /// 마운트 고정 포트 셋 (2026-09-04 · `260904_W01` 2-3).
         ///
         /// A는 팔 바깥면 1개, B는 어깨 L·R 바깥면 각 1개다. 바깥 경계면에 둔 근거는
