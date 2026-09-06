@@ -46,11 +46,21 @@ namespace MBI.Idle
             KoreanFont.Apply(); // WebGL엔 시스템 폰트 폴백이 없다
             EnsureStyles();
 
-            const float w = 420f, h = 232f;
+            // 높이 300 — 232로는 「확인」 버튼이 영역 밖으로 잘려 **창을 닫을 수가 없었다**
+            // (2026-09-06 웹빌드 실측). GUILayout은 BeginArea 밖을 그리지 않으므로
+            // 버튼이 사라진 것이 아니라 잘린 것이었고, 화면에서 보기 전에는 드러나지 않았다.
+            const float w = 420f, h = 300f;
             var box = new Rect((Screen.width - w) * 0.5f, (Screen.height - h) * 0.5f, w, h);
 
             // 창 뒤로 클릭이 새면 안 된다 — 창을 닫으려다 그 아래 칸에 노드가 놓인다.
             UiBlockers.Add(box);
+
+            // ⚠️ **불투명 바탕을 먼저 깐다.** 기본 스킨 상자는 반투명이라 뒤의 로봇이
+            // 글자를 뚫고 보였다 — 「받은 고철」 숫자가 로봇 몸통에 겹쳐 안 읽혔다.
+            Color prevBg = GUI.color;
+            GUI.color = new Color(0.06f, 0.07f, 0.09f, 0.97f);
+            GUI.DrawTexture(box, Texture2D.whiteTexture);
+            GUI.color = prevBg;
 
             GUI.Box(box, GUIContent.none);
             GUILayout.BeginArea(new Rect(box.x + 18f, box.y + 14f, box.width - 36f, box.height - 28f));
