@@ -245,7 +245,9 @@ anchor_urls:
 | 보스 512 | create_image_pro + robot_a style | ✅ `010376d3` 시점·형태 통과 · **강조색이 주황** ❓ |
 | 품목 10종 | create_image_pixen | **실패** — 절반이 3/4, 검은 아웃라인 |
 | 품목 ammo_pierce 시험 | create_image_pro | ✅ `38c0eb8e` — **나머지 아홉도 이 방식으로** |
-| 특수타격 2종 | create_image_pro (앵커 없음) | 진행 중 — `895e4c86` / `9f1ff31d` |
+| 특수타격 2종 | create_image_pro (앵커 없음) · 384 | ✅ `895e4c86` / `9f1ff31d` — V-1 통과(갈래/한 줄기/고리가 회색조에서 갈림). **W01 목록 밖 생성이었다** |
+| 재생성 2차 여덟 | image_pro · 보드는 앵커 없이 · 보스는 15-1 서명 URL | ✅ 15:46 즉시 수신 — 저장 `4837a128` 부스터 `6b3db242` 가공 `a10d8962` 복합군수 `4bbbae4a` 보스 `d136d116` |
+| 포트 셋 재시도 | image_pro · 같은 굵기 명시 | ✅ 16:31 — `97b051e5` / `7bc000d4` / `400bb0a0` · 가운데 0.0% |
 
 ```yaml
 download_url_pattern: https://api.pixellab.ai/mcp/images/<job_id>/download   # 무인증
