@@ -11,6 +11,7 @@
 - **워크플로:** 기획·밸런스는 **Claude(chat)+Notion에서 확립** → 사용자가 `balance_v4.json`·이 CLAUDE.md를 **수동 갱신**(상시 발생) → **Claude Code가 구현**. 데이터 흐름 = Notion 기획 → `balance_v4.json` → `BalanceAssetGenerator`가 SO 생성 → 게임/시뮬.
 - **역할 경계:** Claude Code는 기획·밸런스 수치를 임의 변경하지 않는다. 구현 중 필요한 기획·밸런스 항목이 생기면 **사용자에게 보고** → 사용자가 Claude(chat) 검토 후 원천(CLAUDE.md/`balance_v4.json`)에 반영.
 - **주의:** `NewProjectF`(유령의 집 디펜스)는 별개 게임 — 본 프로젝트와 무관.
+- **세션 인계:** `Docs/HANDOFF.md`를 먼저 읽는다 (2026-09-06 신설). 이 파일이 **작업 기준**이라면 그쪽은 **지금 어디까지 왔는가**다 — 두 트랙 통신 규약 · Notion 문서 ID 지도 · 실제로 당한 함정 목록 · 진행 중인 작업의 상태와 대기 중인 판정. 상태가 바뀌면 그 파일을 갱신한다.
 
 ---
 
