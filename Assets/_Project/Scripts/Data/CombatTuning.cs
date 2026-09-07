@@ -46,6 +46,21 @@ namespace MBI.Data
         [Tooltip("TBD — 전투 종료 후 자동 재시작까지 대기(초). 승리 연출을 볼 시간 vs 방치 효율.")]
         public float autoRestartDelayTbd = 1.5f;
 
+        [Header("애니메이션 길이 (260907_W01 4-5 · 사용자 확정)")]
+        // 초당 프레임은 폐기됐다(W01 2-2). 한 칸은 1/16초로 고정이고 벌마다 목표 초를 사람이 정한다 —
+        // 그래야 그림 수가 부드러움과 길이를 겸하지 않는다. 칸 배분은 AnimSchedule 이 계산한다(4-6).
+        // 값 자체는 확정이라 TBD 가 아니다. 하드코딩 금지(지침 §3)라 여기에 둔다.
+        [Tooltip("한 칸이 화면에 머무는 시간(초). 1/16 고정 — 벌마다 바꾸지 않는다.")]
+        public float animCellSeconds = 1f / 16f;
+        [Tooltip("대기 목표 초. 왕복이라 기본 칸(8)의 배수에서만 고른다.")]
+        public float animIdleSeconds = 1.00f;
+        [Tooltip("이동 목표 초. 나머지 넷이 착지 머무름으로 열린다.")]
+        public float animMoveSeconds = 1.00f;
+        [Tooltip("사망 목표 초.")]
+        public float animDeathSeconds = 2.00f;
+        [Tooltip("태그 전환 목표 초. 잠정 — 전투 시스템 문서「태그 규칙」 확인 뒤 확정한다(W01 9장 2).")]
+        public float animTagInSeconds = 0.75f;
+
         [Header("히트 패턴 (로봇A 탄종 = 단일 표적)")]
         // 플레이어블 로봇 기획서「무기 스펙트럼」(스테이징): 등가선은 단일 표적 기준, 표적 수/광역은 스펙트럼 밖 역할 축(드론 2종 한정).
         // → 로봇A 관통/분열/폭발은 전부 단일 표적. 멀티샷/AoE 메커니즘(HitResolver)은 드론용으로 보존.

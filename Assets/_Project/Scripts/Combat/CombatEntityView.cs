@@ -149,21 +149,21 @@ namespace MBI.Combat
         /// 규격에 「좌우 대칭 기체는 3방향 + 미러」를 넣을지는 설계 판정 대기다.
         ///
         /// 대기는 <b>되감기</b>로 돈다(2026-09-07 사용자 판정) — 이동은 걷는 순환이라 아니다.
+        /// 되감기와 길이는 벌 자료가 갖고 <see cref="MBI.Core.Anim.AnimSchedule"/>가 칸으로 편다.
         /// </summary>
         private void PlayState(UnitAnimState state, UnitAnimDirection dir)
         {
             if (_animator == null || _clips == null) return;
 
             bool loop = state == UnitAnimState.Idle || state == UnitAnimState.Move;
-            bool pingPong = state == UnitAnimState.Idle;
 
-            if (TryFind(state, dir, out UnitAnimClip clip)) { _animator.Play(clip, loop, false, pingPong); return; }
+            if (TryFind(state, dir, out UnitAnimClip clip)) { _animator.Play(clip, loop); return; }
 
             // 서면이 없으면 동면을 좌우로 뒤집는다.
             if (dir == UnitAnimDirection.West && TryFind(state, UnitAnimDirection.East, out clip))
-            { _animator.Play(clip, loop, flipX: true, pingPong: pingPong); return; }
+            { _animator.Play(clip, loop, flipX: true); return; }
 
-            if (TryFind(state, UnitAnimDirection.South, out clip)) _animator.Play(clip, loop, false, pingPong);
+            if (TryFind(state, UnitAnimDirection.South, out clip)) _animator.Play(clip, loop);
         }
 
         private bool TryFind(UnitAnimState state, UnitAnimDirection dir, out UnitAnimClip found)

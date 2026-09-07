@@ -202,47 +202,14 @@ namespace MBI.Tests
 
         // ---- 재생 쪽 규격 ----
 
-        /// <summary>
-        /// 대기 되감기 순서 — 다섯 장이면 0·1·2·3·4·3·2·1 여덟 걸음이다
-        /// (2026-09-07 사용자 판정). 양 끝을 두 번 세면 그 프레임에서만 두 배로 머문다.
-        /// </summary>
-        [Test]
-        public void PingPong_WalksForwardThenBack()
-        {
-            Assert.AreEqual(8, MBI.Combat.SpriteFrameAnimator.PingPongCycle(5, true), "다섯 장이면 여덟 걸음");
-
-            var seen = new List<int>();
-            for (int step = 0; step < 8; step++)
-                seen.Add(MBI.Combat.SpriteFrameAnimator.PingPongIndex(step, 5, true));
-
-            CollectionAssert.AreEqual(new[] { 0, 1, 2, 3, 4, 3, 2, 1 }, seen, "되감기 순서");
-        }
-
-        /// <summary>이동은 걷는 순환이라 되감지 않는다 — 여섯 장이면 여섯 걸음 그대로다.</summary>
-        [Test]
-        public void PingPong_Off_KeepsPlainLoop()
-        {
-            Assert.AreEqual(6, MBI.Combat.SpriteFrameAnimator.PingPongCycle(6, false));
-            for (int step = 0; step < 6; step++)
-                Assert.AreEqual(step, MBI.Combat.SpriteFrameAnimator.PingPongIndex(step, 6, false));
-        }
-
-        /// <summary>두 장 이하는 되감을 것이 없다 — 순환으로 내린다.</summary>
-        [Test]
-        public void PingPong_TooFewFrames_FallsBackToLoop()
-        {
-            Assert.AreEqual(2, MBI.Combat.SpriteFrameAnimator.PingPongCycle(2, true));
-            Assert.AreEqual(1, MBI.Combat.SpriteFrameAnimator.PingPongIndex(1, 2, true));
-        }
-
         [Test]
         public void Clip_IsInvalid_WhenEmpty()
         {
-            var empty = new UnitAnimClip { frames = new Sprite[0], fps = 6f };
-            Assert.IsFalse(empty.IsValid, "프레임이 없으면 걸 수 없다");
+            var empty = new UnitAnimClip { frames = new Sprite[0], targetSeconds = 1f };
+            Assert.IsFalse(empty.IsValid, "그림이 없으면 걸 수 없다");
 
-            var noFps = new UnitAnimClip { frames = new Sprite[1], fps = 0f };
-            Assert.IsFalse(noFps.IsValid, "재생 속도가 0이면 걸 수 없다");
+            var noSeconds = new UnitAnimClip { frames = new Sprite[1], targetSeconds = 0f };
+            Assert.IsFalse(noSeconds.IsValid, "목표 초가 0이면 걸 수 없다");
         }
     }
 }

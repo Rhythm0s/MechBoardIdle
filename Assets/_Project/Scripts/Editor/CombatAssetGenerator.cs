@@ -55,6 +55,9 @@ namespace MBI.Editor
         // ---- 로봇A: 탄약 스펙트럼(발당피해 dA + 물류 생산율 pA·mock) + 판정식 계수 ----
         private static void BuildRobot(BalanceJson json, BalanceConfig config)
         {
+            // 애니메이션 목표 초의 소스. 값을 덮어쓰지 않고 읽기만 한다.
+            CombatTuning tuning = AssetDatabase.LoadAssetAtPath<CombatTuning>(TuningPath);
+
             float capA = json.Param("capA");             // 6 소비 상한
             float enh = json.Param("enh");               // 1.45 강화 마운트계수
             float moduleMult = json.Param("moduleMult"); // 1.0 모듈배율
@@ -78,7 +81,7 @@ namespace MBI.Editor
             r.moduleMult = moduleMult;    // 1.0
             r.balanceRef = config;
             r.sprite = LoadArt("robot_a");
-            r.animClips = LoadAnimClips("robot_a");
+            r.animClips = LoadAnimClips("robot_a", tuning);
             EditorUtility.SetDirty(r);
 
             // 로봇 B — 드론 운용기(밸런스 params pB/dB). 전투 등장은 MVP 이후지만
@@ -92,7 +95,7 @@ namespace MBI.Editor
             b.balanceRef = config;
             b.sprite = LoadArt("robot_b");
             b.droneSprite = LoadArt("drone_n"); // 누적형 = 기본 프리셋(params pB 1.0 × dB 100)
-            b.animClips = LoadAnimClips("robot_b");
+            b.animClips = LoadAnimClips("robot_b", tuning);
             EditorUtility.SetDirty(b);
         }
 
@@ -106,10 +109,26 @@ namespace MBI.Editor
         // ---- 애니메이션 프레임 ----
 
         /// <summary>
-        /// 재생 속도. **어느 기획 문서도 정한 적이 없다** — 구현이 세운 가정이며
-        /// `260907_V01`로 판정을 올렸다. 설계가 값을 주면 여기만 갈아 끼운다.
+        /// 상태별 목표 초. **값의 소스는 <see cref="CombatTuning"/>이다**(지침 §3 하드코딩 금지) —
+        /// `260907_W01` 4-5가 사용자 확정으로 넷을 줬고 그것이 SO에 들어 있다.
+        /// SO를 못 찾으면 W01 표의 값으로 내린다.
         /// </summary>
-        private static float DefaultFps(UnitAnimState state) => state == UnitAnimState.Idle ? 6f : 8f;
+        private static float TargetSeconds(CombatTuning tuning, UnitAnimState state)
+        {
+            switch (state)
+            {
+                case UnitAnimState.Idle:  return tuning != null ? tuning.animIdleSeconds  : 1.00f;
+                case UnitAnimState.Move:  return tuning != null ? tuning.animMoveSeconds  : 1.00f;
+                case UnitAnimState.Death: return tuning != null ? tuning.animDeathSeconds : 2.00f;
+                default:                  return tuning != null ? tuning.animTagInSeconds : 0.75f;
+            }
+        }
+
+        /// <summary>
+        /// 왕복은 대기만이다(W01 4-5 · 사용자 확정). 이동을 왕복시키면 여섯 칸을 걷고
+        /// 그것을 거꾸로 걷는다 — 뒷걸음질이 된다.
+        /// </summary>
+        private static bool IsPingPong(UnitAnimState state) => state == UnitAnimState.Idle;
 
         /// <summary>
         /// <c>Art/Anim/{robot}_{State}/{dir}/frame_*.png</c>를 이름 순으로 읽어 벌을 만든다.
@@ -117,7 +136,7 @@ namespace MBI.Editor
         ///
         /// 경로가 여기 한 곳에만 있고 런타임에는 SO 참조만 남는다(§8 명명 규칙).
         /// </summary>
-        private static List<UnitAnimClip> LoadAnimClips(string robot)
+        private static List<UnitAnimClip> LoadAnimClips(string robot, CombatTuning tuning)
         {
             var clips = new List<UnitAnimClip>();
             foreach (UnitAnimState state in System.Enum.GetValues(typeof(UnitAnimState)))
@@ -141,7 +160,10 @@ namespace MBI.Editor
                         state = state,
                         direction = dir,
                         frames = frames.ToArray(),
-                        fps = DefaultFps(state),
+                        targetSeconds = TargetSeconds(tuning, state),
+                        pingPong = IsPingPong(state),
+                        // 머무름 칸은 화면을 보고 고르는 값이라 아직 비어 있다 — W01 확인 4.
+                        dwellCells = null,
                     });
                 }
             }

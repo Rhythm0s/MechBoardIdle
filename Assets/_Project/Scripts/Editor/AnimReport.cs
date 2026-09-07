@@ -5,6 +5,7 @@ using System.IO;
 using System.Security.Cryptography;
 using System.Text;
 using MBI.Core;
+using MBI.Core.Anim;
 using UnityEditor;
 using UnityEngine;
 
@@ -51,7 +52,8 @@ namespace MBI.Editor
             sb.AppendLine("- 도구 커밋: `" + HeadShort()
                           + DirtyMark("Assets/_Project/Scripts/Editor/AnimReport.cs") + "`");
             sb.AppendLine("- **잰 자리: `" + root + "`** (`-animRoot`로 바꾼다)");
-            sb.AppendLine("- **진폭 측정법: 프레임마다 알파 bbox의 윗변을 잡아, 그 윗변이 프레임 사이에 오르내린 최댓값을 프레임 평균 실루엣 높이로 나눈다.** 어깨가 오르내리는 폭이라 윗변으로 잰다");
+            sb.AppendLine("- **진폭 측정법: 프레임마다 알파 bbox의 윗변을 잡아, 그 윗변의 최댓값과 최솟값의 차를 프레임 평균 실루엣 높이로 나눈다.** 어깨가 오르내리는 폭이라 윗변으로 잰다");
+            sb.AppendLine("- **최대·최소 방식이다 — 프레임 사이 이동량을 더하는 방식이 아니다**(`260907_W01` 확인 1). 같은 그림을 여러 칸이 가리켜도 최대와 최소가 안 움직이므로 **칸 복제는 이 값을 바꾸지 않는다**");
             sb.AppendLine("- 알파 문턱: 16 초과를 「있다」로 본다 · 캔버스 그대로만 잰다(자르거나 늘이지 않는다)");
             sb.AppendLine("- 계산: `MBI.Core.SilhouetteOverlap.TryBounds` 재사용");
             sb.AppendLine("- 도구 커밋은 **실행 시점의 HEAD**다. **잰 파일이 무엇인지는 아래 표의 md5가 말한다**");
@@ -64,9 +66,12 @@ namespace MBI.Editor
                 return;
             }
 
-            sb.AppendLine("| 벌 | 프레임 | 캔버스 | 실루엣 높이(평균) | 여백 T/B(최소) | 진폭 px | **진폭 %** | 잴 수 있나 | 첫 프레임 md5 |");
-            sb.AppendLine("|---|---|---|---|---|---|---|---|---|");
+            sb.AppendLine("- 칸 열 셋은 `MBI.Core.Anim.AnimSchedule`이 낸다 — 한 칸 1/16초 · 목표 초는 `CombatTuning`(`260907_W01` 4-5)");
+            sb.AppendLine();
+            sb.AppendLine("| 벌 | 그림 | 캔버스 | 실루엣 높이(평균) | 여백 T/B(최소) | 진폭 px | **진폭 %** | 잴 수 있나 | 기본 칸 | 필요 칸 | 실제 초 | 첫 프레임 md5 |");
+            sb.AppendLine("|---|---|---|---|---|---|---|---|---|---|---|---|");
 
+            var warnings = new List<string>();
             var dirs = new List<string>(Directory.GetDirectories(root));
             dirs.Sort(StringComparer.Ordinal);
             int rows = 0;
@@ -120,17 +125,26 @@ namespace MBI.Editor
 
                     string measurable = clipped ? "**아니다 — 잘림**" : "예";
 
-                    sb.AppendLine("| `" + clipName + "/" + Path.GetFileName(dirDir) + "` | " + files.Length
+                    string label = clipName + "/" + Path.GetFileName(dirDir);
+                    AnimSchedule sch = ScheduleFor(clipName, files.Length);
+                    if (sch.DeletedCells > 0)
+                        warnings.Add("- `" + label + "` — **" + sch.DeletedCells + "칸을 지웠다.** 화면에 한 번도 안 나오는 그림: "
+                                     + string.Join(", ", Array.ConvertAll(sch.UnusedFrames, f => "frame_" + f.ToString("000"))));
+                    if (sch.HasWarning) warnings.Add("- `" + label + "` — " + sch.Warning);
+
+                    sb.AppendLine("| `" + label + "` | " + files.Length
                         + " | " + canvasW + "×" + canvasH
                         + " | " + avgH.ToString("0.0", CultureInfo.InvariantCulture)
                         + " | " + marginTopMin + " / " + marginBottomMin
                         + " | " + ampPx + " | **" + ampPct + "** | " + measurable
+                        + " | " + sch.BaseCells + " | " + sch.NeededCells
+                        + " | " + sch.ActualSeconds.ToString("0.00", CultureInfo.InvariantCulture)
                         + " | `" + Md5(files[0]) + "` |");
                     rows++;
                 }
             }
 
-            if (rows == 0) sb.AppendLine("| — | — | — | — | — | — | — | — | — |");
+            if (rows == 0) sb.AppendLine("| — | — | — | — | — | — | — | — | — | — | — | — |");
             sb.AppendLine();
             sb.AppendLine("**" + rows + "벌.** 대기 진폭 규격은 256 이상에서 실루엣 높이의 **4~6%**다 (캐릭터 아트 요청 문서(15)「동작의 크기」).");
             sb.AppendLine();
@@ -139,8 +153,47 @@ namespace MBI.Editor
             sb.AppendLine("⚠️ **「잴 수 있나」가 「아니다 — 잘림」이면 그 행의 진폭은 판정 근거가 아니다.** 실루엣이 캔버스 가장자리에 닿아 있으면 bbox의 윗변이 더 올라갈 자리가 없어, 몸이 실제로 오르내려도 숫자가 안 움직인다. 그런 행의 진폭은 **하한값**이다 — 「이만큼은 움직였다」이지 「이만큼만 움직였다」가 아니다.");
             sb.AppendLine();
             sb.AppendLine("> 여백이 0인 자산에서는 4~6% 진폭 자체가 캔버스 안에 들어가지 않는다. 진폭을 규격대로 얻으려면 스틸에 여백이 먼저 있어야 한다.");
+            sb.AppendLine();
+
+            // 삭제는 조용히 지나가면 안 된다 — 지운 그림은 화면에 한 번도 안 나오는데
+            // UnitAnimWiringTests 는 폴더를 세므로 통과한다. 테스트가 못 보는 자리다(W01 4-4).
+            sb.AppendLine("## 칸 규칙 경고");
+            sb.AppendLine();
+            if (warnings.Count == 0)
+            {
+                sb.AppendLine("**없다.** 삭제된 칸이 없고 규칙을 지킬 수 없던 벌도 없다 — 모든 그림이 화면에 적어도 한 번 나온다.");
+            }
+            else
+            {
+                sb.AppendLine("⚠️ **아래 벌은 그림 장수가 화면에서 지켜지지 않는다.** 목표 초가 짧거나 그 벌에 그림을 너무 많이 그렸다는 뜻이다.");
+                sb.AppendLine();
+                foreach (string w in warnings) sb.AppendLine(w);
+            }
 
             Write(sb, suffix, stamp);
+        }
+
+        /// <summary>
+        /// 이 벌의 칸 계산. 목표 초는 상태 이름으로 고른다 — 보고서는 에디터 밖에서도 돌므로
+        /// SO 대신 <c>CombatTuning</c>의 확정값(`260907_W01` 4-5)을 그대로 쓴다.
+        /// 폴더 이름이 <c>{robot}_{State}</c> 꼴이라 밑줄 뒤가 상태다.
+        /// </summary>
+        private static AnimSchedule ScheduleFor(string clipName, int frameCount)
+        {
+            int us = clipName.LastIndexOf('_');
+            string state = us >= 0 ? clipName.Substring(us + 1) : clipName;
+
+            float seconds;
+            bool pingPong = false;
+            switch (state)
+            {
+                case "Idle":  seconds = 1.00f; pingPong = true; break;
+                case "Move":  seconds = 1.00f; break;
+                case "Death": seconds = 2.00f; break;
+                case "TagIn": seconds = 0.75f; break;
+                default:      seconds = 1.00f; break;
+            }
+            return AnimSchedule.Build(frameCount, seconds, pingPong);
         }
 
         private static void Write(StringBuilder sb, string suffix, string stamp)
