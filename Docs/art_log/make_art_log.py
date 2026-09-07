@@ -44,17 +44,18 @@ GROUPS = [
      "idling in place with its weight settled, the whole machine rising and falling by about one "
      "twentieth of its own height, its exhaust vents puffing in a steady rhythm"),
     ("robot_a_Move", "074c016e-01c8-4ec5-940c-151a12a056b7", ["south"], 6, False, 4,
-     "**4차 · 포즈 경로 · v3 보간 · f2 중복** (통과)",
+     "**4차 · 규칙 15 · v3 보간 · 5장 · 칸 목록 0 1 2 3 4 2** (통과)",
      "포즈 경로 — 승인본의 다리 구간만 `inpaint` 로 다시 그려 걷는 자세 두 장(`pose_L2` · 대칭축으로 되접은 "
      "`pose_R_mirror`)을 만들고, 그 둘을 `custom_start_frame_url`·`end_frame_url` 로 준 v3 보간이다. "
-     "보간이 낸 그림은 다섯 장이고 규격이 여섯 칸이라 **가운데 그림(발이 모이는 칸) `f2` 를 여섯째 칸에 한 번 더 쓴다** "
-     "— `f0·f1·f2·f3·f4·f2`. 여섯째 **그림**은 만들지 않는다(V03 ❓3-3 판정 전). 보간에 준 동작 묘사: "
+     "보간이 낸 그림은 **다섯 장**이고 재생은 **여섯 칸**이다 — 칸 목록 `0 1 2 3 4 2` 가 가운데 자세(발이 모이는 칸)를 "
+     "돌아오는 길에 한 번 더 가리킨다. 사본 파일 `frame_005` 는 `342f9b1` 의 `cellOrder` 가 들어온 뒤 지웠다(`5f76bbe`) — "
+     "**화면은 안 바뀐다.** 「이동 6」은 상한이라 5장이어도 규격 위반이 아니다(`260907_W03` 2-3). 보간에 준 동작 묘사: "
      "walking forward, the two legs swinging past each other so the leg that was forward goes back and the "
      "leg that was back comes forward, the body staying upright"),
     ("robot_a_Move", "bcc4aac1-466b-49c2-82e9-432b9ceb3da2", ["north"], 6, False, 4,
-     "**4차 · 포즈 경로 · v3 보간 · f2 중복** (통과)",
+     "**4차 · 규칙 15 · v3 보간 · 5장 · 칸 목록 0 1 2 3 4 2** (통과)",
      "남면과 같은 경로다 — 북면 회전본의 다리 구간을 `inpaint` 한 `north_L` 과 그것을 x=127 축으로 되접은 "
-     "`north_R` 을 보간의 두 끝으로 준다. 칸 배치도 같다(`f0·f1·f2·f3·f4·f2`). "
+     "`north_R` 을 보간의 두 끝으로 준다. 칸 목록도 같다(`0 1 2 3 4 2`) — 사본 `frame_005` 는 함께 지웠다. "
      "walking, the two legs swinging past each other so the leg that was forward goes back and the leg "
      "that was back comes forward, the body staying upright"),
     ("robot_a_Move", "2dce895b-6fb9-4b38-ac22-2421ede1012c", ["east"], 6, False, 6,
