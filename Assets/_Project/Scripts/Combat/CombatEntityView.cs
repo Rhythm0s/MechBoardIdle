@@ -28,6 +28,12 @@ namespace MBI.Combat
         private SpriteFrameAnimator _animator;
         private List<UnitAnimClip> _clips;
         private UnitAnimDirection _lastDirection = UnitAnimDirection.South;
+
+        // 태그 진입 — 화면 우측 밖에서 자리로 들어온다(260907_W01 2-3 사용자 확정).
+        // 이것은 코드가 위치를 옮기는 것이며 프레임 재생이 아니다.
+        private float _entryElapsed = -1f;
+        private float _entrySeconds;
+        private float _entryOffsetX;
         private Vector2 _lastPosition;
         private bool _hasLastPosition;
         private bool _deathPlayed;
@@ -128,10 +134,38 @@ namespace MBI.Combat
             Sync();
         }
 
+        /// <summary>
+        /// 태그 진입을 건다 — <b>화면 우측 밖에서 자리로, 빠르게 들어와 점점 느려진다</b>
+        /// (`260907_W01` 2-3 · 사용자 확정). 길이를 태그 클립의 실제 초와 같게 두면
+        /// 클립과 이동이 함께 끝나 <b>마지막 프레임으로 굳은 채 미끄러져 들어오는 것</b>을 피한다
+        /// (W01 확인 1). <b>가정이며 되돌릴 수 있다</b> — 0.75초 자체가 잠정이다(W01 9장 2).
+        /// </summary>
+        public void PlayTagIn(float seconds, float offsetX)
+        {
+            _entrySeconds = Mathf.Max(0.01f, seconds);
+            _entryOffsetX = offsetX;
+            _entryElapsed = 0f;
+            PlayState(UnitAnimState.TagIn, UnitAnimDirection.South);
+        }
+
+        /// <summary>진입이 아직 돌고 있는가.</summary>
+        public bool Entering => _entryElapsed >= 0f && _entryElapsed < _entrySeconds;
+
         public void Sync()
         {
             if (_entity == null) return;
             transform.position = new Vector3(_entity.position.x, _entity.position.y, 0f);
+
+            // 들어오는 동안만 자리에서 오른쪽으로 밀어 둔다. 감속은 1-(1-t)^2 — 빠르게 들어와
+            // 점점 느려진다. 끝나면 offset 이 0이 되어 원래 자리에 정확히 선다.
+            if (_entryElapsed >= 0f)
+            {
+                _entryElapsed += Time.deltaTime;
+                float t = Mathf.Clamp01(_entryElapsed / _entrySeconds);
+                float eased = 1f - (1f - t) * (1f - t);
+                transform.position += new Vector3(_entryOffsetX * (1f - eased), 0f, 0f);
+                if (t >= 1f) _entryElapsed = -1f;
+            }
 
             float ratio = _entity.maxHp > 0f ? Mathf.Clamp01(_entity.hp / _entity.maxHp) : 0f;
             if (_hpFill != null)

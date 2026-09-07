@@ -84,6 +84,9 @@ namespace MBI.Combat
         // 차지하게 해서 스프라이트 교체 때 레이아웃이 흔들리지 않게 한다.
         private static float RobotSize => ArtSpec.RobotSize; // 256px → 1.333칸
 
+        // 태그 진입이 시작되는 자리. 화면 우측 밖이면 되므로 아레나 반경보다 넉넉히 잡는다.
+        private const float TagEntryOffsetX = 8f;
+
         private static Sprite _circleSprite;
 
         /// <summary>단위 원반 스프라이트(중심 옅은 채움 + 가장자리 밝은 링). 스케일로 아레나 지름 반영.</summary>
@@ -296,6 +299,47 @@ namespace MBI.Combat
         }
 
         /// <summary>
+        /// 태그 진입 — 새 로봇이 화면 우측 밖에서 자리로 들어온다(`260907_W01` 2-3 · 사용자 확정).
+        ///
+        /// <b>길이를 태그 클립의 실제 초와 같게 둔다</b> — 클립이 이동보다 먼저 끝나면
+        /// 마지막 프레임으로 굳은 채 미끄러져 들어온다(W01 확인 1). <b>가정이며 되돌릴 수 있다.</b>
+        /// 0.75초 자체가 잠정이다 — 지속 시간의 소관은 전투 시스템 문서「태그 규칙」이고
+        /// 15-1 5-1이 그쪽으로 넘겨 두었다(W01 9장 2).
+        /// </summary>
+        private void PlayTagEntrance()
+        {
+            if (_robotView == null) return;
+            float seconds = tuning != null ? tuning.animTagInSeconds : 0.75f;
+            _robotView.PlayTagIn(seconds, TagEntryOffsetX);
+        }
+
+        /// <summary>
+        /// 물러나는 로봇을 그 자리에 남겨 <b>페이드 아웃</b>으로 지운다(W01 2-3 사용자 확정).
+        /// 뷰는 하나뿐이라 다시 묶으면 이전 그림이 그 순간 사라진다 — 그래서 그림 한 장을
+        /// 복사한 유령을 두고 지운다. 어느 문서가 이 규정을 갖는지는 아직 정해지지 않았다
+        /// (W01 9장 3 — UI 문서「연출 표현 규칙」으로 보이나 확인 전이다).
+        /// </summary>
+        private void SpawnFadeGhost()
+        {
+            if (_robotView == null) return;
+            SpriteRenderer src = _robotView.GetComponentInChildren<SpriteRenderer>();
+            if (src == null || src.sprite == null) return;
+
+            var go = new GameObject("RobotFadeGhost");
+            go.transform.position = src.transform.position;
+            go.transform.localScale = src.transform.lossyScale;
+            var sr = go.AddComponent<SpriteRenderer>();
+            sr.sprite = src.sprite;
+            sr.color = src.color;
+            sr.flipX = src.flipX;
+            sr.sortingLayerID = src.sortingLayerID;
+            sr.sortingOrder = src.sortingOrder - 1;
+
+            float seconds = tuning != null ? tuning.animTagInSeconds : 0.75f;
+            go.AddComponent<FadeOutAndDestroy>().Begin(sr, seconds);
+        }
+
+        /// <summary>
         /// 라이브 물류 → 발사율(§5-6 D2). 코어 명제가 코드에서 성립하는 지점이다:
         /// 보드에서 노드를 빼면 브릿지 출력이 떨어지고, 그만큼 발사율이 줄어 전투가 실제로 약해진다.
         ///
@@ -407,7 +451,13 @@ namespace MBI.Combat
             _sim.Tick(Time.deltaTime);
 
             // 교대했으면 뷰를 새 로봇에 다시 묶는다 — 안 하면 B가 싸우는데 A가 서 있다.
-            if (_sim.ActiveRobotIndex != _viewedRobotIndex || IsMerged != _viewedMerged) BindRobotView();
+            if (_sim.ActiveRobotIndex != _viewedRobotIndex || IsMerged != _viewedMerged)
+            {
+                bool tagSwitch = _sim.ActiveRobotIndex != _viewedRobotIndex && IsMerged == _viewedMerged;
+                if (tagSwitch) SpawnFadeGhost();
+                BindRobotView();
+                if (tagSwitch) PlayTagEntrance();
+            }
 
             // 처치를 방치 런타임으로 흘린다. 가져가며 비우는 API라 같은 처치를 두 번 세지 않는다.
             IdleSignals.AddKills(_sim.ConsumeKills());
