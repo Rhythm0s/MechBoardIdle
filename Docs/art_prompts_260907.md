@@ -55,13 +55,101 @@ EDGES: no black outline anywhere, the silhouette meets the transparent backgroun
 
 ---
 
-## 애니메이션 — 이 파일이 갖지 않는다
+## 이 파일의 책임 (2026-09-07 · `260907_W01` 3-3)
 
-**벌 목록 · 인자 · 프롬프트 전문 · 2차 재생성은 `Docs/art_log/260907_anim.md`가 소스다.**
+**어떻게 만들었나 — 도구 · 인자 · 프롬프트 전문. 재현용이다.**
+지금 무엇이 있나(경로 · 캔버스 · md5 · 수신 시각 · 승인 상태)는 `Docs/art_log/260907_anim.md`가 갖는다.
+두 파일은 책임이 다르므로 합치지 않는다 — 뒤쪽은 자산 레지스트리 계열이고 소관이 이미 정해져 있다.
 
-여기에는 2026-09-07 11:2x에 27벌 표를 한 번 옮겨 두었으나 **같은 27벌이 두 파일에 있게 됐고**
-(지침 §3 「한 문서 = 한 책임」), 그 표는 **1차 생성분 기준이라 그날 오전에 이미 낡았다** —
-사용자 판정으로 8벌을 2차 재생성했고 로봇 B 대기 서면을 지워 리포는 **26벌**이 됐다.
-낡은 표를 남겨 두면 다음 사람이 어느 쪽이 지금인지를 이름으로 못 가른다.
+⚠️ **계획 세션이 2026-09-07 12시에 이 절을 포인터 한 줄로 바꿨고(`4bf0838`), 설계가 W01 3-3으로 되돌렸다.**
+근거는 「한 문서 = 한 책임」에 걸리지 않는다는 것이다 — 두 책임이 이미 다르다. **설계 판정이 위다.**
+겹치는 열은 실물에서 찍는 쪽(아트 로그)을 남기고 이 파일에서 뺀다.
 
-**이 파일은 합체 256 전투 스틸 프롬프트만 갖는다** — 위 절이 그것이다.
+---
+
+## 애니메이션 27벌 — 클립별 인자와 프롬프트 전문
+
+> **왜 뒤늦게 적는가.** 27벌은 2026-09-07 09:30~09:41에 생성됐는데 그때 이 파일에 아무것도 적히지 않았다.
+> HANDOFF §3 「생성 호출마다 description 전문을 로그에」의 그 자리이고, `260906_W04` 2-8 프롬프트 유실과 같은 뿌리다.
+> **아래 표는 그날 세션의 도구 호출 기록에서 그대로 옮긴 것이다** — 지어 채우지 않았고, 구할 수 없는 칸은 「유실」로 적었다.
+
+**구할 수 없었던 것 둘.**
+
+- **방향별 job id.** 도구가 돌려준 것은 호출 하나당 **애니메이션 그룹 id 하나**뿐이다(「directions: south, north, east, west (4 jobs)」처럼 개수만 알려 준다). 그래서 job 칸은 그룹 id이며, 같은 그룹의 네 방향이 같은 값을 갖는다. 방향별 job id는 **유실**이다.
+
+- **클립별 수신 시각.** 프레임은 벌 단위가 아니라 캐릭터 zip 한 덩어리로 내려받았다. 그래서 수신 칸은 그 zip의 시각이고 클립마다 다르지 않다.
+
+
+호출 열하나 중 하나(`robot_a_Move` 첫 시도)는 job 슬롯이 모자라 실패했고 2분 45초 뒤 같은 인자로 다시 걸었다. 표에는 성공한 쪽만 있다.
+
+
+| 대상 | 상태 | 방향 | 도구 | `frame_count` | `keep_first_frame` | 프레임 | 그룹 job | 호출(KST) | 수신(KST) | `action_description` 전문 |
+|---|---|---|---|---|---|---|---|---|---|---|
+| `fusion` | Death | south | `animate_character mode=v3` | 8 | true | 9 | `838040c2-7d41-49d2-90b4-3a28109055c3` | 09-07 09:37 | 09-07 09:40 | `the seam down its torso splitting open first as the locking clamps release, the two frames starting to come apart from each other and then sagging down onto the ground together, no explosion` |
+| `fusion` | Idle | east | `animate_character mode=v3` | 4 | true | 5 | `5c5e37ad-655b-4170-a9ee-352aff6c3f43` | 09-07 09:32 | 09-07 09:40 | `idling with its weight settled, the shoulders rising and falling by about one twentieth of the machine's own height, steam venting from the exhaust ports` |
+| `fusion` | Idle | north | `animate_character mode=v3` | 4 | true | 5 | `5c5e37ad-655b-4170-a9ee-352aff6c3f43` | 09-07 09:32 | 09-07 09:40 | `idling with its weight settled, the shoulders rising and falling by about one twentieth of the machine's own height, steam venting from the exhaust ports` |
+| `fusion` | Idle | south | `animate_character mode=v3` | 4 | true | 5 | `5c5e37ad-655b-4170-a9ee-352aff6c3f43` | 09-07 09:32 | 09-07 09:40 | `idling with its weight settled, the shoulders rising and falling by about one twentieth of the machine's own height, steam venting from the exhaust ports` |
+| `fusion` | Move | east | `animate_character mode=v3` | 6 | false | 6 | `ab34a6cc-0910-42b6-8073-66f65ac5c77f` | 09-07 09:37 | 09-07 09:40 | `a heavy clanking walk, the whole machine compressing down on each landing and holding there for a beat, its joints lagging a half step behind the body` |
+| `fusion` | Move | north | `animate_character mode=v3` | 6 | false | 6 | `ab34a6cc-0910-42b6-8073-66f65ac5c77f` | 09-07 09:37 | 09-07 09:40 | `a heavy clanking walk, the whole machine compressing down on each landing and holding there for a beat, its joints lagging a half step behind the body` |
+| `fusion` | Move | south | `animate_character mode=v3` | 6 | false | 6 | `ab34a6cc-0910-42b6-8073-66f65ac5c77f` | 09-07 09:37 | 09-07 09:40 | `a heavy clanking walk, the whole machine compressing down on each landing and holding there for a beat, its joints lagging a half step behind the body` |
+| `robot_a` | Death | south | `animate_character mode=v3` | 8 | true | 9 | `fa3c68ee-61bb-46d0-bae5-47baba8ff945` | 09-07 09:36 | 09-07 09:40 | `power draining away, the machine sagging and settling down onto the ground, its joints buckling as it comes to a stop, no explosion` |
+| `robot_a` | Idle | east | `animate_character mode=v3` | 4 | true | 5 | `500682b1-74fe-4279-9f52-9f469e28eedb` | 09-07 09:29 | 09-07 09:40 | `idling in place with its weight settled, the whole machine rising and falling by about one twentieth of its own height, its exhaust vents puffing in a steady rhythm` |
+| `robot_a` | Idle | north | `animate_character mode=v3` | 4 | true | 5 | `500682b1-74fe-4279-9f52-9f469e28eedb` | 09-07 09:29 | 09-07 09:40 | `idling in place with its weight settled, the whole machine rising and falling by about one twentieth of its own height, its exhaust vents puffing in a steady rhythm` |
+| `robot_a` | Idle | south | `animate_character mode=v3` | 4 | true | 5 | `500682b1-74fe-4279-9f52-9f469e28eedb` | 09-07 09:29 | 09-07 09:40 | `idling in place with its weight settled, the whole machine rising and falling by about one twentieth of its own height, its exhaust vents puffing in a steady rhythm` |
+| `robot_a` | Idle | west | `animate_character mode=v3` | 4 | true | 5 | `500682b1-74fe-4279-9f52-9f469e28eedb` | 09-07 09:29 | 09-07 09:40 | `idling in place with its weight settled, the whole machine rising and falling by about one twentieth of its own height, its exhaust vents puffing in a steady rhythm` |
+| `robot_a` | Move | east | `animate_character mode=v3` | 6 | false | 6 | `7d282139-0390-41c4-a1d9-788d4e3f08ac` | 09-07 09:32 | 09-07 09:40 | `walking forward, legs crossing past each other, the upper body sinking down with every footfall and holding for a beat on the frame where the foot lands` |
+| `robot_a` | Move | north | `animate_character mode=v3` | 6 | false | 6 | `7d282139-0390-41c4-a1d9-788d4e3f08ac` | 09-07 09:32 | 09-07 09:40 | `walking forward, legs crossing past each other, the upper body sinking down with every footfall and holding for a beat on the frame where the foot lands` |
+| `robot_a` | Move | south | `animate_character mode=v3` | 6 | false | 6 | `7d282139-0390-41c4-a1d9-788d4e3f08ac` | 09-07 09:32 | 09-07 09:40 | `walking forward, legs crossing past each other, the upper body sinking down with every footfall and holding for a beat on the frame where the foot lands` |
+| `robot_a` | Move | west | `animate_character mode=v3` | 6 | false | 6 | `7d282139-0390-41c4-a1d9-788d4e3f08ac` | 09-07 09:32 | 09-07 09:40 | `walking forward, legs crossing past each other, the upper body sinking down with every footfall and holding for a beat on the frame where the foot lands` |
+| `robot_a` | TagIn | south | `animate_character mode=v3` | 8 | true | 9 | `2a7f698f-de22-48bf-a7bf-00c82e396096` | 09-07 09:36 | 09-07 09:40 | `already in its firing stance as it arrives, the gun barrel levelled, the whole body shoved backwards by recoil and then settling forward again into a ready pose` |
+| `robot_b` | Death | south | `animate_character mode=v3` | 8 | true | 9 | `5a0d217a-13fc-47fb-be8c-e1e500a902e3` | 09-07 09:37 | 09-07 09:41 | `power draining away, the machine sagging and settling down onto the ground with the hatches over its back launch tubes left standing open, no explosion` |
+| `robot_b` | Idle | east | `animate_character mode=v3` | 4 | true | 5 | `4e1691eb-5466-4bf1-bb26-e591402160ff` | 09-07 09:29 | 09-07 09:41 | `idling in place with its weight settled, the whole machine rising and falling by about one twentieth of its own height, the hatches over its back launch tubes easing open and shut` |
+| `robot_b` | Idle | north | `animate_character mode=v3` | 4 | true | 5 | `4e1691eb-5466-4bf1-bb26-e591402160ff` | 09-07 09:29 | 09-07 09:41 | `idling in place with its weight settled, the whole machine rising and falling by about one twentieth of its own height, the hatches over its back launch tubes easing open and shut` |
+| `robot_b` | Idle | south | `animate_character mode=v3` | 4 | true | 5 | `4e1691eb-5466-4bf1-bb26-e591402160ff` | 09-07 09:29 | 09-07 09:41 | `idling in place with its weight settled, the whole machine rising and falling by about one twentieth of its own height, the hatches over its back launch tubes easing open and shut` |
+| `robot_b` | Idle | west | `animate_character mode=v3` | 4 | true | 5 | `4e1691eb-5466-4bf1-bb26-e591402160ff` | 09-07 09:29 | 09-07 09:41 | `idling in place with its weight settled, the whole machine rising and falling by about one twentieth of its own height, the hatches over its back launch tubes easing open and shut` |
+| `robot_b` | Move | east | `animate_character mode=v3` | 6 | false | 6 | `45675e71-fd29-4941-a9cd-e618da4da796` | 09-07 09:34 | 09-07 09:41 | `walking forward, legs crossing past each other, the heavy upper body dropping further with every footfall than a lighter frame would and holding for a beat on the frame where the foot lands` |
+| `robot_b` | Move | north | `animate_character mode=v3` | 6 | false | 6 | `45675e71-fd29-4941-a9cd-e618da4da796` | 09-07 09:34 | 09-07 09:41 | `walking forward, legs crossing past each other, the heavy upper body dropping further with every footfall than a lighter frame would and holding for a beat on the frame where the foot lands` |
+| `robot_b` | Move | south | `animate_character mode=v3` | 6 | false | 6 | `45675e71-fd29-4941-a9cd-e618da4da796` | 09-07 09:34 | 09-07 09:41 | `walking forward, legs crossing past each other, the heavy upper body dropping further with every footfall than a lighter frame would and holding for a beat on the frame where the foot lands` |
+| `robot_b` | Move | west | `animate_character mode=v3` | 6 | false | 6 | `45675e71-fd29-4941-a9cd-e618da4da796` | 09-07 09:34 | 09-07 09:41 | `walking forward, legs crossing past each other, the heavy upper body dropping further with every footfall than a lighter frame would and holding for a beat on the frame where the foot lands` |
+| `robot_b` | TagIn | south | `animate_character mode=v3` | 8 | true | 9 | `7c7f0a1a-e0e4-4064-b963-54cdb105fe73` | 09-07 09:37 | 09-07 09:41 | `arriving with the hatches over its back launch tubes already thrown open, the frame pressed down towards the ground by the launch and then rising back into a ready pose` |
+
+**캐릭터 id (8방향 회전 단계).** `robot_a` `1b1117e3-1807-471e-9f72-b1c8b3d6334c` · `robot_b` `888deba4-d749-40f5-a158-224f20f643f6` · `fusion` `8ec7231b-e054-4a74-b252-ac158f5cd01b`. 셋 다 `create_character mode=v3` · 256 × 256 · `view="high top-down"`이며 참조는 각 개체의 승인본이다.
+
+---
+
+## 2차 재생성 여덟 벌 (2026-09-07 11:43 · 사용자 판정)
+
+**위 표는 1차 기준이다.** 그날 오전에 사용자가 GIF를 보고 여덟 벌을 다시 뽑게 했고,
+로봇 B의 대기 서면은 지워 동면 미러로 바꿨다 — 그래서 리포는 **26벌**이다.
+받은 자리와 md5는 아트 로그가 갖는다.
+
+| 대상 | 방향 | 도구 · 인자 | 그룹 job | 왜 다시 뽑았나 |
+|---|---|---|---|---|
+| `robot_a_Move` | south·north·east·west | `animate_character` v3 · `frame_count=6` · `keep_first_frame=false` | `5414e959-922e-4bab-87f3-65f52b87cbae` | 다리 교차가 안 됐다 |
+| `robot_b_Idle` | east | `animate_character` v3 · `frame_count=4` · `keep_first_frame=true` | `b9115ccf-27bb-4074-b6ea-9d138cfbe480` | 판이 벌어져 보였다 |
+| `fusion_Idle` | south·north·east | `animate_character` v3 · `frame_count=4` · `keep_first_frame=true` | `2192a5d3-a32f-4183-aaaa-12e1d4d77512` | 김이 연기로 보였다 |
+
+### 2차 `action_description` 전문
+
+**`robot_a_Move`**
+
+```
+a full walking cycle: the left leg swings forward and plants while the right leg pushes off behind, then the two swap over, so the legs are clearly in different positions in every frame. The arms swing in opposition to the legs, the left arm forward when the right leg is forward. The upper body sinks down on each footfall and holds there for a beat on the frame where the foot lands.
+```
+
+**`robot_b_Idle`**
+
+```
+idling in place, the whole frame rising and falling as one rigid piece by about one twentieth of its own height. Its shoulders and back plating stay locked to the body and move only with it, every panel stays shut, and the highlights on its plating stay steady.
+```
+
+**`fusion_Idle`**
+
+```
+idling with its weight settled, the shoulders rising and falling by about one twentieth of the machine's own height. Its plating is matte and dry, and the air all around the machine stays completely clear and empty.
+```
+
+⚠️ **`fusion_Idle`의 「김」은 도구가 지어낸 것이 아니다.** 15-3 5-2의 「배기구에서 김이 샌다」를 옮긴
+결과였고 사용자가 빼라고 했다. **지금 문서와 자산이 어긋나 있다** — `260907_V02` 판정 요청으로 올린다.
+
+⚠️ **`robot_a_Move` 3차는 폐기됐다** — 템플릿 모드가 로봇을 지키지 못했다. 2차가 현행이다.
