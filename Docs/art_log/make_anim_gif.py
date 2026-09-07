@@ -7,8 +7,17 @@
 프레임을 나란히 놓아도 눈이 못 잡는다. 움직여야 보인다 — 그래서 GIF 다.
 
 내는 것 둘:
-  - 벌마다 하나  `Docs/art_log/preview/NN_<clip>_<dir>.gif`   (`_anim_sheet.png` 와 같은 순서)
-  - 대기 한 판   `Docs/art_log/preview/_idle_all.gif`         (대기 전부를 격자에 놓고 동시에 돌린다)
+  - 벌마다 하나  `preview/NN_<clip>_<dir>.gif`   (`_anim_sheet.png` 와 같은 순서)
+  - 대기 한 판   `preview/_idle_all.gif`         (대기 전부를 격자에 놓고 동시에 돌린다)
+
+**대기는 되감기(핑퐁)로 낸다 — 2026-09-07 사용자 확정.**
+프레임을 0·1·2·3·4·3·2·1 로 되짚어 온다. 그냥 반복하면 마지막에서 첫 프레임으로 튀는 자리가
+어색했다. 양 끝은 겹치지 않는다 — 겹치면 그 프레임만 두 배로 머물러 다른 종류의 멈칫이 생긴다.
+
+⚠️ **되감기는 프레임을 파일로 굽는 것이 아니라 재생 방식이다.** 구우면 대기가 5장에서 8장이 되어
+15「동작의 크기」의 「대기 5」 규격과 `UnitAnimWiringTests` 가 깨진다. **리포의 프레임은 5장 그대로**이며
+`SpriteFrameAnimator` 가 그 순서로 재생해야 한다 — 그 코드는 구현-문서·코드 세션 소유라 여기서
+넣지 않았다. 이 GIF 는 **확정된 재생 방식을 그대로 보여 주는 것**이다.
 
 **대기에는 빨간 가로 기준선을 긋는다.** `frame_000` 실루엣의 윗변 자리이며 프레임이 바뀌어도
 움직이지 않는다. 어깨가 그 선에서 떨어졌다 붙었다 하는 폭이 진폭이다.
@@ -33,6 +42,9 @@ CANVAS = 256        # 전투 스프라이트 캔버스
 
 # 구현 가정 — 260907_V01 ❓2-2. 확정 아님.
 FPS = {"Idle": 6, "Move": 8, "Death": 8, "TagIn": 8}
+
+# 되감기로 재생하는 상태 — 2026-09-07 사용자 확정. 코드도 여기에 맞춰야 한다.
+PINGPONG_STATES = {"Idle"}
 
 
 def clips():
@@ -99,6 +111,13 @@ def compose(path, frames, cell, guide_top):
     return out
 
 
+def pingpong(frames):
+    """0·1·2·3·4·3·2·1 — 양 끝은 겹치지 않는다. 겹치면 그 프레임만 두 배로 머문다."""
+    if len(frames) < 3:
+        return list(frames)
+    return list(frames) + list(reversed(frames[1:-1]))
+
+
 def save_gif(path, frames, ms):
     frames[0].save(path, save_all=True, append_images=frames[1:],
                    duration=ms, loop=0, optimize=True)
@@ -123,18 +142,21 @@ def main():
         base_top = top_edge(Image.open(os.path.join(path, frames[0])).convert("RGBA"))
         cells = compose(path, frames, cell, base_top if is_idle else None)
 
+        if state in PINGPONG_STATES:
+            cells = pingpong(cells)
+
         ms = int(round(1000.0 / FPS.get(state, 8)))
         name = "%02d_%s_%s.gif" % (i, clip, direction)
         save_gif(os.path.join(OUT_DIR, name), cells, ms)
         total += os.path.getsize(os.path.join(OUT_DIR, name))
         print("  %-34s %df  %dms  %d bytes"
-              % (name, len(frames), ms, os.path.getsize(os.path.join(OUT_DIR, name))))
+              % (name, len(cells), ms, os.path.getsize(os.path.join(OUT_DIR, name))))
 
         if is_idle:
             idle_cells.append(("%s/%s" % (clip, direction), cells))
 
     # ---- 대기 한 판 ----
-    # 대기는 전부 5프레임이라 그대로 겹쳐 돌릴 수 있다.
+    # 대기는 전부 5프레임이고 위에서 같은 되감기를 거쳤으므로 그대로 겹쳐 돌릴 수 있다.
     if idle_cells:
         n = len(idle_cells)
         cols = 4
@@ -160,11 +182,15 @@ def main():
                 d.text((x0 + 2, y0 + cell + 2), label, fill=(228, 226, 214))
             sheet_frames.append(page)
 
+        ms = int(round(1000.0 / FPS["Idle"]))
+
         p = os.path.join(OUT_DIR, "_idle_all.gif")
-        save_gif(p, sheet_frames, int(round(1000.0 / FPS["Idle"])))
+        save_gif(p, sheet_frames, ms)
         print("  %-34s %df  %dx%d  %d bytes"
               % ("_idle_all.gif", length, W, H, os.path.getsize(p)))
         total += os.path.getsize(p)
+
+
 
     print("벌 %d개 · 합계 %d bytes · 셀 %d" % (len(found), total, cell))
 
