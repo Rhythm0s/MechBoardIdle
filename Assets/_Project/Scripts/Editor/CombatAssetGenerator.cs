@@ -58,6 +58,11 @@ namespace MBI.Editor
             // 애니메이션 목표 초의 소스. 값을 덮어쓰지 않고 읽기만 한다.
             CombatTuning tuning = AssetDatabase.LoadAssetAtPath<CombatTuning>(TuningPath);
 
+            // ⚠️ 값은 안 덮어쓰되 **파일에는 적히게 한다.** 새 필드는 클래스 초기값으로만 살아 있고
+            // 에셋 파일에는 안 들어가는데, 그러면 「값이 어디에 사는가」에 답이 코드가 된다 —
+            // 지침 §3 「수치 하드코딩 금지」가 막으려던 바로 그 자리다. 더티만 찍어 직렬화를 부른다.
+            if (tuning != null) EditorUtility.SetDirty(tuning);
+
             float capA = json.Param("capA");             // 6 소비 상한
             float enh = json.Param("enh");               // 1.45 강화 마운트계수
             float moduleMult = json.Param("moduleMult"); // 1.0 모듈배율
