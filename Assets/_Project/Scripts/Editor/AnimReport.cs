@@ -63,8 +63,8 @@ namespace MBI.Editor
                 return;
             }
 
-            sb.AppendLine("| 벌 | 프레임 | 캔버스 | 실루엣 높이(평균) | 진폭 px | **진폭 %** | 첫 프레임 md5 |");
-            sb.AppendLine("|---|---|---|---|---|---|---|");
+            sb.AppendLine("| 벌 | 프레임 | 캔버스 | 실루엣 높이(평균) | 여백 T/B(최소) | 진폭 px | **진폭 %** | 잴 수 있나 | 첫 프레임 md5 |");
+            sb.AppendLine("|---|---|---|---|---|---|---|---|---|");
 
             var dirs = new List<string>(Directory.GetDirectories(root));
             dirs.Sort(StringComparer.Ordinal);
@@ -85,6 +85,8 @@ namespace MBI.Editor
                     int topMin = int.MaxValue, topMax = int.MinValue;
                     long heightSum = 0;
                     int counted = 0, canvasW = 0, canvasH = 0;
+                    int marginTopMin = int.MaxValue, marginBottomMin = int.MaxValue;
+                    bool clipped = false;
 
                     foreach (string f in files)
                     {
@@ -98,6 +100,13 @@ namespace MBI.Editor
                         topMax = Math.Max(topMax, minY);
                         heightSum += maxY - minY + 1;
                         counted++;
+
+                        // 캔버스에 닿으면 그 프레임의 실루엣은 잘려 있다 — bbox가 더 못 움직인다.
+                        int mTop = minY;
+                        int mBottom = m.height - 1 - maxY;
+                        marginTopMin = Math.Min(marginTopMin, mTop);
+                        marginBottomMin = Math.Min(marginBottomMin, mBottom);
+                        if (mTop == 0 || mBottom == 0) clipped = true;
                     }
 
                     if (counted == 0) continue;
@@ -108,19 +117,27 @@ namespace MBI.Editor
                         ? (100.0 * ampPx / avgH).ToString("0.0", CultureInfo.InvariantCulture) + "%"
                         : "—";
 
+                    string measurable = clipped ? "**아니다 — 잘림**" : "예";
+
                     sb.AppendLine("| `" + clipName + "/" + Path.GetFileName(dirDir) + "` | " + files.Length
                         + " | " + canvasW + "×" + canvasH
                         + " | " + avgH.ToString("0.0", CultureInfo.InvariantCulture)
-                        + " | " + ampPx + " | **" + ampPct + "** | `" + Md5(files[0]) + "` |");
+                        + " | " + marginTopMin + " / " + marginBottomMin
+                        + " | " + ampPx + " | **" + ampPct + "** | " + measurable
+                        + " | `" + Md5(files[0]) + "` |");
                     rows++;
                 }
             }
 
-            if (rows == 0) sb.AppendLine("| — | — | — | — | — | — | — |");
+            if (rows == 0) sb.AppendLine("| — | — | — | — | — | — | — | — | — |");
             sb.AppendLine();
             sb.AppendLine("**" + rows + "벌.** 대기 진폭 규격은 256 이상에서 실루엣 높이의 **4~6%**다 (캐릭터 아트 요청 문서(15)「동작의 크기」).");
             sb.AppendLine();
             sb.AppendLine("> 이동·사망·태그 행의 진폭은 규격이 없다 — 대기만 4~6%로 판정한다. 나머지는 참고로 둔다.");
+            sb.AppendLine();
+            sb.AppendLine("⚠️ **「잴 수 있나」가 「아니다 — 잘림」이면 그 행의 진폭은 판정 근거가 아니다.** 실루엣이 캔버스 가장자리에 닿아 있으면 bbox의 윗변이 더 올라갈 자리가 없어, 몸이 실제로 오르내려도 숫자가 안 움직인다. 그런 행의 진폭은 **하한값**이다 — 「이만큼은 움직였다」이지 「이만큼만 움직였다」가 아니다.");
+            sb.AppendLine();
+            sb.AppendLine("> 여백이 0인 자산에서는 4~6% 진폭 자체가 캔버스 안에 들어가지 않는다. 진폭을 규격대로 얻으려면 스틸에 여백이 먼저 있어야 한다.");
 
             Write(sb, suffix, stamp);
         }

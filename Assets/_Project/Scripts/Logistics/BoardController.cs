@@ -583,7 +583,19 @@ namespace MBI.Logistics
         private const float ZoneDashPx = 16f;       // 그리는 길이
         private const float ZoneGapPx = 16f;        // 띄우는 길이
         private const float ZoneLabelInsetPx = 8f;  // 이름표를 구역 왼윗모서리 안쪽으로 들이는 양
-        private const int ZoneLabelFontPx = 24;     // 이름표 글자 높이
+        // 이름표 글자 높이 — **아트 픽셀**이다 (2026-09-07 · `260906_W05` 2-2).
+        //
+        // 구 값 24는 **화면 픽셀** 기준이었다. 단위를 아트 픽셀로 바꾸면 같은 24가
+        // ×1.00에서 6픽셀이 되어 한글이 안 읽힌다 — 씬 카메라 시야가 8이고 칸이 1월드라
+        // 한 칸이 화면에서 세로 픽셀÷16, 1440×810 기준 50.6픽셀뿐이기 때문이다.
+        //   24 아트 픽셀 × (50.6 ÷ 192) = 6.3 화면 픽셀
+        // W05 2-2가 「안 읽히면 아트 픽셀 값을 올리고 역기입한다」로 조건을 걸어 둔 자리다.
+        //
+        // 96은 **격자 반 칸**(192의 절반)이다. 1440×810에서 25.3 화면 픽셀이 되어
+        // 구 값의 겉보기(24)를 그대로 유지하면서 확대할 때 보드와 함께 커진다.
+        // ⚠️ 읽히는지의 최종 판정은 화면에서 사람이 한다 — 배치모드는 이 자리를 못 본다.
+        private const int ZoneLabelFontPx = 96;
+
 
         /// <summary>미색 · 불투명도 40% — 밑의 타일을 가리지 않는다(배치 규격).</summary>
         private static readonly Color ZoneLineColor = new Color(0.96f, 0.94f, 0.86f, 0.40f);
