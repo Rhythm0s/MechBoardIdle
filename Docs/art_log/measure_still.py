@@ -88,3 +88,31 @@ def main():
 
 if __name__ == "__main__":
     sys.exit(main())
+
+
+# ── 옆모습 잣대 ────────────────────────────────────────────────────────────
+# 옆모습은 두 다리가 겹쳐 좌우로 못 가른다 — 「좌우 아랫변 차의 부호 반전」(규칙 15)이 성립하지 않는다.
+# 그 자리에서 쓰는 것이 **발 구간 가로폭**이다.
+#
+#   발 구간 = 그 프레임 실루엣의 아랫변에서 위로 BAND(24) px
+#   가로폭  = 그 띠 안에서 알파 문턱 16 초과인 픽셀의 (가장 오른쪽 − 가장 왼쪽 + 1)
+#   벌의 값 = 칸별 가로폭의 목록과 (최대 − 최소)
+#
+# ⚠️ **이것은 참고값이고 판정 근거가 아니다.** 규격에 없는 잣대이며, 벌어졌다 모이는 폭이
+# 걸음으로 읽히는지는 사람이 화면을 보고 정한다.
+BAND = 24
+
+
+def foot_span(path, band=BAND):
+    """한 프레임의 발 구간 가로폭."""
+    m, w, h = mask(path)
+    x0, x1, y0, y1 = box(m, w, h)
+    xs = [x for y in range(max(0, y1 - band + 1), h) for x in range(w) if m[y][x]]
+    return (max(xs) - min(xs) + 1) if xs else 0
+
+
+def foot_span_clip(folder, band=BAND):
+    """벌 하나의 칸별 가로폭 목록."""
+    names = sorted(f for f in os.listdir(folder)
+                   if f.startswith("frame_") and f.endswith(".png"))
+    return [foot_span(os.path.join(folder, n), band) for n in names]
