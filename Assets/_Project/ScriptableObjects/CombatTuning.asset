@@ -14,9 +14,21 @@ MonoBehaviour:
   m_EditorClassIdentifier: MBI.Data::MBI.Data.CombatTuning
   robotHpTbd: 1000
   robotAttackRangeTbd: 100
+  robotMoveSpeedTbd: 4.5
   enemyMoveSpeedTbd: 1.5
   enemyAttackRangeTbd: 1
   enemyAttackIntervalTbd: 1
   spawnCadenceTbd: 0.15
   arenaRadiusTbd: 6
-  logisticsOutputMock: 145
+  manualOverrideGraceTbd: 2
+  autoRestartDelayTbd: 1.5
+  animCellSeconds: 0.0625
+  animIdleSeconds: 1
+  animMoveSeconds: 1
+  animDeathSeconds: 2
+  animTagInSeconds: 0.75
+  multiShotCountTbd: 1
+  aoeRadiusTbd: 1.5
+  aoeSplashFactorTbd: 0
+  flickMinPixelsTbd: 40
+  flickMaxSecondsTbd: 0.3
