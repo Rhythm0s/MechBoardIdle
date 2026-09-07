@@ -163,7 +163,7 @@ namespace MBI.Editor
         /// <b>장수로 조건을 건다.</b> 사본이 아직 안 지워져 여섯 장이면 지금까지대로 돌아
         /// 화면이 안 바뀐다 — 파일 삭제와 이 코드의 순서를 서로 기다리지 않아도 된다.
         /// </summary>
-        private static int[] CellOrder(string robot, UnitAnimState state, UnitAnimDirection dir, int frameCount)
+        internal static int[] CellOrder(string robot, UnitAnimState state, UnitAnimDirection dir, int frameCount)
         {
             bool walkCycleFive = robot == "robot_a"
                                  && state == UnitAnimState.Move

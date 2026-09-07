@@ -87,11 +87,10 @@ MonoBehaviour:
     - {fileID: 21300000, guid: 5f1aa6373dc4f0744b29c95bf1991f47, type: 3}
     - {fileID: 21300000, guid: e249d397fde69a640b00cddb12219590, type: 3}
     - {fileID: 21300000, guid: cb8ccafa789fec34db09060589fc2802, type: 3}
-    - {fileID: 21300000, guid: 8bc88fa5ca3e86d49be0a54ac2a90689, type: 3}
     targetSeconds: 1
     pingPong: 0
     dwellCells: 
-    cellOrder: 
+    cellOrder: 000000000100000002000000030000000400000002000000
   - state: 1
     direction: 1
     frames:
@@ -100,11 +99,10 @@ MonoBehaviour:
     - {fileID: 21300000, guid: 1a369f100fe510c46869e0ac12cae848, type: 3}
     - {fileID: 21300000, guid: c4fd1fe65bfcca443a5741705ed84da9, type: 3}
     - {fileID: 21300000, guid: 33991a308dd3f3a41b59fa8a4bf13b2d, type: 3}
-    - {fileID: 21300000, guid: 448d8b084081a1e43b90c60c52c4c512, type: 3}
     targetSeconds: 1
     pingPong: 0
     dwellCells: 
-    cellOrder: 
+    cellOrder: 000000000100000002000000030000000400000002000000
   - state: 1
     direction: 2
     frames:

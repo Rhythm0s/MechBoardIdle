@@ -6,6 +6,7 @@ using System.Security.Cryptography;
 using System.Text;
 using MBI.Core;
 using MBI.Core.Anim;
+using MBI.Data;
 using UnityEditor;
 using UnityEngine;
 
@@ -126,7 +127,7 @@ namespace MBI.Editor
                     string measurable = clipped ? "**아니다 — 잘림**" : "예";
 
                     string label = clipName + "/" + Path.GetFileName(dirDir);
-                    AnimSchedule sch = ScheduleFor(clipName, files.Length);
+                    AnimSchedule sch = ScheduleFor(clipName, Path.GetFileName(dirDir), files.Length);
                     if (sch.DeletedCells > 0)
                         warnings.Add("- `" + label + "` — **" + sch.DeletedCells + "칸을 지웠다.** 화면에 한 번도 안 나오는 그림: "
                                      + string.Join(", ", Array.ConvertAll(sch.UnusedFrames, f => "frame_" + f.ToString("000"))));
@@ -184,10 +185,19 @@ namespace MBI.Editor
         /// SO 대신 <c>CombatTuning</c>의 확정값(`260907_W01` 4-5)을 그대로 쓴다.
         /// 폴더 이름이 <c>{robot}_{State}</c> 꼴이라 밑줄 뒤가 상태다.
         /// </summary>
-        private static AnimSchedule ScheduleFor(string clipName, int frameCount)
+        /// <summary>
+        /// 이 벌이 화면에서 실제로 도는 칸 목록을 낸다.
+        ///
+        /// <b>칸 목록이 지정된 벌은 그림 수와 기본 칸이 다르다</b>(`260907_W03` 2-3) — 이동 남·북은
+        /// 그림 다섯 장으로 여섯 칸을 돈다. 폴더의 파일 수만 보면 기본 칸이 다섯으로 찍혀
+        /// <b>보고서가 화면과 다른 말을 하게 된다.</b> 규칙은 생성기와 같은 것을 부른다 —
+        /// 두 곳에 적으면 「그 벌이 몇 칸인가」에 답이 둘이 된다.
+        /// </summary>
+        private static AnimSchedule ScheduleFor(string clipName, string dirName, int frameCount)
         {
             int us = clipName.LastIndexOf('_');
             string state = us >= 0 ? clipName.Substring(us + 1) : clipName;
+            string robot = us >= 0 ? clipName.Substring(0, us) : clipName;
 
             float seconds;
             bool pingPong = false;
@@ -199,7 +209,12 @@ namespace MBI.Editor
                 case "TagIn": seconds = 0.75f; break;
                 default:      seconds = 1.00f; break;
             }
-            return AnimSchedule.Build(frameCount, seconds, pingPong);
+            int[] order = null;
+            if (Enum.TryParse(state, out UnitAnimState st) &&
+                Enum.TryParse(dirName, true, out UnitAnimDirection dir))
+                order = CombatAssetGenerator.CellOrder(robot, st, dir, frameCount);
+
+            return AnimSchedule.Build(frameCount, seconds, pingPong, null, order);
         }
 
         private static void Write(StringBuilder sb, string suffix, string stamp)
