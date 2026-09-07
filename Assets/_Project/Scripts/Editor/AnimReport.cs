@@ -48,7 +48,8 @@ namespace MBI.Editor
             sb.AppendLine("# 애니메이션 측정 보고서");
             sb.AppendLine();
             sb.AppendLine("- 생성 시각: " + stamp);
-            sb.AppendLine("- 도구 커밋: `" + HeadShort() + "`");
+            sb.AppendLine("- 도구 커밋: `" + HeadShort()
+                          + DirtyMark("Assets/_Project/Scripts/Editor/AnimReport.cs") + "`");
             sb.AppendLine("- **잰 자리: `" + root + "`** (`-animRoot`로 바꾼다)");
             sb.AppendLine("- **진폭 측정법: 프레임마다 알파 bbox의 윗변을 잡아, 그 윗변이 프레임 사이에 오르내린 최댓값을 프레임 평균 실루엣 높이로 나눈다.** 어깨가 오르내리는 폭이라 윗변으로 잰다");
             sb.AppendLine("- 알파 문턱: 16 초과를 「있다」로 본다 · 캔버스 그대로만 잰다(자르거나 늘이지 않는다)");
@@ -150,6 +151,25 @@ namespace MBI.Editor
             string path = Path.Combine(outDir, name);
             File.WriteAllText(path, sb.ToString(), new UTF8Encoding(false));
             Debug.Log("[MBI] 애니메이션 측정 보고서: " + path + " (" + stamp + ")");
+        }
+
+
+        /// <summary>
+        /// 도구 소스가 인덱스보다 새로우면 「+dirty」를 붙인다.
+        /// 도구를 고치고 커밋 전에 보고서를 돌리면 머리의 해시가 가리키는 커밋에는 그 도구가 없다 —
+        /// 2026-09-06과 2026-09-07에 연달아 그렇게 나왔다. 해시만으로는 그 사실이 안 보인다.
+        /// git을 실행하지 않고 파일 시각만 본다(배치모드에서 프로세스를 띄우지 않는다).
+        /// </summary>
+        private static string DirtyMark(string toolSourceRelPath)
+        {
+            try
+            {
+                string index = Path.Combine(Directory.GetCurrentDirectory(), ".git", "index");
+                string tool = Path.Combine(Directory.GetCurrentDirectory(), toolSourceRelPath);
+                if (!File.Exists(index) || !File.Exists(tool)) return "";
+                return File.GetLastWriteTimeUtc(tool) > File.GetLastWriteTimeUtc(index) ? "+dirty" : "";
+            }
+            catch { return ""; }
         }
 
         private static string HeadShort()

@@ -63,7 +63,7 @@ namespace MBI.Editor
             sb.AppendLine("# 실루엣 측정 보고서");
             sb.AppendLine();
             sb.AppendLine($"- 생성 시각: {stamp}");
-            sb.AppendLine($"- 도구 커밋: `{HeadCommit()}`");
+            sb.AppendLine($"- 도구 커밋: `{HeadCommit()}{DirtyMark(SelfSourcePath)}`");
             // ⚠️ **무엇을 쟀는지가 숫자보다 먼저다.** 2026-09-06에 이 줄이 없어서
             // 09-04 구판을 잰 값이 승인본의 값으로 읽혔다 — 같은 자산 이름이 두 그림을 가리키고 있었다.
             sb.AppendLine($"- **잰 자리: `{root}`** (`-artRoot`로 바꾼다)");
@@ -226,6 +226,27 @@ namespace MBI.Editor
         /// 지금 커밋의 짧은 해시. 보고서가 어느 코드로 나온 숫자인지를 말해야 근거가 된다.
         /// git을 실행하지 않고 `.git`을 직접 읽는다 — 배치모드에서 프로세스를 띄우지 않기 위해서다.
         /// </summary>
+
+        /// <summary>
+        /// 도구 소스가 인덱스보다 새로우면 「+dirty」를 붙인다.
+        /// 도구를 고치고 커밋 전에 보고서를 돌리면 머리의 해시가 가리키는 커밋에는 그 도구가 없다 —
+        /// 2026-09-06과 2026-09-07에 연달아 그렇게 나왔다. 해시만으로는 그 사실이 안 보인다.
+        /// git을 실행하지 않고 파일 시각만 본다(배치모드에서 프로세스를 띄우지 않는다).
+        /// </summary>
+        private const string SelfSourcePath = "Assets/_Project/Scripts/Editor/OverlapReport.cs";
+
+        private static string DirtyMark(string toolSourceRelPath)
+        {
+            try
+            {
+                string index = Path.Combine(Directory.GetCurrentDirectory(), ".git", "index");
+                string tool = Path.Combine(Directory.GetCurrentDirectory(), toolSourceRelPath);
+                if (!File.Exists(index) || !File.Exists(tool)) return "";
+                return File.GetLastWriteTimeUtc(tool) > File.GetLastWriteTimeUtc(index) ? "+dirty" : "";
+            }
+            catch { return ""; }
+        }
+
         private static string HeadCommit()
         {
             try
