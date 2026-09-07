@@ -43,18 +43,41 @@ GROUPS = [
     ("robot_a_Idle", "500682b1-74fe-4279-9f52-9f469e28eedb", ["south", "north", "east", "west"], 4, True, 16, "1차 · 통과",
      "idling in place with its weight settled, the whole machine rising and falling by about one "
      "twentieth of its own height, its exhaust vents puffing in a steady rhythm"),
-    ("robot_a_Move", "5414e959-922e-4bab-87f3-65f52b87cbae", ["south", "north", "east", "west"], 6, False, 24, "**2차**",
-     "a full walking cycle: the left leg swings forward and plants while the right leg pushes off "
-     "behind, then the two swap over, so the legs are clearly in different positions in every frame. "
-     "The arms swing in opposition to the legs, the left arm forward when the right leg is forward. "
-     "The upper body sinks down on each footfall and holds there for a beat on the frame where the "
-     "foot lands."),
+    ("robot_a_Move", "074c016e-01c8-4ec5-940c-151a12a056b7", ["south"], 6, False, 4,
+     "**4차 · 포즈 경로 · v3 보간 · f2 중복** (통과)",
+     "포즈 경로 — 승인본의 다리 구간만 `inpaint` 로 다시 그려 걷는 자세 두 장(`pose_L2` · 대칭축으로 되접은 "
+     "`pose_R_mirror`)을 만들고, 그 둘을 `custom_start_frame_url`·`end_frame_url` 로 준 v3 보간이다. "
+     "보간이 낸 그림은 다섯 장이고 규격이 여섯 칸이라 **가운데 그림(발이 모이는 칸) `f2` 를 여섯째 칸에 한 번 더 쓴다** "
+     "— `f0·f1·f2·f3·f4·f2`. 여섯째 **그림**은 만들지 않는다(V03 ❓3-3 판정 전). 보간에 준 동작 묘사: "
+     "walking forward, the two legs swinging past each other so the leg that was forward goes back and the "
+     "leg that was back comes forward, the body staying upright"),
+    ("robot_a_Move", "bcc4aac1-466b-49c2-82e9-432b9ceb3da2", ["north"], 6, False, 4,
+     "**4차 · 포즈 경로 · v3 보간 · f2 중복** (통과)",
+     "남면과 같은 경로다 — 북면 회전본의 다리 구간을 `inpaint` 한 `north_L` 과 그것을 x=127 축으로 되접은 "
+     "`north_R` 을 보간의 두 끝으로 준다. 칸 배치도 같다(`f0·f1·f2·f3·f4·f2`). "
+     "walking, the two legs swinging past each other so the leg that was forward goes back and the leg "
+     "that was back comes forward, the body staying upright"),
+    ("robot_a_Move", "2dce895b-6fb9-4b38-ac22-2421ede1012c", ["east"], 6, False, 6,
+     "**5차 · v3 문안** (통과 · 되접기 판 반려 뒤)",
+     "walking in profile: the near leg and the far leg swing past each other, one foot planted while the "
+     "other swings through, AND BOTH ARMS SWING TOO - the arm on the same side as the forward leg swings "
+     "back while the other arm swings forward, the gun arm clearly moving with each step, the body staying upright"),
+    ("robot_a_Move", "2972bbe4-55b0-4979-bd1d-12b6e6d34bd2", ["west"], 6, False, 6,
+     "**5차 · v3 문안** (통과 · 되접기 판 반려 뒤)",
+     "동면과 같은 문안이며 **미러링을 쓰지 않고 서면을 따로 뽑았다** (사용자 확정 — 로봇 A 는 좌우 비대칭이다). "
+     "walking in profile: the near leg and the far leg swing past each other, one foot planted while the "
+     "other swings through, AND BOTH ARMS SWING TOO - the arm on the same side as the forward leg swings "
+     "back while the other arm swings forward, the gun arm clearly moving with each step, the body staying upright"),
     ("robot_a_Death", "fa3c68ee-61bb-46d0-bae5-47baba8ff945", ["south"], 8, True, 8, "1차",
      "power draining away, the machine sagging and settling down onto the ground, its joints buckling "
      "as it comes to a stop, no explosion"),
-    ("robot_a_TagIn", "2a7f698f-de22-48bf-a7bf-00c82e396096", ["south"], 8, True, 8, "1차",
-     "already in its firing stance as it arrives, the gun barrel levelled, the whole body shoved "
-     "backwards by recoil and then settling forward again into a ready pose"),
+    ("robot_a_TagIn", "9287a72c-a939-4eff-b5ed-0e51c9483abc", ["south"], 8, True, 8,
+     "**2차 · `260907_W02` 2-4 재생성본** (통과)",
+     "W02 2-4 표의 네 구간을 그대로 넣었다 — 첫 프레임부터 발사 자세 · 왼쪽으로 기움 · 오른쪽으로 되밀림 · 중립 수렴. "
+     "the machine is ALREADY IN ITS FIRING STANCE in the very first frame, gun barrel levelled and firing, "
+     "never neutral at the start; as it arrives it leans to the LEFT, the direction it is entering from the "
+     "right; then the recoil shoves the whole body back to the RIGHT so the lean swings the other way; in the "
+     "last frames it settles upright into a neutral ready pose"),
     ("robot_b_Idle", "4e1691eb-5466-4bf1-bb26-e591402160ff", ["south", "north"], 4, True, 16, "1차",
      "idling in place with its weight settled, the whole machine rising and falling by about one "
      "twentieth of its own height, the hatches over its back launch tubes easing open and shut"),
@@ -68,9 +91,14 @@ GROUPS = [
     ("robot_b_Death", "5a0d217a-13fc-47fb-be8c-e1e500a902e3", ["south"], 8, True, 8, "1차",
      "power draining away, the machine sagging and settling down onto the ground with the hatches over "
      "its back launch tubes left standing open, no explosion"),
-    ("robot_b_TagIn", "7c7f0a1a-e0e4-4064-b963-54cdb105fe73", ["south"], 8, True, 8, "1차",
-     "arriving with the hatches over its back launch tubes already thrown open, the frame pressed down "
-     "towards the ground by the launch and then rising back into a ready pose"),
+    ("robot_b_TagIn", "7f473271-115e-4413-9493-6e266e57ba0b", ["south"], 8, True, 8,
+     "**2차 · `260907_W02` 2-4 재생성본** (통과)",
+     "A 와 같은 네 구간이되 반동이 아래로 눌린다(15-2 5장). "
+     "the machine ARRIVES ALREADY LAUNCHING in the very first frame, its vertical launch tubes open and "
+     "drones leaving them, never neutral at the start; as it arrives it leans to the LEFT, the direction it "
+     "is entering from the right; then the recoil presses it DOWN and back to the RIGHT, the whole body "
+     "squatting as the lean swings the other way; in the last frames it rises and settles upright into a "
+     "neutral ready pose"),
     ("fusion_Idle", "2192a5d3-a32f-4183-aaaa-12e1d4d77512", ["south", "north", "east"], 4, True, 12, "**2차**",
      "idling with its weight settled, the shoulders rising and falling by about one twentieth of the "
      "machine's own height. Its plating is matte and dry, and the air all around the machine stays "
