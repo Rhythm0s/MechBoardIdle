@@ -113,8 +113,20 @@ GROUPS = [
     ("fusion_Idle", "823164a8-2f4f-4c2b-afc0-30581d57142a", ["east"], 4, True, 4,
      "**4차 · 끝 자세 보간** (통과)",
      "남면과 같은 방식이며 목표는 동면 회전본을 눌러 만든 `sink_east.png` 다."),
-    ("fusion_Move", "48832b0c-b01f-451c-84b0-febfef3c1c76", ["south", "north", "east"], 6, False, 18,
-     "**2차 · 새 승인본 앵커** (자세 미변화로 반려 — 판정 대기)",
+    ("fusion_Move", "a8a67ecf-54df-428a-8a10-e744aad58883", ["south"], 4, True, 4,
+     "**3차 · 규칙 15 · v3 보간 · 그림 5장 + 사본 1장** (합격 — 좌우 아랫변 차 −10 → +12 · 사본 삭제 대기)",
+     "규칙 15(자세 두 장을 손으로 만들어 보간에 준다 · `260907_W03` 2-1 · 번호는 15)로 다시 걸었다. "
+     "다리 구간 마스크 `x68 y150 122×102`(양팔 총열은 밖) · 되접기 축 **x=127.0 · 대칭도 98.9%** · "
+     "자세는 `candidates/fusion_pose/stride2_{L,R}.png` · 승인본은 건드리지 않았다. "
+     "**폴더에는 아직 사본 `frame_005` 가 있다** — 칸 목록 조건식이 합체까지 넓혀졌다는 말이 오기 전에는 지우지 않는다. "
+     "a heavy walk cycle: the forward leg swings back and the trailing leg swings forward past it, the feet "
+     "trading places, the arms swinging with them, the torso upright and dropping slightly on each footfall"),
+    ("fusion_Move", "bc9c684a-743b-43f1-8f07-77dc82c821cd", ["north"], 4, True, 4,
+     "**3차 · 규칙 15 · v3 보간 · 그림 5장 + 사본 1장** (합격 — 좌우 아랫변 차 −4 → +10 · 사본 삭제 대기)",
+     "남면과 같은 방식이며 마스크는 `x72 y140 116×100` · 되접기 축 **x=127.5 · 대칭도 99.3%** · "
+     "자세는 `candidates/fusion_pose/stride2_north_{L,R}.png` 다. 사본 `frame_005` 도 남면과 같은 이유로 남겨 둔다."),
+    ("fusion_Move", "48832b0c-b01f-451c-84b0-febfef3c1c76", ["east"], 6, False, 6,
+     "**2차 유지** (옆모습이라 좌우 아랫변 판정이 성립하지 않는다)",
      "walking forward with heavy clanking steps, the legs alternating so one foot stays planted while the "
      "other lifts and swings through, the whole frame pressing down on every footfall and the joints "
      "following a beat late, AND BOTH ARMS SWING with the steps, the gun barrels moving forward and back"),
