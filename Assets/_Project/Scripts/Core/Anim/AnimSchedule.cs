@@ -61,7 +61,12 @@ namespace MBI.Core.Anim
         /// <param name="targetSeconds">목표 초(4-5).</param>
         /// <param name="pingPong">왕복(대기)인가. 왕복은 복제에서 나머지를 쓰지 않고 삭제도 하지 않는다.</param>
         /// <param name="dwellCells">머무름 칸 번호(1부터). 착지처럼 한 칸 더 머무를 자리다. 없으면 null.</param>
-        public static AnimSchedule Build(int frameCount, float targetSeconds, bool pingPong, int[] dwellCells = null)
+        /// <param name="cellOrder">
+        /// 칸 목록을 손으로 준다(0부터 세는 그림 번호). 비면 <see cref="BaseList"/>가 만든다.
+        /// 왕복과 같이 주면 경고를 내고 <b>손으로 준 쪽을 쓴다</b> — 적어 둔 것이 더 구체적이다.
+        /// </param>
+        public static AnimSchedule Build(int frameCount, float targetSeconds, bool pingPong,
+                                         int[] dwellCells = null, int[] cellOrder = null)
         {
             var r = new AnimSchedule { UnusedFrames = Array.Empty<int>(), Warning = string.Empty };
             if (frameCount <= 0 || targetSeconds <= 0f)
@@ -71,7 +76,18 @@ namespace MBI.Core.Anim
                 return r;
             }
 
-            int[] baseCells = BaseList(frameCount, pingPong);
+            int[] baseCells;
+            if (cellOrder != null && cellOrder.Length > 0)
+            {
+                baseCells = SanitizeOrder(cellOrder, frameCount, ref r);
+                if (pingPong)
+                {
+                    r.Warning = "칸 목록과 왕복을 같이 지정했다 — 칸 목록을 쓴다. " +
+                                "왕복은 목록을 자동으로 펴는 것이라 둘이 겹치면 결과가 화면에서만 드러난다";
+                    pingPong = false;
+                }
+            }
+            else baseCells = BaseList(frameCount, pingPong);
             int n = baseCells.Length;
             int needed = (int)Math.Round(targetSeconds * CellsPerSecond, MidpointRounding.AwayFromZero);
             if (needed < 1) needed = 1;
@@ -138,6 +154,34 @@ namespace MBI.Core.Anim
             float seconds = clipSeconds - Math.Max(trailCells, 0) * cellSeconds;
             float floor = Math.Min(cellSeconds, clipSeconds);
             return seconds < floor ? floor : seconds;
+        }
+
+        /// <summary>
+        /// 손으로 준 칸 목록을 검사한다. 범위를 벗어난 번호는 버리고 그 사실을 경고에 적는다 —
+        /// 조용히 잘라내면 화면에서 한 칸이 사라진 것을 아무도 모른다.
+        /// </summary>
+        private static int[] SanitizeOrder(int[] order, int frameCount, ref AnimSchedule report)
+        {
+            var kept = new List<int>(order.Length);
+            var dropped = new List<int>();
+            foreach (int f in order)
+            {
+                if (f >= 0 && f < frameCount) kept.Add(f);
+                else dropped.Add(f);
+            }
+
+            if (dropped.Count > 0)
+                report.Warning = $"칸 목록에 없는 그림 번호가 있다 — {string.Join(", ", dropped)} " +
+                                 $"(그림은 {frameCount}장이다). 그 칸은 버렸다";
+
+            if (kept.Count == 0)
+            {
+                report.Warning = $"칸 목록이 전부 범위 밖이라 그림 순서로 되돌린다 (그림 {frameCount}장)";
+                var plain = new int[frameCount];
+                for (int i = 0; i < frameCount; i++) plain[i] = i;
+                return plain;
+            }
+            return kept.ToArray();
         }
 
         private static int[] Duplicate(int[] baseCells, int needed, bool pingPong, int[] dwellCells)

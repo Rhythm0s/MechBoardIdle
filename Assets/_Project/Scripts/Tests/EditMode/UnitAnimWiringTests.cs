@@ -171,7 +171,15 @@ namespace MBI.Tests
                     Assert.AreEqual(ArtSpec.RobotCanvas, fh, $"{label} 세로 캔버스");
                 }
 
-                if (state == UnitAnimState.Idle || state == UnitAnimState.Move)
+                if (state == UnitAnimState.Move)
+                {
+                    // 「이동 6은 넘지 말라는 상한이다. 5장이어도 규격 위반이 아니다」(`260907_W03` 2-3).
+                    // 「동작의 크기」가 정한 것은 부드러움 예산이고 원칙은 적게 쓰는 것이라,
+                    // 6을 못 채웠다고 미달로 보면 앞뒤가 안 맞는다. 모자란 칸은 cellOrder 가 채운다.
+                    Assert.LessOrEqual(files.Length, ExpectedFrames(state), $"{label} 프레임 수는 상한 6이다");
+                    Assert.GreaterOrEqual(files.Length, 1, $"{label} 그림이 한 장은 있어야 한다");
+                }
+                else if (state == UnitAnimState.Idle)
                     Assert.AreEqual(ExpectedFrames(state), files.Length, $"{label} 프레임 수");
                 else
                     Assert.LessOrEqual(files.Length, 9, $"{label} 프레임 수는 상한 9다");

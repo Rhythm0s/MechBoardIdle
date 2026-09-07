@@ -50,7 +50,7 @@ namespace MBI.Combat
                 return;
 
             AnimSchedule schedule = AnimSchedule.Build(
-                clip.frames.Length, clip.targetSeconds, clip.pingPong, clip.dwellCells);
+                clip.frames.Length, clip.targetSeconds, clip.pingPong, clip.dwellCells, clip.cellOrder);
             if (schedule.Cells == null || schedule.Cells.Length == 0) return;
 
             _clip = clip;

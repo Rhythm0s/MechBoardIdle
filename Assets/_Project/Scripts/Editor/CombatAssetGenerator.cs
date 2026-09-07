@@ -150,6 +150,30 @@ namespace MBI.Editor
         private static bool IsPingPong(UnitAnimState state) => state == UnitAnimState.Idle;
 
         /// <summary>
+        /// 그림 순서와 다른 칸 목록이 필요한 벌에 그 목록을 준다. 없으면 null — 그림 순서대로 돈다.
+        ///
+        /// <b>로봇 A 이동 남·북이 그 자리다</b>(`260907_W03` 2-3). 걷기의 한 바퀴는
+        /// 「왼발 앞 → 모임 → 오른발 앞 → 모임 → 왼발 앞」이라 <b>모이는 자세를 두 번 지난다</b> —
+        /// 그림은 다섯 장인데 칸은 여섯이다. 그 한 칸을 사본 파일로 채우고 있었는데,
+        /// 「9프레임 상한은 그림 장수다」(15 7-1)에 어긋나 목록으로 옮겼다.
+        ///
+        /// ⚠️ <b>다섯 장만 돌리면 안 된다</b> — 모이는 자세를 건너뛰고 오른발 앞에서 왼발 앞으로
+        /// 바로 넘어가 다리가 튄다. 가운데를 한 번 더 가리키는 그 칸이 그것을 막는다.
+        ///
+        /// <b>장수로 조건을 건다.</b> 사본이 아직 안 지워져 여섯 장이면 지금까지대로 돌아
+        /// 화면이 안 바뀐다 — 파일 삭제와 이 코드의 순서를 서로 기다리지 않아도 된다.
+        /// </summary>
+        private static int[] CellOrder(string robot, UnitAnimState state, UnitAnimDirection dir, int frameCount)
+        {
+            bool walkCycleFive = robot == "robot_a"
+                                 && state == UnitAnimState.Move
+                                 && (dir == UnitAnimDirection.South || dir == UnitAnimDirection.North)
+                                 && frameCount == 5;
+
+            return walkCycleFive ? new[] { 0, 1, 2, 3, 4, 2 } : null;
+        }
+
+        /// <summary>
         /// <c>Art/Anim/{robot}_{State}/{dir}/frame_*.png</c>를 이름 순으로 읽어 벌을 만든다.
         /// 폴더가 없으면 그 벌을 건너뛴다 — 아직 안 만든 방향이 있어도 있는 것만 걸린다.
         ///
@@ -183,6 +207,7 @@ namespace MBI.Editor
                         pingPong = IsPingPong(state),
                         // 머무름 칸은 화면을 보고 고르는 값이라 아직 비어 있다 — W01 확인 4.
                         dwellCells = null,
+                        cellOrder = CellOrder(robot, state, dir, frames.Count),
                     });
                 }
             }

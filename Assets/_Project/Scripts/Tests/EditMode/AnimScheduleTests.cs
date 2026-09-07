@@ -174,6 +174,67 @@ namespace MBI.Tests
             Assert.AreEqual(11f / 16f, s.ActualSeconds, 0.0001f, "실제는 0.6875초다");
         }
 
+        // ---- 칸 목록을 손으로 줄 때 ----
+
+        /// <summary>
+        /// **이동 남·북이 이 자리다** (`260907_W03` 2-3). 그림 다섯 장으로 여섯 칸을 돈다 —
+        /// 걷기의 한 바퀴가 모이는 자세를 두 번 지나기 때문이다.
+        ///
+        /// <b>배분이 W01 4-5 의 이동 행과 같아야 한다</b> — 기본 6칸 · 필요 16칸 ·
+        /// 전 칸 ×2 + 칸 2·3·5·6 에 +1. 사본 파일을 지우고 목록으로 옮겼을 뿐이라
+        /// **화면이 바뀌면 안 된다.**
+        /// </summary>
+        [Test]
+        public void CellOrder_FiveFrames_SixCells_MatchesMoveRow()
+        {
+            AnimSchedule s = AnimSchedule.Build(5, 1.00f, pingPong: false,
+                                                dwellCells: null, cellOrder: new[] { 0, 1, 2, 3, 4, 2 });
+
+            Assert.AreEqual(6, s.BaseCells, "손으로 준 목록의 길이가 기본 칸이다");
+            Assert.AreEqual(16, s.NeededCells);
+            Assert.AreEqual(1.00f, s.ActualSeconds, 0.0001f);
+            Assert.IsFalse(s.HasWarning, s.Warning);
+
+            // 사본을 쓰던 때(그림 여섯 · 0 1 2 3 4 5)의 칸별 횟수는 2 · 3 · 3 · 2 · 3 · 3 이었다.
+            // 사본(그림 5)이 가운데(그림 2)로 합쳐지므로 **가운데만 3 + 3 = 6** 이 되고 나머지는 같다.
+            int[] times = CountPerFrame(s.Cells, 5);
+            CollectionAssert.AreEqual(new[] { 2, 3, 6, 2, 3 }, times,
+                "사본이 가리키던 몫이 가운데 그림으로 합쳐진다");
+            Assert.AreEqual(16, s.Cells.Length, "총 칸수는 그대로다");
+        }
+
+        /// <summary>목록이 없으면 지금까지대로 그림 순서로 돈다 — 기존 벌이 안 바뀐다.</summary>
+        [Test]
+        public void CellOrder_Empty_FallsBackToFrameOrder()
+        {
+            AnimSchedule s = AnimSchedule.Build(6, 1.00f, pingPong: false, dwellCells: null, cellOrder: null);
+
+            Assert.AreEqual(6, s.BaseCells);
+            CollectionAssert.AreEqual(new[] { 2, 3, 3, 2, 3, 3 }, CountPerFrame(s.Cells, 6));
+        }
+
+        /// <summary>범위 밖 번호는 버리고 <b>보고한다</b> — 조용히 자르면 칸 하나가 사라진 것을 모른다.</summary>
+        [Test]
+        public void CellOrder_OutOfRange_IsDroppedAndWarned()
+        {
+            AnimSchedule s = AnimSchedule.Build(5, 1.00f, pingPong: false,
+                                                dwellCells: null, cellOrder: new[] { 0, 1, 9, 2 });
+
+            Assert.IsTrue(s.HasWarning, "버린 사실이 보고에 남아야 한다");
+            Assert.AreEqual(3, s.BaseCells, "9는 버린다");
+        }
+
+        /// <summary>왕복과 같이 주면 손으로 준 목록이 이기고 그 사실을 보고한다.</summary>
+        [Test]
+        public void CellOrder_WithPingPong_PrefersOrderAndWarns()
+        {
+            AnimSchedule s = AnimSchedule.Build(5, 1.00f, pingPong: true,
+                                                dwellCells: null, cellOrder: new[] { 0, 1, 2, 3, 4, 2 });
+
+            Assert.IsTrue(s.HasWarning);
+            Assert.AreEqual(6, s.BaseCells, "왕복의 여덟 칸이 아니라 손으로 준 여섯이다");
+        }
+
         // ---- 태그 진입 ----
 
         /// <summary>

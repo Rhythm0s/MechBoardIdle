@@ -33,6 +33,7 @@ MonoBehaviour:
     targetSeconds: 1
     pingPong: 1
     dwellCells: 
+    cellOrder: 
   - state: 0
     direction: 1
     frames:
@@ -44,6 +45,7 @@ MonoBehaviour:
     targetSeconds: 1
     pingPong: 1
     dwellCells: 
+    cellOrder: 
   - state: 0
     direction: 2
     frames:
@@ -55,6 +57,7 @@ MonoBehaviour:
     targetSeconds: 1
     pingPong: 1
     dwellCells: 
+    cellOrder: 
   - state: 1
     direction: 0
     frames:
@@ -67,6 +70,7 @@ MonoBehaviour:
     targetSeconds: 1
     pingPong: 0
     dwellCells: 
+    cellOrder: 
   - state: 1
     direction: 1
     frames:
@@ -79,6 +83,7 @@ MonoBehaviour:
     targetSeconds: 1
     pingPong: 0
     dwellCells: 
+    cellOrder: 
   - state: 1
     direction: 2
     frames:
@@ -91,6 +96,7 @@ MonoBehaviour:
     targetSeconds: 1
     pingPong: 0
     dwellCells: 
+    cellOrder: 
   - state: 2
     direction: 0
     frames:
@@ -106,4 +112,5 @@ MonoBehaviour:
     targetSeconds: 2
     pingPong: 0
     dwellCells: 
+    cellOrder: 
   balanceRef: {fileID: 11400000, guid: a00911652af86014e9b4ea1c7d0b41d5, type: 2}
