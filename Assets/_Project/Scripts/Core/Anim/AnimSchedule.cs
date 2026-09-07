@@ -122,6 +122,24 @@ namespace MBI.Core.Anim
             return picked.ToArray();
         }
 
+        /// <summary>
+        /// 태그 진입에서 <b>코드 이동이 끝나는 초</b>. 클립 초에서 꼬리 칸만큼 뺀다.
+        ///
+        /// `260907_W02` 2-3이 확정한 것은 값이 아니라 <b>순서</b>다 —
+        /// 「코드 이동은 발사 프레임보다 뒤에 끝나고, 클립보다는 먼저 끝난다」.
+        /// 도착 뒤에 칸이 몇 개 남아야 반동과 수렴(15-1 5-1 구간 3·4)이 제자리에서 보인다.
+        /// 태그 지속 시간이 나중에 바뀌어도 클립 초가 따라 바뀌므로 이동은 자동으로 맞는다.
+        ///
+        /// 한 칸은 남긴다 — 꼬리가 클립보다 길어도 이동이 0초가 되지는 않게 한다.
+        /// </summary>
+        public static float TagEntrySeconds(float clipSeconds, int trailCells, float cellSeconds)
+        {
+            if (clipSeconds <= 0f || cellSeconds <= 0f) return clipSeconds;
+            float seconds = clipSeconds - Math.Max(trailCells, 0) * cellSeconds;
+            float floor = Math.Min(cellSeconds, clipSeconds);
+            return seconds < floor ? floor : seconds;
+        }
+
         private static int[] Duplicate(int[] baseCells, int needed, bool pingPong, int[] dwellCells)
         {
             int n = baseCells.Length;

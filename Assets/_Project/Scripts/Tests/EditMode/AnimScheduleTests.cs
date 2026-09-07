@@ -174,6 +174,32 @@ namespace MBI.Tests
             Assert.AreEqual(11f / 16f, s.ActualSeconds, 0.0001f, "실제는 0.6875초다");
         }
 
+        // ---- 태그 진입 ----
+
+        /// <summary>
+        /// 태그 진입 이동은 <b>클립보다 먼저 끝난다</b>(`260907_W02` 2-3).
+        /// 값이 아니라 순서가 확정된 것이므로 여기서 보는 것도 부등호다 —
+        /// 0보다 크고 클립 초보다 작으면 된다. 꼬리 칸이 셋이면 0.75 − 3/16 = 0.5625초다.
+        /// </summary>
+        [Test]
+        public void TagEntry_EndsBeforeClip_AndAfterZero()
+        {
+            float seconds = AnimSchedule.TagEntrySeconds(0.75f, 3, 1f / 16f);
+
+            Assert.Greater(seconds, 0f, "이동이 아예 없어지면 순간이동이 된다");
+            Assert.Less(seconds, 0.75f, "클립보다 먼저 끝나야 반동과 수렴이 제자리에서 보인다");
+            Assert.AreEqual(0.5625f, seconds, 0.0001f, "0.75 − 3칸");
+        }
+
+        /// <summary>꼬리가 클립보다 길어도 이동이 0초가 되지는 않는다 — 한 칸은 남긴다.</summary>
+        [Test]
+        public void TagEntry_TrailLongerThanClip_KeepsOneCell()
+        {
+            float seconds = AnimSchedule.TagEntrySeconds(0.125f, 9, 1f / 16f);
+
+            Assert.AreEqual(1f / 16f, seconds, 0.0001f);
+        }
+
         private static int[] CountPerFrame(int[] cells, int frameCount)
         {
             var times = new int[frameCount];

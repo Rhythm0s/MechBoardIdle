@@ -27,6 +27,7 @@ MonoBehaviour:
   animMoveSeconds: 1
   animDeathSeconds: 2
   animTagInSeconds: 0.75
+  animTagEntryTrailCells: 3
   multiShotCountTbd: 1
   aoeRadiusTbd: 1.5
   aoeSplashFactorTbd: 0

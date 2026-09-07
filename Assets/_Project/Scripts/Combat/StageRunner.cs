@@ -1,6 +1,7 @@
 using MBI.UI;
 using System.Collections.Generic;
 using MBI.Core;
+using MBI.Core.Anim;
 using MBI.Data;
 using UnityEngine;
 using UnityEngine.InputSystem;
@@ -306,11 +307,22 @@ namespace MBI.Combat
         /// 0.75초 자체가 잠정이다 — 지속 시간의 소관은 전투 시스템 문서「태그 규칙」이고
         /// 15-1 5-1이 그쪽으로 넘겨 두었다(W01 9장 2).
         /// </summary>
+        /// <summary>
+        /// 태그 진입 이동. <b>클립보다 꼬리 칸만큼 일찍 끝난다</b>(`260907_W02` 2-3 사용자 확정) —
+        /// 도착 뒤에 남은 칸에서 반동과 수렴이 제자리에서 보인다. 확정된 것은 값이 아니라
+        /// 「발사보다 뒤 · 클립보다 먼저」라는 순서이고, 꼬리 칸 수는 <see cref="CombatTuning"/>에 있다.
+        ///
+        /// ⚠️ <b>「발사보다 뒤」는 새 태그 벌을 전제한다</b> — W02 2-4가 「첫 프레임부터 발사 자세」로
+        /// 다시 뽑으라 했으므로 첫 칸이 발사이고 조건이 저절로 선다. 옛 로봇 A 태그 벌은 발사가
+        /// 뒤쪽 칸이라 이 전제가 서지 않는데, 그 벌은 2-4로 교체된다.
+        /// </summary>
         private void PlayTagEntrance()
         {
             if (_robotView == null) return;
-            float seconds = tuning != null ? tuning.animTagInSeconds : 0.75f;
-            _robotView.PlayTagIn(seconds, TagEntryOffsetX);
+            float clip = tuning != null ? tuning.animTagInSeconds : 0.75f;
+            int trail = tuning != null ? tuning.animTagEntryTrailCells : 3;
+            float cell = tuning != null ? tuning.animCellSeconds : 1f / AnimSchedule.CellsPerSecond;
+            _robotView.PlayTagIn(AnimSchedule.TagEntrySeconds(clip, trail, cell), TagEntryOffsetX);
         }
 
         /// <summary>
