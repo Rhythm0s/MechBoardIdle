@@ -99,17 +99,20 @@ GROUPS = [
      "is entering from the right; then the recoil presses it DOWN and back to the RIGHT, the whole body "
      "squatting as the lean swings the other way; in the last frames it rises and settles upright into a "
      "neutral ready pose"),
-    ("fusion_Idle", "2192a5d3-a32f-4183-aaaa-12e1d4d77512", ["south", "north", "east"], 4, True, 12, "**2차**",
-     "idling with its weight settled, the shoulders rising and falling by about one twentieth of the "
-     "machine's own height. Its plating is matte and dry, and the air all around the machine stays "
-     "completely clear and empty."),
-    ("fusion_Move", "ab34a6cc-0910-42b6-8073-66f65ac5c77f", ["south", "north", "east"], 6, False, 18, "1차",
-     "a heavy clanking walk, the whole machine compressing down on each landing and holding there for "
-     "a beat, its joints lagging a half step behind the body"),
-    ("fusion_Death", "838040c2-7d41-49d2-90b4-3a28109055c3", ["south"], 8, True, 8, "1차",
-     "the seam down its torso splitting open first as the locking clamps release, the two frames "
-     "starting to come apart from each other and then sagging down onto the ground together, "
-     "no explosion"),
+    ("fusion_Idle", "fff51fa0-9fff-43fe-abbf-254e455ba4ac", ["south", "north", "east"], 4, True, 12,
+     "**3차 · 김 절 제거 · 새 승인본 앵커** (자세 미변화로 반려 — 판정 대기)",
+     "새 합체 승인본 `648b864e` 를 참조로 회전(`4e01d2a6`)한 뒤 뽑았다. **대기 문안에서 「배기구에서 김이 샌다」 "
+     "절을 뺐다**(`260907_W02` 2-1). idling in place with its weight settled, the shoulders rising and falling "
+     "by about one twentieth of the silhouette height, the frame holding steady"),
+    ("fusion_Move", "48832b0c-b01f-451c-84b0-febfef3c1c76", ["south", "north", "east"], 6, False, 18,
+     "**2차 · 새 승인본 앵커** (자세 미변화로 반려 — 판정 대기)",
+     "walking forward with heavy clanking steps, the legs alternating so one foot stays planted while the "
+     "other lifts and swings through, the whole frame pressing down on every footfall and the joints "
+     "following a beat late, AND BOTH ARMS SWING with the steps, the gun barrels moving forward and back"),
+    ("fusion_Death", "fd9d157a-6216-4144-a74d-6a210c42ca7b", ["south"], 8, True, 8,
+     "**2차 · 새 승인본 앵커** (자세 미변화로 반려 — 세로 11px · 로봇 A 는 48px)",
+     "the locking clamps release first and the two joined frames start to come apart at the seam, then the "
+     "machine sinks down onto the ground and settles, no explosion"),
 ]
 
 RETIRED = [
