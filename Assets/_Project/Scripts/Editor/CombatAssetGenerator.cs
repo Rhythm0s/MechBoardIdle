@@ -78,6 +78,7 @@ namespace MBI.Editor
             r.moduleMult = moduleMult;    // 1.0
             r.balanceRef = config;
             r.sprite = LoadArt("robot_a");
+            r.animClips = LoadAnimClips("robot_a");
             EditorUtility.SetDirty(r);
 
             // 로봇 B — 드론 운용기(밸런스 params pB/dB). 전투 등장은 MVP 이후지만
@@ -91,6 +92,7 @@ namespace MBI.Editor
             b.balanceRef = config;
             b.sprite = LoadArt("robot_b");
             b.droneSprite = LoadArt("drone_n"); // 누적형 = 기본 프리셋(params pB 1.0 × dB 100)
+            b.animClips = LoadAnimClips("robot_b");
             EditorUtility.SetDirty(b);
         }
 
@@ -99,6 +101,51 @@ namespace MBI.Editor
         private static Sprite LoadArt(string fileName)
         {
             return AssetDatabase.LoadAssetAtPath<Sprite>($"Assets/_Project/Art/Units/{fileName}.png");
+        }
+
+        // ---- 애니메이션 프레임 ----
+
+        /// <summary>
+        /// 재생 속도. **어느 기획 문서도 정한 적이 없다** — 구현이 세운 가정이며
+        /// `260907_V01`로 판정을 올렸다. 설계가 값을 주면 여기만 갈아 끼운다.
+        /// </summary>
+        private static float DefaultFps(UnitAnimState state) => state == UnitAnimState.Idle ? 6f : 8f;
+
+        /// <summary>
+        /// <c>Art/Anim/{robot}_{State}/{dir}/frame_*.png</c>를 이름 순으로 읽어 벌을 만든다.
+        /// 폴더가 없으면 그 벌을 건너뛴다 — 아직 안 만든 방향이 있어도 있는 것만 걸린다.
+        ///
+        /// 경로가 여기 한 곳에만 있고 런타임에는 SO 참조만 남는다(§8 명명 규칙).
+        /// </summary>
+        private static List<UnitAnimClip> LoadAnimClips(string robot)
+        {
+            var clips = new List<UnitAnimClip>();
+            foreach (UnitAnimState state in System.Enum.GetValues(typeof(UnitAnimState)))
+            {
+                foreach (UnitAnimDirection dir in System.Enum.GetValues(typeof(UnitAnimDirection)))
+                {
+                    string folder = $"Assets/_Project/Art/Anim/{robot}_{state}/{dir.ToString().ToLowerInvariant()}";
+                    if (!Directory.Exists(folder)) continue;
+
+                    var frames = new List<Sprite>();
+                    foreach (string file in Directory.GetFiles(folder, "frame_*.png"))
+                    {
+                        string path = file.Replace('\\', '/');
+                        Sprite sp = AssetDatabase.LoadAssetAtPath<Sprite>(path);
+                        if (sp != null) frames.Add(sp);
+                    }
+                    if (frames.Count == 0) continue;
+
+                    clips.Add(new UnitAnimClip
+                    {
+                        state = state,
+                        direction = dir,
+                        frames = frames.ToArray(),
+                        fps = DefaultFps(state),
+                    });
+                }
+            }
+            return clips;
         }
 
         // ---- 적 4종: atk 카탈로그(hp/def는 스테이지) ----

@@ -273,7 +273,8 @@ namespace MBI.Combat
 
             RobotDefinition def = ActiveRobotDef;
             _robotView.Bind(_sim.Robot, _sim.ActiveRobotIndex == 1 ? RobotBColor : RobotAColor,
-                RobotSize, SortingLayers.Actor, def != null ? def.sprite : null);
+                RobotSize, SortingLayers.Actor, def != null ? def.sprite : null,
+                def != null ? def.animClips : null);
 
             _viewedRobotIndex = _sim.ActiveRobotIndex;
             _lastRobotHp = _sim.Robot.hp; // 교대 프레임을 피격으로 오인해 점멸하지 않게 한다

@@ -589,6 +589,13 @@ namespace MBI.Logistics
         private static readonly Color ZoneLineColor = new Color(0.96f, 0.94f, 0.86f, 0.40f);
 
         /// <summary>
+        /// 이름표는 같은 미색이되 **70%**다 (2026-09-06 확정 · `260906_W04` 2-7).
+        /// 40%는 경계선에만 걸리는 값이었다 — 선은 얇아 흐려도 형태가 남지만 글자는 읽히지 않는다.
+        /// 상수를 나눠 두지 않으면 한쪽을 고칠 때 다른 쪽이 함께 움직인다.
+        /// </summary>
+        private static readonly Color ZoneLabelColor = new Color(0.96f, 0.94f, 0.86f, 0.70f);
+
+        /// <summary>
         /// 그리는 층: **타일 위 · 품목 아래.** 물건이 지나가는 것을 가리지 않는다(배치 규격).
         /// 지침 §1이 이 게임의 코어를 「물류와 그 애니메이션」으로 정했으므로, 구역 표시가
         /// 품목을 가리면 코어를 가리는 것이 된다.
@@ -1274,15 +1281,30 @@ namespace MBI.Logistics
             Camera cam = boardCamera != null ? boardCamera : Camera.main;
             if (cam == null) return;
 
+            Vector2 o = _grid.Origin;
+            float inset = ZoneLabelInsetPx * (config.cellSize / ZonePx);
+
+            // 글자 높이도 **아트 픽셀**이다 (2026-09-06 확정 · `260906_W05` 2-2).
+            // 보드 배율이 ×1.00에서 ×2.50까지 변하는데(DrawZoom) 글자만 화면 픽셀로 두면
+            // 확대할수록 이름표가 상대적으로 작아져 경계선과 다른 물건으로 보인다.
+            // 한 칸이 화면에서 몇 픽셀인지를 재서 곱한다 — 배율이 그 안에 이미 들어 있다.
+            float cellScreenPx = Mathf.Abs(
+                cam.WorldToScreenPoint(new Vector3(o.x + config.cellSize, o.y, 0f)).x
+                - cam.WorldToScreenPoint(new Vector3(o.x, o.y, 0f)).x);
+            if (cellScreenPx <= 0f) return;
+
+            float fontScale = cellScreenPx / ZonePx;
+            int fontPx = Mathf.Max(1, Mathf.RoundToInt(ZoneLabelFontPx * fontScale));
+
             var style = new GUIStyle(GUI.skin.label)
             {
-                fontSize = ZoneLabelFontPx,
+                fontSize = fontPx,
                 alignment = TextAnchor.UpperLeft,
                 fontStyle = FontStyle.Bold,
             };
 
-            Vector2 o = _grid.Origin;
-            float inset = ZoneLabelInsetPx * (config.cellSize / ZonePx);
+            float boxW = 120f * fontScale;
+            float boxH = fontPx + 6f * fontScale;
 
             foreach (PartRect p in PartLayout.Parts)
             {
@@ -1298,11 +1320,11 @@ namespace MBI.Logistics
                 Vector3 sp = cam.WorldToScreenPoint(corner);
                 if (sp.z <= 0f) continue;
                 float y = Screen.height - sp.y;
-                if (sp.x < -120f || sp.x > Screen.width + 120f || y < -40f || y > Screen.height + 40f) continue;
+                if (sp.x < -boxW || sp.x > Screen.width + boxW || y < -boxH || y > Screen.height + boxH) continue;
 
                 Color prev = GUI.color;
-                GUI.color = ZoneLineColor; // 경계선과 같은 미색 — 한 표시의 두 부분이다
-                GUI.Label(new Rect(sp.x, y, 120f, ZoneLabelFontPx + 6f), text, style);
+                GUI.color = ZoneLabelColor; // 경계선과 같은 미색이되 70% — 글자는 더 진해야 읽힌다
+                GUI.Label(new Rect(sp.x, y, boxW, boxH), text, style);
                 GUI.color = prev;
             }
         }

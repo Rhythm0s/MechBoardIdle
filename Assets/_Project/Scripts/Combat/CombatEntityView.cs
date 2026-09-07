@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using MBI.Core;
 using MBI.Data;
 using UnityEngine;
@@ -23,6 +24,14 @@ namespace MBI.Combat
         private float _recoilElapsed = float.MaxValue;
         private float _flashElapsed = float.MaxValue;
 
+        // 애니메이션 — 걸린 벌이 없으면 _animator 가 null 이고 스틸 한 장이 그대로 남는다.
+        private SpriteFrameAnimator _animator;
+        private List<UnitAnimClip> _clips;
+        private UnitAnimDirection _lastDirection = UnitAnimDirection.South;
+        private Vector2 _lastPosition;
+        private bool _hasLastPosition;
+        private bool _deathPlayed;
+
         public CombatEntity Entity => _entity;
 
         /// <summary>발사 반동 시작(UI 문서「연출 표현 규칙」). 표적 방향을 주면 반대로 밀린다.</summary>
@@ -35,10 +44,14 @@ namespace MBI.Combat
         /// <summary>피격 점멸 시작. 세기는 일정 — 맞았는지 아닌지만 알린다.</summary>
         public void FlashHit() => _flashElapsed = 0f;
 
-        public void Bind(CombatEntity entity, Color color, float size, int sortingOrder, Sprite art = null)
+        public void Bind(CombatEntity entity, Color color, float size, int sortingOrder, Sprite art = null,
+            List<UnitAnimClip> clips = null)
         {
             _entity = entity;
             _size = size; // HP 바 치수는 실제 아트 여부와 무관하게 이 값을 쓴다
+            _clips = clips;
+            _deathPlayed = false;
+            _hasLastPosition = false;
 
             // 본체
             var bodyGo = new GameObject("Body");
@@ -65,6 +78,15 @@ namespace MBI.Combat
             _body = bodyGo.transform;
             _bodyRenderer = body;
             _bodyBaseColor = body.color;
+
+            // 애니메이션은 스틸 위에 얹는다. 벌이 없으면 얹지 않고 스틸을 그대로 둔다 —
+            // 폴백 사각형에 프레임을 걸면 색 구분이 사라진다.
+            if (art != null && _clips != null && _clips.Count > 0)
+            {
+                _animator = bodyGo.AddComponent<SpriteFrameAnimator>();
+                _animator.Attach(body);
+                PlayState(UnitAnimState.Idle, _lastDirection);
+            }
 
             // 바닥 그림자 — 탑뷰에는 높이가 없어 크기와 그림자로 위조한다(V01 §3).
             // 본체보다 뒤에 깔고, 반동으로 본체가 밀려도 그림자는 제자리에 둔다(발이 붙어 있어야 한다).
@@ -116,10 +138,80 @@ namespace MBI.Combat
                 _hpFill.localScale = new Vector3(_size * ratio, _size * 0.14f, 1f);
         }
 
+        /// <summary>
+        /// 상태 한 벌을 고른다. 요청한 방향이 없으면 남면으로 내린다 —
+        /// 합체 로봇은 서면을 생성하지 않으므로(15-3 3-3) 동면을 뒤집어 쓴다.
+        /// </summary>
+        private void PlayState(UnitAnimState state, UnitAnimDirection dir)
+        {
+            if (_animator == null || _clips == null) return;
+
+            bool loop = state == UnitAnimState.Idle || state == UnitAnimState.Move;
+
+            if (TryFind(state, dir, out UnitAnimClip clip)) { _animator.Play(clip, loop); return; }
+
+            // 서면이 없으면 동면을 좌우로 뒤집는다.
+            if (dir == UnitAnimDirection.West && TryFind(state, UnitAnimDirection.East, out clip))
+            { _animator.Play(clip, loop, flipX: true); return; }
+
+            if (TryFind(state, UnitAnimDirection.South, out clip)) _animator.Play(clip, loop);
+        }
+
+        private bool TryFind(UnitAnimState state, UnitAnimDirection dir, out UnitAnimClip found)
+        {
+            for (int i = 0; i < _clips.Count; i++)
+            {
+                UnitAnimClip c = _clips[i];
+                if (c.state == state && c.direction == dir && c.IsValid) { found = c; return true; }
+            }
+            found = default;
+            return false;
+        }
+
+        /// <summary>움직인 방향을 넷 중 하나로 접는다. 우세 축이 이긴다.</summary>
+        private static UnitAnimDirection ToDirection(Vector2 delta)
+        {
+            if (Mathf.Abs(delta.x) >= Mathf.Abs(delta.y))
+                return delta.x >= 0f ? UnitAnimDirection.East : UnitAnimDirection.West;
+            return delta.y >= 0f ? UnitAnimDirection.North : UnitAnimDirection.South;
+        }
+
+        // 애니메이션 상태 선택. 위치 변화로 이동을 판정한다 — 시뮬은 속도를 내주지 않는다.
+        private void DriveAnimation(float dt)
+        {
+            if (_animator == null || _entity == null) return;
+
+            if (_entity.hp <= 0f)
+            {
+                if (!_deathPlayed) { PlayState(UnitAnimState.Death, UnitAnimDirection.South); _deathPlayed = true; }
+                return;
+            }
+
+            var pos = new Vector2(_entity.position.x, _entity.position.y);
+            if (!_hasLastPosition) { _lastPosition = pos; _hasLastPosition = true; }
+
+            Vector2 delta = pos - _lastPosition;
+            _lastPosition = pos;
+
+            // 문턱은 프레임 시간에 비례시킨다 — 프레임이 길어도 서 있는 것으로 오판하지 않게.
+            float moved = delta.magnitude;
+            if (moved > MoveEpsilonPerSecond * Mathf.Max(dt, 1e-4f))
+            {
+                _lastDirection = ToDirection(delta);
+                PlayState(UnitAnimState.Move, _lastDirection);
+            }
+            else PlayState(UnitAnimState.Idle, _lastDirection);
+        }
+
+        /// <summary>이동으로 볼 최소 속도(월드 단위/초). 떨림을 이동으로 읽지 않을 만큼만 둔다.</summary>
+        private const float MoveEpsilonPerSecond = 0.01f;
+
         // 반동과 점멸은 시뮬 틱이 아니라 실시간으로 흐른다 — 판정에 영향을 주지 않는 순수 연출이다.
         private void Update()
         {
             float dt = Time.deltaTime;
+
+            DriveAnimation(dt);
 
             if (_body != null && _recoilElapsed < EffectTiming.RecoilDuration)
             {

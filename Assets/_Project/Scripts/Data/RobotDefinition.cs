@@ -42,6 +42,8 @@ namespace MBI.Data
         public Sprite sprite;
         [Tooltip("드론 스프라이트(캔버스 64px = 0.333칸). 로봇 B만 사용. 드론은 아직 전투에 등장하지 않아 자리만 둔다.")]
         public Sprite droneSprite;
+        [Tooltip("애니메이션 프레임 묶음. 씬 생성기가 Art/Anim에서 주입 — 경로 문자열을 코드에 두지 않는다(§8). 비면 스틸 한 장로 폴백한다.")]
+        public List<UnitAnimClip> animClips = new List<UnitAnimClip>();
 
         [Header("참조")]
         [Tooltip("전역 밸런스 앵커 단일 원천.")]
