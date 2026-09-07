@@ -139,22 +139,31 @@ namespace MBI.Combat
         }
 
         /// <summary>
-        /// 상태 한 벌을 고른다. 요청한 방향이 없으면 남면으로 내린다 —
-        /// 합체 로봇은 서면을 생성하지 않으므로(15-3 3-3) 동면을 뒤집어 쓴다.
+        /// 상태 한 벌을 고른다. 요청한 방향이 없으면 남면으로 내린다.
+        ///
+        /// <b>서면이 없으면 동면을 좌우로 뒤집는다.</b> 합체 로봇이 그러하고(15-3 3-3),
+        /// 2026-09-07부터 <b>로봇 B의 대기</b>도 그렇다 — 사용자 판정으로 서면 폴더를 지우고
+        /// 동면 하나를 미러로 쓰기로 했다. 좌우 대칭인 기체에서만 성립하며 <b>로봇 A는 안 된다</b>
+        /// (15-1 3-2 — 마운트가 붙은 팔이 한쪽만 두껍다). 그래서 방향을 로봇별로 가르지 않고
+        /// <b>있는 벌이 무엇인가</b>로 고른다 — A는 서면이 있으니 이 자리에 오지 않는다.
+        /// 규격에 「좌우 대칭 기체는 3방향 + 미러」를 넣을지는 설계 판정 대기다.
+        ///
+        /// 대기는 <b>되감기</b>로 돈다(2026-09-07 사용자 판정) — 이동은 걷는 순환이라 아니다.
         /// </summary>
         private void PlayState(UnitAnimState state, UnitAnimDirection dir)
         {
             if (_animator == null || _clips == null) return;
 
             bool loop = state == UnitAnimState.Idle || state == UnitAnimState.Move;
+            bool pingPong = state == UnitAnimState.Idle;
 
-            if (TryFind(state, dir, out UnitAnimClip clip)) { _animator.Play(clip, loop); return; }
+            if (TryFind(state, dir, out UnitAnimClip clip)) { _animator.Play(clip, loop, false, pingPong); return; }
 
             // 서면이 없으면 동면을 좌우로 뒤집는다.
             if (dir == UnitAnimDirection.West && TryFind(state, UnitAnimDirection.East, out clip))
-            { _animator.Play(clip, loop, flipX: true); return; }
+            { _animator.Play(clip, loop, flipX: true, pingPong: pingPong); return; }
 
-            if (TryFind(state, UnitAnimDirection.South, out clip)) _animator.Play(clip, loop);
+            if (TryFind(state, UnitAnimDirection.South, out clip)) _animator.Play(clip, loop, false, pingPong);
         }
 
         private bool TryFind(UnitAnimState state, UnitAnimDirection dir, out UnitAnimClip found)

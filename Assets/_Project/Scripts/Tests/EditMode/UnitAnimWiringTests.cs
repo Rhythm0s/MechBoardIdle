@@ -15,9 +15,14 @@ namespace MBI.Tests
     ///
     /// 벌 수 규격 (캐릭터 아트 요청 문서(15) · 15-1 · 15-2 · 15-3):
     ///   로봇 A  대기 4 + 이동 4 + 사망 1 + 태그 1 = 10벌
-    ///   로봇 B  같은 구성                          = 10벌
+    ///   로봇 B  대기 3 + 이동 4 + 사망 1 + 태그 1 =  9벌   (대기 서면은 동면 미러 · 2026-09-07)
     ///   합체    대기 3 + 이동 3 + 사망 1           =  7벌   (좌우 대칭이라 서면을 만들지 않는다)
-    ///   합계                                        = 27벌
+    ///   합계                                        = 26벌
+    ///
+    /// <b>2026-09-07에 27에서 26으로 줄었다.</b> 사용자가 GIF로 보고 로봇 B의 대기 서면을
+    /// 동면 하나 + 좌우 미러로 정했다. 좌우 대칭인 기체에서만 되며 <b>로봇 A는 안 된다</b>
+    /// (15-1 3-2 — 마운트가 붙은 팔이 한쪽만 두껍다). 규격 문서에 「좌우 대칭 기체는
+    /// 3방향 + 미러」를 넣을지는 설계 판정 대기이며, 그때까지 이 목록이 실제 규격이다.
     ///
     /// 프레임 수 (15「동작의 크기」 · 256 이상):
     ///   대기 5 · 이동 6 · 사망·태그는 상한 9
@@ -29,7 +34,7 @@ namespace MBI.Tests
         private static string ClipDir(string robot, UnitAnimState state, UnitAnimDirection dir) =>
             $"{AnimRoot}/{robot}_{state}/{dir.ToString().ToLowerInvariant()}";
 
-        /// <summary>27벌의 자리. 있어야 하는 것의 목록이며, 이 목록 자체가 규격이다.</summary>
+        /// <summary>26벌의 자리. 있어야 하는 것의 목록이며, 이 목록 자체가 규격이다.</summary>
         private static IEnumerable<(string robot, UnitAnimState state, UnitAnimDirection dir)> ExpectedClips()
         {
             var fourWay = new[]
@@ -42,7 +47,9 @@ namespace MBI.Tests
 
             foreach (string robot in new[] { "robot_a", "robot_b" })
             {
-                foreach (UnitAnimDirection d in fourWay) yield return (robot, UnitAnimState.Idle, d);
+                // 로봇 B의 대기만 3방향이다 — 서면은 동면을 뒤집어 쓴다(2026-09-07).
+                foreach (UnitAnimDirection d in robot == "robot_b" ? threeWay : fourWay)
+                    yield return (robot, UnitAnimState.Idle, d);
                 foreach (UnitAnimDirection d in fourWay) yield return (robot, UnitAnimState.Move, d);
                 yield return (robot, UnitAnimState.Death, UnitAnimDirection.South);
                 yield return (robot, UnitAnimState.TagIn, UnitAnimDirection.South);
@@ -61,11 +68,37 @@ namespace MBI.Tests
         // ---- 목록 자체 ----
 
         [Test]
-        public void ExpectedClipList_Is27()
+        public void ExpectedClipList_Is26()
         {
             var all = new List<(string, UnitAnimState, UnitAnimDirection)>(ExpectedClips());
-            Assert.AreEqual(27, all.Count, "벌 수는 10 + 10 + 7 = 27이다");
+            Assert.AreEqual(26, all.Count, "벌 수는 10 + 9 + 7 = 26이다");
             CollectionAssert.AllItemsAreUnique(all, "같은 벌이 두 번 들어가면 안 된다");
+        }
+
+        /// <summary>
+        /// <b>미러로 쓰는 방향은 폴더가 없어야 한다.</b> 있으면 같은 그림이 두 벌이 되어
+        /// 어느 쪽이 승인본인지가 이름으로 안 갈린다 — 2026-09-06에 자산 이름 하나가 두 그림을
+        /// 가리켰던 것과 같은 종류다. 지우는 것이 규격이고, 코드가 동면을 뒤집는다.
+        /// </summary>
+        [Test]
+        public void MirroredDirections_HaveNoFolder()
+        {
+            var shouldBeAbsent = new[]
+            {
+                ("robot_b", UnitAnimState.Idle),
+                ("fusion", UnitAnimState.Idle),
+                ("fusion", UnitAnimState.Move),
+            };
+
+            var found = new List<string>();
+            foreach ((string robot, UnitAnimState state) in shouldBeAbsent)
+            {
+                string d = ClipDir(robot, state, UnitAnimDirection.West);
+                if (Frames(d).Length > 0) found.Add($"{robot}_{state}/west");
+            }
+
+            CollectionAssert.IsEmpty(found,
+                "서면을 미러로 쓰기로 한 벌은 폴더가 없어야 한다: " + string.Join(", ", found));
         }
 
         // ---- 실제 자산 ----
@@ -86,9 +119,9 @@ namespace MBI.Tests
             }
 
             if (missing.Count > 0)
-                Assert.Ignore($"아직 생성 전인 벌 {missing.Count}/27: {string.Join(", ", missing)}");
+                Assert.Ignore($"아직 생성 전인 벌 {missing.Count}/26: {string.Join(", ", missing)}");
 
-            Assert.Pass("27벌 전부 있다");
+            Assert.Pass("26벌 전부 있다");
         }
 
         /// <summary>
@@ -168,6 +201,39 @@ namespace MBI.Tests
         }
 
         // ---- 재생 쪽 규격 ----
+
+        /// <summary>
+        /// 대기 되감기 순서 — 다섯 장이면 0·1·2·3·4·3·2·1 여덟 걸음이다
+        /// (2026-09-07 사용자 판정). 양 끝을 두 번 세면 그 프레임에서만 두 배로 머문다.
+        /// </summary>
+        [Test]
+        public void PingPong_WalksForwardThenBack()
+        {
+            Assert.AreEqual(8, MBI.Combat.SpriteFrameAnimator.PingPongCycle(5, true), "다섯 장이면 여덟 걸음");
+
+            var seen = new List<int>();
+            for (int step = 0; step < 8; step++)
+                seen.Add(MBI.Combat.SpriteFrameAnimator.PingPongIndex(step, 5, true));
+
+            CollectionAssert.AreEqual(new[] { 0, 1, 2, 3, 4, 3, 2, 1 }, seen, "되감기 순서");
+        }
+
+        /// <summary>이동은 걷는 순환이라 되감지 않는다 — 여섯 장이면 여섯 걸음 그대로다.</summary>
+        [Test]
+        public void PingPong_Off_KeepsPlainLoop()
+        {
+            Assert.AreEqual(6, MBI.Combat.SpriteFrameAnimator.PingPongCycle(6, false));
+            for (int step = 0; step < 6; step++)
+                Assert.AreEqual(step, MBI.Combat.SpriteFrameAnimator.PingPongIndex(step, 6, false));
+        }
+
+        /// <summary>두 장 이하는 되감을 것이 없다 — 순환으로 내린다.</summary>
+        [Test]
+        public void PingPong_TooFewFrames_FallsBackToLoop()
+        {
+            Assert.AreEqual(2, MBI.Combat.SpriteFrameAnimator.PingPongCycle(2, true));
+            Assert.AreEqual(1, MBI.Combat.SpriteFrameAnimator.PingPongIndex(1, 2, true));
+        }
 
         [Test]
         public void Clip_IsInvalid_WhenEmpty()

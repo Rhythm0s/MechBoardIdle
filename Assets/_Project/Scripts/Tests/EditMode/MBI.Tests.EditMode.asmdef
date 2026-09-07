@@ -5,6 +5,7 @@
         "MBI.Data",
         "MBI.Core",
         "MBI.Editor",
+        "MBI.Combat",
         "UnityEngine.TestRunner",
         "UnityEditor.TestRunner",
         "MBI.UI"
