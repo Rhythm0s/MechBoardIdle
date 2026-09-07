@@ -99,18 +99,26 @@ GROUPS = [
      "is entering from the right; then the recoil presses it DOWN and back to the RIGHT, the whole body "
      "squatting as the lean swings the other way; in the last frames it rises and settles upright into a "
      "neutral ready pose"),
-    ("fusion_Idle", "fff51fa0-9fff-43fe-abbf-254e455ba4ac", ["south", "north", "east"], 4, True, 12,
-     "**3차 · 김 절 제거 · 새 승인본 앵커** (자세 미변화로 반려 — 판정 대기)",
-     "새 합체 승인본 `648b864e` 를 참조로 회전(`4e01d2a6`)한 뒤 뽑았다. **대기 문안에서 「배기구에서 김이 샌다」 "
-     "절을 뺐다**(`260907_W02` 2-1). idling in place with its weight settled, the shoulders rising and falling "
-     "by about one twentieth of the silhouette height, the frame holding steady"),
+    ("fusion_Idle", "693f3dcd-c368-4140-9edf-c61f52af19fc", ["south"], 4, True, 4,
+     "**4차 · 끝 자세 보간** (통과)",
+     "끝 자세를 그림으로 주었다 — 승인본을 세로 94%로 눌러 만든 `sink_target.png` 를 `end_frame_url` 로, "
+     "승인본을 `custom_start_frame_url` 로 준 v3 보간이다. 다섯 칸이 아래로 가라앉고 **왕복 재생이 위로 되돌린다**. "
+     "김 절은 3차에서 이미 빠졌다(`260907_W02` 2-1). "
+     "idling in place, the machine settling down onto its knees a little and then holding, its shoulders and "
+     "head dropping with the body, everything else steady"),
+    ("fusion_Idle", "8f45c770-fb89-4dc9-9bc8-07d487e97f24", ["north"], 4, True, 4,
+     "**4차 · 끝 자세 보간** (통과)",
+     "남면과 같은 방식이며 목표는 북면 회전본을 눌러 만든 `sink_north.png` 다."),
+    ("fusion_Idle", "823164a8-2f4f-4c2b-afc0-30581d57142a", ["east"], 4, True, 4,
+     "**4차 · 끝 자세 보간** (통과)",
+     "남면과 같은 방식이며 목표는 동면 회전본을 눌러 만든 `sink_east.png` 다."),
     ("fusion_Move", "48832b0c-b01f-451c-84b0-febfef3c1c76", ["south", "north", "east"], 6, False, 18,
      "**2차 · 새 승인본 앵커** (자세 미변화로 반려 — 판정 대기)",
      "walking forward with heavy clanking steps, the legs alternating so one foot stays planted while the "
      "other lifts and swings through, the whole frame pressing down on every footfall and the joints "
      "following a beat late, AND BOTH ARMS SWING with the steps, the gun barrels moving forward and back"),
     ("fusion_Death", "fd9d157a-6216-4144-a74d-6a210c42ca7b", ["south"], 8, True, 8,
-     "**2차 · 새 승인본 앵커** (자세 미변화로 반려 — 세로 11px · 로봇 A 는 48px)",
+     "**2차 · 미해결** (자세가 안 바뀐다 — 세로 11px · 로봇 A 는 48px)",
      "the locking clamps release first and the two joined frames start to come apart at the seam, then the "
      "machine sinks down onto the ground and settles, no explosion"),
 ]
