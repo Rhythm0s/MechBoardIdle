@@ -132,6 +132,12 @@ namespace MBI.Editor
                                      + string.Join(", ", Array.ConvertAll(sch.UnusedFrames, f => "frame_" + f.ToString("000"))));
                     if (sch.HasWarning) warnings.Add("- `" + label + "` — " + sch.Warning);
 
+                    // 같은 그림이 한 벌 안에 두 번 이상 놓인 자리를 잡는다. 폴더에 파일이 여섯이면
+                    // 「그림 여섯」으로 세어지는데, 그중 둘이 같은 그림이면 실제로 그린 것은 다섯이다.
+                    // 벌 목록을 세는 테스트는 파일 수만 보므로 이것을 못 본다(15 7-4 「테스트가 못 보는 자리」).
+                    string dup = DuplicateFrames(files);
+                    if (dup != null) warnings.Add("- `" + label + "` — **같은 그림이 두 번 놓였다** " + dup);
+
                     sb.AppendLine("| `" + label + "` | " + files.Length
                         + " | " + canvasW + "×" + canvasH
                         + " | " + avgH.ToString("0.0", CultureInfo.InvariantCulture)
@@ -165,7 +171,7 @@ namespace MBI.Editor
             }
             else
             {
-                sb.AppendLine("⚠️ **아래 벌은 그림 장수가 화면에서 지켜지지 않는다.** 목표 초가 짧거나 그 벌에 그림을 너무 많이 그렸다는 뜻이다.");
+                sb.AppendLine("⚠️ **아래 벌은 그림 장수가 화면에서 지켜지지 않는다.** 칸을 지웠거나(목표 초가 짧다), 같은 그림이 두 번 놓여 파일 수보다 실제 그림이 적다.");
                 sb.AppendLine();
                 foreach (string w in warnings) sb.AppendLine(w);
             }
@@ -244,6 +250,34 @@ namespace MBI.Editor
                 return line.Length >= 7 ? line.Substring(0, 7) : line;
             }
             catch { return "알 수 없음"; }
+        }
+
+        /// <summary>
+        /// 한 벌 안에서 md5가 같은 프레임 묶음. 없으면 null.
+        /// <b>그림 장수 규격이 파일 수로만 지켜지는 것을 막는다</b> — 반 바퀴만 그리고
+        /// 가운데 칸을 한 번 더 놓아 수를 채우면 파일은 여섯이지만 그림은 다섯이다.
+        /// </summary>
+        private static string DuplicateFrames(string[] files)
+        {
+            var byHash = new Dictionary<string, List<int>>();
+            for (int i = 0; i < files.Length; i++)
+            {
+                string h = Md5(files[i]);
+                if (!byHash.TryGetValue(h, out List<int> list)) byHash[h] = list = new List<int>();
+                list.Add(i);
+            }
+
+            var parts = new List<string>();
+            int distinct = 0;
+            foreach (var kv in byHash)
+            {
+                distinct++;
+                if (kv.Value.Count < 2) continue;
+                parts.Add(string.Join(" = ", kv.Value.ConvertAll(i => "frame_" + i.ToString("000")))
+                          + " (`" + kv.Key + "`)");
+            }
+            if (parts.Count == 0) return null;
+            return string.Join(" · ", parts) + " — 파일 " + files.Length + "개 · **실제 그림 " + distinct + "장**";
         }
 
         private static string Md5(string path)
