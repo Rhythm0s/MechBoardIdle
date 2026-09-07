@@ -1,0 +1,109 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 6211a04f247545c41a99f62812b1ffac, type: 3}
+  m_Name: Robot_Fusion
+  m_EditorClassIdentifier: MBI.Data::MBI.Data.RobotDefinition
+  robotId: fusion
+  displayName: "\uD569\uCCB4\uCCB4"
+  weapons: []
+  consumptionCap: 6
+  mountCoef: 1
+  enhancedMountCoef: 1.45
+  moduleMult: 1
+  sprite: {fileID: 21300000, guid: 8766d544854975c47938bca38e1bfc0f, type: 3}
+  droneSprite: {fileID: 0}
+  animClips:
+  - state: 0
+    direction: 0
+    frames:
+    - {fileID: 21300000, guid: 6c31be98641ba7e42b79e41382c6b760, type: 3}
+    - {fileID: 21300000, guid: 0a46655a3c320b246ba472eec3224d26, type: 3}
+    - {fileID: 21300000, guid: e8230e6940cfaa3408ebb9e749f3c6f0, type: 3}
+    - {fileID: 21300000, guid: ff80053d16e0cdc41838bc986fabfb8b, type: 3}
+    - {fileID: 21300000, guid: 2f6ed0f18b846cc43aaf8f551e68a46e, type: 3}
+    targetSeconds: 1
+    pingPong: 1
+    dwellCells: 
+  - state: 0
+    direction: 1
+    frames:
+    - {fileID: 21300000, guid: d409608fef618254aab0473ad2c8affb, type: 3}
+    - {fileID: 21300000, guid: 1f8e0d5a12437d84ba40ee95343a5e05, type: 3}
+    - {fileID: 21300000, guid: 865bd4d5348a2c04392254bf4ec7e48c, type: 3}
+    - {fileID: 21300000, guid: 5a0f9fb644ba2534084500c3ce71c8b6, type: 3}
+    - {fileID: 21300000, guid: a14289bbcf460ac41af5007420bfae93, type: 3}
+    targetSeconds: 1
+    pingPong: 1
+    dwellCells: 
+  - state: 0
+    direction: 2
+    frames:
+    - {fileID: 21300000, guid: 307f3808b45eb2e4eaaa95c60a746673, type: 3}
+    - {fileID: 21300000, guid: df01735059f454640b1573e11456d6ca, type: 3}
+    - {fileID: 21300000, guid: 74c0e5b0bbbc1ef4fbd16ee2bdab3f2b, type: 3}
+    - {fileID: 21300000, guid: fbaba048b306c3d4f93dcf3f820a9a6a, type: 3}
+    - {fileID: 21300000, guid: 9dd6ce4bcd9510f4a8e3daa3eacff0ff, type: 3}
+    targetSeconds: 1
+    pingPong: 1
+    dwellCells: 
+  - state: 1
+    direction: 0
+    frames:
+    - {fileID: 21300000, guid: 9186b157deb22e945864847d1140d135, type: 3}
+    - {fileID: 21300000, guid: 3ebb8035453ba7d4ca8ec01927e0fa67, type: 3}
+    - {fileID: 21300000, guid: a20c30e5deada8d40b8a32f584f6bfad, type: 3}
+    - {fileID: 21300000, guid: 5d1231bb04d4d724bb558ce806f37c5c, type: 3}
+    - {fileID: 21300000, guid: 2363e8edad31cee4bb784df4ece61acf, type: 3}
+    - {fileID: 21300000, guid: 95220873195b1c540bfe8acb8e7f2097, type: 3}
+    targetSeconds: 1
+    pingPong: 0
+    dwellCells: 
+  - state: 1
+    direction: 1
+    frames:
+    - {fileID: 21300000, guid: 35ec8f12e4d88c941afce5f9b8dd9c09, type: 3}
+    - {fileID: 21300000, guid: cb378b01f9532e94092e4abe257a6256, type: 3}
+    - {fileID: 21300000, guid: 0fbb4c04fdb97e04490dfc748968b1c2, type: 3}
+    - {fileID: 21300000, guid: 7bb1fae7c6891a6469190c524a9fed51, type: 3}
+    - {fileID: 21300000, guid: a82a04bb93600b5458547526d586711c, type: 3}
+    - {fileID: 21300000, guid: f029060f2e4715945baadf9a4903abce, type: 3}
+    targetSeconds: 1
+    pingPong: 0
+    dwellCells: 
+  - state: 1
+    direction: 2
+    frames:
+    - {fileID: 21300000, guid: 076c8b5c3e0964f40b14efb97f276252, type: 3}
+    - {fileID: 21300000, guid: cde761d9d81f7334f8d78865b6bc55b6, type: 3}
+    - {fileID: 21300000, guid: ba51cda3c853b12468fdb64fd8c9a1c1, type: 3}
+    - {fileID: 21300000, guid: 558b9b5daf926ed4596eee8fc9f5b54a, type: 3}
+    - {fileID: 21300000, guid: c7303c4cfce7f674683f9651b5763482, type: 3}
+    - {fileID: 21300000, guid: 91828e91cd49f564481da7e577872c3f, type: 3}
+    targetSeconds: 1
+    pingPong: 0
+    dwellCells: 
+  - state: 2
+    direction: 0
+    frames:
+    - {fileID: 21300000, guid: 075206a993e682147bf9dc4f46ac3915, type: 3}
+    - {fileID: 21300000, guid: e1a0922051c76e144b226780cd0deac2, type: 3}
+    - {fileID: 21300000, guid: 8bf7a596359f4cd479dc9c8d8d447ab4, type: 3}
+    - {fileID: 21300000, guid: a273f6975465b5d49962e7c310cbe6e3, type: 3}
+    - {fileID: 21300000, guid: 085cfe12212e5fb4eb75cffca6c7e33f, type: 3}
+    - {fileID: 21300000, guid: 4422af878a0d1a44496f4b072439bf1c, type: 3}
+    - {fileID: 21300000, guid: e7fbf9c31496117409c9c3e7b4b4f20f, type: 3}
+    - {fileID: 21300000, guid: 239ba058b9e3b884ea5647b63717e858, type: 3}
+    - {fileID: 21300000, guid: dfbfe6b52a174364f94175b9278be2ca, type: 3}
+    targetSeconds: 2
+    pingPong: 0
+    dwellCells: 
+  balanceRef: {fileID: 11400000, guid: a00911652af86014e9b4ea1c7d0b41d5, type: 2}

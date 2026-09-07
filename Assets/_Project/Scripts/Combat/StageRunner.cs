@@ -20,6 +20,8 @@ namespace MBI.Combat
         public RobotDefinition robot;
         [Tooltip("태그 상대(로봇 B, 드론 운용기). 비우면 로봇 한 대로 돈다 — 태그·합체가 없는 기존 경로.")]
         public RobotDefinition robotB;
+        [Tooltip("합체체. 합체 지속 20초 동안 로봇 A·B 스프라이트를 대신한다(15-3 7장). 비우면 원래 로봇이 그대로 선다.")]
+        public RobotDefinition robotFusion;
         public StageDefinition stage;
         public CombatTuning tuning;
         [Tooltip("적 카탈로그(atk 조회용). Enemy_infantry/artillery/armor/boss.")]
@@ -52,6 +54,7 @@ namespace MBI.Combat
         private float _lastRobotHp; // 피격 점멸 트리거 — HP가 줄어든 프레임을 잡는다
         private readonly MergeCutscene _cutscene = new MergeCutscene(); // 합체 3초 연출(시간표는 코어가 쥔다)
         private int _viewedRobotIndex;  // 뷰가 지금 그리고 있는 로봇 — 교대하면 다시 묶는다
+        private bool _viewedMerged;     // 뷰가 지금 합체체를 그리고 있는가 — 합체 시작·종료에 다시 묶는다
         private bool _pointerDown;      // 플릭 인식: 누른 상태인가
         private Vector2 _pointerStart;  // 누른 지점(스크린 픽셀)
         private float _pointerDownTime;
@@ -59,8 +62,19 @@ namespace MBI.Combat
             new Dictionary<DroneUnit, SpriteRenderer>();
 
         /// <summary>지금 나가 있는 로봇의 SO. 태그하면 바뀐다 — 스프라이트·색이 여기서 온다.</summary>
-        private RobotDefinition ActiveRobotDef =>
-            _sim != null && _sim.ActiveRobotIndex == 1 && robotB != null ? robotB : robot;
+        private RobotDefinition ActiveRobotDef
+        {
+            get
+            {
+                // 합체 지속 20초 동안 합체체가 로봇 A·B 스프라이트를 대신한다
+                // (합체 로봇 아트 요청 문서(15-3) 7장 · 260907_W01 3-1).
+                if (IsMerged && robotFusion != null) return robotFusion;
+                return _sim != null && _sim.ActiveRobotIndex == 1 && robotB != null ? robotB : robot;
+            }
+        }
+
+        /// <summary>합체 중인가. 뷰 교체의 유일한 조건이다.</summary>
+        private bool IsMerged => _sim != null && _sim.Merge != null && _sim.Merge.IsActive;
 
         // 로봇 두 대를 색으로 구분한다(아트가 들어오면 스프라이트가 이깁니다).
         private static readonly Color RobotAColor = new Color(0.3f, 0.6f, 1f);
@@ -277,6 +291,7 @@ namespace MBI.Combat
                 def != null ? def.animClips : null);
 
             _viewedRobotIndex = _sim.ActiveRobotIndex;
+            _viewedMerged = IsMerged;
             _lastRobotHp = _sim.Robot.hp; // 교대 프레임을 피격으로 오인해 점멸하지 않게 한다
         }
 
@@ -392,7 +407,7 @@ namespace MBI.Combat
             _sim.Tick(Time.deltaTime);
 
             // 교대했으면 뷰를 새 로봇에 다시 묶는다 — 안 하면 B가 싸우는데 A가 서 있다.
-            if (_sim.ActiveRobotIndex != _viewedRobotIndex) BindRobotView();
+            if (_sim.ActiveRobotIndex != _viewedRobotIndex || IsMerged != _viewedMerged) BindRobotView();
 
             // 처치를 방치 런타임으로 흘린다. 가져가며 비우는 API라 같은 처치를 두 번 세지 않는다.
             IdleSignals.AddKills(_sim.ConsumeKills());
@@ -623,6 +638,7 @@ namespace MBI.Combat
             if (_robotView != null) Destroy(_robotView.gameObject);
             _robotView = null;
             _viewedRobotIndex = 0;
+            _viewedMerged = false;
             Begin();
         }
 

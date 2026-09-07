@@ -97,6 +97,20 @@ namespace MBI.Editor
             b.droneSprite = LoadArt("drone_n"); // 누적형 = 기본 프리셋(params pB 1.0 × dB 100)
             b.animClips = LoadAnimClips("robot_b", tuning);
             EditorUtility.SetDirty(b);
+
+            // 합체체 — 260907_W01 3-1 이 HUD 묶음보다 앞으로 올렸다. 촬영 C구간 25초가 전부
+            // 합체이고, 00:40~00:55 는 합체체가 화면에 서 있어야 하는 구간이다. 자산은 이미
+            // 있었고 배선만 없었다. 무기 스펙은 A·B 의 것을 쓰므로 여기서는 그림만 갖는다.
+            RobotDefinition f = LoadOrCreate<RobotDefinition>($"{RobotsDir}/Robot_Fusion.asset");
+            f.robotId = "fusion";
+            f.displayName = "합체체";
+            f.mountCoef = 1f;
+            f.enhancedMountCoef = enh;
+            f.moduleMult = moduleMult;
+            f.balanceRef = config;
+            f.sprite = LoadArt("robot_fusion_256");
+            f.animClips = LoadAnimClips("fusion", tuning);
+            EditorUtility.SetDirty(f);
         }
 
         // Art/Units에서 스프라이트를 읽는다. 없으면 null — 뷰가 플레이스홀더로 폴백한다.

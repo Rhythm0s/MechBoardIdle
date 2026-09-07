@@ -202,6 +202,23 @@ namespace MBI.Tests
 
         // ---- 재생 쪽 규격 ----
 
+        /// <summary>
+        /// 합체체 자산이 있어야 촬영 C구간(00:40~00:55)에 합체체가 화면에 선다 —
+        /// `260907_W01` 3-1이 HUD 묶음보다 앞으로 올린 이유가 그것이다.
+        /// 자산이 없으면 생성기를 아직 안 돌린 것이라 실패가 아니라 건너뛴다.
+        /// </summary>
+        [Test]
+        public void FusionRobot_HasSevenClips()
+        {
+            const string path = "Assets/_Project/ScriptableObjects/Robots/Robot_Fusion.asset";
+            var def = UnityEditor.AssetDatabase.LoadAssetAtPath<MBI.Data.RobotDefinition>(path);
+            if (def == null) Assert.Ignore("Robot_Fusion.asset 이 아직 없다 — MBI/Generate Combat Data 를 돌린다");
+
+            Assert.IsNotNull(def.sprite, "합체 256 전투 스틸이 걸려 있어야 한다");
+            Assert.AreEqual(7, def.animClips != null ? def.animClips.Count : 0,
+                "합체는 대기 3 · 이동 3 · 사망 1 = 7벌이다");
+        }
+
         [Test]
         public void Clip_IsInvalid_WhenEmpty()
         {
