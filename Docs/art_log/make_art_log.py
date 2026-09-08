@@ -119,17 +119,18 @@ GROUPS = [
      "**4차 · 끝 자세 보간** (통과)",
      "남면과 같은 방식이며 목표는 동면 회전본을 눌러 만든 `sink_east.png` 다."),
     ("fusion_Move", "a8a67ecf-54df-428a-8a10-e744aad58883", ["south"], 4, True, 4,
-     "**3차 · 규칙 15 · v3 보간 · 그림 5장 + 사본 1장** (합격 — 좌우 아랫변 차 −10 → +12 · 사본 삭제 대기)",
+     "**3차 · 규칙 15 · v3 보간 · 5장 · 칸 목록 0 1 2 3 4 2** (합격 — 좌우 아랫변 차 −10 → +12)",
      "규칙 15(자세 두 장을 손으로 만들어 보간에 준다 · `260907_W03` 2-1 · 번호는 15)로 다시 걸었다. "
      "다리 구간 마스크 `x68 y150 122×102`(양팔 총열은 밖) · 되접기 축 **x=127.0 · 대칭도 98.9%** · "
      "자세는 `candidates/fusion_pose/stride2_{L,R}.png` · 승인본은 건드리지 않았다. "
-     "**폴더에는 아직 사본 `frame_005` 가 있다** — 칸 목록 조건식이 합체까지 넓혀졌다는 말이 오기 전에는 지우지 않는다. "
+     "사본 `frame_005` 는 `1e7bee7`(`CellOrder()` 에 합체 남·북 줄 · EditMode 666/662 GREEN) 뒤에 지웠다(`3d3e754`) — "
+     "폴더는 다섯 장이고 여섯째 칸은 목록이 가운데 자세를 한 번 더 가리킨다. **화면은 안 바뀐다.** "
      "a heavy walk cycle: the forward leg swings back and the trailing leg swings forward past it, the feet "
      "trading places, the arms swinging with them, the torso upright and dropping slightly on each footfall"),
     ("fusion_Move", "bc9c684a-743b-43f1-8f07-77dc82c821cd", ["north"], 4, True, 4,
-     "**3차 · 규칙 15 · v3 보간 · 그림 5장 + 사본 1장** (합격 — 좌우 아랫변 차 −4 → +10 · 사본 삭제 대기)",
+     "**3차 · 규칙 15 · v3 보간 · 5장 · 칸 목록 0 1 2 3 4 2** (합격 — 좌우 아랫변 차 −4 → +10)",
      "남면과 같은 방식이며 마스크는 `x72 y140 116×100` · 되접기 축 **x=127.5 · 대칭도 99.3%** · "
-     "자세는 `candidates/fusion_pose/stride2_north_{L,R}.png` 다. 사본 `frame_005` 도 남면과 같은 이유로 남겨 둔다."),
+     "자세는 `candidates/fusion_pose/stride2_north_{L,R}.png` 다. 사본 `frame_005` 도 남면과 같이 `3d3e754` 에서 지웠다."),
     ("fusion_Move", "08eb1760-9197-4ecb-8c62-d26bb9cbd54c", ["east"], 6, False, 6,
      "**3차 · v3 문안 · 통과** (발 구간 가로폭 여닫힘 28px → 65px · 옆모습이라 좌우 아랫변 판정은 성립하지 않는다)",
      "walking forward with heavy clanking steps, the legs alternating so one foot stays planted while the "
