@@ -227,6 +227,45 @@ namespace MBI.Tests
                 "합체는 대기 3 · 이동 3 · 사망 1 = 7벌이다");
         }
 
+        /// <summary>
+        /// 칸 목록을 받는 벌은 <b>넷</b>이다 — 로봇 A 이동 남·북 · 합체 이동 남·북
+        /// (`260907_W03` 2-3 · `260907_W04` 4-3). 벌마다 조건식을 적고 일반화하지 않으므로,
+        /// <b>안 적은 벌에는 목록이 가면 안 된다</b>는 것이 이 테스트의 절반이다.
+        ///
+        /// 장수 조건도 함께 본다 — 사본이 아직 있어 여섯 장이면 목록을 주지 않는다.
+        /// 그래야 파일 삭제와 코드가 서로를 안 기다린다.
+        /// </summary>
+        [Test]
+        public void CellOrder_IsGivenToWalkSouthNorthFive_Only()
+        {
+            int[] expected = { 0, 1, 2, 3, 4, 2 };
+
+            foreach (string robot in new[] { "robot_a", "fusion" })
+            foreach (UnitAnimDirection dir in new[] { UnitAnimDirection.South, UnitAnimDirection.North })
+            {
+                CollectionAssert.AreEqual(expected,
+                    MBI.Editor.CombatAssetGenerator.CellOrder(robot, UnitAnimState.Move, dir, 5),
+                    $"{robot} 이동 {dir} 다섯 장은 가운데를 한 번 더 가리킨다");
+
+                Assert.IsNull(
+                    MBI.Editor.CombatAssetGenerator.CellOrder(robot, UnitAnimState.Move, dir, 6),
+                    $"{robot} 이동 {dir} — 사본이 남아 여섯 장이면 지금까지대로 돈다");
+            }
+
+            Assert.IsNull(
+                MBI.Editor.CombatAssetGenerator.CellOrder("robot_b", UnitAnimState.Move,
+                                                              UnitAnimDirection.South, 5),
+                "로봇 B는 적지 않았다 — 일반화하지 않는다(`260907_W04` 4-3)");
+            Assert.IsNull(
+                MBI.Editor.CombatAssetGenerator.CellOrder("fusion", UnitAnimState.Move,
+                                                              UnitAnimDirection.East, 5),
+                "옆모습은 걷기의 좌우가 안 갈려 이 목록의 자리가 아니다");
+            Assert.IsNull(
+                MBI.Editor.CombatAssetGenerator.CellOrder("fusion", UnitAnimState.Idle,
+                                                              UnitAnimDirection.South, 5),
+                "대기는 왕복이라 목록과 같이 쓰지 않는다");
+        }
+
         [Test]
         public void Clip_IsInvalid_WhenEmpty()
         {

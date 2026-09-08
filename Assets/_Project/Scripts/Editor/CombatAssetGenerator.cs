@@ -152,7 +152,8 @@ namespace MBI.Editor
         /// <summary>
         /// 그림 순서와 다른 칸 목록이 필요한 벌에 그 목록을 준다. 없으면 null — 그림 순서대로 돈다.
         ///
-        /// <b>로봇 A 이동 남·북이 그 자리다</b>(`260907_W03` 2-3). 걷기의 한 바퀴는
+        /// <b>로봇 A 이동 남·북과 합체 이동 남·북이 그 자리다</b>(`260907_W03` 2-3 · `260907_W04` 4-3).
+        /// 걷기의 한 바퀴는
         /// 「왼발 앞 → 모임 → 오른발 앞 → 모임 → 왼발 앞」이라 <b>모이는 자세를 두 번 지난다</b> —
         /// 그림은 다섯 장인데 칸은 여섯이다. 그 한 칸을 사본 파일로 채우고 있었는데,
         /// 「9프레임 상한은 그림 장수다」(15 7-1)에 어긋나 목록으로 옮겼다.
@@ -162,15 +163,23 @@ namespace MBI.Editor
         ///
         /// <b>장수로 조건을 건다.</b> 사본이 아직 안 지워져 여섯 장이면 지금까지대로 돌아
         /// 화면이 안 바뀐다 — 파일 삭제와 이 코드의 순서를 서로 기다리지 않아도 된다.
+        ///
+        /// <b>벌마다 적는다 — 기체 이름을 빼고 일반화하지 않는다</b>(`260907_W04` 4-3).
+        /// 「걷기 벌이 다섯 장이면」으로 묶으면 아직 안 온 기체까지 규칙이 미리 걸린다.
+        /// 조건식을 나란히 두면 어느 벌이 왜 이 목록을 갖는지가 코드에서 읽힌다.
         /// </summary>
-        internal static int[] CellOrder(string robot, UnitAnimState state, UnitAnimDirection dir, int frameCount)
+        /// <remarks><c>public</c>인 것은 <c>MBI.Tests.EditMode</c>가 다른 어셈블리라서다 —
+        /// 규칙을 테스트가 직접 부르지 못하면 「벌마다 적는다」가 코드로 안 지켜진다.</remarks>
+        public static int[] CellOrder(string robot, UnitAnimState state, UnitAnimDirection dir, int frameCount)
         {
-            bool walkCycleFive = robot == "robot_a"
-                                 && state == UnitAnimState.Move
-                                 && (dir == UnitAnimDirection.South || dir == UnitAnimDirection.North)
-                                 && frameCount == 5;
+            bool walkSouthNorthFive = state == UnitAnimState.Move
+                                      && (dir == UnitAnimDirection.South || dir == UnitAnimDirection.North)
+                                      && frameCount == 5;
 
-            return walkCycleFive ? new[] { 0, 1, 2, 3, 4, 2 } : null;
+            bool robotAWalk = robot == "robot_a" && walkSouthNorthFive;
+            bool fusionWalk = robot == "fusion" && walkSouthNorthFive;
+
+            return robotAWalk || fusionWalk ? new[] { 0, 1, 2, 3, 4, 2 } : null;
         }
 
         /// <summary>
