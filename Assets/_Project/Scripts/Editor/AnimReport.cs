@@ -55,9 +55,12 @@ namespace MBI.Editor
             sb.AppendLine("- **잰 자리: `" + root + "`** (`-animRoot`로 바꾼다)");
             sb.AppendLine("- **진폭 측정법: 프레임마다 알파 bbox의 윗변을 잡아, 그 윗변의 최댓값과 최솟값의 차를 프레임 평균 실루엣 높이로 나눈다.** 어깨가 오르내리는 폭이라 윗변으로 잰다");
             sb.AppendLine("- **최대·최소 방식이다 — 프레임 사이 이동량을 더하는 방식이 아니다**(`260907_W01` 확인 1). 같은 그림을 여러 칸이 가리켜도 최대와 최소가 안 움직이므로 **칸 복제는 이 값을 바꾸지 않는다**");
-            sb.AppendLine("- **분모를 둘 다 낸다 — 어느 쪽이 규격인지가 아직 안 정해졌다**(`260908_V01` ❓ 사망 대역 「분모 선택」). "
+            sb.AppendLine("- ✅ **규격 분모는 첫 칸 실루엣 높이다**(`260908_W01` 2-1 확정). 평균 열은 참고로 남긴다. "
                           + "`평균`은 벌의 프레임 평균 실루엣 높이이고, `첫 칸`은 **첫 프레임의 실루엣 높이**다. "
                           + "무너지는 동작(사망)에서는 둘이 크게 갈린다 — 몸이 낮아지면 평균이 함께 낮아져 같은 픽셀이 더 큰 비율로 나온다");
+            sb.AppendLine("- **가로 열 셋** — 첫 칸 폭 · 벌 안 최소 폭 · 최대 폭(알파 bbox). 주저앉음의 잣대 둘째가 "
+                          + "「세로가 줄 때 가로가 따라 줄지 않을 것」이라 **가로가 어느 쪽으로 갔는지**를 봐야 한다(`260908_W01` 2-3 · 3-2). "
+                          + "**마지막 칸 열을 함께 낸다** — 주저앉음은 끝난 자세가 결과이고, 중간 칸의 최소는 지나가는 값일 수 있다");
             sb.AppendLine("- 알파 문턱: 16 초과를 「있다」로 본다 · 캔버스 그대로만 잰다(자르거나 늘이지 않는다)");
             sb.AppendLine("- 계산: `MBI.Core.SilhouetteOverlap.TryBounds` 재사용");
             sb.AppendLine("- 도구 커밋은 **실행 시점의 HEAD**다. **잰 파일이 무엇인지는 아래 표의 md5가 말한다**");
@@ -72,8 +75,8 @@ namespace MBI.Editor
 
             sb.AppendLine("- 칸 열 셋은 `MBI.Core.Anim.AnimSchedule`이 낸다 — 한 칸 1/16초 · 목표 초는 `CombatTuning`(`260907_W01` 4-5)");
             sb.AppendLine();
-            sb.AppendLine("| 벌 | 그림 | 캔버스 | 실루엣 높이(평균) | 실루엣 높이(첫 칸) | 여백 T/B(최소) | 진폭 px | **진폭 %(평균)** | 진폭 %(첫 칸) | 잴 수 있나 | 기본 칸 | 필요 칸 | 실제 초 | 첫 프레임 md5 |");
-            sb.AppendLine("|---|---|---|---|---|---|---|---|---|---|---|---|---|---|");
+            sb.AppendLine("| 벌 | 그림 | 캔버스 | **실루엣 높이(첫 칸)** | 실루엣 높이(평균) | 여백 T/B(최소) | 세로 변화 px | **세로 %(첫 칸)** | 세로 %(평균) | **가로(첫 칸)** | **가로(마지막 칸)** | 가로 최소 | 가로 최대 | 잴 수 있나 | 기본 칸 | 필요 칸 | 실제 초 | 첫 프레임 md5 |");
+            sb.AppendLine("|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|");
 
             var warnings = new List<string>();
             var dirs = new List<string>(Directory.GetDirectories(root));
@@ -96,6 +99,8 @@ namespace MBI.Editor
                     long heightSum = 0;
                     // 첫 칸의 실루엣 높이 — 두 번째 분모다(아래 표 머리 설명).
                     double firstH = 0;
+                    // 가로 — 첫 칸 폭과 벌 안 최소·최대 폭(`260908_W01` 3-2).
+                    int firstW = 0, lastW = 0, widthMin = int.MaxValue, widthMax = int.MinValue;
                     int counted = 0, canvasW = 0, canvasH = 0;
                     int marginTopMin = int.MaxValue, marginBottomMin = int.MaxValue;
                     bool clipped = false;
@@ -105,13 +110,18 @@ namespace MBI.Editor
                         if (!TryLoad(f, out AlphaMask m)) continue;
                         canvasW = m.width;
                         canvasH = m.height;
-                        if (!SilhouetteOverlap.TryBounds(m, out _, out _, out int minY, out int maxY)) continue;
+                        if (!SilhouetteOverlap.TryBounds(m, out int minX, out int maxX, out int minY, out int maxY)) continue;
+
+                        int w = maxX - minX + 1;
+                        widthMin = Math.Min(widthMin, w);
+                        widthMax = Math.Max(widthMax, w);
+                        lastW = w;   // 루프가 끝나면 마지막으로 읽은 칸의 폭이 남는다
 
                         // minY = 실루엣의 윗변(마스크는 위에서 아래로 담긴다).
                         topMin = Math.Min(topMin, minY);
                         topMax = Math.Max(topMax, minY);
                         heightSum += maxY - minY + 1;
-                        if (counted == 0) firstH = maxY - minY + 1;
+                        if (counted == 0) { firstH = maxY - minY + 1; firstW = w; }
                         counted++;
 
                         // 캔버스에 닿으면 그 프레임의 실루엣은 잘려 있다 — bbox가 더 못 움직인다.
@@ -154,10 +164,12 @@ namespace MBI.Editor
 
                     sb.AppendLine("| `" + label + "` | " + files.Length
                         + " | " + canvasW + "×" + canvasH
+                        + " | **" + firstH.ToString("0", CultureInfo.InvariantCulture) + "**"
                         + " | " + avgH.ToString("0.0", CultureInfo.InvariantCulture)
-                        + " | " + firstH.ToString("0", CultureInfo.InvariantCulture)
                         + " | " + marginTopMin + " / " + marginBottomMin
-                        + " | " + ampPx + " | **" + ampPct + "** | " + ampPctFirst + " | " + measurable
+                        + " | " + ampPx + " | **" + ampPctFirst + "** | " + ampPct
+                        + " | " + firstW + " | **" + lastW + "** | " + widthMin + " | " + widthMax
+                        + " | " + measurable
                         + " | " + sch.BaseCells + " | " + sch.NeededCells
                         + " | " + sch.ActualSeconds.ToString("0.00", CultureInfo.InvariantCulture)
                         + " | `" + Md5(files[0]) + "` |");
@@ -165,7 +177,7 @@ namespace MBI.Editor
                 }
             }
 
-            if (rows == 0) sb.AppendLine("| — | — | — | — | — | — | — | — | — | — | — | — | — | — |");
+            if (rows == 0) sb.AppendLine("| — | — | — | — | — | — | — | — | — | — | — | — | — | — | — | — | — | — |");
             sb.AppendLine();
             sb.AppendLine("**" + rows + "벌.** 대기 진폭 규격은 256 이상에서 실루엣 높이의 **4~6%**다 (캐릭터 아트 요청 문서(15)「동작의 크기」).");
             sb.AppendLine();
