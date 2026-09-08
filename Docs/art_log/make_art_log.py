@@ -143,8 +143,9 @@ GROUPS = [
      "몸통·어깨(발사관 포함)와 총열 팔은 **옮기기만**(총열은 발밑을 안 뚫도록 2px) · 이음선은 축 `x=127` 에서 "
      "좌우를 ±3px 벌려 접합부가 풀린 것으로 읽힌다. 끝 자세는 `candidates/fusion_pose/collapse_target.png` "
      "(세로 225→173 · 가로 234→238)이며 그것을 `end_frame_url`, 승인본을 `custom_start_frame_url` 로 준 v3 보간이다. "
-     "칸마다 계속 내려앉고(되올라오는 칸 없음) 끝에서 가로가 넓어진다. 폐기된 2차(`fd9d157a` · 11px = 4.9%)와 "
-     "폐기된 보간판(`260c66ff`)은 `candidates/` 에 있다. "
+     "칸마다 계속 내려앉고(되올라오는 칸 없음) 끝에서 가로가 넓어진다. **물러난 차수 셋이 나란히 있다**(§22-3) — "
+     "`candidates/fusion_Death_v2/`(2차 `fd9d157a` · 11px = 4.9% · `5d556c3` 에서 꺼냈다) · "
+     "`candidates/fusion_Death_v3/`(문안 강화 · 21px) · `candidates/fusion_Death_pose/`(눌린 실루엣 보간 `260c66ff` · 109px · 폐기). "
      "the machine dies and drops: its knees fold under it so the hips sink toward the ground, the torso settles "
      "straight down, the seam down its chest pulls apart as the locking clamps let go, and the gun arms hang "
      "slack. Each frame sits lower than the one before. No explosion"),

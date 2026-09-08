@@ -486,7 +486,8 @@ A 3차와 같은 `FRAMING` 절 + 6-3 이 적어 둔 2차 처방 둘(`seen from a
 끝에서 **가로가 넓어진다**(로봇 B 통과본과 같은 방향)는 것까지가 실측이다.
 
 **✅ 사용자 통과 · 설치 완료 (2026-09-07 · `d34069c`)** — `Assets/_Project/Art/Anim/fusion_Death/south` 가 이 벌로 바뀌었다(9장).
-폐기된 2차(`fd9d157a`)와 폐기된 보간판(`260c66ff`)은 `candidates/` 에 남는다. **`AnimReport` 재실행 대상이다.**
+물러난 차수 셋이 `candidates/` 에 나란히 있다(§22-3) — `fusion_Death_v2/`(2차 `fd9d157a` · 4.9% · `5d556c3` 에서 꺼냈다 · `2063f1f`) ·
+`fusion_Death_v3/`(문안 강화 · 21px) · `fusion_Death_pose/`(눌린 실루엣 보간 `260c66ff` · 109px · 폐기). **`AnimReport` 재실행 대상이다.**
 
 ### ✅ 분모 확인 — **맞다. 승인본 스틸의 실루엣 세로다** (문서·코드 질의 · 2026-09-07)
 
