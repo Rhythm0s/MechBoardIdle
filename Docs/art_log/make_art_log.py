@@ -136,10 +136,18 @@ GROUPS = [
      "walking forward with heavy clanking steps, the legs alternating so one foot stays planted while the "
      "other lifts and swings through, the whole frame pressing down on every footfall and the joints "
      "following a beat late, AND BOTH ARMS SWING with the steps, the gun barrels moving forward and back"),
-    ("fusion_Death", "fd9d157a-6216-4144-a74d-6a210c42ca7b", ["south"], 8, True, 8,
-     "**2차 · 미해결** (자세가 안 바뀐다 — 세로 11px · 로봇 A 는 48px)",
-     "the locking clamps release first and the two joined frames start to come apart at the seam, then the "
-     "machine sinks down onto the ground and settles, no explosion"),
+    ("fusion_Death", "e6ed76fb-8e63-49ac-b325-029cda61bdd8", ["south"], 8, True, 8,
+     "**4차 · 규칙 15(옮김·축소) · 통과** (세로 54px = 24.0% 승인본 분모 / 27.3% 벌 평균 분모)",
+     "끝 자세를 **그리지 않고 승인본 `648b864e` 의 픽셀을 옮기고 줄여** 만들었다 — 새 획 0. "
+     "다리(`y≥150` · `x68~190`)만 세로 0.45 배로 축소하고 발끝은 제자리에 두어 엉덩이가 52px 내려앉는다 · "
+     "몸통·어깨(발사관 포함)와 총열 팔은 **옮기기만**(총열은 발밑을 안 뚫도록 2px) · 이음선은 축 `x=127` 에서 "
+     "좌우를 ±3px 벌려 접합부가 풀린 것으로 읽힌다. 끝 자세는 `candidates/fusion_pose/collapse_target.png` "
+     "(세로 225→173 · 가로 234→238)이며 그것을 `end_frame_url`, 승인본을 `custom_start_frame_url` 로 준 v3 보간이다. "
+     "칸마다 계속 내려앉고(되올라오는 칸 없음) 끝에서 가로가 넓어진다. 폐기된 2차(`fd9d157a` · 11px = 4.9%)와 "
+     "폐기된 보간판(`260c66ff`)은 `candidates/` 에 있다. "
+     "the machine dies and drops: its knees fold under it so the hips sink toward the ground, the torso settles "
+     "straight down, the seam down its chest pulls apart as the locking clamps let go, and the gun arms hang "
+     "slack. Each frame sits lower than the one before. No explosion"),
 ]
 
 RETIRED = [
