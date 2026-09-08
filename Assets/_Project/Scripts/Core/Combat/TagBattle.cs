@@ -61,6 +61,51 @@ namespace MBI.Core
         /// <summary>마지막 태그 스킬이 소진한 적재량. 피해 계산의 입력.</summary>
         public float LastTagSkillDrained { get; private set; }
 
+        // ── 태그 스킬은 진입 클립이 다 돈 뒤에 터진다 (260908_W06 2장 · (가) 0.75초) ──────
+        //
+        // **갈라 둔 것 둘.** 태그 인 틱에 확정되는 것은 **발동 여부와 발수**이고,
+        // **표적 판정 · 피해 · 마운트 비움**은 클립이 끝난 자리로 미룬다.
+        //
+        // 왜 발수를 먼저 잡는가 — 발동 조건은 「들어오는 로봇의 마운트가 만충」이고
+        // 그 만충은 **태그 인 시점의 사실**이다(전투 시스템 문서「태그 시스템」).
+        // 기다리는 동안 창고가 마운트를 더 채워도 그것으로 때리면 조건과 결과가 어긋난다.
+        //
+        // 왜 표적은 미루는가 — 연출이 닿는 데까지가 판정이 닿는 데까지여야 하고
+        // (260908_W05 2-2), 연출은 클립이 끝난 뒤에 나간다. **그때의 화면으로 판정한다.**
+        //
+        // ⚠️ **보류 규칙은 그대로다** — 그때 화면 안에 표적이 하나도 없으면
+        // 타격이 성립하지 않고 **마운트도 안 비워진다**(재고는 만재로 남는다).
+        private float _pendingRounds;
+        private int _pendingIndex;
+
+        /// <summary>진입 클립이 끝나기를 기다리는 태그 스킬이 있는가.</summary>
+        public bool HasPendingSkill => _pendingRounds > 0f;
+
+        /// <summary>기다리던 발수 — 태그 인 틱에 잡힌 값이다(진단용).</summary>
+        public float PendingSkillRounds => _pendingRounds;
+
+        /// <summary>
+        /// 기다리던 태그 스킬을 **지금** 터뜨린다 — 진입 클립이 끝난 자리에서 시뮬이 부른다.
+        /// 시간을 재는 쪽은 시뮬이다(여기는 dt를 모른다).
+        /// </summary>
+        /// <returns>타격이 성립했으면 참. 표적이 없어 보류됐으면 거짓이며 마운트는 그대로다.</returns>
+        public bool ResolvePendingSkill()
+        {
+            if (_pendingRounds <= 0f) return false;
+
+            float loaded = _pendingRounds;
+            _pendingRounds = 0f;
+
+            if (SkillStrike == null || !SkillStrike(loaded)) return false;
+
+            LastTagSkillDrained = _mounts[_pendingIndex].DrainAll();
+            LastTagFiredSkill = true;
+            return true;
+        }
+
+        /// <summary>기다리던 스킬을 버린다(전투 종료·리셋 등).</summary>
+        public void CancelPendingSkill() => _pendingRounds = 0f;
+
         /// <summary>
         /// **실패 조건 — A·B 동시 고갈 → 공격 정지**(밸런스 「태그 시스템 수치」).
         /// 한쪽만 비면 태그로 넘어가면 되지만 둘 다 비면 갈 곳이 없다.
@@ -117,11 +162,15 @@ namespace MBI.Core
                 //
                 // ⚠️ **비우기와 때리기는 한 동작이다.** 타격이 성립하지 않으면 비우지도 않는다 —
                 // 종전에는 비우기만 있어 「대가만 치르고 아무 일도 안 일어나는」 순손실이었다.
+                //
+                // ⚠️ **여기서 때리지 않는다** (2026-09-08 · 260908_W06 2장). 발수만 잡아 두고
+                // 진입 클립이 다 돈 뒤에 <see cref="ResolvePendingSkill"/>이 때린다.
+                // 구 거동은 태그 인과 **동시(0초)**였다.
                 float loaded = ActiveMount.Total;
-                if (loaded > 0f && SkillStrike != null && SkillStrike(loaded))
+                if (loaded > 0f)
                 {
-                    LastTagSkillDrained = ActiveMount.DrainAll();
-                    LastTagFiredSkill = true;
+                    _pendingRounds = loaded;
+                    _pendingIndex = ActiveIndex;
                 }
             }
             return true;
@@ -137,6 +186,7 @@ namespace MBI.Core
             _tag.Reset();
             LastTagFiredSkill = false;
             LastTagSkillDrained = 0f;
+            _pendingRounds = 0f;
         }
     }
 }

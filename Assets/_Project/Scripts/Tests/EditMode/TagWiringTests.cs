@@ -313,6 +313,70 @@ namespace MBI.Tests
             Assert.AreEqual(1000000f, sim.Enemies[1].hp, D, "화면 밖의 적은 안 맞는다");
         }
 
+        // ---- 태그 스킬은 진입 클립이 끝난 뒤에 터진다 (260908_W06 2장) ----
+
+        private static CombatSimulation TagSkillSim(out MountLoad mountA, float delaySeconds)
+        {
+            mountA = new MountLoad(1, Stacks());
+            var mountB = new MountLoad(1, Stacks());
+            var sim = new CombatSimulation(Robot(), Robot(), mountA, mountB,
+                Sandbag(), arenaRadius: 6f, challengeTime: 120f, spawnCadence: 0f);
+
+            mountA.Load(MountItem.Pierce, 5f);
+            sim.AmmoSupplyRate = 0f;
+            sim.StandbyAmmoSupplyRate = 20f;
+            // 러너는 여기에 `CombatTuning.animTagInSeconds`를 그대로 넣는다 — 새 상수가 아니다.
+            sim.SetTagSkillDelay(delaySeconds);
+            return sim;
+        }
+
+        /// <summary>교대가 일어나 스킬이 예약될 때까지만 돌린다.</summary>
+        private static void RunUntilTagged(CombatSimulation sim, float dt = 0.05f)
+        {
+            for (int i = 0; i < 400 && !sim.Tag.HasPendingSkill; i++) sim.Tick(dt);
+        }
+
+        /// <summary>
+        /// **태그 인 틱에는 아직 안 터진다** (2026-09-08 · `260908_W06` 2장 · (가) 0.75초).
+        ///
+        /// 구 거동은 진입 **시작**과 동시(0초)였다. 지금은 발동 여부와 발수만 그 틱에 잡히고,
+        /// 표적 판정 · 피해 · 마운트 비움은 클립이 다 돈 뒤로 미뤄진다.
+        /// </summary>
+        [Test]
+        public void TagSkill_DoesNotFireOnTheEntryTick()
+        {
+            var sim = TagSkillSim(out _, delaySeconds: 0.75f);
+
+            RunUntilTagged(sim);
+
+            Assert.IsTrue(sim.Tag.HasPendingSkill, "교대가 일어나 스킬이 예약됐다");
+            Assert.Greater(sim.Tag.PendingSkillRounds, 0f, "발수는 진입 틱에 잡힌다");
+            Assert.IsFalse(sim.Tag.LastTagFiredSkill, "진입 틱에는 아직 안 터진다");
+            Assert.AreEqual(0f, sim.LastTagSkillDamage, D, "피해도 아직 0이다");
+            Assert.Greater(sim.Tag.ActiveMount.Total, 0f, "마운트도 아직 안 비었다");
+        }
+
+        /// <summary>
+        /// **클립이 다 돌면 그때 터진다.** 0.75초는 러너가 넣어 주는 값이며
+        /// 시뮬이 스스로 짓지 않는다(`SetVisibleBounds`와 같은 길).
+        /// </summary>
+        [Test]
+        public void TagSkill_FiresWhenTheEntryClipEnds()
+        {
+            var sim = TagSkillSim(out _, delaySeconds: 0.75f);
+
+            RunUntilTagged(sim);
+            float booked = sim.Tag.PendingSkillRounds;
+
+            Run(sim, 0.75f + 0.05f);
+
+            Assert.IsFalse(sim.Tag.HasPendingSkill, "예약이 풀렸다");
+            Assert.IsTrue(sim.Tag.LastTagFiredSkill, "클립이 끝난 자리에서 터졌다");
+            Assert.Greater(sim.LastTagSkillDamage, 0f, "피해가 그때 들어갔다");
+            Assert.AreEqual(booked, sim.Tag.LastTagSkillDrained, D,
+                "비운 양은 진입 틱에 잡힌 발수 그대로다 — 기다리는 동안 더 채워도 그것으로 안 때린다");
+        }
+
         // ---- 활성 로봇이 바뀐다 ----
 
         /// <summary>교대하면 `Robot`이 가리키는 몸체도 바뀐다 — HP가 각자다.</summary>

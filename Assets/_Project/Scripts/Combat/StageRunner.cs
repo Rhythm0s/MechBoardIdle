@@ -525,6 +525,10 @@ namespace MBI.Combat
             // 그것은 **스폰 링(화면 바깥)**이라 「화면 안」을 대신할 수 없다.
             PushVisibleBounds();
 
+            // 태그 스킬이 터지는 자리도 밖에서 넣는다 — **진입 클립이 다 도는 초**다
+            // (260908_W06 2장 · (가) 0.75초). 새 상수를 만들지 않고 이미 있는 클립 초를 그대로 쓴다.
+            _sim.SetTagSkillDelay(tuning != null ? tuning.animTagInSeconds : 0.75f);
+
             _sim.Tick(Time.deltaTime);
 
             // 교대했으면 뷰를 새 로봇에 다시 묶는다 — 안 하면 B가 싸우는데 A가 서 있다.
@@ -533,8 +537,13 @@ namespace MBI.Combat
                 bool tagSwitch = _sim.ActiveRobotIndex != _viewedRobotIndex && IsMerged == _viewedMerged;
                 if (tagSwitch) SpawnFadeGhost();
                 BindRobotView();
-                if (tagSwitch) { PlayTagEntrance(); PlayTagSkillEffect(); }
+                if (tagSwitch) PlayTagEntrance();
             }
+
+            // 태그 스킬 연출은 **터진 틱**에 나간다 — 태그 인과 동시가 아니다
+            // (260908_W06 2장 · 진입 클립이 다 돈 0.75초 뒤). 뷰를 다시 묶는 위 블록과
+            // 떼어 놓은 이유가 그것이다 — 교대 프레임에는 아직 안 터졌다.
+            if (_sim.TagSkillResolvedThisTick) PlayTagSkillEffect();
 
             // 처치를 방치 런타임으로 흘린다. 가져가며 비우는 API라 같은 처치를 두 번 세지 않는다.
             IdleSignals.AddKills(_sim.ConsumeKills());

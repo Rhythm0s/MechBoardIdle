@@ -157,6 +157,29 @@ namespace MBI.Core
         /// <summary>그 적이 지금 화면 안에 들어와 있는가. 범위가 없으면 전부 참이다.</summary>
         private bool IsOnScreen(CombatEntity e) =>
             !_visibleBounds.HasValue || _visibleBounds.Value.Contains(e.position);
+
+        /// <summary>
+        /// 태그 인부터 태그 스킬이 터지기까지의 초 — **진입 클립이 다 도는 시간**이다
+        /// (2026-09-08 확정 · <c>260908_W06</c> 2장 · UI 문서「연출 표현 규칙」 10-3).
+        ///
+        /// ⚠️ **새 상수가 아니다.** 러너가 <c>CombatTuning.animTagInSeconds</c>를 그대로 넣어 준다 —
+        /// <see cref="SetVisibleBounds"/>와 같은 길이며, 시뮬이 값을 스스로 짓지 않는다.
+        ///
+        /// ⚠️ **코드 이동이 멎는 자리가 아니다.** 이동은 꼬리 칸만큼 먼저 끝나지만
+        /// (로봇 A 아트 요청 문서 5-1), 꼬리 칸은 「화면을 보고 조정할 값」이라
+        /// 거기에 시점을 걸면 **꼬리 칸을 고칠 때마다 스킬이 같이 움직인다**(W06 2장 넷째 근거).
+        ///
+        /// 0이면 종전대로 **태그 인과 동시**에 터진다(테스트 기본값).
+        /// </summary>
+        private float _tagSkillDelaySeconds;
+
+        private float _tagSkillWait;
+
+        /// <summary>태그 스킬이 터지기까지의 초를 넣는다 — 러너가 튜닝의 클립 초를 그대로 준다.</summary>
+        public void SetTagSkillDelay(float seconds) => _tagSkillDelaySeconds = Mathf.Max(0f, seconds);
+
+        /// <summary>이번 틱에 태그 스킬이 실제로 터졌는가 — 연출이 이 프레임에 나간다.</summary>
+        public bool TagSkillResolvedThisTick { get; private set; }
         private readonly List<EnemySpawn> _spawnQueue;
         private readonly Vector2[] _spawnPositions;
         private readonly List<ShotEvent> _shots = new List<ShotEvent>();
@@ -744,6 +767,7 @@ namespace MBI.Core
 
             _shots.Clear();
             KillsThisTick = 0;
+            TagSkillResolvedThisTick = false;
             Elapsed += dt;
 
             ProduceAmmo(dt);   // 군수 → 창고 유입(총량 캡 초과분은 버려진다)
@@ -818,7 +842,20 @@ namespace MBI.Core
         {
             if (Tag == null) return;
 
-            if (Tag.TickAuto(dt)) _active = Tag.ActiveIndex;
+            bool tagged = Tag.TickAuto(dt);
+            if (tagged) _active = Tag.ActiveIndex;
+
+            // 태그 스킬은 **진입 클립이 다 돈 뒤에** 터진다 (260908_W06 2장 · (가) 0.75초).
+            // 교대한 틱에 시계를 0으로 놓고, 지연이 0이면 그 틱에 바로 터진다(종전 거동).
+            if (tagged) _tagSkillWait = 0f;
+
+            if (!Tag.HasPendingSkill) return;
+
+            _tagSkillWait += dt;
+            if (_tagSkillWait < _tagSkillDelaySeconds) return;
+
+            // ⚠️ 표적이 하나도 없으면 여기서도 **보류**다 — 마운트는 만재로 남는다.
+            TagSkillResolvedThisTick = Tag.ResolvePendingSkill();
         }
 
         /// <summary>

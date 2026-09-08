@@ -95,6 +95,9 @@ namespace MBI.Tests
             var battle = new TagBattle(a, b);
             battle.SkillStrike = _ => true; // 표적이 있다 — 타격이 성립한다
             battle.TickAuto(0.1f);
+            // 진입 클립이 다 돈 자리에서 터진다 (2026-09-08 · 260908_W06 2장).
+            // 시간을 재는 쪽은 시뮬이므로 여기서는 그 자리를 직접 부른다.
+            battle.ResolvePendingSkill();
 
             Assert.IsTrue(battle.LastTagFiredSkill);
             Assert.AreEqual(40f, battle.LastTagSkillDrained, D, "적재 전량이 소진된다");
@@ -118,6 +121,8 @@ namespace MBI.Tests
             battle.SkillStrike = _ => false; // 때릴 것이 없다
 
             Assert.IsTrue(battle.TickAuto(0.1f), "교대 자체는 된다");
+            // 클립이 끝난 자리에서 시도했는데 표적이 없다 — **보류 규칙 그대로**다.
+            Assert.IsFalse(battle.ResolvePendingSkill(), "타격이 성립하지 않는다");
 
             Assert.IsFalse(battle.LastTagFiredSkill, "스킬은 보류됐다");
             Assert.AreEqual(0f, battle.LastTagSkillDrained, D);
@@ -153,6 +158,8 @@ namespace MBI.Tests
             battle.SkillStrike = loaded => { seen = loaded; return true; };
 
             battle.TickAuto(0.1f);
+            // 발수는 **진입 틱에** 잡히고, 타격은 클립이 끝난 자리에서 그 발수로 돈다.
+            battle.ResolvePendingSkill();
 
             Assert.AreEqual(40f, seen, D);
         }
@@ -199,6 +206,7 @@ namespace MBI.Tests
             var battle = new TagBattle(a, b);
             battle.SkillStrike = _ => true;
             battle.TickAuto(0.1f);
+            battle.ResolvePendingSkill();
 
             Assert.AreEqual(2104f, battle.TagSkillDamage(52.6f), 1f, "40 × 52.6 — params tagspec 대조");
         }
