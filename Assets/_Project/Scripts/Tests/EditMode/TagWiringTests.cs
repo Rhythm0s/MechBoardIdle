@@ -223,10 +223,17 @@ namespace MBI.Tests
         }
 
         /// <summary>
-        /// **최근접 1체를 때린다**(버스트와 같은 규칙). 광역이 아니므로 먼 적은 멀쩡하다.
+        /// **광역 — 살아 있는 적 전부를 때린다** (2026-09-08 신설 · `260908_W04` 2-1).
+        ///
+        /// 구 규칙은 「최근접 1체」였고 이 테스트도 그것을 지키고 있었다.
+        /// 평상시 사격의 최근접 단일 규칙(전투 시스템 문서 11-4)은 태그 스킬에 걸리지 않는다.
+        ///
+        /// **재는 법.** 둘 다 평상시 사격에도 맞으므로 「둘 다 줄었다」로는 광역을 못 잰다 —
+        /// **둘의 격차가 스킬 피해만큼 벌어지지 않는 것**으로 잰다. 한 체만 맞았다면
+        /// 격차가 스킬 피해 크기로 벌어진다.
         /// </summary>
         [Test]
-        public void TagSkill_HitsTheNearestOnly()
+        public void TagSkill_HitsEveryLivingEnemy()
         {
             var mountA = new MountLoad(1, Stacks());
             var mountB = new MountLoad(1, Stacks());
@@ -252,8 +259,13 @@ namespace MBI.Tests
             // 스킬 피해만큼의 격차가 벌어졌는지로 잰다.
             float lower = Mathf.Min(sim.Enemies[0].hp, sim.Enemies[1].hp);
             float higher = Mathf.Max(sim.Enemies[0].hp, sim.Enemies[1].hp);
-            Assert.Greater(higher - lower, sim.LastTagSkillDamage * 0.5f,
-                "한 체만 스킬을 맞았다 — 광역이 아니다");
+
+            // 광역이면 둘 다 스킬을 맞으므로 격차는 평상시 사격 몫만 남는다.
+            // 스킬은 표적마다 같은 피해라 보고값(합계)의 절반이 한 체 몫이다.
+            float perTarget = sim.LastTagSkillDamage / 2f;
+            Assert.Less(higher - lower, perTarget * 0.5f,
+                "둘 다 스킬을 맞았다 — 격차가 스킬 한 대 몫만큼 벌어지지 않는다");
+            Assert.Greater(perTarget, 0f, "스킬이 실제로 들어갔다");
         }
 
         // ---- 활성 로봇이 바뀐다 ----

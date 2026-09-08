@@ -326,6 +326,35 @@ namespace MBI.Combat
         }
 
         /// <summary>
+        /// 태그 스킬 연출을 건다 — **들어오는 로봇이 누구냐로 갈린다**
+        /// (2026-09-08 · <c>260908_W04</c> 2-2·2-3).
+        ///
+        /// **B 태그 인 = 레이저 한 줄기**가 맵을 한 바퀴 · **A 태그 인 = 120도 부채꼴 탄환비**.
+        /// 값 아홉은 전부 <see cref="CombatTuning"/>에 있다 — 여기서 숫자를 만들지 않는다.
+        ///
+        /// ⚠️ **탄환 스프라이트는 아직 없다.** <c>vfx_tagbullet</c>이 생성되기 전까지
+        /// 자리표시(흰 사각)로 그린다 — 아트가 내면 그 자리만 바꾼다.
+        ///
+        /// ⚠️ **피해와 무관하다.** 연출이 있든 없든 판정은 시뮬이 이미 끝냈다(전투 문서 10-1).
+        /// </summary>
+        private void PlayTagSkillEffect()
+        {
+            if (_sim == null) return;
+            // 마운트가 만재가 아니어서 스킬이 안 터졌으면 연출도 없다 — 사건 종속(10-1).
+            if (_sim.LastTagSkillDamage <= 0f) return;
+
+            float radius = tuning != null ? tuning.arenaRadiusTbd : 6f;
+            Vector2 origin = _sim.Robot != null ? _sim.Robot.position : Vector2.zero;
+            bool bEntering = _sim.ActiveRobotIndex == 1;
+            Color c = bEntering ? RobotBColor : RobotAColor;
+
+            if (bEntering)
+                TagSkillEffect.PlayLaser(transform, origin, radius, tuning, PlaceholderSprite.White(), c);
+            else
+                TagSkillEffect.PlayBulletRain(transform, origin, radius, tuning, PlaceholderSprite.White(), c);
+        }
+
+        /// <summary>
         /// 물러나는 로봇을 그 자리에 남겨 <b>페이드 아웃</b>으로 지운다(W01 2-3 사용자 확정).
         /// 뷰는 하나뿐이라 다시 묶으면 이전 그림이 그 순간 사라진다 — 그래서 그림 한 장을
         /// 복사한 유령을 두고 지운다. 어느 문서가 이 규정을 갖는지는 아직 정해지지 않았다
@@ -468,7 +497,7 @@ namespace MBI.Combat
                 bool tagSwitch = _sim.ActiveRobotIndex != _viewedRobotIndex && IsMerged == _viewedMerged;
                 if (tagSwitch) SpawnFadeGhost();
                 BindRobotView();
-                if (tagSwitch) PlayTagEntrance();
+                if (tagSwitch) { PlayTagEntrance(); PlayTagSkillEffect(); }
             }
 
             // 처치를 방치 런타임으로 흘린다. 가져가며 비우는 API라 같은 처치를 두 번 세지 않는다.

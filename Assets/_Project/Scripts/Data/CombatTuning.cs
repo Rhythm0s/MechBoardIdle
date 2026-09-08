@@ -66,6 +66,30 @@ namespace MBI.Data
         [Tooltip("태그 진입에서 도착 뒤에 남기는 꼬리 칸 수. 이동은 이만큼 일찍 끝난다.")]
         public int animTagEntryTrailCells = 3;
 
+        // ── 태그 스킬 연출 아홉 (2026-09-08 사용자 목업 확정 · 260908_W04 2-3) ──
+        // 아트 자산은 탄환 한 발(vfx_tagbullet)뿐이고 나머지는 코드가 그린다.
+        // 값이 확정이라 TBD 가 아니지만, 하드코딩 금지(지침 §3)라 전부 여기에 둔다.
+        // 아트 픽셀 → 유닛 환산은 PPU 192 를 쓴다(연출 아트 요청 문서 6장).
+        [Header("태그 스킬 연출 (260908_W04 2-3 · 사용자 확정)")]
+        [Tooltip("레이저(B 태그 인)가 맵을 한 바퀴 도는 시간(초).")]
+        public float tagLaserSweepSeconds = 0.40f;
+        [Tooltip("레이저 빔 굵기(아트 픽셀). 목업 눈금 7 × 7.5 = 53.")]
+        public float tagLaserWidthArtPixels = 53f;
+        [Tooltip("레이저 잔광이 남는 각도(도).")]
+        public float tagLaserAfterglowDegrees = 90f;
+        [Tooltip("탄환비(A 태그 인)가 한 바퀴 도는 시간(초).")]
+        public float tagBulletSweepSeconds = 0.40f;
+        [Tooltip("탄환비가 덮는 부채꼴 각도(도).")]
+        public float tagBulletFanDegrees = 120f;
+        [Tooltip("한 바퀴에 떨어지는 탄환 수.")]
+        public int tagBulletCount = 10;
+        [Tooltip("탄환 한 발의 크기(아트 픽셀). 목업 눈금 5 × 7.5 = 38.")]
+        public float tagBulletSizeArtPixels = 38f;
+        [Tooltip("탄환이 위에서 떨어져 보이도록 주는 낙하 거리(아트 픽셀).")]
+        public float tagBulletFallArtPixels = 96f;
+        [Tooltip("한 바퀴만 돈다. 반복 없음 — 켜 두면 규칙 위반이라 값이 아니라 표시다.")]
+        public bool tagSweepOnceOnly = true;
+
         [Header("히트 패턴 (로봇A 탄종 = 단일 표적)")]
         // 플레이어블 로봇 기획서「무기 스펙트럼」(스테이징): 등가선은 단일 표적 기준, 표적 수/광역은 스펙트럼 밖 역할 축(드론 2종 한정).
         // → 로봇A 관통/분열/폭발은 전부 단일 표적. 멀티샷/AoE 메커니즘(HitResolver)은 드론용으로 보존.

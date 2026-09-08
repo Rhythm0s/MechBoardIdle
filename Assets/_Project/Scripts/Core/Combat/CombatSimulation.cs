@@ -128,6 +128,9 @@ namespace MBI.Core
         private RobotSide Act => _sides[_active];
 
         private readonly List<CombatEntity> _enemies = new List<CombatEntity>();
+
+        /// <summary>태그 스킬이 한 번에 치는 표적 모음 — 광역이라 틱마다 다시 담는다.</summary>
+        private readonly List<CombatEntity> _tagSkillTargets = new List<CombatEntity>();
         private readonly List<EnemySpawn> _spawnQueue;
         private readonly Vector2[] _spawnPositions;
         private readonly List<ShotEvent> _shots = new List<ShotEvent>();
@@ -289,8 +292,16 @@ namespace MBI.Core
         /// <summary>
         /// 태그 스킬 타격 — 만재 등장이 쏟아내는 **1회 공격**(260831_V09 확정).
         ///
-        /// 규칙은 버스트와 같다: **최근접 1체** · 교대 프레임에 1회 ·
-        /// **표적이 없으면 발동 보류**(false를 주면 마운트도 안 비워진다).
+        /// ✅ **판정 범위는 광역이다** — 화면 안의 살아 있는 적 **전부**를 친다
+        /// (2026-09-08 신설 · <c>260908_W04</c> 2-1). 평상시 사격의 최근접 단일 규칙
+        /// (전투 시스템 문서 11-4)은 태그 스킬에 걸리지 않는다.
+        /// 구 규칙은 「최근접 1체」였다.
+        ///
+        /// **사거리를 안 본다.** 문안이 「화면 안의 적 전부」이고, 같은 문서 11-2가
+        /// 「화면이 곧 전장이다」로 정했다 — 살아 있는 적이 곧 화면 안의 적이다.
+        ///
+        /// 교대 프레임에 1회 · **표적이 하나도 없으면 발동 보류**
+        /// (false를 주면 마운트도 안 비워진다).
         ///
         /// 피해 = 적재량 × 평균 발당피해(<see cref="GrandEntrance.Damage"/> 확정식).
         /// 평균은 **마운트에 실린 것들로 가중**한다 — 실린 물건 하나가 타격 하나이고,
@@ -305,22 +316,38 @@ namespace MBI.Core
             // 마운트로 평균을 내서 피해가 어긋난다 — 실제로 200이 나올 자리에 100이 나왔다.
             RobotSide side = _sides[Tag.ActiveIndex];
 
-            CombatEntity target = NearestLivingEnemyWithin(side.body.position, side.setup.attackRange);
-            if (target == null) return false; // 표적이 없으면 보류 — 재고는 만재로 남는다
+            // 광역 — 살아 있는 적을 먼저 모은다. 하나도 없으면 보류다.
+            _tagSkillTargets.Clear();
+            foreach (CombatEntity e in _enemies)
+                if (e.IsAlive) _tagSkillTargets.Add(e);
+            if (_tagSkillTargets.Count == 0) return false; // 재고는 만재로 남는다
 
-            float avg = AverageDamagePerItem(side, target, loadedRounds);
-            float damage = GrandEntrance.Damage(true, loadedRounds, avg);
-            if (damage <= 0f) return false;
-
-            target.hp -= damage;
-            LastTagSkillDamage = damage;
-
-            _shots.Add(new ShotEvent
+            // ⚠️ **가정 하나 — 「전부에 같은 피해」로 둔다** (260908_V05 판정 요청).
+            // W04 2-1 문안이 「적 전부를 친다」까지만 정하고 나누는지를 안 정했다.
+            // 판정식·공식은 그대로이며 표적 수만 늘어난다. 나누는 쪽으로 답이 오면
+            // 아래 한 줄(피해를 표적 수로 나눔)만 넣으면 된다 — 되돌릴 수 있는 크기다.
+            float dealt = 0f;
+            bool anyHit = false;
+            foreach (CombatEntity target in _tagSkillTargets)
             {
-                from = side.body.position, to = target.position,
-                kind = AmmoKind.Explosive, // 쏟아붓기 — 폭발 연출로 그린다
-                killed = target.hp <= 0f, aoeRadius = 0f,
-            });
+                float avg = AverageDamagePerItem(side, target, loadedRounds);
+                float damage = GrandEntrance.Damage(true, loadedRounds, avg);
+                if (damage <= 0f) continue;
+
+                target.hp -= damage;
+                dealt += damage;
+                anyHit = true;
+
+                _shots.Add(new ShotEvent
+                {
+                    from = side.body.position, to = target.position,
+                    kind = AmmoKind.Explosive, // 쏟아붓기 — 폭발 연출로 그린다
+                    killed = target.hp <= 0f, aoeRadius = 0f,
+                });
+            }
+
+            if (!anyHit) return false;
+            LastTagSkillDamage = dealt;
             return true;
         }
 
