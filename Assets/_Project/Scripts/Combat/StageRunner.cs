@@ -326,6 +326,26 @@ namespace MBI.Combat
         }
 
         /// <summary>
+        /// 카메라가 지금 비추는 사각형을 재서 시뮬에 넣는다 — **태그 스킬 광역이 여기 든 적만 친다**
+        /// (2026-09-08 · <c>260908_W05</c> 2-2).
+        ///
+        /// ⚠️ **값을 짓지 않는다.** 창 크기와 비율이 바뀌면 사각형도 바뀌므로 틱마다 다시 잰다.
+        /// 직교 카메라의 <c>orthographicSize</c>는 **세로 절반**이라 가로는 비율을 곱한다.
+        /// 카메라가 없으면 넣지 않는다 — 그때 시뮬은 살아 있는 적 전부를 친다.
+        /// </summary>
+        private void PushVisibleBounds()
+        {
+            if (_sim == null) return;
+            Camera cam = Camera.main;
+            if (cam == null || !cam.orthographic) return;
+
+            float halfH = cam.orthographicSize;
+            float halfW = halfH * cam.aspect;
+            Vector3 c = cam.transform.position;
+            _sim.SetVisibleBounds(new Rect(c.x - halfW, c.y - halfH, halfW * 2f, halfH * 2f));
+        }
+
+        /// <summary>
         /// 태그 스킬 연출을 건다 — **들어오는 로봇이 누구냐로 갈린다**
         /// (2026-09-08 · <c>260908_W04</c> 2-2·2-3).
         ///
@@ -499,6 +519,11 @@ namespace MBI.Combat
                     _sim.Robot.position = pos;
                 }
             }
+
+            // 「화면 안」을 카메라에서 **재서** 넣는다 — 상수로 짓지 않는다(260908_W05 2-2).
+            // 시뮬은 순수 계산이라 카메라가 없고, 아는 경계는 아레나 반지름 하나뿐인데
+            // 그것은 **스폰 링(화면 바깥)**이라 「화면 안」을 대신할 수 없다.
+            PushVisibleBounds();
 
             _sim.Tick(Time.deltaTime);
 

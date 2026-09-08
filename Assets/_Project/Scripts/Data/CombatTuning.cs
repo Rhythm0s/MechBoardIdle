@@ -85,8 +85,10 @@ namespace MBI.Data
         public int tagBulletCount = 10;
         [Tooltip("탄환 한 발의 크기(아트 픽셀). 목업 눈금 5 × 7.5 = 38.")]
         public float tagBulletSizeArtPixels = 38f;
-        [Tooltip("탄환이 위에서 떨어져 보이도록 주는 낙하 거리(아트 픽셀).")]
-        public float tagBulletFallArtPixels = 96f;
+        // 목업이 (1-k) × 26 눈금으로 그리고 있었다 — 눈금 하나가 7.5 아트 픽셀이라 195,
+        // 반올림하면 192 = 격자 한 칸이다(260908_W05 2-3). 앞서 넣었던 96은 그 절반이었다.
+        [Tooltip("탄환이 위에서 떨어져 보이도록 주는 낙하 거리(아트 픽셀). 192 = 격자 한 칸.")]
+        public float tagBulletFallArtPixels = 192f;
         [Tooltip("한 바퀴만 돈다. 반복 없음 — 켜 두면 규칙 위반이라 값이 아니라 표시다.")]
         public bool tagSweepOnceOnly = true;
 

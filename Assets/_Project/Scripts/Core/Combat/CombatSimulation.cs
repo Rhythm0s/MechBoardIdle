@@ -131,6 +131,32 @@ namespace MBI.Core
 
         /// <summary>태그 스킬이 한 번에 치는 표적 모음 — 광역이라 틱마다 다시 담는다.</summary>
         private readonly List<CombatEntity> _tagSkillTargets = new List<CombatEntity>();
+
+        /// <summary>
+        /// **화면 안**의 범위 — 태그 스킬 광역이 여기 든 적만 친다
+        /// (2026-09-08 · <c>260908_W05</c> 2-2).
+        ///
+        /// ⚠️ **시뮬은 이 값을 스스로 못 만든다.** 여기는 순수 계산이라 카메라가 없고,
+        /// 아는 경계는 <c>_arenaRadius</c>(이동 경계 · 스폰 링) 하나뿐인데
+        /// **스폰 링은 화면 바깥 가장자리**라 그것으로 「화면 안」을 대신하면 뜻이 뒤집힌다.
+        /// 그래서 **밖에서 재서 넣는다** — <see cref="SetVisibleBounds"/>.
+        ///
+        /// 안 넣으면 <c>null</c>이고 그때는 **살아 있는 적 전부**를 친다(종전 동작).
+        /// </summary>
+        private Rect? _visibleBounds;
+
+        /// <summary>
+        /// 화면 안의 범위를 넣는다 — 러너가 **카메라에서 재서** 준다(상수로 짓지 않는다).
+        /// 창 크기·비율이 바뀌면 다시 넣어야 하므로 러너가 틱마다 갱신한다.
+        /// </summary>
+        public void SetVisibleBounds(Rect bounds) => _visibleBounds = bounds;
+
+        /// <summary>화면 범위를 지운다 — 다시 「살아 있는 적 전부」로 돌아간다(테스트용).</summary>
+        public void ClearVisibleBounds() => _visibleBounds = null;
+
+        /// <summary>그 적이 지금 화면 안에 들어와 있는가. 범위가 없으면 전부 참이다.</summary>
+        private bool IsOnScreen(CombatEntity e) =>
+            !_visibleBounds.HasValue || _visibleBounds.Value.Contains(e.position);
         private readonly List<EnemySpawn> _spawnQueue;
         private readonly Vector2[] _spawnPositions;
         private readonly List<ShotEvent> _shots = new List<ShotEvent>();
@@ -316,10 +342,13 @@ namespace MBI.Core
             // 마운트로 평균을 내서 피해가 어긋난다 — 실제로 200이 나올 자리에 100이 나왔다.
             RobotSide side = _sides[Tag.ActiveIndex];
 
-            // 광역 — 살아 있는 적을 먼저 모은다. 하나도 없으면 보류다.
+            // 광역 — **화면 안에 들어와 있는** 적을 먼저 모은다. 하나도 없으면 보류다.
+            // ⚠️ 「살아 있는 적 전부」가 아니다(2026-09-08 정정 · 260908_W05 2-2) —
+            // 스폰 지점이 화면 바깥이라 **걸어 들어오는 중인 적**이 늘 있고,
+            // 그것까지 치면 **보이지 않는 곳의 적이 죽는다.** 연출이 닿는 데까지가 판정이 닿는 데까지다.
             _tagSkillTargets.Clear();
             foreach (CombatEntity e in _enemies)
-                if (e.IsAlive) _tagSkillTargets.Add(e);
+                if (e.IsAlive && IsOnScreen(e)) _tagSkillTargets.Add(e);
             if (_tagSkillTargets.Count == 0) return false; // 재고는 만재로 남는다
 
             // ⚠️ **가정 하나 — 「전부에 같은 피해」로 둔다** (260908_V05 판정 요청).

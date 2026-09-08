@@ -128,7 +128,7 @@ namespace MBI.Combat
 
             if (!_isLaser && _bullets != null)
             {
-                float fallPx = _tuning != null ? _tuning.tagBulletFallArtPixels : 96f;
+                float fallPx = _tuning != null ? _tuning.tagBulletFallArtPixels : 192f;
                 float fall = fallPx / PixelsPerUnit;
                 for (int i = 0; i < _bullets.Length; i++)
                 {

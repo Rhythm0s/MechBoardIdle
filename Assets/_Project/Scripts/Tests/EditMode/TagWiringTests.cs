@@ -268,6 +268,51 @@ namespace MBI.Tests
             Assert.Greater(perTarget, 0f, "스킬이 실제로 들어갔다");
         }
 
+        /// <summary>
+        /// **화면 밖의 적은 안 맞는다** (2026-09-08 · `260908_W05` 2-2).
+        ///
+        /// 스폰 지점이 화면 바깥이라 **걸어 들어오는 중인 적**이 늘 있다 —
+        /// 「살아 있는 적 전부」로 두면 **보이지 않는 곳의 적이 죽는다.**
+        ///
+        /// 범위는 러너가 카메라에서 재서 넣는다. 여기서는 그 자리에 직접 넣어 잰다.
+        /// </summary>
+        [Test]
+        public void TagSkill_SkipsEnemiesOutsideTheScreen()
+        {
+            var mountA = new MountLoad(1, Stacks());
+            var mountB = new MountLoad(1, Stacks());
+            var enemies = new List<EnemySpawn>
+            {
+                new EnemySpawn { label = "화면 안", hp = 1000000f, def = 0f, atk = 0f,
+                    moveSpeed = 0f, attackRange = 0.5f, attackInterval = 1f },
+                new EnemySpawn { label = "화면 밖", hp = 1000000f, def = 0f, atk = 0f,
+                    moveSpeed = 0f, attackRange = 0.5f, attackInterval = 1f },
+            };
+            var sim = new CombatSimulation(Robot(), Robot(), mountA, mountB,
+                enemies, arenaRadius: 6f, challengeTime: 120f, spawnCadence: 0f);
+
+            mountA.Load(MountItem.Pierce, 5f);
+            sim.AmmoSupplyRate = 0f;
+            sim.StandbyAmmoSupplyRate = 20f;
+
+            // 적은 첫 틱에 스폰된다 — 자리를 옮기려면 그 뒤라야 한다.
+            Run(sim, 0.05f);
+            Assert.AreEqual(2, sim.Enemies.Count, "둘 다 스폰됐다");
+
+            // 한 체를 화면 밖으로 밀어 두고, 화면은 원점 둘레의 사각형으로 잡는다.
+            // 스폰 링이 반지름 6이므로 20 × 20 이면 스폰 자리는 화면 안이다.
+            sim.Enemies[1].position = new Vector2(100f, 100f);
+            sim.SetVisibleBounds(new Rect(-10f, -10f, 20f, 20f));
+
+            Run(sim, 2f);
+
+            Assert.IsTrue(sim.Tag.LastTagFiredSkill, "스킬은 나갔다");
+            Assert.Greater(sim.LastTagSkillDamage, 0f, "화면 안의 한 체는 맞았다");
+
+            // 화면 밖 한 체는 사거리 밖이라 평상시 사격도 안 닿는다 — HP 가 그대로다.
+            Assert.AreEqual(1000000f, sim.Enemies[1].hp, D, "화면 밖의 적은 안 맞는다");
+        }
+
         // ---- 활성 로봇이 바뀐다 ----
 
         /// <summary>교대하면 `Robot`이 가리키는 몸체도 바뀐다 — HP가 각자다.</summary>
