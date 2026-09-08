@@ -65,8 +65,15 @@ namespace MBI.Combat
         }
 
         /// <summary>탄환비(A 태그 인) — 탄환 여럿이 부채꼴로 깔리며 한 바퀴 돈다.</summary>
+        /// <param name="nativeSize">
+        /// 참이면 스프라이트를 **제 크기 그대로** 둔다(PPU가 크기를 정한다).
+        /// ⚠️ 자리표시(흰 사각)는 1유닛짜리라 크기를 줘야 하고, 실제 자산은 이미 크기를 갖는다.
+        /// **규격 「탄환 38」이 몸통인지 꼬리까지인지가 아직 안 정해져**(`260908_V05` 판정 요청)
+        /// 자산이 들어온 뒤에는 값을 강제하지 않는다 — 지어낸 배율을 넣지 않기 위해서다.
+        /// </param>
         public static TagSkillEffect PlayBulletRain(Transform parent, Vector2 origin, float radius,
-                                                   CombatTuning tuning, Sprite bullet, Color color)
+                                                   CombatTuning tuning, Sprite bullet, Color color,
+                                                   bool nativeSize = false)
         {
             TagSkillEffect fx = Create(parent, origin, radius, tuning, color);
             fx._isLaser = false;
@@ -88,7 +95,7 @@ namespace MBI.Combat
 
                 var one = new GameObject("TagBullet");
                 one.transform.SetParent(fx.transform, false);
-                one.transform.localScale = new Vector3(size, size, 1f);
+                if (!nativeSize) one.transform.localScale = new Vector3(size, size, 1f);
                 var sr = one.AddComponent<SpriteRenderer>();
                 sr.sprite = bullet;
                 sr.color = color;

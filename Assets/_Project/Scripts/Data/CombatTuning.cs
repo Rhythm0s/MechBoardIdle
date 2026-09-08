@@ -90,6 +90,12 @@ namespace MBI.Data
         [Tooltip("한 바퀴만 돈다. 반복 없음 — 켜 두면 규칙 위반이라 값이 아니라 표시다.")]
         public bool tagSweepOnceOnly = true;
 
+        // 탄환 한 발(vfx_tagbullet)은 **아트 자산이 있는 유일한 태그 스킬 연출**이다 —
+        // 레이저는 전부 코드 드로잉이라 자리 자체가 없다(연출 아트 요청 문서 3-1).
+        // 경로는 생성기(CombatAssetGenerator)에만 두고 런타임은 이 참조만 본다(§8 명명 규칙).
+        [Tooltip("탄환비가 뿌리는 탄환 한 발. 비면 자리표시(흰 사각)로 그린다.")]
+        public Sprite tagBulletSprite;
+
         [Header("히트 패턴 (로봇A 탄종 = 단일 표적)")]
         // 플레이어블 로봇 기획서「무기 스펙트럼」(스테이징): 등가선은 단일 표적 기준, 표적 수/광역은 스펙트럼 밖 역할 축(드론 2종 한정).
         // → 로봇A 관통/분열/폭발은 전부 단일 표적. 멀티샷/AoE 메커니즘(HitResolver)은 드론용으로 보존.

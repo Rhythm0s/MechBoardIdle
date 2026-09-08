@@ -61,6 +61,10 @@ namespace MBI.Editor
             // ⚠️ 값은 안 덮어쓰되 **파일에는 적히게 한다.** 새 필드는 클래스 초기값으로만 살아 있고
             // 에셋 파일에는 안 들어가는데, 그러면 「값이 어디에 사는가」에 답이 코드가 된다 —
             // 지침 §3 「수치 하드코딩 금지」가 막으려던 바로 그 자리다. 더티만 찍어 직렬화를 부른다.
+            // 탄환 한 발을 SO 자리에 걸어 둔다 — 런타임은 경로를 모른다(§8).
+            // 아직 없으면 null 이고 뷰가 자리표시로 폴백한다.
+            if (tuning != null) tuning.tagBulletSprite = LoadVfx("vfx_tagbullet");
+
             if (tuning != null) EditorUtility.SetDirty(tuning);
 
             float capA = json.Param("capA");             // 6 소비 상한
@@ -123,6 +127,12 @@ namespace MBI.Editor
         private static Sprite LoadArt(string fileName)
         {
             return AssetDatabase.LoadAssetAtPath<Sprite>($"Assets/_Project/Art/Units/{fileName}.png");
+        }
+
+        // 이펙트는 Art/VFX 아래에 산다. 없으면 null — 뷰가 자리표시로 폴백한다.
+        private static Sprite LoadVfx(string fileName)
+        {
+            return AssetDatabase.LoadAssetAtPath<Sprite>($"Assets/_Project/Art/VFX/{fileName}.png");
         }
 
         // ---- 애니메이션 프레임 ----

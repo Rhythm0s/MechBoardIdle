@@ -349,9 +349,20 @@ namespace MBI.Combat
             Color c = bEntering ? RobotBColor : RobotAColor;
 
             if (bEntering)
+            {
+                // 레이저는 자산이 없다 — 흰 사각을 늘여 그리는 것이 곧 완성형이다(연출 3-1).
                 TagSkillEffect.PlayLaser(transform, origin, radius, tuning, PlaceholderSprite.White(), c);
+            }
             else
-                TagSkillEffect.PlayBulletRain(transform, origin, radius, tuning, PlaceholderSprite.White(), c);
+            {
+                // 탄환은 아트 자산이 있다. 아직 안 들어왔으면 자리표시로 폴백한다.
+                Sprite bullet = tuning != null && tuning.tagBulletSprite != null
+                    ? tuning.tagBulletSprite : PlaceholderSprite.White();
+                bool real = bullet != PlaceholderSprite.White();
+                // 자산에는 색이 이미 실려 있다 — 흰 사각일 때만 색을 입힌다.
+                Color tint = real ? Color.white : c;
+                TagSkillEffect.PlayBulletRain(transform, origin, radius, tuning, bullet, tint, real);
+            }
         }
 
         /// <summary>
