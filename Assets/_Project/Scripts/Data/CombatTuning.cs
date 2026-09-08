@@ -98,6 +98,23 @@ namespace MBI.Data
         [Tooltip("탄환비가 뿌리는 탄환 한 발. 비면 자리표시(흰 사각)로 그린다.")]
         public Sprite tagBulletSprite;
 
+        [Header("설치된 VFX 자산 (2026-09-08 배선 · 260908_W06 6장)")]
+        // 경로는 생성기에만 있고 런타임은 이 참조만 본다(§8 명명 규칙).
+        // 비어 있으면 **연출을 그리지 않는다** — 자리표시로 대신하지 않는다.
+        // 태그 스킬 탄환과 다른 점이 그것이다: 저쪽은 흰 사각이라도 형태가 읽히지만,
+        // 이 넷은 「무엇인지」가 그림에만 있어 흰 사각으로는 뜻이 안 선다.
+        [Tooltip("드론이 사출구에서 나가는 순간의 짧은 분사.")]
+        public Sprite droneLaunchSprite;
+        [Tooltip("회피 발동 순간 등판에서 뒤로 뿜는 분사. 회피 시작에만 1회.")]
+        public Sprite boosterSprite;
+        [Tooltip("드론이 충전량을 다 쓰고 흩어지는 것.")]
+        public Sprite droneExpireSprite;
+        [Tooltip("공급이 끊겨 공격이 멈췄다는 표시. ⚠️ 아직 배선되지 않았다 — 사건 자리가 코드에 없다.")]
+        public Sprite ammoOutSprite;
+
+        [Tooltip("위 셋이 한 번 그려지고 사라지는 데 걸리는 초. 이펙트는 로봇보다 짧게 끝난다(연출 2장).")]
+        public float vfxOneShotSeconds = 0.2f;
+
         [Header("히트 패턴 (로봇A 탄종 = 단일 표적)")]
         // 플레이어블 로봇 기획서「무기 스펙트럼」(스테이징): 등가선은 단일 표적 기준, 표적 수/광역은 스펙트럼 밖 역할 축(드론 2종 한정).
         // → 로봇A 관통/분열/폭발은 전부 단일 표적. 멀티샷/AoE 메커니즘(HitResolver)은 드론용으로 보존.

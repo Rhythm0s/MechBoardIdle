@@ -180,6 +180,20 @@ namespace MBI.Core
 
         /// <summary>이번 틱에 태그 스킬이 실제로 터졌는가 — 연출이 이 프레임에 나간다.</summary>
         public bool TagSkillResolvedThisTick { get; private set; }
+
+        // ── 연출이 읽는 사건 자리 (2026-09-08 · 260908_W06 6장 · VFX 배선) ──────────────
+        //
+        // ⚠️ **판정에 손대지 않는다.** 이미 일어난 일의 자리만 밖으로 낸다
+        // (전투 시스템 문서 10-1 「연출은 새로운 사건을 만들지 않는다」).
+        // 사격·피격은 종전대로 `ShotsThisTick`이 나른다 — 여기는 그것이 못 나르는 둘이다.
+        private readonly List<Vector2> _droneLaunches = new List<Vector2>();
+        private readonly List<Vector2> _droneExpiries = new List<Vector2>();
+
+        /// <summary>이번 틱에 드론이 사출된 자리들 — 연출 `vfx_dronelaunch`가 여기 붙는다.</summary>
+        public IReadOnlyList<Vector2> DroneLaunchesThisTick => _droneLaunches;
+
+        /// <summary>이번 틱에 드론이 충전량을 다 쓰고 사라진 자리들 — `vfx_droneexpire`.</summary>
+        public IReadOnlyList<Vector2> DroneExpiriesThisTick => _droneExpiries;
         private readonly List<EnemySpawn> _spawnQueue;
         private readonly Vector2[] _spawnPositions;
         private readonly List<ShotEvent> _shots = new List<ShotEvent>();
@@ -766,6 +780,8 @@ namespace MBI.Core
             if (Result != CombatResult.InProgress || dt <= 0f) return;
 
             _shots.Clear();
+            _droneLaunches.Clear();
+            _droneExpiries.Clear();
             KillsThisTick = 0;
             TagSkillResolvedThisTick = false;
             Elapsed += dt;
@@ -964,8 +980,13 @@ namespace MBI.Core
             if (launched > 0 && Act.mount != null) Act.mount.TryConsume(MountItem.Drone, launched);
 
             for (int i = 0; i < launched; i++)
-                Act.drones.Add(new DroneUnit(DroneStation(Act.drones.Count),
+            {
+                Vector2 station = DroneStation(Act.drones.Count);
+                Act.drones.Add(new DroneUnit(station,
                     Act.setup.droneCharge, Act.setup.droneCharge, Act.setup.droneAttackRange));
+                // 사출 연출이 붙는 자리 — 판정은 위 두 줄에서 이미 끝났다.
+                _droneLaunches.Add(station);
+            }
 
             // 사격 — 표적은 본체와 같은 최근접 규칙이되 **기준점이 드론 자신**이라
             // 본체와 다른 적을 칠 수 있다(자동 전투 구현 사양).
@@ -993,6 +1014,7 @@ namespace MBI.Core
                 // 충전량을 다 썼으면 소멸 — 슬롯은 즉시 빈다.
                 if (!d.IsAlive)
                 {
+                    _droneExpiries.Add(d.Position); // 소멸 연출이 붙는 자리
                     Act.drones.RemoveAt(i);
                     Act.bay.Retire();
                 }

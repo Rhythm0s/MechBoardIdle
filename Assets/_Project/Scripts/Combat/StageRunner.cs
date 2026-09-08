@@ -385,6 +385,60 @@ namespace MBI.Combat
             }
         }
 
+        /// <summary>마지막으로 본 회피 횟수 — 늘어난 프레임이 곧 회피 발동 순간이다.</summary>
+        private int _seenDodges;
+
+        /// <summary>
+        /// 설치된 VFX 배선 셋 — 드론 사출 · 회피 · 드론 소멸 (2026-09-08 · <c>260908_W06</c> 6장).
+        ///
+        /// **사건 자리는 전부 시뮬에 이미 있었다.** 여기서 만드는 것은 그림뿐이고
+        /// 판정은 건드리지 않는다(전투 시스템 문서 10-1 「연출은 새로운 사건을 만들지 않는다」).
+        ///
+        /// ⚠️ **`vfx_ammoout`은 빠져 있다.** 「공급이 끊겨 공격이 멈췄다」는 **상태**이고
+        /// 연출 문서가 「공급이 돌아올 때까지 점멸한다」로 적었는데, 코드에는 그 상태가 없다 —
+        /// 있는 것은 「이번 한 발이 안 나갔다」뿐이다. **없는 사건을 지어 넣지 않는다.**
+        ///
+        /// ⚠️ 자산이 안 들어와 있으면 **아무것도 안 그린다.** 자리표시(흰 사각)로 대신하지 않는다 —
+        /// 이 셋은 「무엇인지」가 그림에만 있어 흰 사각으로는 뜻이 안 선다.
+        /// </summary>
+        private void PlayInstalledVfx()
+        {
+            if (_sim == null || tuning == null) return;
+
+            float life = Mathf.Max(0.02f, tuning.vfxOneShotSeconds);
+
+            if (tuning.droneLaunchSprite != null)
+                foreach (Vector2 p in _sim.DroneLaunchesThisTick)
+                    SpawnOneShot(tuning.droneLaunchSprite, p, life);
+
+            if (tuning.droneExpireSprite != null)
+                foreach (Vector2 p in _sim.DroneExpiriesThisTick)
+                    SpawnOneShot(tuning.droneExpireSprite, p, life);
+
+            // 회피는 **시작 순간에만 1회**다(연출 4장). 시뮬이 세는 누적 횟수가 늘어난
+            // 프레임이 그 순간이며, 그 값 하나로 자동·수동을 가리지 않는다 — 둘 다 회피다.
+            DodgeSystem dodge = _sim.Dodge;
+            if (dodge == null) { _seenDodges = 0; return; }
+
+            if (dodge.TotalDodges > _seenDodges && tuning.boosterSprite != null &&
+                _sim.Robot != null)
+                SpawnOneShot(tuning.boosterSprite, _sim.Robot.position, life);
+
+            _seenDodges = dodge.TotalDodges;
+        }
+
+        /// <summary>한 번 그려지고 사라지는 이펙트 한 장. 반복 없음(연출 2장 「공통 생성 규칙」).</summary>
+        private void SpawnOneShot(Sprite sprite, Vector2 position, float seconds)
+        {
+            var go = new GameObject("Vfx");
+            go.transform.SetParent(transform, false);
+            go.transform.position = new Vector3(position.x, position.y, 0f);
+            var sr = go.AddComponent<SpriteRenderer>();
+            sr.sprite = sprite;
+            sr.sortingOrder = SortingLayers.EffectOver;
+            Destroy(go, seconds);
+        }
+
         /// <summary>
         /// 물러나는 로봇을 그 자리에 남겨 <b>페이드 아웃</b>으로 지운다(W01 2-3 사용자 확정).
         /// 뷰는 하나뿐이라 다시 묶으면 이전 그림이 그 순간 사라진다 — 그래서 그림 한 장을
@@ -544,6 +598,8 @@ namespace MBI.Combat
             // (260908_W06 2장 · 진입 클립이 다 돈 0.75초 뒤). 뷰를 다시 묶는 위 블록과
             // 떼어 놓은 이유가 그것이다 — 교대 프레임에는 아직 안 터졌다.
             if (_sim.TagSkillResolvedThisTick) PlayTagSkillEffect();
+
+            PlayInstalledVfx();
 
             // 처치를 방치 런타임으로 흘린다. 가져가며 비우는 API라 같은 처치를 두 번 세지 않는다.
             IdleSignals.AddKills(_sim.ConsumeKills());

@@ -65,6 +65,16 @@ namespace MBI.Editor
             // 아직 없으면 null 이고 뷰가 자리표시로 폴백한다.
             if (tuning != null) tuning.tagBulletSprite = LoadVfx("vfx_tagbullet");
 
+            // 설치된 VFX 넷 (2026-09-08 · 260908_W06 6장). 셋은 배선됐고
+            // `vfx_ammoout`은 **사건 자리가 코드에 없어** 자리만 걸어 둔다 — 지어 넣지 않는다.
+            if (tuning != null)
+            {
+                tuning.droneLaunchSprite = LoadVfx("vfx_dronelaunch");
+                tuning.boosterSprite     = LoadVfx("vfx_booster");
+                tuning.droneExpireSprite = LoadVfx("vfx_droneexpire");
+                tuning.ammoOutSprite     = LoadVfx("vfx_ammoout");
+            }
+
             if (tuning != null) EditorUtility.SetDirty(tuning);
 
             float capA = json.Param("capA");             // 6 소비 상한
