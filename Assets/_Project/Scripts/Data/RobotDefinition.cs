@@ -45,6 +45,21 @@ namespace MBI.Data
         [Tooltip("애니메이션 프레임 묶음. 씬 생성기가 Art/Anim에서 주입 — 경로 문자열을 코드에 두지 않는다(§8). 비면 스틸 한 장로 폴백한다.")]
         public List<UnitAnimClip> animClips = new List<UnitAnimClip>();
 
+        // ── 태그 진입 꼬리 칸 (2026-09-09 · 캐릭터 아트 요청 문서 7-7 · `260908_W09` 2-3) ──
+        //
+        // **규칙은 부모 문서에, 칸 수는 벌마다.** 그 「벌마다」가 코드에서는 로봇마다다 —
+        // 종전에는 `CombatTuning`에 하나뿐이라 A와 B가 같은 값을 쓸 수밖에 없었다.
+        //
+        // ⚠️ **반동의 방향이 기체마다 다르다** — 로봇 A는 총을 써서 뒤로 밀리고,
+        // 로봇 B는 위로 내보내므로 아래로 눌린다(15-2 5장). 되밀림이 읽히는 데 드는 칸이
+        // 같다고 볼 근거가 없어서 한 값을 나눠 쓰지 않는다.
+        [Header("태그 진입")]
+        [Tooltip("태그 진입에서 도착 뒤에 남기는 꼬리 칸 수. 음수면 CombatTuning의 값을 쓴다 — 0은 「꼬리가 없다」는 뜻이라 미지정과 구분한다.")]
+        public int tagEntryTrailCells = -1;
+
+        /// <summary>이 로봇의 꼬리 칸. 안 정해졌으면 <paramref name="fallback"/>을 준다.</summary>
+        public int TrailCellsOr(int fallback) => tagEntryTrailCells < 0 ? fallback : tagEntryTrailCells;
+
         [Header("참조")]
         [Tooltip("전역 밸런스 앵커 단일 원천.")]
         public BalanceConfig balanceRef;

@@ -101,6 +101,8 @@ namespace MBI.Editor
             r.balanceRef = config;
             r.sprite = LoadArt("robot_a");
             r.animClips = LoadAnimClips("robot_a", tuning);
+            // 꼬리 칸 3 — **문서가 확정한 값**이다(로봇 A 아트 요청 문서 5-1 · 규칙은 캐릭터 15 7-7).
+            r.tagEntryTrailCells = 3;
             EditorUtility.SetDirty(r);
 
             // 로봇 B — 드론 운용기(밸런스 params pB/dB). 전투 등장은 MVP 이후지만
@@ -115,6 +117,11 @@ namespace MBI.Editor
             b.sprite = LoadArt("robot_b");
             b.droneSprite = LoadArt("drone_n"); // 누적형 = 기본 프리셋(params pB 1.0 × dB 100)
             b.animClips = LoadAnimClips("robot_b", tuning);
+            // ⚠️ **꼬리 칸 3은 가정이다**(2026-09-09 · `260908_W09` 2-3). 로봇 B 문서(15-2) 5장은
+            // 이 값을 **미정**으로 신설했고, 「화면을 보고 고른다」가 정해진 방식이다.
+            // A의 3을 그대로 둔 것은 **되돌릴 수 있는 출발점**이며 재서 나온 값이 아니다 —
+            // B는 아래로 눌리는 반동이라 A보다 길어야 할 수도 있다. 화면을 본 뒤 여기에 역기입한다.
+            b.tagEntryTrailCells = 3;
             EditorUtility.SetDirty(b);
 
             // 합체체 — 260907_W01 3-1 이 HUD 묶음보다 앞으로 올렸다. 촬영 C구간 25초가 전부

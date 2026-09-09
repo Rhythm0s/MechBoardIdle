@@ -261,6 +261,36 @@ namespace MBI.Tests
             Assert.AreEqual(1f / 16f, seconds, 0.0001f);
         }
 
+        // ---- 꼬리 칸은 로봇마다 (2026-09-09 · 캐릭터 아트 요청 문서 7-7) ----
+
+        /// <summary>
+        /// 로봇이 자기 칸 수를 들고 있으면 그것을 쓴다. **한 값을 A와 B가 나눠 쓰지 않는다** —
+        /// 반동의 방향이 달라 되밀림이 읽히는 데 드는 칸이 같다고 볼 근거가 없다.
+        /// </summary>
+        [Test]
+        public void TrailCells_ComeFromTheRobotWhenItHasThem()
+        {
+            var robot = UnityEngine.ScriptableObject.CreateInstance<MBI.Data.RobotDefinition>();
+            robot.tagEntryTrailCells = 5;
+
+            Assert.AreEqual(5, robot.TrailCellsOr(3));
+        }
+
+        /// <summary>
+        /// 안 정한 로봇은 폴백을 쓴다. ⚠️ **0은 폴백이 아니다** — 0은 「꼬리가 없다」는
+        /// 정해진 값이고, 그것을 미지정과 섞으면 꼬리를 일부러 없앤 벌이 되살아난다.
+        /// </summary>
+        [Test]
+        public void TrailCells_FallBackOnlyWhenUnset_NotWhenZero()
+        {
+            var unset = UnityEngine.ScriptableObject.CreateInstance<MBI.Data.RobotDefinition>();
+            Assert.AreEqual(3, unset.TrailCellsOr(3), "기본값은 미지정이라 폴백이 온다");
+
+            var zero = UnityEngine.ScriptableObject.CreateInstance<MBI.Data.RobotDefinition>();
+            zero.tagEntryTrailCells = 0;
+            Assert.AreEqual(0, zero.TrailCellsOr(3), "0은 정해진 값이다");
+        }
+
         private static int[] CountPerFrame(int[] cells, int frameCount)
         {
             var times = new int[frameCount];

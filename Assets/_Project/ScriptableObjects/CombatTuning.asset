@@ -28,6 +28,21 @@ MonoBehaviour:
   animDeathSeconds: 2
   animTagInSeconds: 0.75
   animTagEntryTrailCells: 3
+  tagLaserSweepSeconds: 0.4
+  tagLaserWidthArtPixels: 53
+  tagLaserAfterglowDegrees: 90
+  tagBulletSweepSeconds: 0.4
+  tagBulletFanDegrees: 120
+  tagBulletCount: 10
+  tagBulletSizeArtPixels: 38
+  tagBulletFallArtPixels: 192
+  tagSweepOnceOnly: 1
+  tagBulletSprite: {fileID: 21300000, guid: 4e4a26246db35c7419895a638e727efc, type: 3}
+  droneLaunchSprite: {fileID: 21300000, guid: 5b0929e11aac00345b82ce0cc95b4db3, type: 3}
+  boosterSprite: {fileID: 21300000, guid: 3524cc9e4bf76bb44bdaa6d87e232889, type: 3}
+  droneExpireSprite: {fileID: 21300000, guid: 57ec3a9efbdb0374fbdf4e83ebb8f789, type: 3}
+  ammoOutSprite: {fileID: 21300000, guid: 96986f16a4fcf234badde14ac1644fbc, type: 3}
+  vfxOneShotSeconds: 0.2
   multiShotCountTbd: 1
   aoeRadiusTbd: 1.5
   aoeSplashFactorTbd: 0

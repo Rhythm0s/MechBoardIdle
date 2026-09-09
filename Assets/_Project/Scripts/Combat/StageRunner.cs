@@ -322,7 +322,11 @@ namespace MBI.Combat
         {
             if (_robotView == null) return;
             float clip = tuning != null ? tuning.animTagInSeconds : 0.75f;
+            // 꼬리 칸은 **지금 들어오는 로봇**의 값이다(2026-09-09 · 캐릭터 15 7-7).
+            // 튜닝의 값은 로봇이 안 정했을 때의 폴백으로만 남는다.
             int trail = tuning != null ? tuning.animTagEntryTrailCells : 3;
+            RobotDefinition entering = ActiveRobotDef;
+            if (entering != null) trail = entering.TrailCellsOr(trail);
             float cell = tuning != null ? tuning.animCellSeconds : 1f / AnimSchedule.CellsPerSecond;
             _robotView.PlayTagIn(AnimSchedule.TagEntrySeconds(clip, trail, cell), TagEntryOffsetX);
         }
