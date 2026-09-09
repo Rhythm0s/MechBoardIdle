@@ -50,3 +50,10 @@ sysinfo.txt
 # 아트 후처리 원본 보관 — git 히스토리가 진짜 원본이라 리포에 두 벌 넣지 않는다.
 # Unity도 물결표로 끝나는 폴더는 임포트하지 않는다.
 *_raw~/
+
+# 효과음 여덟 — 효과음ラボ(https://soundeffect-lab.info/) 자산이다.
+# 규약이 **파일 재배포(개변본 포함)를 금지**하므로 변환본도 리포에 넣지 않는다
+# (2026-09-09 사용자 확정). 원본 mp3 는 조달자 로컬에 있고, 받는 법과 md5 는
+# Docs/audio_manifest.md 2장에 적혀 있다 — 새로 클론하면 거기를 보고 다시 받는다.
+Assets/_Project/Audio/sfx/*.ogg
+Assets/_Project/Audio/sfx/*.meta
