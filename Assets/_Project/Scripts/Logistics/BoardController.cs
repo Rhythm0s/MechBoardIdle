@@ -45,6 +45,8 @@ namespace MBI.Logistics
         [Header("설정")]
         [Tooltip("격자 치수·셀 크기(§5-3 BoardConfig). 씬 생성기가 주입.")]
         [SerializeField] private BoardConfig config;
+        [Tooltip("보드 아트 묶음(노드·벨트 부속·포트·품목). 비어 있으면 종전대로 색 사각으로 그린다.")]
+        [SerializeField] private BoardArtSet art;
         [Tooltip("팔레트가 비었을 때 폴백 배치 노드.")]
         [SerializeField] private NodeDefinition placeTarget;
         [Tooltip("배치 가능한 노드 팔레트(조립 뷰에서 선택). 씬 생성기가 주입.")]
@@ -116,6 +118,9 @@ namespace MBI.Logistics
 
         // 벨트 마커 루트 + 방향 표시 SR(§5-4 L2 연결 색/제거용).
         private readonly Dictionary<Vector2Int, GameObject> _beltMarkers = new Dictionary<Vector2Int, GameObject>();
+        /// <summary>벨트 몸통 렌더러(마커의 자식). 돌아가는 것은 이것 하나다.</summary>
+        private readonly Dictionary<Vector2Int, SpriteRenderer> _beltBodies =
+            new Dictionary<Vector2Int, SpriteRenderer>();
         private readonly Dictionary<Vector2Int, SpriteRenderer> _beltArrows = new Dictionary<Vector2Int, SpriteRenderer>();
         // 미연결 경고 아이콘(§5-4 ⑤). 마커의 자식이라 마커 파괴 시 함께 사라진다.
         private readonly Dictionary<Vector2Int, SpriteRenderer> _beltWarnings = new Dictionary<Vector2Int, SpriteRenderer>();
@@ -126,6 +131,7 @@ namespace MBI.Logistics
             public SpriteRenderer sr;
             public PortIO io;
             public FlowKind declared; // 포트에 적힌 품목 — 출력은 조합표가 덮는다
+            public bool hasArt;       // 그림이 붙은 포트는 품목색을 안 칠한다(색은 아트가 갖는다)
         }
 
         private readonly Dictionary<Vector2Int, List<PortMarker>> _portMarkers =
@@ -357,9 +363,12 @@ namespace MBI.Logistics
         private Color SeverityColor(Vector2Int cell, float ratio)
         {
             NodeInstance inst = _grid != null ? _grid.GetAt(cell) : null;
-            Color baseColor = inst != null && inst.Definition != null
-                ? NodeTypeColor(inst.Definition.type)
-                : NodeBaseColor;
+            // 그림이 붙은 칸은 **색을 아트가 갖는다** — 코드가 종류색을 곱하면 축이 둘이 된다.
+            Color baseColor = NodeArtOf(cell) != null
+                ? Color.white
+                : inst != null && inst.Definition != null
+                    ? NodeTypeColor(inst.Definition.type)
+                    : NodeBaseColor;
 
             float tint = NodeStatusTint.Of(ratio);
             Color c = baseColor * tint;
@@ -554,6 +563,34 @@ namespace MBI.Logistics
             SpawnQuad(root.transform, cx, o.y + h, w, b, GridBorderColor, -2);   // 상
             SpawnQuad(root.transform, o.x, cy, b, h, GridBorderColor, -2);       // 좌
             SpawnQuad(root.transform, o.x + w, cy, b, h, GridBorderColor, -2);   // 우
+
+            BuildMountPorts(root.transform);
+        }
+
+        /// <summary>
+        /// 마운트 고정 포트 셋을 그린다(2026-09-09 신설 · <c>PartLayout.MountPorts</c>).
+        ///
+        /// **자리는 진작 데이터에 있었고 화면에만 없었다** — 보드의 산출이 전투로 넘어가는
+        /// 곳인데 격자 위에 아무 표시가 없어, 왜 그 칸에서 라인이 끝나야 하는지가 안 보였다.
+        /// 그림이 없으면 그리지 않는다 — 색 사각으로 대신하면 노드와 구분되지 않는다.
+        /// </summary>
+        private void BuildMountPorts(Transform parent)
+        {
+            if (art == null || art.mountPort == null) return;
+
+            foreach (MountPort mp in PartLayout.MountPorts)
+            {
+                var go = new GameObject($"MountPort_{mp.owner}_{mp.face}");
+                go.transform.SetParent(parent, false);
+                go.transform.position = CellWorld(mp.cell);
+                go.transform.localRotation = FaceRotation(PortFace.South, mp.face);
+                go.transform.localScale = Vector3.one * FitScale(art.mountPort, _grid.CellSize);
+
+                var sr = go.AddComponent<SpriteRenderer>();
+                sr.sprite = art.mountPort;
+                // 셀선 위 · 노드 아래. 마운트 자리에 노드를 놓을 수 있고, 그때 노드가 위여야 한다.
+                sr.sortingOrder = MarkerOrder - 1;
+            }
         }
 
         // 이동 모드에서 보드를 덮는 반투명 막. 실루엣 전체를 덮되 노드보다 위에 그린다.
@@ -878,7 +915,27 @@ namespace MBI.Logistics
                         belt.InFace, belt.OutFace, items[i].progress);
 
                     SpriteRenderer sr = RentItemSprite(used++, out SpriteRenderer body);
-                    body.color = ItemColor(items[i].kind);
+
+                    // 품목 그림이 있으면 **테두리 두 겹을 쓰지 않는다** — 겹은 흰 사각으로
+                    // 외곽선을 흉내 내려던 것이고, 그림에는 이미 외곽선이 있다.
+                    Sprite itemArt = art != null ? art.ItemSprite(items[i].kind) : null;
+                    if (itemArt != null)
+                    {
+                        sr.sprite = itemArt;
+                        sr.color = Color.white;
+                        sr.transform.localScale =
+                            Vector3.one * FitScale(itemArt, _grid.CellSize * ItemDrawSize);
+                        body.enabled = false;
+                    }
+                    else
+                    {
+                        sr.sprite = UnitSprite();
+                        sr.color = ItemEdgeColor;
+                        sr.transform.localScale = Vector3.one * (_grid.CellSize * ItemDrawSize);
+                        body.enabled = true;
+                        body.color = ItemColor(items[i].kind);
+                    }
+
                     sr.transform.position = centre + (Vector3)(off * _grid.CellSize);
                 }
             }
@@ -1039,9 +1096,12 @@ namespace MBI.Logistics
             marker.transform.position = CellWorld(cell);
             // 한 칸 가득. 노드 타일 아트가 192px = 정확히 한 칸이므로(ArtSpec, V02 §4)
             // 플레이스홀더도 같은 자리를 차지해야 교체 때 밀도가 안 바뀐다. 칸 경계는 격자선이 그린다.
-            marker.transform.localScale = Vector3.one * (_grid.CellSize * ArtSpec.TileSize);
+            Sprite nodeArt = NodeArtOf(cell);
+            marker.transform.localScale = nodeArt != null
+                ? Vector3.one * FitScale(nodeArt, _grid.CellSize)
+                : Vector3.one * (_grid.CellSize * ArtSpec.TileSize);
             var sr = marker.AddComponent<SpriteRenderer>();
-            sr.sprite = UnitSprite();
+            sr.sprite = nodeArt != null ? nodeArt : UnitSprite();
             sr.sortingOrder = MarkerOrder;
             Color c = SeverityColor(cell, 1f); // 초기 = 정상 밝기. Provider가 라이브 진단으로 갱신(§L4-R #5).
             sr.color = c;
@@ -1071,19 +1131,36 @@ namespace MBI.Logistics
 
                 var tab = new GameObject(outward ? $"out_{p.face}" : $"in_{p.face}");
                 tab.transform.SetParent(parent, false);
-                // 출력은 면 밖으로 반쯤 나가고, 입력은 면 안쪽에 머문다.
-                float dist = outward ? 0.52f : 0.36f;
-                tab.transform.localPosition = new Vector3(off.x * dist, off.y * dist, 0f);
-                // 면을 따라 납작하게 — 세로면이면 눕히고 가로면이면 세운다.
-                bool horizontal = Mathf.Abs(off.x) > 0.5f;
-                tab.transform.localScale = horizontal
-                    ? new Vector3(0.16f, 0.34f, 1f)
-                    : new Vector3(0.34f, 0.16f, 1f);
+
+                Sprite portArt = art != null ? (outward ? art.portOutput : art.portInput) : null;
+                if (portArt != null)
+                {
+                    // 포트 그림은 **한 칸을 통째로 쓰는 타일**이고 표시된 면이 남쪽이다.
+                    // 그래서 탭처럼 밖에 붙이지 않고 칸 위에 겹쳐 얹은 뒤 그 면으로 돌린다.
+                    // 부모(노드)가 이미 칸 크기로 커져 있으므로 국소 배율은 1이다.
+                    tab.transform.localPosition = Vector3.zero;
+                    tab.transform.localRotation = FaceRotation(PortFace.South, p.face);
+                    tab.transform.localScale = Vector3.one;
+                }
+                else
+                {
+                    // 출력은 면 밖으로 반쯤 나가고, 입력은 면 안쪽에 머문다.
+                    float dist = outward ? 0.52f : 0.36f;
+                    tab.transform.localPosition = new Vector3(off.x * dist, off.y * dist, 0f);
+                    // 면을 따라 납작하게 — 세로면이면 눕히고 가로면이면 세운다.
+                    bool horizontal = Mathf.Abs(off.x) > 0.5f;
+                    tab.transform.localScale = horizontal
+                        ? new Vector3(0.16f, 0.34f, 1f)
+                        : new Vector3(0.34f, 0.16f, 1f);
+                }
 
                 var sr = tab.AddComponent<SpriteRenderer>();
-                sr.sprite = UnitSprite();
+                sr.sprite = portArt != null ? portArt : UnitSprite();
                 sr.sortingOrder = outward ? PortOutOrder : PortInOrder;
-                list.Add(new PortMarker { sr = sr, io = p.io, declared = p.kind });
+                list.Add(new PortMarker
+                {
+                    sr = sr, io = p.io, declared = p.kind, hasArt = portArt != null,
+                });
             }
 
             _portMarkers[cell] = list;
@@ -1106,7 +1183,9 @@ namespace MBI.Logistics
             {
                 if (pm.sr == null) continue;
                 bool outward = pm.io == PortIO.Output;
-                Color c = FlowColor(outward ? outKind : pm.declared);
+                // 그림이 붙었으면 품목색을 안 칠한다 — 화살표 그림이 이미 방향을 말하고,
+                // 그 위에 색을 곱하면 아트가 통째로 물든다. 밝기 축(입력은 어둡게)만 남긴다.
+                Color c = pm.hasArt ? Color.white : FlowColor(outward ? outKind : pm.declared);
                 if (!outward) c *= 0.55f; // 입력은 어둡게
                 c.a = 1f;
                 pm.sr.color = c;
@@ -1130,6 +1209,7 @@ namespace MBI.Logistics
                 _grid.TryRemoveBelt(cell);
                 if (_beltMarkers.TryGetValue(cell, out GameObject bm) && bm != null) Destroy(bm);
                 _beltMarkers.Remove(cell);
+                _beltBodies.Remove(cell);
                 _beltArrows.Remove(cell);
                 _beltFlows.Remove(cell);    // 무늬도 마커의 자식이라 함께 사라진다 — 목록만 비운다
                 _beltWarnings.Remove(cell); // 아이콘 GameObject는 마커의 자식이라 위 Destroy로 함께 사라짐
@@ -1629,15 +1709,29 @@ namespace MBI.Logistics
             foreach (KeyValuePair<Vector2Int, GameObject> kv in _beltMarkers)
             {
                 if (kv.Value == null) continue;
-                var sr = kv.Value.GetComponent<SpriteRenderer>();
-                if (sr == null) continue;
+                if (!_beltBodies.TryGetValue(kv.Key, out SpriteRenderer sr) || sr == null) continue;
 
-                Color c = FlowColor(BeltFlow.KindAt(_grid, kv.Key));
-                c.a = BeltColor.a;
-                sr.color = c;
+                // 그림이 붙은 벨트는 색을 안 칠한다 — 무엇이 흐르는지는 **벨트 위 물건**이 말하고,
+                // 몸통에 품목색을 곱하면 아트가 통째로 물든다. 연결 여부는 화살표가 그대로 든다.
+                if (sr.sprite != UnitSprite())
+                {
+                    sr.color = Color.white;
+                }
+                else
+                {
+                    Color c = FlowColor(BeltFlow.KindAt(_grid, kv.Key));
+                    c.a = BeltColor.a;
+                    sr.color = c;
+                }
 
                 // 화살표는 **지금** 출력면을 가리켜야 한다 — 병합기·분류기는 방향이 다시 잡힌다.
                 BeltInstance belt = _grid.GetBeltAt(kv.Key);
+
+                // 타일의 배향도 같은 이유로 다시 잡는다. 놓을 때 잡아 두면 **이웃이 붙은 뒤에
+                // 방향이 바뀐 병합기·분류기가 옛 각도로 남는다** — 배치 순서가 화면에 남는 셈이다.
+                Sprite reArt = BeltArtOf(belt, out Quaternion reRot);
+                if (reArt != null) sr.transform.localRotation = reRot;
+
                 if (belt == null || !_beltArrows.TryGetValue(kv.Key, out SpriteRenderer arrow)) continue;
                 if (arrow == null) continue;
 
@@ -1664,10 +1758,28 @@ namespace MBI.Logistics
             m.transform.SetParent(transform, false);
             m.transform.position = CellWorld(cell);
             m.transform.localScale = Vector3.one * (_grid.CellSize * 0.85f);
-            var sr = m.AddComponent<SpriteRenderer>();
-            sr.sprite = UnitSprite();
-            sr.color = BeltColor;
+
+            // ⚠️ **몸통을 자식으로 내렸다**(2026-09-09). 벨트 타일은 배향이 있어 돌려야 하는데
+            // 마커 자체를 돌리면 **화살표와 경고 표식이 함께 돈다** — 그 둘은 면 오프셋으로
+            // 자리를 잡으므로 보드 좌표계에 서 있어야 한다. 도는 것은 몸통 하나뿐이다.
+            var bodyGo = new GameObject("tile");
+            bodyGo.transform.SetParent(m.transform, false);
+
+            BeltInstance instance = _grid.GetBeltAt(cell);
+            Sprite beltArt = BeltArtOf(instance, out Quaternion beltRot);
+            var sr = bodyGo.AddComponent<SpriteRenderer>();
+            sr.sprite = beltArt != null ? beltArt : UnitSprite();
+            sr.color = beltArt != null ? Color.white : BeltColor;
             sr.sortingOrder = MarkerOrder;
+            if (beltArt != null)
+            {
+                bodyGo.transform.localRotation = beltRot;
+                // 타일은 칸을 **가득** 채운다 — 0.85로 두면 칸 사이에 틈이 생겨 줄이 끊겨 보인다.
+                float parentScale = Mathf.Max(0.0001f, _grid.CellSize * 0.85f);
+                bodyGo.transform.localScale =
+                    Vector3.one * (FitScale(beltArt, _grid.CellSize) / parentScale);
+            }
+            _beltBodies[cell] = sr;
 
             var arrow = new GameObject("dir");
             arrow.transform.SetParent(m.transform, false);
@@ -1770,6 +1882,99 @@ namespace MBI.Logistics
                 case PortFace.North: return new Vector2(0f, 1f);
                 default: return new Vector2(0f, -1f); // South
             }
+        }
+
+        // ── 아트 배선 (2026-09-09 · 보드·품목 승인분) ──────────────────────────────────
+        //
+        // **규칙 하나: 그림이 있으면 코드가 색을 칠하지 않는다.** 종류는 그림이 말하고
+        // 코드는 **밝기만 곱한다**(NodeStatusTint 주석 · UI 문서「노드 상태 표시」).
+        // 색 사각은 사라지지 않고 **그림이 없을 때의 폴백**으로 남는다 — 아직 안 온 품목이 있고,
+        // 그것이 보드를 통째로 비게 만들면 안 된다.
+        //
+        // ⚠️ **타일의 기준 배향은 파일을 열어서 읽은 것이다**(2026-09-09).
+        //   포트 셋 · `belt_end` · `merger` — 표시된 면이 **한 면**이고, 화면에서 그 면이
+        //   포트 = 남쪽 / 끝단·병합기 = 동쪽에 있다. 분류기는 입력면이 **북쪽**이다.
+        //   직선은 세로(남북)이고 코너는 **서–남**을 잇는다.
+        // ⚠️ **이 배향이 맞는지는 화면이 판정한다** — 배치모드는 회전을 못 본다.
+
+        /// <summary>면이 가리키는 방향의 각(도). 동쪽이 0이고 반시계로 돈다.</summary>
+        private static float FaceAngle(PortFace face)
+        {
+            switch (face)
+            {
+                case PortFace.East: return 0f;
+                case PortFace.North: return 90f;
+                case PortFace.West: return 180f;
+                default: return 270f; // South
+            }
+        }
+
+        /// <summary>기준 면이 <paramref name="target"/>을 향하도록 타일을 돌리는 각.</summary>
+        private static Quaternion FaceRotation(PortFace baseFace, PortFace target)
+            => Quaternion.Euler(0f, 0f, FaceAngle(target) - FaceAngle(baseFace));
+
+        /// <summary>이 칸 노드의 그림. 아트가 없거나 그 종류의 그림이 없으면 null.</summary>
+        private Sprite NodeArtOf(Vector2Int cell)
+        {
+            if (art == null || _grid == null) return null;
+            NodeInstance inst = _grid.GetAt(cell);
+            return inst == null || inst.Definition == null ? null : art.NodeSprite(inst.Definition.type);
+        }
+
+        /// <summary>
+        /// 벨트 칸의 그림과 그 배향. 끝단은 <c>belt_end</c>가 따로 있다 —
+        /// 이어지지 않은 칸을 직선으로 그리면 **끊긴 것이 안 보인다.**
+        /// </summary>
+        private Sprite BeltArtOf(BeltInstance belt, out Quaternion rotation)
+        {
+            rotation = Quaternion.identity;
+            if (art == null || belt == null) return null;
+
+            switch (belt.Element)
+            {
+                case BeltElementKind.Corner:
+                    // 코너는 두 면을 잇는다. 기준은 서–남이고, 서쪽을 입력면에 맞추면 남쪽이 출력면에 간다.
+                    rotation = CornerRotation(belt.InFace, belt.OutFace);
+                    return art.beltCorner;
+                case BeltElementKind.Merger:
+                    rotation = FaceRotation(PortFace.East, belt.OutFace);
+                    return art.merger;
+                case BeltElementKind.Sorter:
+                    rotation = FaceRotation(PortFace.North, belt.InFace);
+                    return art.sorter;
+                default:
+                    // 직선의 기준은 세로다 — 가로로 흐르면 90도 돌린다. 흐르는 쪽은 화살표가 말한다.
+                    bool horizontal = belt.OutFace == PortFace.East || belt.OutFace == PortFace.West;
+                    rotation = Quaternion.Euler(0f, 0f, horizontal ? 90f : 0f);
+                    return art.beltStraight;
+            }
+        }
+
+        /// <summary>코너 타일의 각. 기준이 **서–남**이라 그 짝을 돌려 맞춘다.</summary>
+        private static Quaternion CornerRotation(PortFace inFace, PortFace outFace)
+        {
+            // 네 짝밖에 없다. 표로 두면 어느 짝이 안 맞는지 화면에서 바로 지목된다.
+            bool ws = Pair(inFace, outFace, PortFace.West, PortFace.South);
+            bool se = Pair(inFace, outFace, PortFace.South, PortFace.East);
+            bool en = Pair(inFace, outFace, PortFace.East, PortFace.North);
+            if (ws) return Quaternion.identity;
+            if (se) return Quaternion.Euler(0f, 0f, 90f);
+            if (en) return Quaternion.Euler(0f, 0f, 180f);
+            return Quaternion.Euler(0f, 0f, 270f); // 북–서
+        }
+
+        private static bool Pair(PortFace a, PortFace b, PortFace x, PortFace y)
+            => (a == x && b == y) || (a == y && b == x);
+
+        /// <summary>
+        /// 그림을 셀 한 칸에 맞추는 배율. 스프라이트의 **실제 월드 크기를 재서** 나눈다 —
+        /// 캔버스 규격을 상수로 다시 적으면 아트가 바뀔 때 조용히 어긋난다.
+        /// </summary>
+        private float FitScale(Sprite sprite, float targetWorldSize)
+        {
+            if (sprite == null) return targetWorldSize;
+            float size = Mathf.Max(sprite.bounds.size.x, sprite.bounds.size.y);
+            return size > 0.0001f ? targetWorldSize / size : targetWorldSize;
         }
 
         private static Sprite UnitSprite()

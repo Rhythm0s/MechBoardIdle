@@ -48,6 +48,8 @@ namespace MBI.Editor
             BoardConfig boardConfig = BoardConfigGenerator.LoadOrCreate();
             var so = new SerializedObject(controller);
             so.FindProperty("config").objectReferenceValue = boardConfig;
+            // 보드 아트도 같은 길로 주입한다 — 없으면 색 사각으로 그린다(BoardArtSet 주석).
+            so.FindProperty("art").objectReferenceValue = BoardConfigGenerator.LoadOrCreateArt();
             // 배치 대상 기본값 = 코어 노드(있으면). 없으면 비워 둠(런타임 경고) — 팔레트는 §8.
             var coreNode = AssetDatabase.LoadAssetAtPath<NodeDefinition>(
                 "Assets/_Project/ScriptableObjects/Nodes/Node_core.asset");

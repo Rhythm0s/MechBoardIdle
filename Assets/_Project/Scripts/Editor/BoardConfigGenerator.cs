@@ -27,6 +27,103 @@ namespace MBI.Editor
             Debug.Log($"[MBI] BoardConfig 준비 완료: {ConfigPath} ({cfg.columns}×{cfg.rows}, cellSize {cfg.cellSize}).");
         }
 
+        // ── 보드 아트 배선 (2026-09-09 · 보드·품목 승인분 배선) ─────────────────────────
+        //
+        // ⚠️ **아트 경로가 사는 곳은 여기 하나다**(§8 명명 규칙 · `CombatAssetGenerator`의
+        // `LoadArt`·`LoadVfx`와 같은 길). 런타임은 <see cref="BoardArtSet"/> 참조만 들고,
+        // 폴더를 옮기거나 파일 이름을 바꿔도 고칠 자리가 이 함수 둘뿐이다.
+        //
+        // ⚠️ **없는 파일은 조용히 null이다.** 아직 안 온 그림을 에러로 만들면 보드가
+        // 통째로 안 뜬다 — 있는 것부터 붙고 나머지는 색 사각으로 남는 편이 낫다.
+
+        public const string ArtPath = SoRoot + "/BoardArtSet.asset";
+
+        [MenuItem("MBI/Create Board Art Set")]
+        public static void CreateArt()
+        {
+            BoardArtSet art = LoadOrCreateArt();
+            AssetDatabase.SaveAssets();
+            AssetDatabase.Refresh();
+            Selection.activeObject = art;
+            Debug.Log($"[MBI] BoardArtSet 준비 완료: {ArtPath} — " +
+                      $"노드 {art.FilledNodeCount} · 부속 {art.FilledPartCount} · 품목 {art.FilledItemCount}.");
+        }
+
+        /// <summary>
+        /// BoardArtSet.asset을 로드하거나 만들고 **매번 다시 채운다.**
+        ///
+        /// 덮어쓰는 이유: 이 자산에는 손으로 조정할 값이 없고 파일 이름 대응표뿐이다.
+        /// 새 그림이 폴더에 들어왔을 때 메뉴 한 번으로 붙어야 한다.
+        /// </summary>
+        public static BoardArtSet LoadOrCreateArt()
+        {
+            BoardArtSet art = AssetDatabase.LoadAssetAtPath<BoardArtSet>(ArtPath);
+            if (art == null)
+            {
+                EnsureDir(SoRoot);
+                art = ScriptableObject.CreateInstance<BoardArtSet>();
+                AssetDatabase.CreateAsset(art, ArtPath);
+            }
+
+            art.nodes.Clear();
+            AddNode(art, NodeType.Core, "node_core");
+            AddNode(art, NodeType.Processing, "node_processing");
+            AddNode(art, NodeType.MunitionsBasic, "node_muni_basic");
+            AddNode(art, NodeType.MunitionsComplex, "node_muni_complex");
+            AddNode(art, NodeType.Energy, "node_energy");
+            AddNode(art, NodeType.Storage, "node_storage");
+            AddNode(art, NodeType.Booster, "node_booster");
+            // 쉴드(NodeType.Shield)는 스텁이라 그림이 없다 — 자리도 두지 않는다.
+
+            art.beltStraight = LoadBoard("belt_straight");
+            art.beltCorner = LoadBoard("belt_corner");
+            art.beltEnd = LoadBoard("belt_end");
+            art.merger = LoadBoard("merger");
+            art.sorter = LoadBoard("sorter");
+
+            art.portInput = LoadBoard("port_input");
+            art.portOutput = LoadBoard("port_output");
+            art.portPower = LoadBoard("port_power");
+            art.mountPort = LoadBoard("mount_port");
+
+            art.items.Clear();
+            AddItem(art, FlowKind.CoreEnergy, "core_energy");
+            AddItem(art, FlowKind.BasicParts, "basic_parts");
+            AddItem(art, FlowKind.PowerMaterial, "power_material");
+            AddItem(art, FlowKind.Battery, "battery");
+            AddItem(art, FlowKind.StandardAmmo, "ammo_standard");
+            AddItem(art, FlowKind.DroneBodyParts, "drone_body_parts");
+            AddItem(art, FlowKind.DefenseMaterial, "defense_material");
+            AddItem(art, FlowKind.PierceAmmo, "ammo_pierce");
+            AddItem(art, FlowKind.ExplosiveAmmo, "ammo_explosive");
+            AddItem(art, FlowKind.Propellant, "propellant");
+            // ⚠️ **누적형 드론·광역형 드론에는 파일이 없다**(2026-09-09 실측 — `Art/Items/`에 없다).
+            // 지어 넣지 않는다. 벨트에서는 색 점으로 흐르고, 회신문에 자리로 올린다.
+
+            EditorUtility.SetDirty(art);
+            return art;
+        }
+
+        private static void AddNode(BoardArtSet art, NodeType type, string fileName)
+        {
+            Sprite s = LoadBoard(fileName);
+            if (s == null) return; // 없는 그림은 자리도 안 만든다 — 빈 칸이 「있는데 비었다」로 읽힌다
+            art.nodes.Add(new BoardArtSet.NodeArt { type = type, sprite = s });
+        }
+
+        private static void AddItem(BoardArtSet art, FlowKind kind, string fileName)
+        {
+            Sprite s = LoadItem(fileName);
+            if (s == null) return;
+            art.items.Add(new BoardArtSet.ItemArt { kind = kind, sprite = s });
+        }
+
+        private static Sprite LoadBoard(string fileName)
+            => AssetDatabase.LoadAssetAtPath<Sprite>($"Assets/_Project/Art/Board/{fileName}.png");
+
+        private static Sprite LoadItem(string fileName)
+            => AssetDatabase.LoadAssetAtPath<Sprite>($"Assets/_Project/Art/Items/{fileName}.png");
+
         /// <summary>BoardConfig.asset을 로드하거나 없으면 기본값으로 생성해 반환(씬 생성기가 재사용).</summary>
         public static BoardConfig LoadOrCreate()
         {

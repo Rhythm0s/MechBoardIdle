@@ -179,6 +179,8 @@ namespace MBI.Editor
             BoardConfig boardConfig = BoardConfigGenerator.LoadOrCreate();
             var so = new SerializedObject(controller);
             so.FindProperty("config").objectReferenceValue = boardConfig;
+            // 보드 아트 — 노드·벨트 부속·포트·품목 그림이 여기서 붙는다. 없으면 색 사각 폴백.
+            so.FindProperty("art").objectReferenceValue = BoardConfigGenerator.LoadOrCreateArt();
             var coreNode = Load<NodeDefinition>($"{SoRoot}/Nodes/Node_core.asset");
             if (coreNode != null) so.FindProperty("placeTarget").objectReferenceValue = coreNode;
 

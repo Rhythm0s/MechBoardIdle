@@ -1,0 +1,59 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 27d49b9f1530aab4dbcd8722cedf11be, type: 3}
+  m_Name: BoardArtSet
+  m_EditorClassIdentifier: MBI.Data::MBI.Data.BoardArtSet
+  nodes:
+  - type: 0
+    sprite: {fileID: 21300000, guid: 31b73a5c7361d2645aaff115aa91cc6d, type: 3}
+  - type: 1
+    sprite: {fileID: 21300000, guid: 032dd7d7ce6c0eb4395438eb01a81c99, type: 3}
+  - type: 2
+    sprite: {fileID: 21300000, guid: d76b122ce2edf8a40be34e6cccd592dd, type: 3}
+  - type: 7
+    sprite: {fileID: 21300000, guid: 420cc94bbac77584db96bfa848175f23, type: 3}
+  - type: 3
+    sprite: {fileID: 21300000, guid: 33652c1b177dd22408141b4eabb43a12, type: 3}
+  - type: 4
+    sprite: {fileID: 21300000, guid: 3b0125f0f2c8d854db74a26e8bf0593a, type: 3}
+  - type: 6
+    sprite: {fileID: 21300000, guid: 1f921c919117ce84582625cb698c3b8c, type: 3}
+  beltStraight: {fileID: 21300000, guid: f8f51972309f92c4eb7db7581377aef1, type: 3}
+  beltCorner: {fileID: 21300000, guid: 196a4e5713c6a96408e2fd16b7d3b960, type: 3}
+  beltEnd: {fileID: 21300000, guid: 7e3a4fb0117230344aa8c6965ec7dd38, type: 3}
+  merger: {fileID: 21300000, guid: a6406c5bdb1684f43acd1c772da38e70, type: 3}
+  sorter: {fileID: 21300000, guid: 107692b63dcb1dd4f9e653f8d9b755aa, type: 3}
+  portInput: {fileID: 21300000, guid: cc0df66d5a411db49bc5671bde3c754b, type: 3}
+  portOutput: {fileID: 21300000, guid: 67f2ab5e8b383434083b16d8fd42dcfa, type: 3}
+  portPower: {fileID: 21300000, guid: 07c016696ace95e4c8625c4240109210, type: 3}
+  mountPort: {fileID: 21300000, guid: d6ebdc40b5604d844a5123e1ba91321f, type: 3}
+  items:
+  - kind: 7
+    sprite: {fileID: 21300000, guid: 5a402666c4ec9134f839808f261fca3a, type: 3}
+  - kind: 8
+    sprite: {fileID: 21300000, guid: 339a978900d2c9d42a8849d1b1af644d, type: 3}
+  - kind: 9
+    sprite: {fileID: 21300000, guid: 72b20e3380c8aed4abb1025a713d3908, type: 3}
+  - kind: 10
+    sprite: {fileID: 21300000, guid: 720e6018580d5864b9c52479c7f13d70, type: 3}
+  - kind: 11
+    sprite: {fileID: 21300000, guid: f162cec4232f1e641a1e25b1bc2064dd, type: 3}
+  - kind: 12
+    sprite: {fileID: 21300000, guid: fb51abbbdfef0c04c8ca4df0d1929f95, type: 3}
+  - kind: 13
+    sprite: {fileID: 21300000, guid: 0841c56b88349ac4ebfb335176955624, type: 3}
+  - kind: 14
+    sprite: {fileID: 21300000, guid: ef20c6058eded2944a6d8f9cc9274a20, type: 3}
+  - kind: 15
+    sprite: {fileID: 21300000, guid: 42e97a2695f728046b9ff4099b4d5a1d, type: 3}
+  - kind: 5
+    sprite: {fileID: 21300000, guid: 62167b2b9c5bea448b8821a87798bca7, type: 3}
