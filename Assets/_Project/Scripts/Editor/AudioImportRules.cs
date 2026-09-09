@@ -57,7 +57,14 @@ namespace MBI.Editor
             }
 
             importer.defaultSampleSettings = s;
-            importer.forceToMono = false;
+
+            // **효과음만 모노로 내린다** (2026-09-09 · 사운드 리스트가 효과음을 모노로 적었다).
+            // 조달된 여덟이 스테레오로 왔는데 **파일은 안 건드린다** — 출처 규약이 개변본
+            // 재배포까지 막고 있고, 무엇보다 **임포트 규격의 소스는 이 코드**다(2026-09-09 규칙 개정).
+            // 파일을 고치면 규격이 두 곳에 살고, 다시 받은 사람은 스테레오를 쓰게 된다.
+            //
+            // ⚠️ **BGM 은 스테레오 그대로다** — 곡은 모노로 내리면 넓이가 사라진다.
+            importer.forceToMono = assetPath.StartsWith(SfxDir);
             importer.loadInBackground = assetPath.StartsWith(BgmDir);
         }
 
