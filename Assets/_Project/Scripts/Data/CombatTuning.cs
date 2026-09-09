@@ -129,8 +129,8 @@ namespace MBI.Data
 
         [Header("히트 패턴 (로봇A 탄종 = 단일 표적)")]
         // 플레이어블 로봇 기획서「무기 스펙트럼」(스테이징): 등가선은 단일 표적 기준, 표적 수/광역은 스펙트럼 밖 역할 축(드론 2종 한정).
-        // → 로봇A 관통/분열/폭발은 전부 단일 표적. 멀티샷/AoE 메커니즘(HitResolver)은 드론용으로 보존.
-        [Tooltip("멀티샷 표적 수. 로봇A 분열탄 = 1(단일). 다중은 드론 역할.")]
+        // → 로봇A 관통/표준/폭발은 전부 단일 표적. 멀티샷/AoE 메커니즘(HitResolver)은 드론용으로 보존.
+        [Tooltip("멀티샷 표적 수. 로봇A 표준탄 = 1(단일). 다중은 드론 역할.")]
         public int multiShotCountTbd = 1;
         [Tooltip("AoE 스플래시 반경(유닛). 로봇A 폭발탄은 splashFactor 0이라 무효(드론용 보존).")]
         public float aoeRadiusTbd = 1.5f;

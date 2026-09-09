@@ -13,7 +13,12 @@ namespace MBI.Tests
     /// 천장이 사라졌으므로 그 물음은 닫혔고, **남은 것은 구성별 출력이라는 사실**이다.
     ///
     /// 그 사실이 여전히 값진 이유: 조합 축이 살아 있는지를 여기서 볼 수 있다.
-    /// 분열 4 + 폭발 2가 관통 6대보다 세다는 것이 라인 스펙 상한의 존재 이유다.
+    /// 섞은 쪽이 몰아넣은 쪽보다 세다는 것이 라인 스펙 상한의 존재 이유다.
+    ///
+    /// ⚠️ **2026-09-09 표준탄 좌표 확정으로 값이 전부 내려갔다**(`260909_W01` 2-1·2-4).
+    /// 구 분열탄 25×4가 표준탄 **10×6**이 되면서 최대 조합이 **200 → 180**이고,
+    /// 최대를 내는 조합도 「표준 4 + 폭발 2」가 아니라 **「관통 4 + 폭발 2」**로 바뀌었다.
+    /// **구조는 그대로 산다** — 단일 탄종은 여전히 잘리고 최대는 여전히 섞어야 나온다.
     ///
     /// ⚠️ 노드별 전력은 260901_V02에서 확정됐다 — 종전의 「수치 TBD」 표기는 해소됐다.
     /// </summary>
@@ -23,10 +28,10 @@ namespace MBI.Tests
         private const float PerNode = 1f;   // muniPerNode 확정치
         private const float Origin = 100f;  // params origin
 
-        private static List<MunitionsLine> Mix(int pierce, int split, int explosive) => new List<MunitionsLine>
+        private static List<MunitionsLine> Mix(int pierce, int standard, int explosive) => new List<MunitionsLine>
         {
             new MunitionsLine(AmmoKind.Pierce, 5f, 20f, pierce),
-            new MunitionsLine(AmmoKind.Split, 4f, 25f, split),
+            new MunitionsLine(AmmoKind.Standard, 6f, 10f, standard),
             new MunitionsLine(AmmoKind.Explosive, 2f, 50f, explosive),
         };
 
@@ -39,41 +44,59 @@ namespace MBI.Tests
         }
 
         /// <summary>
-        /// V02 §5가 지목한 조합: 분열 4 + 폭발 2 = 6노드 = 소비 상한을 정확히 채운다.
-        /// 출력 200, 천장 160 → **40 초과.**
+        /// **`260909_W01` 2-4 표 그대로.** 소비 상한 6발/초에서 조합 넷이 무엇을 내는가.
+        ///
+        /// 표에 있는 네 줄을 여기 옮겨 적는다 — 값이 흔들리면 이 시험이 먼저 빨개진다.
         /// </summary>
         [Test]
-        public void SixNodes_SplitFourPlusExplosiveTwo_Yields200()
+        public void ConsumptionCapCombinations_MatchW01Table()
         {
-            List<MunitionsLine> mix = Mix(0, 4, 2);
+            // 표준 6 — 단일 탄종으로 상한을 다 채운 자리. 초당 출력 60.
+            Assert.AreEqual(6f, Rate(Mix(0, 6, 0)), D, "표준 6발/초 = 소비 상한을 채운다");
+            Assert.AreEqual(60f, AmmoLineProduction.TotalOutput(Mix(0, 6, 0), PerNode), D,
+                "표준 6 = 60 (W01 2-4)");
 
-            Assert.AreEqual(6f, Rate(mix), D, "4 + 2 = 6발/초 = 소비 상한 capA와 같다");
-            Assert.AreEqual(200f, AmmoLineProduction.TotalOutput(mix, PerNode), D, "100 + 100");
-            // 종전에는 여기서 「천장 160을 넘는다」를 쟀다. 천장이 폐기됐으므로
-            // **조합 축이 살아 있는가**를 대신 잰다 — 그것이 이 실측의 남은 값이다.
-            // 같은 6노드를 관통에 몰면 라인 스펙 5에서 잘려 100이다.
-            Assert.AreEqual(100f, AmmoLineProduction.TotalOutput(Mix(6, 0, 0), PerNode), D,
-                "관통 6대는 스펙 5에서 잘린다");
-            Assert.Greater(AmmoLineProduction.TotalOutput(mix, PerNode),
-                AmmoLineProduction.TotalOutput(Mix(6, 0, 0), PerNode),
-                "섞은 쪽이 몰아넣은 쪽보다 세다 — 라인 스펙 상한의 존재 이유");
+            // 표준 4 + 폭발 2 — 구 최대 조합이 있던 자리. 이제 140이다.
+            Assert.AreEqual(140f, AmmoLineProduction.TotalOutput(Mix(0, 4, 2), PerNode), D,
+                "표준 4 + 폭발 2 = 40 + 100 = 140 (W01 2-4)");
+
+            // 관통 5 + 폭발 1.
+            Assert.AreEqual(150f, AmmoLineProduction.TotalOutput(Mix(5, 0, 1), PerNode), D,
+                "관통 5 + 폭발 1 = 100 + 50 = 150 (W01 2-4)");
+
+            // 관통 4 + 폭발 2 — **새 최대.**
+            Assert.AreEqual(180f, AmmoLineProduction.TotalOutput(Mix(4, 0, 2), PerNode), D,
+                "관통 4 + 폭발 2 = 80 + 100 = 180 (W01 2-4)");
         }
 
         /// <summary>
-        /// 소비 상한 6발/초 안에서 **가장 높은 출력이 이 조합**이라는 확인.
-        /// 폭발만 6노드로 몰면 스펙 2에서 잘려 100밖에 안 나온다 — 상한이 조합을 강제한다.
+        /// 소비 상한 6발/초 안에서 **가장 높은 출력이 관통 4 + 폭발 2**라는 확인.
+        ///
+        /// ⚠️ **구 등가선 「단일 탄종의 최대는 언제나 100」이 깨졌다.** 표준탄만 60에서 잘린다 —
+        /// 축이 초당 출력에서 노드당 출력으로 옮겨졌기 때문이며(W01 2-2), 표준탄은 체인이
+        /// 짧은 것으로 그 차이를 돌려받는다. **결함이 아니다.**
         /// </summary>
         [Test]
-        public void MaxOutputWithinConsumptionCap_IsSplitFourPlusExplosiveTwo()
+        public void MaxOutputWithinConsumptionCap_IsPierceFourPlusExplosiveTwo()
         {
-            Assert.AreEqual(200f, AmmoLineProduction.TotalOutput(Mix(0, 4, 2), PerNode), D);
+            float best = AmmoLineProduction.TotalOutput(Mix(4, 0, 2), PerNode);
+            Assert.AreEqual(180f, best, D);
 
-            // 한 탄종에 몰면 그 라인 스펙에서 잘려 등가선 100을 못 넘는다.
-            // 등가선이 「스펙 × 발당피해 = 100」이므로 단일 탄종의 최대는 언제나 100이다.
+            // 한 탄종에 몰면 그 라인 스펙에서 잘린다.
             Assert.AreEqual(100f, AmmoLineProduction.TotalOutput(Mix(0, 0, 6), PerNode), D,
                 "폭발만 6노드 → 스펙 2에서 잘려 2발/초 × 50 = 100");
             Assert.AreEqual(100f, AmmoLineProduction.TotalOutput(Mix(6, 0, 0), PerNode), D,
                 "관통만 6노드 → 스펙 5에서 잘려 5발/초 × 20 = 100");
+            Assert.AreEqual(60f, AmmoLineProduction.TotalOutput(Mix(0, 6, 0), PerNode), D,
+                "표준만 6노드 → 스펙 6이라 안 잘리는데도 60 — 구 등가선이 깨진 자리");
+
+            // **섞은 쪽이 몰아넣은 쪽보다 세다** — 라인 스펙 상한의 존재 이유이며 여기는 살아 있다.
+            Assert.Greater(best, AmmoLineProduction.TotalOutput(Mix(6, 0, 0), PerNode),
+                "관통 4 + 폭발 2 > 관통 6");
+            Assert.Greater(best, AmmoLineProduction.TotalOutput(Mix(0, 6, 0), PerNode),
+                "관통 4 + 폭발 2 > 표준 6");
+            Assert.Greater(best, AmmoLineProduction.TotalOutput(Mix(0, 4, 2), PerNode),
+                "140에서 180으로 갈아탈 자리가 있다 — 실측 3번이 겨누는 것");
 
             // 남는 노드는 버려진다 — 관통 5노드로 이미 100이고 6번째는 아무것도 안 한다.
             Assert.AreEqual(100f, AmmoLineProduction.TotalOutput(Mix(5, 0, 0), PerNode), D);

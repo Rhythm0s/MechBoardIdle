@@ -61,7 +61,7 @@ namespace MBI.Core
         {
             return new System.Collections.Generic.Dictionary<MountItem, float>
             {
-                { MountItem.Pierce, limit }, { MountItem.Split, limit },
+                { MountItem.Pierce, limit }, { MountItem.Standard, limit },
                 { MountItem.Explosive, limit }, { MountItem.Drone, limit },
             };
         }

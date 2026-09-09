@@ -14,7 +14,7 @@ namespace MBI.Editor
     /// 메뉴: MBI/Generate Combat Data (Robot+Enemy+Stage).
     ///
     /// - 수치 원천은 json(§9). 코드에 밸런스 리터럴을 두지 않는다(§3).
-    /// - 무기 발사율 = 물류 생산율 pA(대표 상태, mock): 관통1/분열1/폭발2 → 출력 ΣpA×dA = 145 = s3Break.
+    /// - 무기 발사율 = 물류 생산율 pA(대표 상태, mock): 관통1/표준1/폭발2 → 출력 ΣpA×dA = 145 = s3Break.
     ///   무기 기계 최대치가 아니라 물류 산출(핵심 명제 = 물류가 제약). 실 물류 시뮬 완성 시 동적 산출로 교체.
     /// - 재실행 시 같은 경로 자산을 덮어써 GUID 보존(참조 안정).
     /// </summary>
@@ -98,7 +98,7 @@ namespace MBI.Editor
             var weapons = new List<WeaponSpec>
             {
                 new WeaponSpec(AmmoKind.Pierce, json.Param("dA0"), json.Param("pA0")),    // 20 × 1
-                new WeaponSpec(AmmoKind.Split, json.Param("dA1"), json.Param("pA1")),     // 25 × 1
+                new WeaponSpec(AmmoKind.Standard, json.Param("dA1"), json.Param("pA1")),     // 25 × 1
                 new WeaponSpec(AmmoKind.Explosive, json.Param("dA2"), json.Param("pA2")), // 50 × 2
             };
 

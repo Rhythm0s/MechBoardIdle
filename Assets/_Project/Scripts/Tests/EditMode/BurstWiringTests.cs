@@ -22,7 +22,7 @@ namespace MBI.Tests
         private static Dictionary<MountItem, float> Stacks() =>
             new Dictionary<MountItem, float>
             {
-                { MountItem.Pierce, 100f }, { MountItem.Split, 100f },
+                { MountItem.Pierce, 100f }, { MountItem.Standard, 100f },
                 { MountItem.Explosive, 100f }, { MountItem.Drone, 100f },
             };
 

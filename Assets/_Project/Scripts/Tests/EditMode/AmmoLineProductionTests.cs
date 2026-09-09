@@ -18,8 +18,10 @@ namespace MBI.Tests
         private const float D = 0.001f;
         private const float PerNode = 1f; // muniPerNode 확정치
 
-        private const float SpecPierce = 5f, SpecSplit = 4f, SpecExplosive = 2f;
-        private const float DmgPierce = 20f, DmgSplit = 25f, DmgExplosive = 50f;
+        // `260909_W01` 2-1 확정 좌표 — 관통 20×5 · **표준 10×6** · 폭발 50×2.
+        // ⚠️ 구 분열탄 25×4는 폐기됐다. 값이 바뀐 근거는 2-2에 있다.
+        private const float SpecPierce = 5f, SpecStandard = 6f, SpecExplosive = 2f;
+        private const float DmgPierce = 20f, DmgStandard = 10f, DmgExplosive = 50f;
 
         // ---- 라인 가동률 = min(1, 보유 노드 ÷ 필요 노드) ----
 
@@ -72,21 +74,56 @@ namespace MBI.Tests
         public void NodesForFullLine_EqualsSpec_WhenOneRoundPerNode()
         {
             Assert.AreEqual(5, AmmoLineProduction.NodesForFullLine(SpecPierce, PerNode));
-            Assert.AreEqual(4, AmmoLineProduction.NodesForFullLine(SpecSplit, PerNode));
+            Assert.AreEqual(6, AmmoLineProduction.NodesForFullLine(SpecStandard, PerNode));
             Assert.AreEqual(2, AmmoLineProduction.NodesForFullLine(SpecExplosive, PerNode));
         }
 
         /// <summary>
-        /// 등가선: 세 탄종 모두 100% 가동 시 DPS 100이다. 여기서 비용 배수가 나온다 —
-        /// 같은 100 DPS에 관통 5 / 분열 4 / 폭발 2 노드가 드니 노드당 비용은 1 : 1.25 : 2.5여야 균형이다.
-        /// 「폭발 = 관통의 2배」로 두면 폭발이 1.25배 저렴해져 폭발 편중이 자명한 최적해가 된다.
+        /// ⚠️ **구 등가선 「셋 다 100」은 폐기됐다** (`260909_W01` 2-2). 표준탄이 특수탄의
+        /// 재료가 된 순간 그 선은 특수탄을 지배해 버린다 — 같은 출력을 더 긴 체인으로 얻는
+        /// 자리가 생기기 때문이다. **새 축은 노드당 출력**이고, 여기서 재는 것은 그것이다.
+        ///
+        /// 이 시험이 남은 이유: 구 선이 실제로 깨졌다는 것을 값으로 붙들어 둔다.
+        /// 되살리려는 사람이 있으면 여기가 빨개진다.
         /// </summary>
         [Test]
-        public void EquivalenceLine_FullLineOfAnyKind_Yields100()
+        public void OldEquivalenceLine_IsBroken_StandardYields60()
         {
-            Assert.AreEqual(100f, AmmoLineProduction.LineOutput(SpecPierce, 5, PerNode) * DmgPierce, D);
-            Assert.AreEqual(100f, AmmoLineProduction.LineOutput(SpecSplit, 4, PerNode) * DmgSplit, D);
-            Assert.AreEqual(100f, AmmoLineProduction.LineOutput(SpecExplosive, 2, PerNode) * DmgExplosive, D);
+            Assert.AreEqual(100f, AmmoLineProduction.LineOutput(SpecPierce, 5, PerNode) * DmgPierce, D,
+                "관통은 아직 100이다");
+            Assert.AreEqual(100f, AmmoLineProduction.LineOutput(SpecExplosive, 2, PerNode) * DmgExplosive, D,
+                "폭발도 아직 100이다");
+
+            Assert.AreEqual(60f, AmmoLineProduction.LineOutput(SpecStandard, 6, PerNode) * DmgStandard, D,
+                "표준만 60 — 구 등가선이 깨진 자리(W01 2-1)");
+        }
+
+        /// <summary>
+        /// **새 축 — 노드당 출력** (`260909_W01` 2-3 표).
+        ///
+        /// ⚠️ **여기서 세는 노드는 체인 전체다** — 군수 노드만이 아니라 앞에 붙는 가공·표준탄
+        /// 라인까지다. 그래서 이 시험은 `AmmoLineProduction`(군수 노드만 센다)을 부르지 않고
+        /// W01 2-3의 회계를 그대로 옮겨 적는다. **두 축을 한 함수로 재면 섞인다.**
+        ///
+        /// 폭발탄이 12.5로 튀는 것은 결함이 아니다 — 라인 스펙 2발/초가 상한이라
+        /// **싸지만 더 못 쓴다.**
+        /// </summary>
+        [Test]
+        public void OutputPerNode_MatchesW01Accounting()
+        {
+            // 탄종 | 1발/초에 드는 노드 | 최대 발사수 | 최대 출력 | 그때 노드 | 노드당
+            AssertPerNode("표준", nodesPerShot: 2, maxShots: 6, damage: DmgStandard, expectedPerNode: 5f);
+            AssertPerNode("관통", nodesPerShot: 4, maxShots: 5, damage: DmgPierce, expectedPerNode: 5f);
+            AssertPerNode("폭발", nodesPerShot: 4, maxShots: 2, damage: DmgExplosive, expectedPerNode: 12.5f);
+        }
+
+        private static void AssertPerNode(string label, int nodesPerShot, int maxShots,
+            float damage, float expectedPerNode)
+        {
+            float output = maxShots * damage;
+            int nodes = nodesPerShot * maxShots;
+            Assert.AreEqual(expectedPerNode, output / nodes, D,
+                $"{label} — 최대 출력 {output} ÷ 노드 {nodes}");
         }
 
         // ---- 라인 조립 ----
@@ -94,24 +131,30 @@ namespace MBI.Tests
         private static List<MunitionsLine> Representative() => new List<MunitionsLine>
         {
             new MunitionsLine(AmmoKind.Pierce, SpecPierce, DmgPierce, 1),
-            new MunitionsLine(AmmoKind.Split, SpecSplit, DmgSplit, 1),
+            new MunitionsLine(AmmoKind.Standard, SpecStandard, DmgStandard, 1),
             new MunitionsLine(AmmoKind.Explosive, SpecExplosive, DmgExplosive, 2),
         };
 
-        /// <summary>대표 상태 = 관통 1 + 분열 1 + 폭발 2 노드 → pA 1/1/2 재현 → 출력 145(§9 s3Break).</summary>
+        /// <summary>
+        /// 대표 상태 = 관통 1 + 표준 1 + 폭발 2 노드 → pA 1/1/2 재현 → 출력 **130**.
+        /// ⚠️ **대표 상태 출력이 145에서 130으로 내려갔다** (`260909_W01` 2-1 · 표준탄 25 → 10).
+        /// **`s3Break`(S3 돌파 요구치)는 145 그대로다** — 종전에 둘이 같았던 것은 값이 우연히
+        /// 맞아떨어진 것이고, 이제 갈라졌다. **여기서 s3Break를 따라 내리지 않는다** —
+        /// 요구치는 밸런스가 재산출할 값이지 대표 상태가 끌고 다닐 값이 아니다(W01 2-5).
+        /// </summary>
         [Test]
-        public void Representative_FourNodes_Reproduces145()
+        public void Representative_FourNodes_Reproduces130()
         {
             var lines = new List<AmmoLine>();
             AmmoLineProduction.BuildLines(Representative(), PerNode, lines);
 
             Assert.AreEqual(3, lines.Count);
             Assert.AreEqual(1f, lines[0].shotsPerSec, D, "관통 1노드 → 1발/초 (pA0)");
-            Assert.AreEqual(1f, lines[1].shotsPerSec, D, "분열 1노드 → 1발/초 (pA1)");
+            Assert.AreEqual(1f, lines[1].shotsPerSec, D, "표준 1노드 → 1발/초 (pA1)");
             Assert.AreEqual(2f, lines[2].shotsPerSec, D, "폭발 2노드 → 2발/초 (pA2)");
 
-            Assert.AreEqual(145f, AmmoLineProduction.TotalOutput(Representative(), PerNode), D,
-                "20 + 25 + 100 = 145 — 대표 상태 출력");
+            Assert.AreEqual(130f, AmmoLineProduction.TotalOutput(Representative(), PerNode), D,
+                "20 + 10 + 100 = 130 — 대표 상태 출력(구 145)");
         }
 
         /// <summary>원점 100 = 관통 라인만 100% 가동(노드 5개). 밸런스 2장 origin의 basis 그대로.</summary>
@@ -132,11 +175,11 @@ namespace MBI.Tests
             var reduced = new List<MunitionsLine>
             {
                 new MunitionsLine(AmmoKind.Pierce, SpecPierce, DmgPierce, 1),
-                new MunitionsLine(AmmoKind.Split, SpecSplit, DmgSplit, 1),
+                new MunitionsLine(AmmoKind.Standard, SpecStandard, DmgStandard, 1),
                 new MunitionsLine(AmmoKind.Explosive, SpecExplosive, DmgExplosive, 1), // 2 → 1
             };
 
-            Assert.AreEqual(95f, AmmoLineProduction.TotalOutput(reduced, PerNode), D, "20 + 25 + 50");
+            Assert.AreEqual(80f, AmmoLineProduction.TotalOutput(reduced, PerNode), D, "20 + 10 + 50");
             Assert.Greater(AmmoLineProduction.TotalOutput(reduced, PerNode), 0f, "0으로 접히지 않는다");
         }
 

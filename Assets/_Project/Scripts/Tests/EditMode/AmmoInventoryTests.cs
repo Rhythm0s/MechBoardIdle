@@ -82,7 +82,7 @@ namespace MBI.Tests
         {
             var inv = new AmmoInventory(40f);
             inv.Add(AmmoKind.Pierce, 10f);
-            inv.Add(AmmoKind.Split, 10f);
+            inv.Add(AmmoKind.Standard, 10f);
             inv.Add(AmmoKind.Explosive, 20f);
 
             Assert.AreEqual(40f, inv.Total, D);
@@ -94,15 +94,15 @@ namespace MBI.Tests
         public void FillRatio_IsTotalOverCapacity()
         {
             var inv = new AmmoInventory(40f);
-            inv.Add(AmmoKind.Split, 10f);
+            inv.Add(AmmoKind.Standard, 10f);
             Assert.AreEqual(0.25f, inv.FillRatio, D);
 
-            inv.Fill(AmmoKind.Split);
+            inv.Fill(AmmoKind.Standard);
             Assert.AreEqual(1f, inv.FillRatio, D);
 
             inv.Drain();
             Assert.AreEqual(0f, inv.FillRatio, D);
-            Assert.AreEqual(0f, inv.StockOf(AmmoKind.Split), D, "비우면 전 탄종이 비워진다");
+            Assert.AreEqual(0f, inv.StockOf(AmmoKind.Standard), D, "비우면 전 탄종이 비워진다");
         }
 
         [Test]

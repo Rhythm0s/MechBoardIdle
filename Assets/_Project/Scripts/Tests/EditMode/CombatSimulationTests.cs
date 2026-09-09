@@ -12,11 +12,12 @@ namespace MBI.Tests
     /// </summary>
     public sealed class CombatSimulationTests
     {
-        // 대표 상태 물류 생산율(pA 1/1/2) → 폭발2 + 분열1 + 관통1 발/초 = 145/초.
+        // 대표 상태 물류 생산율(pA 1/1/2) → 폭발2 + 표준1 + 관통1 발/초 = **130**/초
+        // (`260909_W01` 2-1 · 표준탄 25 → 10). s3Break 145와 갈라졌다 — 그쪽은 안 건드린다.
         private static List<WeaponSpec> RepresentativeWeapons() => new List<WeaponSpec>
         {
             new WeaponSpec(AmmoKind.Pierce, 20f, 1f),
-            new WeaponSpec(AmmoKind.Split, 25f, 1f),
+            new WeaponSpec(AmmoKind.Standard, 10f, 1f),
             new WeaponSpec(AmmoKind.Explosive, 50f, 2f),
         };
 
@@ -200,12 +201,12 @@ namespace MBI.Tests
             Run(sim, 1f, 0.02f);
 
             float dealt = 100000f - sim.Enemies[0].hp;
-            Assert.AreEqual(145f, dealt, 0.5f, "1초 누적 피해 = Σ(발사율 × 발당피해)");
+            Assert.AreEqual(130f, dealt, 0.5f, "1초 누적 피해 = Σ(발사율 × 발당피해)");
         }
 
         /// <summary>
-        /// 절반 공급이면 피해도 절반. 0.5발/초는 2초에 한 발이므로 2초를 돌려 145(=72.5×2)로 본다.
-        /// 정수 반올림 경로였다면 관통·분열이 0으로 접혀 100만 나온다.
+        /// 절반 공급이면 피해도 절반. 0.5발/초는 2초에 한 발이므로 2초를 돌려 130(=65×2)으로 본다.
+        /// 정수 반올림 경로였다면 관통·표준이 0으로 접혀 100만 나온다.
         /// </summary>
         [Test]
         public void FireLines_HalfSupply_HalvesDamage()
@@ -217,7 +218,7 @@ namespace MBI.Tests
             Run(sim, 2f, 0.02f);
 
             float dealt = 100000f - sim.Enemies[0].hp;
-            Assert.AreEqual(145f, dealt, 0.5f, "2초 누적 = 명목의 절반 × 2초");
+            Assert.AreEqual(130f, dealt, 0.5f, "2초 누적 = 명목의 절반 × 2초");
         }
 
         /// <summary>
@@ -238,7 +239,7 @@ namespace MBI.Tests
 
             float dealt = 100000f - sim.Enemies[0].hp;
             Assert.Greater(dealt, 0f, "매 프레임 교체해도 발사가 멈추면 안 된다");
-            Assert.AreEqual(145f, dealt, 0.5f, "교체 후에도 절반 공급 DPS가 그대로 나온다");
+            Assert.AreEqual(130f, dealt, 0.5f, "교체 후에도 절반 공급 DPS가 그대로 나온다");
         }
     }
 }

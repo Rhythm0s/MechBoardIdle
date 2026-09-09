@@ -61,16 +61,22 @@ namespace MBI.Data
         [Tooltip("군수 노드 1개당 생산(발/초). params.muniPerNode = 1 확정치. ⚠️ 소비 상한(capA 6)과 혼동 금지 — 여기에 6을 넣으면 노드 하나가 상한을 다 채워 보드가 출력을 못 바꾼다.")]
         public float muniPerNode = 1f;
 
-        [Tooltip("라인 100% 가동 발사율(발/초). params.specA0/1/2 = 관통 5 / 분열 4 / 폭발 2. 등가선: 스펙 × 발당피해 = 100.")]
-        public Vector3 lineSpecShots = new Vector3(5f, 4f, 2f);
+        [Tooltip("라인 100% 가동 발사율(발/초). params.specA0/1/2 = 관통 5 / 표준 6 / 폭발 2. " +
+                 "⚠️ 등가선 「스펙 × 발당피해 = 100」은 폐기됐다 — 축이 노드당 출력으로 바뀌었다(260909_W01 2-2). " +
+                 "표준탄만 초당 60인 것은 결함이 아니라 체인이 짧기 때문이다.")]
+        public Vector3 lineSpecShots = new Vector3(5f, 6f, 2f);
 
-        /// <summary>탄종별 라인 스펙(발/초). 성분 순서 = AmmoKind(Pierce · Split · Explosive).</summary>
+        [Tooltip("노드 1대가 초당 내는 생산치. 산출 속도 = 이 값 ÷ 그 레시피의 필요 생산치(260909_W01 2-3). " +
+                 "⚠️ 발/초와 다른 축이다 — 이것은 노드의 일량이고, 몇 개가 나오는지는 레시피가 정한다.")]
+        public float nodeProductionPower = 10f;
+
+        /// <summary>탄종별 라인 스펙(발/초). 성분 순서 = AmmoKind(Pierce 0 · Standard 1 · Explosive 2).</summary>
         public float LineSpecOf(AmmoKind kind)
         {
             switch (kind)
             {
                 case AmmoKind.Pierce: return lineSpecShots.x;
-                case AmmoKind.Split: return lineSpecShots.y;
+                case AmmoKind.Standard: return lineSpecShots.y;
                 default: return lineSpecShots.z;
             }
         }

@@ -13,11 +13,11 @@ namespace MBI.Tests
     {
         private const float Delta = 0.001f;
 
-        /// <summary>대표 상태 무기 3종(관통1×20 · 분열1×25 · 폭발2×50).</summary>
+        /// <summary>대표 상태 무기 3종(관통1×20 · 표준1×25 · 폭발2×50).</summary>
         private static List<WeaponSpec> Representative() => new List<WeaponSpec>
         {
             new WeaponSpec(AmmoKind.Pierce, 20f, 1f),
-            new WeaponSpec(AmmoKind.Split, 25f, 1f),
+            new WeaponSpec(AmmoKind.Standard, 25f, 1f),
             new WeaponSpec(AmmoKind.Explosive, 50f, 2f),
         };
 
@@ -78,7 +78,7 @@ namespace MBI.Tests
             }
             float weightedAvg = totalDamage / totalRate;
 
-            Assert.AreEqual(4f, totalRate, Delta, "관통1 + 분열1 + 폭발2 = 4발/초");
+            Assert.AreEqual(4f, totalRate, Delta, "관통1 + 표준1 + 폭발2 = 4발/초");
             Assert.AreEqual(36.25f, weightedAvg, Delta, "(20 + 25 + 100) ÷ 4");
             Assert.AreEqual(RobotOutput.Nominal(w, 1f, 1f), weightedAvg * totalRate, Delta,
                 "Σ(발사수 × 피해) 와 가중평균 × 총량은 같은 식이다");

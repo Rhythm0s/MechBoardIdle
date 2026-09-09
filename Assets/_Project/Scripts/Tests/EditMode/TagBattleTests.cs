@@ -18,7 +18,7 @@ namespace MBI.Tests
         private static Dictionary<MountItem, float> Stacks(float ammo = 10f) =>
             new Dictionary<MountItem, float>
             {
-                { MountItem.Pierce, ammo }, { MountItem.Split, ammo },
+                { MountItem.Pierce, ammo }, { MountItem.Standard, ammo },
                 { MountItem.Explosive, ammo }, { MountItem.Drone, ammo },
             };
 
@@ -298,7 +298,7 @@ namespace MBI.Tests
             a.Load(MountItem.Pierce, 40f);
             var battle = new TagBattle(a, b);
 
-            battle.StandbyMount.Load(MountItem.Split, 25f); // 대기 중 적립
+            battle.StandbyMount.Load(MountItem.Standard, 25f); // 대기 중 적립
 
             Assert.AreEqual(25f, battle.StandbyMount.Total, D);
             Assert.AreEqual(40f, battle.ActiveMount.Total, D, "활성 쪽은 그대로");

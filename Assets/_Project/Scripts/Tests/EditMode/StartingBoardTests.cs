@@ -116,7 +116,7 @@ namespace MBI.Tests
             var lines = new List<MunitionsLine>
             {
                 new MunitionsLine(AmmoKind.Pierce, _bal.LineSpecOf(AmmoKind.Pierce), 20f, agg.muniPierce),
-                new MunitionsLine(AmmoKind.Split, _bal.LineSpecOf(AmmoKind.Split), 25f, agg.muniSplit),
+                new MunitionsLine(AmmoKind.Standard, _bal.LineSpecOf(AmmoKind.Standard), 25f, agg.muniSplit),
                 new MunitionsLine(AmmoKind.Explosive, _bal.LineSpecOf(AmmoKind.Explosive), 50f, agg.muniExplosive),
             };
             return AmmoLineProduction.TotalOutput(lines, _bal.muniPerNode);

@@ -9,7 +9,7 @@ namespace MBI.Core
     ///
     /// ⚠️ 왜 정수 발수 목록이 아니라 실수 발사율인가: 물류 산출이 절반으로 떨어지면 pA 1/1/2가
     /// 0.5/0.5/1이 되는데, 정수로 반올림하면 Unity의 RoundToInt가 half-to-even이라 0.5 → 0이다.
-    /// 관통·분열이 통째로 사라져 HUD 72.5 / 실 DPS 50으로 갈린다. 실수로 들고 있으면
+    /// 관통·표준이 통째로 사라져 HUD 72.5 / 실 DPS 50으로 갈린다. 실수로 들고 있으면
     /// 0.5발/초 = 2초에 한 발로 정확히 표현된다.
     /// </summary>
     public struct AmmoLine
@@ -42,12 +42,12 @@ namespace MBI.Core
     /// <summary>
     /// 사격 목록 산출(순수 함수 — EditMode 검증 가능). 두 모델:
     /// - AllocatePerSecond: 물류 생산율(pA) 기반 고효율 우선 배분. **현재 발사 모델**(StageRunner가 호출).
-    /// - RoundRobin: 싱글샷(관통)→멀티샷(분열)→AoE(폭발) 한 발씩 로테이션. **현재 미사용**(테스트만 참조).
+    /// - RoundRobin: 싱글샷(관통)→멀티샷(표준)→AoE(폭발) 한 발씩 로테이션. **현재 미사용**(테스트만 참조).
     /// </summary>
     public static class ShotAllocator
     {
         /// <summary>
-        /// 한 발씩 로테이션 목록: 관통(단일)→분열(멀티샷)→폭발(AoE) 순, 무기당 1발.
+        /// 한 발씩 로테이션 목록: 관통(단일)→표준(멀티샷)→폭발(AoE) 순, 무기당 1발.
         /// 시뮬이 이 목록을 순환 발사 → 매 회전마다 세 패턴을 한 번씩 사용(사용자 지정 발사 모델).
         /// ⚠️ 현재 프로덕션 호출자 없음(ShotAllocatorTests만 참조). 삭제 여부는 사용자 승인 대기.
         /// </summary>
@@ -64,13 +64,13 @@ namespace MBI.Core
             return shots;
         }
 
-        // 발사 순서: 관통(싱글) 0 → 분열(멀티샷) 1 → 폭발(AoE) 2.
+        // 발사 순서: 관통(싱글) 0 → 표준(멀티샷) 1 → 폭발(AoE) 2.
         private static int PatternRank(AmmoKind kind)
         {
             switch (kind)
             {
                 case AmmoKind.Pierce: return 0;
-                case AmmoKind.Split: return 1;
+                case AmmoKind.Standard: return 1;
                 case AmmoKind.Explosive: return 2;
                 default: return 3;
             }

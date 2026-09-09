@@ -7,7 +7,7 @@ using UnityEngine;
 namespace MBI.Tests
 {
     /// <summary>
-    /// 탄종 히트 패턴(순수). 관통=단일 / 분열=멀티샷(최근접 N 직격) / 폭발=AoE(직격+반경 스플래시).
+    /// 탄종 히트 패턴(순수). 관통=단일 / 표준=멀티샷(최근접 N 직격) / 폭발=AoE(직격+반경 스플래시).
     /// HitResolver는 표적·배율 선정만(데미지 적용은 시뮬).
     /// </summary>
     public sealed class HitResolverTests
@@ -47,7 +47,7 @@ namespace MBI.Tests
         public void Split_MultiShot_NearestN_FullDamageEach()
         {
             var list = new List<CombatEntity> { Enemy(0, 0), Enemy(0.5f, 0), Enemy(1, 0), Enemy(5, 0) };
-            var hits = HitResolver.Resolve(AmmoKind.Split, list[0], list, multiShotCount: 3, aoeRadius: 0f, aoeSplashFactor: 0.5f);
+            var hits = HitResolver.Resolve(AmmoKind.Standard, list[0], list, multiShotCount: 3, aoeRadius: 0f, aoeSplashFactor: 0.5f);
             Assert.AreEqual(3, hits.Count, "최근접 3기");
             Assert.IsTrue(Has(hits, list[0]) && Has(hits, list[1]) && Has(hits, list[2]));
             Assert.IsFalse(Has(hits, list[3]), "먼 표적 제외");
@@ -80,10 +80,10 @@ namespace MBI.Tests
         [Test]
         public void RobotAmmo_AllSingleTarget_WhenMultiShot1AndSplash0()
         {
-            // 앵커(플레이어블 로봇 기획서「무기 스펙트럼」 스테이징): 등가선은 단일 표적 기준 → 로봇A 관통/분열/폭발 전부 단일 표적.
+            // 앵커(플레이어블 로봇 기획서「무기 스펙트럼」 스테이징): 등가선은 단일 표적 기준 → 로봇A 관통/표준/폭발 전부 단일 표적.
             // multiShotCount=1, aoeSplashFactor=0 이면 세 탄종 모두 표적 1기만 타격.
             var list = new List<CombatEntity> { Enemy(0, 0), Enemy(0.4f, 0), Enemy(0.8f, 0) };
-            foreach (AmmoKind kind in new[] { AmmoKind.Pierce, AmmoKind.Split, AmmoKind.Explosive })
+            foreach (AmmoKind kind in new[] { AmmoKind.Pierce, AmmoKind.Standard, AmmoKind.Explosive })
             {
                 var hits = HitResolver.Resolve(kind, list[0], list,
                     multiShotCount: 1, aoeRadius: 1.5f, aoeSplashFactor: 0f);

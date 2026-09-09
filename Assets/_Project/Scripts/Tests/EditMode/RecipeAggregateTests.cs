@@ -60,7 +60,7 @@ namespace MBI.Tests
             var lines = new List<MunitionsLine>
             {
                 new MunitionsLine(AmmoKind.Pierce, bal.LineSpecOf(AmmoKind.Pierce), 20f, agg.muniPierce),
-                new MunitionsLine(AmmoKind.Split, bal.LineSpecOf(AmmoKind.Split), 25f, agg.muniSplit),
+                new MunitionsLine(AmmoKind.Standard, bal.LineSpecOf(AmmoKind.Standard), 25f, agg.muniSplit),
                 new MunitionsLine(AmmoKind.Explosive, bal.LineSpecOf(AmmoKind.Explosive), 50f, agg.muniExplosive),
             };
             return AmmoLineProduction.TotalOutput(lines, bal.muniPerNode);
@@ -85,7 +85,7 @@ namespace MBI.Tests
         }
 
         /// <summary>
-        /// 관통1 · 분열1 · 폭발2 = **145**(대표 배치). 20 + 25 + 100.
+        /// 관통1 · 표준1 · 폭발2 = **145**(대표 배치). 20 + 25 + 100.
         /// 2026-08-25 실측이자 s3Break이다 — 이 값이 흔들리면 밸런스 전체가 흔들린다.
         /// </summary>
         [Test]
@@ -93,7 +93,7 @@ namespace MBI.Tests
         {
             var g = Grid();
             PlaceMuni(g, 0, AmmoKind.Pierce);
-            PlaceMuni(g, 1, AmmoKind.Split);
+            PlaceMuni(g, 1, AmmoKind.Standard);
             PlaceMuni(g, 2, AmmoKind.Explosive);
             PlaceMuni(g, 3, AmmoKind.Explosive);
 
@@ -164,7 +164,7 @@ namespace MBI.Tests
         {
             var g = Grid();
             PlaceMuni(g, 0, AmmoKind.Pierce);
-            PlaceMuni(g, 1, AmmoKind.Split);
+            PlaceMuni(g, 1, AmmoKind.Standard);
             PlaceMuni(g, 2, AmmoKind.Explosive);
             NodeInstance fourth = PlaceMuni(g, 3, AmmoKind.Explosive);
 

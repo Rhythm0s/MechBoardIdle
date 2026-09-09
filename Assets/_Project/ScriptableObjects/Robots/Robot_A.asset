@@ -19,7 +19,7 @@ MonoBehaviour:
     damagePerShot: 20
     shotsPerSec: 1
   - kind: 1
-    damagePerShot: 25
+    damagePerShot: 10
     shotsPerSec: 1
   - kind: 2
     damagePerShot: 50

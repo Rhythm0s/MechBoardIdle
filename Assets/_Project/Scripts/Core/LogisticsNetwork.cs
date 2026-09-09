@@ -37,7 +37,7 @@ namespace MBI.Core
             switch (kind)
             {
                 case AmmoKind.Pierce: return muniPierce;
-                case AmmoKind.Split: return muniSplit;
+                case AmmoKind.Standard: return muniSplit;
                 default: return muniExplosive;
             }
         }
@@ -136,7 +136,7 @@ namespace MBI.Core
                             switch (node.AmmoKind)
                             {
                                 case AmmoKind.Pierce: a.muniPierce++; break;
-                                case AmmoKind.Split: a.muniSplit++; break;
+                                case AmmoKind.Standard: a.muniSplit++; break;
                                 default: a.muniExplosive++; break;
                             }
                             break;

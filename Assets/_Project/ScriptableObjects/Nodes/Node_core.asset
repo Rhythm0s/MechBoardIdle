@@ -29,6 +29,7 @@ MonoBehaviour:
     inputs: []
     output: 7
     outputPerSec: 1
+    requiredProduction: 0
     stackLimitTbd: 0
     implemented: 1
   ports:

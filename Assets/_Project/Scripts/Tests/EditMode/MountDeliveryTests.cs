@@ -18,13 +18,13 @@ namespace MBI.Tests
     {
         private const float Delta = 0.001f;
 
-        // 발당피해 — 무기 스펙의 대표값(관통 20 · 분열 25 · 폭발 50)을 그대로 쓴다.
+        // 발당피해 — 무기 스펙의 대표값(관통 20 · 표준 25 · 폭발 50)을 그대로 쓴다.
         private static float Damage(AmmoKind kind)
         {
             switch (kind)
             {
                 case AmmoKind.Pierce: return 20f;
-                case AmmoKind.Split: return 25f;
+                case AmmoKind.Standard: return 25f;
                 default: return 50f;
             }
         }
@@ -49,14 +49,14 @@ namespace MBI.Tests
         }
 
         /// <summary>
-        /// **표준탄은 분열 자리다.** `FlowKind.StandardAmmo` 선언에 적힌 대응을 그대로 쓴다 —
+        /// **표준탄은 표준 자리다.** `FlowKind.StandardAmmo` 선언에 적힌 대응을 그대로 쓴다 —
         /// 여기서 새로 정하는 것이 아니다.
         /// </summary>
         [Test]
         public void StandardAmmo_MapsToSplit()
         {
             Assert.IsTrue(MountItemMap.TryAmmoKindOf(FlowKind.StandardAmmo, out AmmoKind kind));
-            Assert.AreEqual(AmmoKind.Split, kind);
+            Assert.AreEqual(AmmoKind.Standard, kind);
         }
 
         /// <summary>
@@ -92,7 +92,7 @@ namespace MBI.Tests
             {
                 new MountArrival(MountOwner.RobotA, FlowKind.PierceAmmo),     // 20
                 new MountArrival(MountOwner.RobotB, FlowKind.ExplosiveAmmo),  // 50
-                new MountArrival(MountOwner.RobotA, FlowKind.StandardAmmo),   // 25 (분열 자리)
+                new MountArrival(MountOwner.RobotA, FlowKind.StandardAmmo),   // 25 (표준 자리)
             }, Damage, 2f);
 
             Assert.IsTrue(d.TryDrain(0.1f, out float rate));

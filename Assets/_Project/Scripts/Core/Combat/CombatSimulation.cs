@@ -31,7 +31,7 @@ namespace MBI.Core
         public float moduleMult;
         public float attackRange;
         public float radius;      // 충돌 반경(분리). 0이면 분리 없음.
-        public int multiShotCount;    // 멀티샷(분열) 표적 수(TBD). 1이면 단일.
+        public int multiShotCount;    // 멀티샷(표준) 표적 수(TBD). 1이면 단일.
         public float aoeRadius;       // AoE(폭발) 스플래시 반경(TBD). 0이면 직격만.
         public float aoeSplashFactor; // AoE 스플래시 데미지 배율(TBD). 1이면 풀 데미지.
         public List<AmmoLine> lines; // 탄종별 발사 라인(ShotAllocator.AllocateRates 산출)

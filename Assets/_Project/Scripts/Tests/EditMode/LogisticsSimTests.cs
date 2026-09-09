@@ -48,7 +48,7 @@ namespace MBI.Tests
         [Test]
         public void Representative_145()
         {
-            // 대표 최적화 = 145(관통1+분열1+폭발2). 병목 없음 → expected = actual = 145, 배율 1.45.
+            // 대표 최적화 = 145(관통1+표준1+폭발2). 병목 없음 → expected = actual = 145, 배율 1.45.
             LogisticsResult r = NoBottleneck(145f);
             Assert.AreEqual(145f, r.expected, Delta);
             Assert.AreEqual(145f, r.actual, Delta);

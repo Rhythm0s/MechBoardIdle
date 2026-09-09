@@ -17,7 +17,7 @@ MonoBehaviour:
   type: 7
   implemented: 1
   resources:
-    powerDraw: 0
+    powerDraw: 3
     powerSupply: 0
     ammoProduce: 0
     ammoConsume: 0
@@ -33,6 +33,7 @@ MonoBehaviour:
       perOutput: 1
     output: 14
     outputPerSec: 1
+    requiredProduction: 10
     stackLimitTbd: 0
     implemented: 1
   - kind: 12
@@ -44,6 +45,7 @@ MonoBehaviour:
       perOutput: 1
     output: 15
     outputPerSec: 1
+    requiredProduction: 10
     stackLimitTbd: 0
     implemented: 1
   - kind: 13
@@ -55,6 +57,7 @@ MonoBehaviour:
       perOutput: 1
     output: 16
     outputPerSec: 1
+    requiredProduction: 0
     stackLimitTbd: 0
     implemented: 1
   - kind: 14
@@ -66,6 +69,7 @@ MonoBehaviour:
       perOutput: 1
     output: 17
     outputPerSec: 1
+    requiredProduction: 0
     stackLimitTbd: 0
     implemented: 1
   ports:

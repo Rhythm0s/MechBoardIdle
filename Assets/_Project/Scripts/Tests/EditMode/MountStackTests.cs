@@ -82,7 +82,7 @@ namespace MBI.Tests
 
             // 슬롯 넷을 각각 상한까지 채운다.
             m.Load(MountItem.Pierce, Stack);
-            m.Load(MountItem.Split, Stack);
+            m.Load(MountItem.Standard, Stack);
             m.Load(MountItem.Explosive, Stack);
             m.Load(MountItem.Drone, Stack);
 
@@ -106,7 +106,7 @@ namespace MBI.Tests
         /// <summary>
         /// **2026-07-23 확정치 「40 × 52.6 ≈ 2,103」이 그대로 재현된다**(260901_V03 §1층).
         ///
-        /// 분류기로 나눈 적재 내역 관통 10 · 분열 10 · 폭발 20에서
+        /// 분류기로 나눈 적재 내역 관통 10 · 표준 10 · 폭발 20에서
         /// 평균 발당피해 = (10×20 + 10×25 + 20×50) ÷ 40 = 36.25,
         /// 강화 후 = 36.25 × 1.45 = 52.56, 스킬 피해 = 40 × 52.56 ≈ 2,102.
         ///

@@ -112,7 +112,7 @@ namespace MBI.Core
         /// 군수 = 연결성 × 라인 가동률. 라인 가동률은 <see cref="AmmoLineProduction"/>이 이미 쥐고 있으므로
         /// 여기서 다시 만들지 않는다 — 두 곳이 다른 가동률을 말하면 화면과 생산량이 갈린다.
         ///
-        /// 스펙(관통 5 / 분열 4 / 폭발 2)까지가 1, 그 뒤 순번은 0이다.
+        /// 스펙(관통 5 / 표준 4 / 폭발 2)까지가 1, 그 뒤 순번은 0이다.
         /// </summary>
         private static float MunitionsRate(NodeInstance node, BalanceConfig balance, float perNodeRate,
             Dictionary<AmmoKind, int> seen)

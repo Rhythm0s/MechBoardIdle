@@ -989,7 +989,7 @@ namespace MBI.Combat
             switch (kind)
             {
                 case AmmoKind.Pierce: return new Color(1f, 0.92f, 0.35f);   // 관통 = 노랑
-                case AmmoKind.Split: return new Color(0.4f, 0.9f, 1f);      // 분열 = 시안
+                case AmmoKind.Standard: return new Color(0.4f, 0.9f, 1f);      // 표준 = 시안
                 case AmmoKind.Explosive: return new Color(1f, 0.55f, 0.2f); // 폭발 = 주황
                 default: return Color.white;
             }
@@ -1256,7 +1256,7 @@ namespace MBI.Combat
         }
 
         private static readonly AmmoKind[] AmmoKinds =
-            { AmmoKind.Pierce, AmmoKind.Split, AmmoKind.Explosive };
+            { AmmoKind.Pierce, AmmoKind.Standard, AmmoKind.Explosive };
 
         private readonly List<HudBars.Segment> _ammoSegments = new List<HudBars.Segment>(3);
 
@@ -1265,7 +1265,7 @@ namespace MBI.Combat
             switch (kind)
             {
                 case AmmoKind.Pierce: return "관통";
-                case AmmoKind.Split: return "분열";
+                case AmmoKind.Standard: return "표준";
                 default: return "폭발";
             }
         }
@@ -1330,12 +1330,12 @@ namespace MBI.Combat
                     switch (w.kind)
                     {
                         case AmmoKind.Pierce: pierce += w.shotsPerSec; break;
-                        case AmmoKind.Split: split += w.shotsPerSec; break;
+                        case AmmoKind.Standard: split += w.shotsPerSec; break;
                         case AmmoKind.Explosive: expl += w.shotsPerSec; break;
                     }
                 }
             int cap = Mathf.RoundToInt(robot.consumptionCap); // capA — RobotDefinition 단일 소스(§3, CombatTuning 중복 정리)
-            return $"탄약 마운트(용량 {cap}/종)  관통 {pierce:F0} · 분열 {split:F0} · 폭발 {expl:F0} 발/초";
+            return $"탄약 마운트(용량 {cap}/종)  관통 {pierce:F0} · 표준 {split:F0} · 폭발 {expl:F0} 발/초";
         }
 
         /// <summary>

@@ -1680,7 +1680,7 @@ namespace MBI.Logistics
             switch (kind)
             {
                 case AmmoKind.Pierce: return "관통";
-                case AmmoKind.Split: return "분열";
+                case AmmoKind.Standard: return "표준";
                 default: return "폭발";
             }
         }

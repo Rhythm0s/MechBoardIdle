@@ -76,7 +76,7 @@ namespace MBI.Data
         BasicParts,      // 기초재료·부품 — 가공 산출. 부품 갈래의 뿌리
         PowerMaterial,   // 발전재료 — 가공 산출. 전력·배터리·추진제·폭발탄으로 갈린다
         Battery,         // 배터리 — 가공 산출. 입력은 코어 에너지가 아니라 **발전재료**다
-        StandardAmmo,    // 표준탄 — 기초 군수 산출이며 **특수탄의 재료**다 (구 분열탄 자리)
+        StandardAmmo,    // 표준탄 — 기초 군수 산출이며 **특수탄의 재료**다 (구 표준탄 자리)
         DroneBodyParts,  // 드론 몸체 부품 — 기초 군수 산출
         DefenseMaterial, // 방어 재료 — 기초 군수 산출
         PierceAmmo,      // 관통탄 — 복합 군수. 표준탄 + 기초재료·부품

@@ -31,6 +31,7 @@ MonoBehaviour:
       perOutput: 1
     output: 8
     outputPerSec: 1
+    requiredProduction: 0
     stackLimitTbd: 0
     implemented: 1
   - kind: 7
@@ -40,6 +41,7 @@ MonoBehaviour:
       perOutput: 1
     output: 9
     outputPerSec: 1
+    requiredProduction: 0
     stackLimitTbd: 0
     implemented: 1
   - kind: 8
@@ -49,6 +51,7 @@ MonoBehaviour:
       perOutput: 1
     output: 10
     outputPerSec: 1
+    requiredProduction: 0
     stackLimitTbd: 0
     implemented: 1
   ports:

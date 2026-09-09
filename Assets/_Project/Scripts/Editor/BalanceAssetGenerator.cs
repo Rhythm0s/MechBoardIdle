@@ -37,6 +37,11 @@ namespace MBI.Editor
         // 확정될 때까지 문서에 있던 값을 그대로 쓰되 이름으로 미확정임을 남긴다.
         private const float ProcOutputPerSecTbd = 1f;
         private const float MuniPowerDraw = 2f;    // 군수 — 만들기도 하고 나르기도 한다
+
+        // 복합 군수 대당 전력 — **잠정 3** (`260909_W01` 2-1). 기초 군수 2보다 하나 위다.
+        // ⚠️ **W01 2-6이 이 값을 「가장 약한 자리 둘」 중 하나로 적었다** — 「기초보다 무겁다」는
+        // 방향만 있고 크기를 정할 잣대가 없다. 그래서 값은 넣되 프로필은 Tbd로 남긴다.
+        private const float MuniComplexPowerDrawTbd = 3f;
         private const float EnergyPowerDraw = 1f;  // 에너지 — 내는 쪽도 자기 몫을 먹는다
         private const float StoragePowerDraw = 2f; // 저장 — 쌓아둘 뿐 아무것도 바꾸지 않는다
         private const float BoosterPowerDraw = 2f; // 부스터 — 스택이 차면 멈춘다(일감률 0)
@@ -49,6 +54,9 @@ namespace MBI.Editor
         /// 한 대가 80을 공급하니 전력이 모자랄 일이 없었고, **전력 축이 한 번도 작동한 적이 없다.**
         /// </summary>
         private const float EnergyPowerSupply = 10f;
+
+        /// <summary>노드 1대가 초당 내는 생산치 10 — `260909_W01` 2-3 확정.</summary>
+        private const float NodeProductionPower = 10f;
 
         // ⚠️ **발열은 코드에 넣지 않는다**(260901_V02 §2층 「적용 경계」). 확정치는 7종 다 있으나
         // 냉각 수단이 코드에 없는 상태에서 발열만 올리면 대응할 방법이 없는 벌이 된다.
@@ -117,6 +125,11 @@ namespace MBI.Editor
             // 탄종별 생산(V02 §1 확정). 노드당 생산과 라인 스펙은 별개 축이다 —
             // 소비 상한 capA는 여기 오지 않는다.
             c.muniPerNode = json.Param("muniPerNode");
+
+            // 노드 생산력 10 — `260909_W01` 2-3의 「노드 생산력 10 · 필요 생산치 10 기준」이다.
+            // ⚠️ **json에는 없다.** balance_v4는 이 축을 갖지 않았고 W01이 새로 준 값이라
+            // 없는 키를 읽는 대신 상수로 둔다. json에 키가 생기면 그쪽으로 옮긴다.
+            c.nodeProductionPower = NodeProductionPower;
             c.lineSpecShots = new Vector3(json.Param("specA0"), json.Param("specA1"), json.Param("specA2"));
 
             // 드론(로봇 B) 확정치. 등가선이 여기서 닫힌다 — pB × dB = 1.0 × 100 = 100.
@@ -158,7 +171,7 @@ namespace MBI.Editor
                     new NodePort(PortFace.South, PortIO.Input, FlowKind.Power),
                     new NodePort(PortFace.North, PortIO.Output, FlowKind.CoreEnergy),
                 },
-                BuildRecipes(NodeType.Core, ProcOutputPerSecTbd));
+                BuildRecipes(NodeType.Core, ProcOutputPerSecTbd, config.nodeProductionPower));
 
             // 가공 — 물류 품목 처리. 전력 1/초(확정).
             // ⚠️ 가공의 **발열**은 부하 열에 없다. 표에 있는 발열원은 에너지 하나뿐이라
@@ -178,7 +191,7 @@ namespace MBI.Editor
                     new NodePort(PortFace.West, PortIO.Input, FlowKind.CoreEnergy),
                     new NodePort(PortFace.East, PortIO.Output, FlowKind.BasicParts),
                 },
-                BuildRecipes(NodeType.Processing, ProcOutputPerSecTbd));
+                BuildRecipes(NodeType.Processing, ProcOutputPerSecTbd, config.nodeProductionPower));
 
             // 기초 군수 — 조합표 넷 중 **하나**를 돌린다 (2026-09-05 · `260904_W01` 3-2).
             //
@@ -195,7 +208,7 @@ namespace MBI.Editor
                     new NodePort(PortFace.West, PortIO.Input, FlowKind.BasicParts),
                     new NodePort(PortFace.East, PortIO.Output, FlowKind.StandardAmmo),
                 },
-                BuildRecipes(NodeType.MunitionsBasic, muniPerNode));
+                BuildRecipes(NodeType.MunitionsBasic, muniPerNode, config.nodeProductionPower));
 
             // 복합 군수 — 입력면 **둘** (2026-09-04 신설 · `260904_W01` 3장).
             //
@@ -207,17 +220,18 @@ namespace MBI.Editor
             // ⚠️ 산출 속도와 개당 소비량은 **아직 미확정**이다. 값을 만들지 않고 카탈로그의
             // 센티넬을 그대로 쓰며, 밸런스가 정하면 그쪽만 고치면 된다.
             WriteNode(config, "munix", "복합 군수", NodeType.MunitionsComplex, true,
-                // ⚠️ **대당 전력이 없다.** 밸런스가 확정한 것은 「대당 전력 7종」이고 복합 군수는
-                // 여덟째라 그 표에 없다. 기초 군수 값을 가져다 쓰면 값을 발명하는 것이므로
-                // 0(미설정 센티넬)으로 두고 Tbd로 표기한다.
-                new NodeResourceProfile { confirm = ConfirmState.Tbd },
+                // 대당 전력 **3**(잠정 · `260909_W01` 2-1). 종전에는 0(미설정 센티넬)이었고
+                // 그동안 복합 군수는 전력을 한 푼도 안 먹었다 — 전력 축이 이 노드에 안 걸렸다.
+                // ⚠️ **값이 왔어도 확정은 아니다.** 크기를 정할 잣대가 없어 방향만 맞춘 점값이므로
+                // `confirm`은 Tbd 그대로 둔다 — 실측 넷 중 4번이 이 값을 겨눈다.
+                new NodeResourceProfile { powerDraw = MuniComplexPowerDrawTbd, confirm = ConfirmState.Tbd },
                 new List<NodePort>
                 {
                     new NodePort(PortFace.West, PortIO.Input, FlowKind.StandardAmmo),
                     new NodePort(PortFace.South, PortIO.Input, FlowKind.BasicParts),
                     new NodePort(PortFace.East, PortIO.Output, FlowKind.PierceAmmo),
                 },
-                BuildRecipes(NodeType.MunitionsComplex, muniPerNode));
+                BuildRecipes(NodeType.MunitionsComplex, muniPerNode, config.nodeProductionPower));
 
             // 에너지 — 발전(전력 공급). 고정비 0 · 발열 1/초는 확정,
             // **대당 발전량은 미확정**이라 프로필 전체는 Tbd다.
@@ -270,7 +284,7 @@ namespace MBI.Editor
         /// 산출을 그대로 쓰고, 개당 소비량은 카탈로그의 미확정 센티넬을 쓴다 —
         /// 둘 다 밸런스가 정하면 그쪽만 고친다.
         /// </summary>
-        private static List<NodeRecipe> BuildRecipes(NodeType type, float outputPerSec)
+        private static List<NodeRecipe> BuildRecipes(NodeType type, float outputPerSec, float nodeProductionPower)
         {
             var list = new List<NodeRecipe>();
             foreach (RecipeCatalog.Row row in RecipeCatalog.For(type))
@@ -286,7 +300,16 @@ namespace MBI.Editor
                 //
                 // 나머지 조합표의 스택은 **미설정 센티넬 0**이다 — 값을 발명하지 않는다.
                 bool isPropellant = row.kind == RecipeKind.Propellant;
-                float rate = isPropellant ? PropellantPerSec : outputPerSec;
+
+                // 필요 생산치가 확정된 레시피는 **노드 생산력 ÷ 필요 생산치**로 속도를 낸다
+                // (`260909_W01` 2-3). 관통·폭발은 10/10 = 1발/초라 결과가 종전과 같지만,
+                // **같은 1이 다른 곳에서 나온다** — 종전 1은 노드 대당 산출을 그대로 쓴 값이고
+                // 지금 1은 확정된 두 값이 나눠진 결과다. 값이 바뀌면 이쪽만 따라 움직인다.
+                float required = RecipeCatalog.RequiredProductionOf(row.kind);
+                float byProduction = required > 0f ? nodeProductionPower / required : 0f;
+
+                float rate = isPropellant ? PropellantPerSec
+                    : (byProduction > 0f ? byProduction : outputPerSec);
                 float stack = isPropellant ? PropellantItemStack : 0f;
 
                 list.Add(new NodeRecipe
@@ -296,6 +319,7 @@ namespace MBI.Editor
                     inputs = inputs,
                     output = row.output,
                     outputPerSec = rate,
+                    requiredProduction = required,
                     stackLimitTbd = stack,
                     implemented = true,
                 });

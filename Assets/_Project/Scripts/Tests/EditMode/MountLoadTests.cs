@@ -18,7 +18,7 @@ namespace MBI.Tests
         private static Dictionary<MountItem, float> Stacks(float ammo = 10f, float drone = 5f) =>
             new Dictionary<MountItem, float>
             {
-                { MountItem.Pierce, ammo }, { MountItem.Split, ammo },
+                { MountItem.Pierce, ammo }, { MountItem.Standard, ammo },
                 { MountItem.Explosive, ammo }, { MountItem.Drone, drone },
             };
 
@@ -43,10 +43,10 @@ namespace MBI.Tests
             MountLoad m = RobotA();
 
             m.Load(MountItem.Pierce, 10f);   // 슬롯 하나를 꽉 채운다
-            m.Load(MountItem.Split, 3f);
+            m.Load(MountItem.Standard, 3f);
 
             Assert.AreEqual(MountItem.Pierce, m.ItemAt(0));
-            Assert.AreEqual(MountItem.Split, m.ItemAt(1), "다른 품목은 새 슬롯을 연다");
+            Assert.AreEqual(MountItem.Standard, m.ItemAt(1), "다른 품목은 새 슬롯을 연다");
             Assert.AreEqual(10f, m.AmountAt(0), D);
             Assert.AreEqual(3f, m.AmountAt(1), D);
         }
@@ -128,7 +128,7 @@ namespace MBI.Tests
 
             // 상한이 없으면 한 슬롯이 무제한으로 먹으므로, 전 슬롯을 차지하려면 품목을 넷 다르게 넣는다.
             m.Load(MountItem.Pierce, 999f);
-            m.Load(MountItem.Split, 999f);
+            m.Load(MountItem.Standard, 999f);
             m.Load(MountItem.Explosive, 999f);
             m.Load(MountItem.Drone, 999f);
 
@@ -182,11 +182,11 @@ namespace MBI.Tests
         {
             MountLoad m = RobotA();
             m.Load(MountItem.Pierce, 40f);
-            Assert.AreEqual(0f, m.Load(MountItem.Split, 5f), D, "지금은 자리가 없다");
+            Assert.AreEqual(0f, m.Load(MountItem.Standard, 5f), D, "지금은 자리가 없다");
 
             m.TryConsume(MountItem.Pierce, 20f); // 두 칸 비움
 
-            Assert.AreEqual(5f, m.Load(MountItem.Split, 5f), D, "비워진 칸에 들어간다");
+            Assert.AreEqual(5f, m.Load(MountItem.Standard, 5f), D, "비워진 칸에 들어간다");
         }
 
         [Test]
@@ -210,7 +210,7 @@ namespace MBI.Tests
         {
             MountLoad m = RobotA();
             m.Load(MountItem.Pierce, 20f);
-            m.Load(MountItem.Split, 10f);
+            m.Load(MountItem.Standard, 10f);
 
             float drained = m.DrainAll();
 

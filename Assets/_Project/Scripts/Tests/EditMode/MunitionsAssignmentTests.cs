@@ -59,14 +59,14 @@ namespace MBI.Tests
             BoardGrid grid = GridWith(
                 (new Vector2Int(0, 0), NodeType.Core, AmmoKind.Pierce),
                 (new Vector2Int(1, 0), NodeType.MunitionsBasic, AmmoKind.Pierce),
-                (new Vector2Int(2, 0), NodeType.MunitionsBasic, AmmoKind.Split),
+                (new Vector2Int(2, 0), NodeType.MunitionsBasic, AmmoKind.Standard),
                 (new Vector2Int(3, 0), NodeType.MunitionsBasic, AmmoKind.Explosive),
                 (new Vector2Int(4, 0), NodeType.MunitionsBasic, AmmoKind.Explosive));
 
             NetworkAggregate agg = LogisticsNetwork.Aggregate(grid);
 
             Assert.AreEqual(1, agg.MuniCountOf(AmmoKind.Pierce));
-            Assert.AreEqual(1, agg.MuniCountOf(AmmoKind.Split));
+            Assert.AreEqual(1, agg.MuniCountOf(AmmoKind.Standard));
             Assert.AreEqual(2, agg.MuniCountOf(AmmoKind.Explosive));
             Assert.AreEqual(4f, agg.ammoProduce, D, "총 생산은 노드 수 × 노드당 생산");
         }
@@ -90,18 +90,18 @@ namespace MBI.Tests
         private static List<MunitionsLine> LinesFrom(NetworkAggregate agg) => new List<MunitionsLine>
         {
             new MunitionsLine(AmmoKind.Pierce, 5f, 20f, agg.MuniCountOf(AmmoKind.Pierce)),
-            new MunitionsLine(AmmoKind.Split, 4f, 25f, agg.MuniCountOf(AmmoKind.Split)),
+            new MunitionsLine(AmmoKind.Standard, 4f, 25f, agg.MuniCountOf(AmmoKind.Standard)),
             new MunitionsLine(AmmoKind.Explosive, 2f, 50f, agg.MuniCountOf(AmmoKind.Explosive)),
         };
 
-        /// <summary>대표 배치(관통1·분열1·폭발2 = 군수 4개) → 145. §9 s3Break 앵커.</summary>
+        /// <summary>대표 배치(관통1·표준1·폭발2 = 군수 4개) → 145. §9 s3Break 앵커.</summary>
         [Test]
         public void RepresentativeBoard_FourMunitionsNodes_Yields145()
         {
             BoardGrid grid = GridWith(
                 (new Vector2Int(0, 0), NodeType.Core, AmmoKind.Pierce),
                 (new Vector2Int(1, 0), NodeType.MunitionsBasic, AmmoKind.Pierce),
-                (new Vector2Int(2, 0), NodeType.MunitionsBasic, AmmoKind.Split),
+                (new Vector2Int(2, 0), NodeType.MunitionsBasic, AmmoKind.Standard),
                 (new Vector2Int(3, 0), NodeType.MunitionsBasic, AmmoKind.Explosive),
                 (new Vector2Int(4, 0), NodeType.MunitionsBasic, AmmoKind.Explosive));
 
@@ -116,7 +116,7 @@ namespace MBI.Tests
             BoardGrid start = GridWith(
                 (new Vector2Int(0, 0), NodeType.Core, AmmoKind.Pierce),
                 (new Vector2Int(1, 0), NodeType.MunitionsBasic, AmmoKind.Pierce),
-                (new Vector2Int(2, 0), NodeType.MunitionsBasic, AmmoKind.Split),
+                (new Vector2Int(2, 0), NodeType.MunitionsBasic, AmmoKind.Standard),
                 (new Vector2Int(3, 0), NodeType.MunitionsBasic, AmmoKind.Explosive));
 
             NetworkAggregate before = LogisticsNetwork.Aggregate(start);
@@ -147,7 +147,7 @@ namespace MBI.Tests
             BoardGrid mixed = GridWith(
                 (new Vector2Int(0, 0), NodeType.Core, AmmoKind.Pierce),
                 (new Vector2Int(1, 0), NodeType.MunitionsBasic, AmmoKind.Pierce),
-                (new Vector2Int(2, 0), NodeType.MunitionsBasic, AmmoKind.Split),
+                (new Vector2Int(2, 0), NodeType.MunitionsBasic, AmmoKind.Standard),
                 (new Vector2Int(3, 0), NodeType.MunitionsBasic, AmmoKind.Explosive),
                 (new Vector2Int(4, 0), NodeType.MunitionsBasic, AmmoKind.Explosive));
 

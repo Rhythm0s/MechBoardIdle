@@ -55,7 +55,7 @@ namespace MBI.Tests
             var lines = new List<MunitionsLine>
             {
                 new MunitionsLine(AmmoKind.Pierce, _bal.LineSpecOf(AmmoKind.Pierce), 20f, agg.muniPierce),
-                new MunitionsLine(AmmoKind.Split, _bal.LineSpecOf(AmmoKind.Split), 25f, agg.muniSplit),
+                new MunitionsLine(AmmoKind.Standard, _bal.LineSpecOf(AmmoKind.Standard), 10f, agg.muniSplit),
                 new MunitionsLine(AmmoKind.Explosive, _bal.LineSpecOf(AmmoKind.Explosive), 50f, agg.muniExplosive),
             };
             return AmmoLineProduction.TotalOutput(lines, _bal.muniPerNode);
@@ -156,13 +156,13 @@ namespace MBI.Tests
             var g = Grid();
             BuildHub(g, out _);
             AddWestLine(g, AmmoKind.Pierce);
-            AddNorthLine(g, AmmoKind.Split);
+            AddNorthLine(g, AmmoKind.Standard);
 
-            Assert.AreEqual(45f, Output(Settle(g)), D, "20 + 25");
+            Assert.AreEqual(30f, Output(Settle(g)), D, "20 + 10");
 
             g.TryRemoveBelt(new Vector2Int(4, 6)); // 북쪽 라인의 벨트 한 칸을 끊는다
 
-            Assert.AreEqual(20f, Output(Settle(g)), D, "분열이 떨어져 나갔다");
+            Assert.AreEqual(20f, Output(Settle(g)), D, "표준이 떨어져 나갔다");
         }
 
         // ---- 회귀 확인 2건 (전제 = 전부 이어져 있음) ----
@@ -193,16 +193,19 @@ namespace MBI.Tests
         }
 
         /// <summary>
-        /// 관통1 · 분열1 · 폭발2 = **145**(대표 배치 · s3Break).
-        /// 전제가 「전부 이어져 있음」으로 바뀌었을 뿐 값은 그대로다.
+        /// 관통1 · 표준1 · 폭발2 = **130**(대표 배치).
+        /// ⚠️ **대표 상태 출력이 145에서 130으로 내려갔다** (`260909_W01` 2-1 · 표준탄 25 → 10).
+        /// **`s3Break`(S3 돌파 요구치)는 145 그대로다** — 종전에 둘이 같았던 것은 값이 우연히
+        /// 맞아떨어진 것이고, 이제 갈라졌다. **여기서 s3Break를 따라 내리지 않는다** —
+        /// 요구치는 밸런스가 재산출할 값이지 대표 상태가 끌고 다닐 값이 아니다(W01 2-5).
         /// </summary>
         [Test]
-        public void Regression_WiredRepresentativeMix_Output145()
+        public void Regression_WiredRepresentativeMix_Output130()
         {
             var g = Grid();
             BuildHub(g, out _);
             AddWestLine(g, AmmoKind.Pierce);
-            AddNorthLine(g, AmmoKind.Split);
+            AddNorthLine(g, AmmoKind.Standard);
             AddSouthLine(g, AmmoKind.Explosive);
 
             g.TryPlace(new Vector2Int(3, 3), _muni, out NodeInstance fourth);
@@ -215,7 +218,7 @@ namespace MBI.Tests
             Assert.AreEqual(1, agg.muniPierce);
             Assert.AreEqual(1, agg.muniSplit);
             Assert.AreEqual(2, agg.muniExplosive);
-            Assert.AreEqual(145f, Output(agg), D, "대표 배치 = 145 = s3Break");
+            Assert.AreEqual(130f, Output(agg), D, "대표 배치 = 130 (구 145 · s3Break와 갈라졌다)");
         }
 
         // ---- 시작 보드(온보딩) ----
@@ -243,7 +246,7 @@ namespace MBI.Tests
             pierce.AmmoKind = AmmoKind.Pierce;
 
             g.TryPlace(new Vector2Int(3, 8), _muni, out NodeInstance split);
-            split.AmmoKind = AmmoKind.Split;
+            split.AmmoKind = AmmoKind.Standard;
             g.TryPlaceBelt(new Vector2Int(4, 8), PortFace.West, PortFace.South, FlowKind.None, out _);
 
             g.TryPlaceBelt(new Vector2Int(4, 6), PortFace.West, PortFace.North, FlowKind.None, out _);
@@ -257,7 +260,7 @@ namespace MBI.Tests
             g.TryPlace(new Vector2Int(6, 6), _core, out _);
 
             NetworkAggregate start = Settle(g);
-            Assert.AreEqual(45f, Output(start), D, "관통 + 분열 = 20 + 25");
+            Assert.AreEqual(30f, Output(start), D, "관통 + 표준 = 20 + 10");
             Assert.AreEqual(FlowKind.None, BeltFlow.KindAt(g, new Vector2Int(4, 6)),
                 "빈칸의 벨트는 비어 있다 — 그것이 다음에 할 일의 표시다");
             // 고정비도 **이어진 노드만** 센다: 코어 0 + 에너지 1 + 군수 2대 × 2 = 5.
@@ -269,7 +272,7 @@ namespace MBI.Tests
             expl.AmmoKind = AmmoKind.Explosive;
 
             NetworkAggregate filled = Settle(g);
-            Assert.AreEqual(95f, Output(filled), D, "+ 폭발 50");
+            Assert.AreEqual(80f, Output(filled), D, "+ 폭발 50");
             Assert.AreEqual(FlowKind.StandardAmmo, BeltFlow.KindAt(g, new Vector2Int(4, 6)),
                 "벨트에 색이 든다");
         }
@@ -332,7 +335,7 @@ namespace MBI.Tests
             var g = Grid();
             BuildHub(g, out _);
             AddWestLine(g, AmmoKind.Pierce);
-            AddNorthLine(g, AmmoKind.Split);
+            AddNorthLine(g, AmmoKind.Standard);
 
             int one = Settle(g).ammoPaths;
 

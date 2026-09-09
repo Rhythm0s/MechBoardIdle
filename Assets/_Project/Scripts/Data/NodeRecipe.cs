@@ -13,7 +13,7 @@ namespace MBI.Data
     public enum RecipeKind
     {
         None = 0,
-        /// <summary>탄약 — 탄종은 노드 인스턴스가 따로 지정한다(관통·분열·폭발).</summary>
+        /// <summary>탄약 — 탄종은 노드 인스턴스가 따로 지정한다(관통·표준·폭발).</summary>
         Ammo,
         /// <summary>드론 몸체 → 로봇 B 사출. 2026-08-27 범위.</summary>
         DroneBody,
@@ -41,7 +41,7 @@ namespace MBI.Data
         /// <summary>배터리 ← **발전재료** (가공). 코어 에너지가 아니다 — 그래서 다툼이 생긴다.</summary>
         Battery,
 
-        /// <summary>표준탄 ← 기초재료·부품 (기초 군수). 구 분열탄 자리이며 특수탄의 재료다.</summary>
+        /// <summary>표준탄 ← 기초재료·부품 (기초 군수). 구 표준탄 자리이며 특수탄의 재료다.</summary>
         StandardAmmo,
 
         /// <summary>방어 재료 ← 기초재료·부품 (기초 군수).</summary>
@@ -103,6 +103,11 @@ namespace MBI.Data
         public FlowKind output;
         [Tooltip("산출 속도(개/초). 군수 탄약은 muniPerNode = 1 확정치.")]
         public float outputPerSec;
+
+        [Tooltip("산출 1개에 드는 생산치. 0 = 미확정. 산출 속도 = 노드 생산력 ÷ 이 값 " +
+                 "(260909_W01 2-3 · 관통탄·폭발탄 각 10). ⚠️ 재료 개수(perOutput)와 다른 축이다 — " +
+                 "이것은 노드가 얼마나 오래 붙잡는가이고, 저것은 무엇을 몇 개 먹는가다.")]
+        public float requiredProduction;
 
         [Tooltip("출력 버퍼 상한(개) = 그 품목의 최대 스택. ⚠️ 미확정 — 조립 「품목과 재고」 장 신설 중, 수치는 검증 대장.")]
         public float stackLimitTbd;

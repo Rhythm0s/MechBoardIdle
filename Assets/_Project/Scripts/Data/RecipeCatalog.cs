@@ -22,6 +22,32 @@ namespace MBI.Data
         /// <summary>산출 1개당 재료 개수. **미확정 센티넬**이며 밸런스 확정 시 행별 값으로 갈린다.</summary>
         public const float PerOutputTbd = 1f;
 
+        /// <summary>
+        /// 필요 생산치가 **아직 정해지지 않았다**는 표시. 0이며, 부르는 쪽은 이 값을 보면
+        /// 나누지 않고 종전 경로(노드 대당 산출)로 간다 — **0으로 나누는 자리를 만들지 않는다.**
+        /// </summary>
+        public const float RequiredProductionUnset = 0f;
+
+        /// <summary>
+        /// 그 레시피의 필요 생산치. **확정된 것만 값을 돌려준다** (`260909_W01` 2-1).
+        ///
+        /// 관통탄·폭발탄 각 **10**이며, 노드 생산력 10과 나누어 복합 군수 1대 = 1발/초가 된다.
+        /// ⚠️ **나머지는 아직 없다** — 표준탄을 포함해 W01이 값을 준 것은 특수탄 둘뿐이다.
+        /// 같은 값일 것 같다는 이유로 채우면 그것은 확정이 아니라 발명이다.
+        ///
+        /// ⚠️ **필요 생산치를 더 올리지 않은 근거**(W01 2-3) — 특수탄은 표준탄을 먹는 것으로
+        /// 대가를 이미 치른다. 여기에 얹으면 같은 화력에 특수탄만 두 번 비싸지는 이중 처벌이다.
+        /// </summary>
+        public static float RequiredProductionOf(RecipeKind kind)
+        {
+            switch (kind)
+            {
+                case RecipeKind.PierceAmmo: return 10f;
+                case RecipeKind.ExplosiveAmmo: return 10f;
+                default: return RequiredProductionUnset;
+            }
+        }
+
         /// <summary>레시피 한 줄 — 어느 노드가 무엇을 먹어 무엇을 내는가.</summary>
         public readonly struct Row
         {

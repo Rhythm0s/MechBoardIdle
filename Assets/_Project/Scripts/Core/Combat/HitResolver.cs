@@ -20,7 +20,7 @@ namespace MBI.Core
     /// <summary>
     /// 탄종 히트 패턴 해석(순수·결정론). 07 문서 탄종 성격 → 패턴:
     /// - 관통(Pierce) = 단일: 표적 1기 직격.
-    /// - 분열(Split) = 멀티샷: 최근접 N기를 각각 직격(전부 풀 데미지). 군집 무관, N기 직접 타격.
+    /// - 표준(Split) = 멀티샷: 최근접 N기를 각각 직격(전부 풀 데미지). 군집 무관, N기 직접 타격.
     /// - 폭발(Explosive) = AoE 스플래시: 피격 몬스터(직격) + 그 위치 기준 반경 내 주변 몬스터(스플래시 배율).
     ///   → AoE는 "착탄점 중심 범위 피해"(사용자 정의). 멀티샷과 구분: 스플래시는 배율로 감쇠 가능.
     /// 각 표적은 시뮬에서 판정식으로 개별 데미지(발당피해×배율). Unity 없이 검증 가능.
@@ -36,7 +36,7 @@ namespace MBI.Core
 
             switch (kind)
             {
-                case AmmoKind.Split: // 멀티샷 — 최근접 N기 직격(풀)
+                case AmmoKind.Standard: // 멀티샷 — 최근접 N기 직격(풀)
                 {
                     int k = Mathf.Max(1, multiShotCount);
                     var living = new List<CombatEntity>();
