@@ -1367,21 +1367,26 @@ namespace MBI.Logistics
                     new GUIStyle(GUI.skin.label) { fontSize = 14 });
                 ey += 2f;
 
+                // ⚠️ **한 줄에 둘씩 놓는다.** 세로로 쌓으면 팔레트가 화면 아래로 밀려
+                // **제거 버튼과 조작 안내가 잘린다** — 800px 창에서 실측했다(2026-09-09).
+                // 지침 §7 ［09-02］「그려지고 있었으나 잘려 한 번도 안 보였다」와 같은 자리다.
+                var modStyle = new GUIStyle(GUI.skin.button) { fontSize = 13 };
+                float mw = (w - pad) * 0.5f;
                 for (int m = 0; m < modulePalette.Count; m++)
                 {
                     if (modulePalette[m] == null) continue;
-                    var mRect = new Rect(x, ey, w, h);
+                    var mRect = new Rect(x + (m % 2) * (mw + pad), ey + (m / 2) * (h + pad), mw, h);
                     UiBlockers.Add(mRect);
 
                     bool on = !_removeMode && _selectedModule == m;
-                    if (GUI.Button(mRect, (on ? "● " : "") + modulePalette[m].displayName, style))
+                    if (GUI.Button(mRect, (on ? "●" : "") + modulePalette[m].displayName, modStyle))
                     {
                         _selectedModule = on ? -1 : m;
                         _removeMode = false;
                         _elementMode = null;
                     }
-                    ey += h + pad;
                 }
+                ey += ((modulePalette.Count + 1) / 2) * (h + pad);
             }
 
             // 제거 토글.
