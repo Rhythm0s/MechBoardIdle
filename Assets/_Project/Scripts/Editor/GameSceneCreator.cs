@@ -187,6 +187,18 @@ namespace MBI.Editor
             // 노드 팔레트(구현 6종 — 쉴드 스텁만 제외).
             // ⚠️ 부스터가 빠져 있던 동안에는 **회피를 Play에서 켤 방법이 아예 없었다** —
             // 상한이 부스터 대수의 파생값이라 한 대도 못 놓으면 상한이 영영 0이다.
+            // 모듈 팔레트 2종 — 고른 뒤 놓인 노드를 탭하면 붙는다(MVP 문서 11장).
+            SerializedProperty mods = so.FindProperty("modulePalette");
+            mods.arraySize = 0;
+            foreach (string id in new[] { "M", "R" })
+            {
+                var mod = Load<ModuleDefinition>($"{SoRoot}/Modules/Module_{id}.asset");
+                if (mod == null) continue;
+                int mi = mods.arraySize;
+                mods.arraySize = mi + 1;
+                mods.GetArrayElementAtIndex(mi).objectReferenceValue = mod;
+            }
+
             SerializedProperty pal = so.FindProperty("palette");
             pal.arraySize = 0;
             foreach (string id in new[] { "core", "proc", "muni", "ener", "stor", "boost" })

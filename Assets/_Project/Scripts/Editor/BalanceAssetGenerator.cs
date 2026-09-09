@@ -76,6 +76,7 @@ namespace MBI.Editor
 
             BalanceConfig config = BuildConfig(json);
             BuildNodes(config, json);
+            BuildModules(config);
 
             // 미확정치 SO는 만들기만 하고 값은 덮어쓰지 않는다 — 생성기 재실행이 조정값을 지우면 안 된다.
             LoadOrCreate<EconomyConfig>(SoRoot + "/EconomyConfig.asset");
@@ -321,6 +322,46 @@ namespace MBI.Editor
         }
 
         // ---- 유틸 ----
+        // ---- 모듈 2종 (2026-09-09 신설 · 조립 시스템 문서「모듈 재정의」· MVP 문서 11장) ----
+        //
+        // ⚠️ **값이 balance.json에 없다.** 그쪽은 노드 대당 값과 앵커만 들고 있고 모듈 표는
+        // 기획 문서에 있다. 그래서 여기서 문서 값을 그대로 적는다 — **지어낸 값이 아니라
+        // 옮긴 값**이며, 어느 문서의 어느 표에서 왔는지를 줄마다 적는다.
+        // 값이 개정되면 이 자리와 문서 둘이 함께 움직여야 한다.
+        private const string ModulesDir = SoRoot + "/Modules";
+
+        private static void BuildModules(BalanceConfig config)
+        {
+            EnsureDir(ModulesDir);
+
+            // M(생산량) — 붙인 노드 산출 ×1.5 · 재료 그대로 · 부하 ×2.0.
+            ModuleDefinition m = LoadOrCreate<ModuleDefinition>($"{ModulesDir}/Module_M.asset");
+            m.moduleId = "mod_output";
+            m.displayName = "생산량";
+            m.kind = ModuleKind.Output;
+            m.symbol = "M";
+            m.outputMultiplier = 1.5f;
+            m.inputMultiplier = 1f;
+            m.powerLoadMultiplier = 2.0f;
+            m.balanceRef = config;
+            EditorUtility.SetDirty(m);
+
+            // R(생산속도) — 붙인 노드 산출 ×1.5 · 재료 ×1.5 · 부하 ×1.5.
+            ModuleDefinition r = LoadOrCreate<ModuleDefinition>($"{ModulesDir}/Module_R.asset");
+            r.moduleId = "mod_rate";
+            r.displayName = "생산속도";
+            r.kind = ModuleKind.Rate;
+            r.symbol = "R";
+            r.outputMultiplier = 1.5f;
+            r.inputMultiplier = 1.5f;
+            r.powerLoadMultiplier = 1.5f;
+            r.balanceRef = config;
+            EditorUtility.SetDirty(r);
+
+            // ⚠️ **F(냉각)는 만들지 않는다** — 발열 축과 함께 폐기됐다(2026-09-02 · `260902_W15`).
+            // 자리를 남겨 두면 폐기된 것이 이름만으로 되살아난다.
+        }
+
         private static T LoadOrCreate<T>(string path) where T : ScriptableObject
         {
             T asset = AssetDatabase.LoadAssetAtPath<T>(path);

@@ -94,8 +94,14 @@ namespace MBI.Core
                 // 놓아두기만 한 노드는 0을 먹는다.
                 float w = hasWork ? work.Of(cell) : 1f;
 
+                // 모듈은 **붙인 노드 하나**의 대당 값을 움직인다(2026-09-09 · MVP 11장).
+                // 부하가 여기 들어오는 것이 모듈의 자기제한이다 — 이 곱이 없으면
+                // 모듈은 공짜 강화가 되어 「물류 무개입」이 깨진다(지침 §3).
+                float load = node.ModulePowerLoadMultiplier;
+                float gain = node.ModuleOutputMultiplier;
+
                 a.powerSupply += r.powerSupply;
-                a.powerDraw += r.powerDraw * w;
+                a.powerDraw += r.powerDraw * w * load;
 
                 // ⚠️ 발열은 그대로 둔다 — 변동비로 바뀐 것은 전력뿐이고, 발열의 일감률 연동은
                 // 승인 범위 밖이다. 노드 대당 발열은 영상 이후로 연기된 항목이기도 하다.
@@ -103,7 +109,7 @@ namespace MBI.Core
 
                 if (node.Definition.type != NodeType.MunitionsBasic)
                 {
-                    a.ammoProduce += r.ammoProduce;
+                    a.ammoProduce += r.ammoProduce * gain;
                 }
                 else
                 {
@@ -113,17 +119,20 @@ namespace MBI.Core
                     switch (recipe.kind)
                     {
                         case RecipeKind.DroneBody:
-                            a.droneProduce += recipe.outputPerSec;
+                            a.droneProduce += recipe.outputPerSec * gain;
                             break;
                         case RecipeKind.Propellant:
-                            a.propellantProduce += recipe.outputPerSec;
+                            a.propellantProduce += recipe.outputPerSec * gain;
                             break;
                         default:
                             // 탄약(미선택 폴백 포함). 라인 생산량은 **노드 수**로 계산되므로
                             // 탄종별로도 센다 — min(스펙, 노드 수)가 그 식이다.
                             // ⚠️ ammoProduce를 조합표 밖에서 더하면 추진제를 만드는 노드가
                             // 탄약도 만드는 것으로 집계된다. 노드 하나는 조합표 하나다.
-                            a.ammoProduce += r.ammoProduce;
+                            a.ammoProduce += r.ammoProduce * gain;
+                            // ⚠️ **탄종 수는 배수를 안 받는다** — 아래 셋은 노드 **개수**이고,
+                            // 라인 생산량이 min(스펙, 노드 수)로 계산되는 자리다. 개수에 1.5를
+                            // 곱하면 「노드 반 대」가 생겨 그 식이 뜻을 잃는다.
                             switch (node.AmmoKind)
                             {
                                 case AmmoKind.Pierce: a.muniPierce++; break;

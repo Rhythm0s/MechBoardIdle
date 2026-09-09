@@ -53,6 +53,81 @@ namespace MBI.Core
         /// </summary>
         public Dictionary<FlowKind, float> InputBuffer { get; } = new Dictionary<FlowKind, float>();
 
+        // ── 모듈 칸 둘 (2026-09-09 신설 · MVP 문서 11장 「노드 한 대에 모듈 칸은 2개」) ──────
+        //
+        // **모듈은 붙인 노드 하나에만 작용한다** — 범위 효과는 2026-08-31에 폐기됐다.
+        // 그래서 모듈이 노드에 붙는 자리가 여기다. 보드 어디에 놓였는지는 따지지 않는다.
+
+        /// <summary>노드 한 대의 모듈 칸 수. MVP 문서 11장이 정했다.</summary>
+        public const int ModuleSlots = 2;
+
+        private readonly ModuleDefinition[] _modules = new ModuleDefinition[ModuleSlots];
+
+        /// <summary>칸 <paramref name="slot"/>에 붙은 모듈. 비었으면 null.</summary>
+        public ModuleDefinition ModuleAt(int slot)
+            => slot >= 0 && slot < ModuleSlots ? _modules[slot] : null;
+
+        /// <summary>붙어 있는 모듈 수(0~2).</summary>
+        public int ModuleCount
+        {
+            get
+            {
+                int n = 0;
+                for (int i = 0; i < ModuleSlots; i++) if (_modules[i] != null) n++;
+                return n;
+            }
+        }
+
+        /// <summary>
+        /// 빈 칸에 모듈을 붙인다. 칸이 다 차 있으면 <c>false</c>이며 **아무것도 안 바꾼다** —
+        /// 조용히 밀어내면 플레이어가 붙여 둔 것이 사라진다(「코드가 플레이어의 물건을 없애지 않는다」).
+        /// </summary>
+        public bool TryAttachModule(ModuleDefinition module)
+        {
+            if (module == null) return false;
+            for (int i = 0; i < ModuleSlots; i++)
+            {
+                if (_modules[i] != null) continue;
+                _modules[i] = module;
+                return true;
+            }
+            return false;
+        }
+
+        /// <summary>칸을 비운다. 이미 비어 있었으면 <c>false</c>.</summary>
+        public bool DetachModuleAt(int slot)
+        {
+            if (slot < 0 || slot >= ModuleSlots || _modules[slot] == null) return false;
+            _modules[slot] = null;
+            return true;
+        }
+
+        // ⚠️ **칸 둘이 겹칠 때의 셈법은 곱이며, 이것은 가정이다** (2026-09-09).
+        // 소스에 적힌 것은 **한 칸일 때의 배수**뿐이다 — 조립 시스템 문서「모듈 재정의」도
+        // MVP 문서 11장도 두 칸이 겹치는 경우를 말하지 않는다. 폐기된 모듈 F에는
+        // 「두 개면 합연산 −80%」가 있었으나 **그것은 감소율이라 합이 성립하던 것**이고,
+        // 배수에 그대로 옮기면 M 둘이 ×2.0이 되어 부하 ×4.0보다 완만해진다 —
+        // 지침 §3의 「부하는 산출보다 가파르게 올라야 한다」가 뒤집힌다.
+        // 곱으로 두면 산출 ×2.25 · 부하 ×4.00이라 그 원칙이 유지된다.
+        // **되돌릴 수 있는 크기다** — 이 두 줄이 바뀔 뿐이고 값은 SO에 있다.
+
+        /// <summary>붙은 모듈들이 만든 산출 배수. 모듈이 없으면 1이다.</summary>
+        public float ModuleOutputMultiplier => Product(m => m.outputMultiplier);
+
+        /// <summary>붙은 모듈들이 만든 재료 배수. M은 재료를 안 늘리고 R은 함께 늘린다.</summary>
+        public float ModuleInputMultiplier => Product(m => m.inputMultiplier);
+
+        /// <summary>붙은 모듈들이 만든 대당 전력 배수. **비용 칸**이다(지침 §7 ［08-31］).</summary>
+        public float ModulePowerLoadMultiplier => Product(m => m.powerLoadMultiplier);
+
+        private float Product(System.Func<ModuleDefinition, float> pick)
+        {
+            float v = 1f;
+            for (int i = 0; i < ModuleSlots; i++)
+                if (_modules[i] != null) v *= pick(_modules[i]);
+            return v;
+        }
+
         /// <summary>도착한 재료를 입력 버퍼에 넣는다.</summary>
         public void TakeInput(FlowKind kind, float amount)
         {

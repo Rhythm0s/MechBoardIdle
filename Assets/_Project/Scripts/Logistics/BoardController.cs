@@ -51,6 +51,8 @@ namespace MBI.Logistics
         [SerializeField] private NodeDefinition placeTarget;
         [Tooltip("배치 가능한 노드 팔레트(조립 뷰에서 선택). 씬 생성기가 주입.")]
         [SerializeField] private List<NodeDefinition> palette = new List<NodeDefinition>();
+        [Tooltip("모듈 팔레트 2종(M·R). 고른 뒤 놓인 노드를 탭하면 그 노드에 붙는다. 씬 생성기가 주입.")]
+        [SerializeField] private List<ModuleDefinition> modulePalette = new List<ModuleDefinition>();
         [Tooltip("좌표 변환 카메라. 비우면 Camera.main.")]
         [SerializeField] private Camera boardCamera;
         [Tooltip("시작 배치(온보딩). 빈 보드로 시작하면 플레이어가 무엇을 해야 할지 알 수 없다 — 거의 완성된 라인을 주고 한 칸만 비워 둔다(튜토리얼 10장 '한쪽 팔만 비움'을 보드에 적용).")]
@@ -149,6 +151,14 @@ namespace MBI.Logistics
         /// 경로로 표현되지 않으므로 **탭**으로 놓고, 면은 이웃에서 다시 잡는다(BeltAutoOrient).
         /// </summary>
         private BeltElementKind? _elementMode;
+
+        /// <summary>
+        /// 고른 모듈. −1이면 모듈 모드가 아니다 (2026-09-09 신설).
+        ///
+        /// **조작은 「고르고 → 놓인 노드를 탭」이다.** 모듈은 보드에 놓는 것이 아니라
+        /// **노드에 붙는 것**이라(범위 효과 폐기 · 2026-08-31) 빈 칸을 탭할 자리가 없다.
+        /// </summary>
+        private int _selectedModule = -1;
 
         private static readonly Color SelectedColor = new Color(0.98f, 0.85f, 0.30f, 1f);
         private static readonly Color BeltColor = new Color(0.5f, 0.5f, 0.5f, 1f);
@@ -346,6 +356,22 @@ namespace MBI.Logistics
 
         /// <summary>「노는 중」 글자색. 종류색·상태 밝기와 겹치지 않게 무채색에 가깝게 둔다.</summary>
         private static readonly Color IdleLabelColor = new Color(0.15f, 0.15f, 0.15f, 0.9f);
+
+        /// <summary>모듈 기호 색. 강조색(주황) — 노드 이름·「노는 중」과 다른 축이다.</summary>
+        private static readonly Color ModuleSymbolColor = new Color(1f, 0.62f, 0.20f, 0.95f);
+
+        /// <summary>이 노드에 붙은 모듈의 기호를 이어 붙인 것. 없으면 빈 문자열.</summary>
+        private static string ModuleSymbols(NodeInstance node)
+        {
+            if (node == null || node.ModuleCount == 0) return string.Empty;
+            string s = string.Empty;
+            for (int i = 0; i < NodeInstance.ModuleSlots; i++)
+            {
+                ModuleDefinition m = node.ModuleAt(i);
+                if (m != null) s += m.symbol;
+            }
+            return s;
+        }
 
         /// <summary>이 칸의 노드가 놀고 있는가. 일감률이 아직 안 실렸으면 「논다」고 말하지 않는다.</summary>
         private static bool IsIdle(Vector2Int cell)
@@ -806,6 +832,9 @@ namespace MBI.Logistics
             {
                 Vector2Int cell = _dragCells[0];
                 if (_removeMode) RemoveAt(cell);         // 제거 모드 = 탭으로 삭제
+                // 모듈을 고른 채 놓인 노드를 탭하면 **붙인다.** 못 붙이면(칸이 다 찼다)
+                // 고르기로 떨어진다 — 탭이 아무 일도 안 하면 조작이 먹지 않은 것으로 읽힌다.
+                else if (_grid.IsOccupied(cell) && TryAttachSelectedModule(cell)) { }
                 else if (_grid.IsOccupied(cell)) Select(cell);
                 else if (_elementMode.HasValue) PlaceElement(cell, _elementMode.Value);
                 else Place(cell);
@@ -1085,6 +1114,34 @@ namespace MBI.Logistics
             Debug.Log($"[MBI] {ElementLabel(element)} 설치 @ 셀({cell.x},{cell.y}).");
         }
 
+        /// <summary>
+        /// 고른 모듈을 이 칸의 노드에 붙인다 (2026-09-09 신설 · MVP 문서 11장).
+        ///
+        /// **붙었을 때만 <c>true</c>다.** 칸이 다 찼거나 벨트 칸이면 false를 주고,
+        /// 부르는 쪽은 종전대로 「고르기」로 떨어진다.
+        /// </summary>
+        private bool TryAttachSelectedModule(Vector2Int cell)
+        {
+            if (_selectedModule < 0 || modulePalette == null ||
+                _selectedModule >= modulePalette.Count) return false;
+
+            ModuleDefinition module = modulePalette[_selectedModule];
+            NodeInstance node = _grid.GetAt(cell);
+            if (module == null || node == null) return false;
+
+            if (!node.TryAttachModule(module))
+            {
+                Debug.Log($"[MBI] 모듈 칸이 찼다 — {node.Definition.displayName} @ 셀({cell.x},{cell.y}) · 칸 {NodeInstance.ModuleSlots}개.");
+                return false;
+            }
+
+            // 붙는 순간 전력 수요가 바뀐다 — 다시 안 돌리면 변수 패널이 옛 수요를 든 채로 남는다.
+            RefreshConnections();
+            Debug.Log($"[MBI] 모듈 장착: {module.displayName} → {node.Definition.displayName} " +
+                      $"@ 셀({cell.x},{cell.y}) · 산출 ×{node.ModuleOutputMultiplier:F2} · 부하 ×{node.ModulePowerLoadMultiplier:F2}.");
+            return true;
+        }
+
         private static string ElementLabel(BeltElementKind e) =>
             e == BeltElementKind.Merger ? "병합기" : "분류기";
 
@@ -1265,6 +1322,7 @@ namespace MBI.Logistics
                     _selectedNode = i;
                     _removeMode = false;
                     _elementMode = null;
+                    _selectedModule = -1;
                 }
             }
 
@@ -1296,8 +1354,34 @@ namespace MBI.Logistics
                 {
                     _elementMode = on ? (BeltElementKind?)null : e;
                     _removeMode = false;
+                    _selectedModule = -1;
                 }
                 ey += h + pad;
+            }
+
+            // 모듈 2종 (2026-09-09 · MVP 문서 11장). **놓는 것이 아니라 붙이는 것**이라
+            // 고른 뒤 이미 놓인 노드를 탭한다 — 빈 칸을 탭할 자리가 없다(범위 효과 폐기).
+            if (modulePalette != null && modulePalette.Count > 0)
+            {
+                GUI.Label(new Rect(x, ey - 22f, w + 20f, 22f), "모듈",
+                    new GUIStyle(GUI.skin.label) { fontSize = 14 });
+                ey += 2f;
+
+                for (int m = 0; m < modulePalette.Count; m++)
+                {
+                    if (modulePalette[m] == null) continue;
+                    var mRect = new Rect(x, ey, w, h);
+                    UiBlockers.Add(mRect);
+
+                    bool on = !_removeMode && _selectedModule == m;
+                    if (GUI.Button(mRect, (on ? "● " : "") + modulePalette[m].displayName, style))
+                    {
+                        _selectedModule = on ? -1 : m;
+                        _removeMode = false;
+                        _elementMode = null;
+                    }
+                    ey += h + pad;
+                }
             }
 
             // 제거 토글.
@@ -1306,11 +1390,13 @@ namespace MBI.Logistics
             if (GUI.Button(rmRect, (_removeMode ? "● " : "") + "제거", style))
             {
                 _removeMode = !_removeMode;
-                if (_removeMode) _elementMode = null;
+                if (_removeMode) { _elementMode = null; _selectedModule = -1; }
             }
 
             GUI.Label(new Rect(x, ey + h + 12f, w + 20f, 60f),
-                _removeMode ? "제거 모드\n탭=노드/벨트 삭제" : "탭=노드 배치\n드래그=벨트");
+                _removeMode ? "제거 모드\n탭=노드/벨트 삭제"
+                : _selectedModule >= 0 ? "모듈 모드\n탭=놓인 노드에 장착"
+                : "탭=노드 배치\n드래그=벨트");
 
             GUI.enabled = true;
 
@@ -1361,6 +1447,14 @@ namespace MBI.Logistics
                 if (IsIdle(kv.Key))
                     DrawLabelAt(cam, kv.Value.transform.position, "노는 중",
                         idleStyle, IdleLabelColor, 118f, 20f);
+
+                // 모듈 기호 — **자리표시다.** 보드 아트 문서에 모듈 기호가 없어 그림이 없고,
+                // 아트 요청은 설계 판정거리다. 글자로 둔 것은 「붙어 있다」가 D구간 3초 안에
+                // 보여야 하기 때문이며(촬영 스크립트 01:03~01:06), 그림이 오면 이 줄이 사라진다.
+                string symbols = ModuleSymbols(_grid.GetAt(kv.Key));
+                if (symbols.Length > 0)
+                    DrawLabelAt(cam, kv.Value.transform.position, symbols,
+                        idleStyle, ModuleSymbolColor, 118f, -22f);
             }
 
             foreach (KeyValuePair<Vector2Int, GameObject> kv in _beltMarkers)
