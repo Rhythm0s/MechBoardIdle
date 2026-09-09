@@ -27,14 +27,28 @@
 - 영상은 1분 20초, 곡은 60초다 — **곡 끝을 영상 끝(01:20)에 맞춘다**(사용자 결정). 시작은 00:20.
 - 루프 이음새 확인용 2회 이어붙임본(청취용)도 리포에 넣지 않는다 — 전투 B `loop_315b91ff` · 보스전 B `loop_17c6177f`.
 
-### 아직 정하지 않은 것
+### 임포트 설정 (구현-문서·코드 세션의 `AudioImportRules` 가 먹인 결과)
 
-⚠️ **Unity 임포트 설정이 미확정이다.** `.meta` 를 만들지 않았고 `Load Type` · `Compression Format` · `Preload` 를
-정한 자리가 없다. 배포가 WebGL 이라 **흘려 재생(streaming)** 이 사운드 문서 7장의 방향이지만, 값 자체는 안 적혀 있다.
-**구현-문서·코드 세션이 정할 자리**이며, 아트는 파일과 이 대장까지만 낸다.
+`.meta` 셋(`bgm.meta` · `bgm_battle.ogg.meta` · `bgm_boss.ogg.meta`)이 붙어 이 자리가 채워졌다.
+아래는 **`.meta` 를 직접 읽은 값**이며, 정한 것은 문서·코드 세션이고 아트는 옮겨 적기만 한다.
 
-⚠️ **48 kHz 로 왔다.** 사운드 문서 1장의 「44.1 kHz」는 **효과음(WAV)** 규격이고 BGM 행은 「OGG 192kbps 스테레오」까지만
-적는다 — 표본율이 규정된 자리가 없어 도구가 낸 값을 그대로 둔다. 어긋난 것이 아니라 **비어 있는 자리**다.
+| 항목 | 값(원문) | 뜻 |
+|---|---|---|
+| `loadType` | `2` | **Streaming** — WebGL 배포에서 통곡을 메모리에 올리지 않는다(사운드 문서 7장 방향과 같다) |
+| `compressionFormat` | `1` | Vorbis |
+| `quality` | `1` | 100% — 이미 OGG 라 재압축 손실을 더 얹지 않는다 |
+| `preloadAudioData` | `0` | 미리 안 읽는다 |
+| `loadInBackground` | `1` | 배경 적재 |
+| `sampleRateSetting` | `0` | **Preserve Sample Rate** — 파일의 48 kHz 가 그대로 간다 |
+| `sampleRateOverride` | `44100` | `sampleRateSetting` 이 0 이라 **쓰이지 않는 값**이다 |
+| `forceToMono` | `0` | 스테레오 유지 |
+| `normalize` | `1` | 임포트 시 정규화 |
+| `3D` | `1` | 기본값 그대로 — BGM 은 2D 로 재생하므로 `AudioSource.spatialBlend` 가 실제를 정한다 |
+
+GUID — `bgm_battle.ogg` `58ba00a0…` · `bgm_boss.ogg` `8bab8546…` · `bgm/` 폴더 `4226045d…`.
+
+**48 kHz 문제는 이로써 닫혔다.** 사운드 문서 1장의 「44.1 kHz」는 효과음(WAV) 규격이고,
+BGM 은 `Preserve Sample Rate` 라 표본율을 바꾸지 않는다 — 어긋난 자리가 아니었다.
 
 ---
 
