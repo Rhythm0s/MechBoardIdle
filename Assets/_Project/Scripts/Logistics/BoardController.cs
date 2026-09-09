@@ -1202,7 +1202,12 @@ namespace MBI.Logistics
                 _markers.Remove(cell);
                 _nodeColors.Remove(cell);
                 _portMarkers.Remove(cell); // 자식이라 마커와 함께 파괴됐다 — 목록만 비운다
-                if (_selected.HasValue && _selected.Value == cell) _selected = null;
+                if (_selected.HasValue && _selected.Value == cell)
+                {
+                    _selected = null;
+                    // 노드를 지웠는데 테두리가 남으면 빈 칸이 골라져 있는 것으로 읽힌다.
+                    if (_selectRing != null) _selectRing.SetActive(false);
+                }
             }
             else if (_grid.HasBelt(cell))
             {
@@ -1683,6 +1688,48 @@ namespace MBI.Logistics
             GUI.color = prev;
         }
 
+        /// <summary>선택 테두리 하나. 고른 칸을 따라 옮겨 다닌다 — 칸마다 만들지 않는다.</summary>
+        private GameObject _selectRing;
+
+        /// <summary>
+        /// 고른 칸 둘레에 테두리를 두른다. 굵기는 셀의 <b>비율</b>이라 확대해도 같게 보인다.
+        /// </summary>
+        private void ShowSelectionRing(Vector2Int cell)
+        {
+            float size = _grid.CellSize;
+            float thick = size * 0.06f;
+
+            if (_selectRing == null)
+            {
+                _selectRing = new GameObject("SelectRing");
+                _selectRing.transform.SetParent(transform, false);
+                // ⚠️ SpawnQuad를 안 쓴다 — 그쪽은 **월드 좌표**로 놓아서, 테두리를 옮기면
+                // 네 변이 처음 자리와의 차이만큼 어긋난다. 여기는 국소 좌표라야 한다.
+                float edge = (size - thick) * 0.5f;
+                RingBar(new Vector3(0f, edge, 0f), size, thick);
+                RingBar(new Vector3(0f, -edge, 0f), size, thick);
+                RingBar(new Vector3(-edge, 0f, 0f), thick, size);
+                RingBar(new Vector3(edge, 0f, 0f), thick, size);
+            }
+
+            _selectRing.SetActive(true);
+            _selectRing.transform.position = CellWorld(cell);
+        }
+
+        /// <summary>테두리 한 변. 국소 좌표로 놓아 부모를 옮기면 함께 따라온다.</summary>
+        private void RingBar(Vector3 localPosition, float w, float h)
+        {
+            var g = new GameObject("bar");
+            g.transform.SetParent(_selectRing.transform, false);
+            g.transform.localPosition = localPosition;
+            g.transform.localScale = new Vector3(w, h, 1f);
+            var sr = g.AddComponent<SpriteRenderer>();
+            sr.sprite = UnitSprite();
+            sr.color = SelectedColor;
+            // 노드 몸통(0)·포트(1·2)·벨트 위 물건(2)보다 위 — 테두리가 가려지면 뜻이 없다.
+            sr.sortingOrder = BeltItemOrder + 2;
+        }
+
         private void Select(Vector2Int cell)
         {
             // 이전 선택 색 복원(현재 상태색으로, §L4-R #5).
@@ -1693,8 +1740,12 @@ namespace MBI.Logistics
             }
 
             _selected = cell;
-            if (_markers.TryGetValue(cell, out GameObject cur) && cur != null)
+            // 그림이 붙은 노드는 **덮어 칠하지 않는다** — 한 칸을 통째로 노란 사각으로 만들면
+            // 무엇을 골랐는지는 보이지만 **고른 것이 무엇인지가 안 보인다**(2026-09-09 실측).
+            // 대신 칸 둘레에 테두리를 두른다. 색 사각 시절에는 칠하는 것 말고 수단이 없었다.
+            if (NodeArtOf(cell) == null && _markers.TryGetValue(cell, out GameObject cur) && cur != null)
                 cur.GetComponent<SpriteRenderer>().color = SelectedColor;
+            ShowSelectionRing(cell);
 
             NodeInstance inst = _grid.GetAt(cell);
             Debug.Log($"[MBI] 선택: {(inst != null ? inst.Definition.displayName : "?")} @ 셀({cell.x},{cell.y}).");
