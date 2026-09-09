@@ -122,6 +122,11 @@ namespace MBI.Logistics
             LogisticsOutputBridge.PropellantProduce = agg.propellantProduce;
             LogisticsOutputBridge.BoosterCount = agg.boosterCount;
 
+            // 사용률(수요÷공급)의 재료 — **나누지 않고 그대로** 넘긴다(UI 문서 3-3의 「0으로 나누는 경우 셋」).
+            // 코어 유무와 무관하게 게시한다: 발전소만 놓고 벨트를 안 이어도 막대는 읽혀야 한다.
+            LogisticsOutputBridge.PowerSupply = agg.powerSupply;
+            LogisticsOutputBridge.PowerDraw = agg.powerDraw;
+
             if (!agg.hasCore)
             {
                 LogisticsOutputBridge.Result = default; // 물류 허브(코어) 없음 → 전투로 나가는 출력 없음

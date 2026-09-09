@@ -61,6 +61,8 @@ namespace MBI.Combat
         private float _pointerDownTime;
         private readonly Dictionary<DroneUnit, SpriteRenderer> _droneViews =
             new Dictionary<DroneUnit, SpriteRenderer>();
+        private GUIStyle _hudSmall;     // 막대 옆 숫자
+        private GUIStyle _hudSegment;   // 막대 칸 안 이름
 
         /// <summary>지금 나가 있는 로봇의 SO. 태그하면 바뀐다 — 스프라이트·색이 여기서 온다.</summary>
         private RobotDefinition ActiveRobotDef
@@ -388,6 +390,9 @@ namespace MBI.Combat
         /// <summary>마지막으로 본 회피 횟수 — 늘어난 프레임이 곧 회피 발동 순간이다.</summary>
         private int _seenDodges;
 
+        /// <summary>탄약 소진 표시 하나. 지속 상태라 매번 만들지 않고 껐다 켠다.</summary>
+        private SpriteRenderer _ammoOutView;
+
         /// <summary>
         /// 설치된 VFX 배선 셋 — 드론 사출 · 회피 · 드론 소멸 (2026-09-08 · <c>260908_W06</c> 6장).
         ///
@@ -425,6 +430,42 @@ namespace MBI.Combat
                 SpawnOneShot(tuning.boosterSprite, _sim.Robot.position, life);
 
             _seenDodges = dodge.TotalDodges;
+        }
+
+        /// <summary>
+        /// 탄약 소진 표시(`vfx_ammoout`) — **마운트가 통째로 빈 동안** 계속 떠 있는다.
+        ///
+        /// ⚠️ **이 조건은 가정이다**(2026-09-09 · `❓`7-1 (가)). 연출 문서가 이 자산을
+        /// 「공급이 돌아올 때까지」의 **지속 상태**로 적었는데, 코드에는 「이번 한 발이 안 나갔다」는
+        /// 순간 사실밖에 없었다. 셋 중 (가)를 골랐다 — 한 탄종만 빈 것은 다른 탄종이 계속
+        /// 나가므로 「소진」이 아니고, 창고까지 비었는지는 화면에 보이는 것과 한 단계 떨어져 있다.
+        /// 설계가 (나)·(다)로 답하면 **이 한 줄만 바뀐다** — 뜨는 조건이고 판정식에 안 닿는다.
+        ///
+        /// 다른 넷과 달리 <see cref="SpawnOneShot"/>을 안 쓴다. 0.2초짜리를 매 프레임 새로
+        /// 만들면 같은 그림이 깜빡이며 쌓이고, 무엇보다 **지속 상태가 순간 연출로 바뀐다.**
+        /// 하나를 만들어 두고 껐다 켠다.
+        /// </summary>
+        private void UpdateAmmoOutView()
+        {
+            if (_sim == null || tuning == null || tuning.ammoOutSprite == null) return;
+
+            MountLoad mount = _sim.ActiveMount;
+            bool empty = _sim.Result == CombatResult.InProgress && mount != null && mount.Total <= 0f;
+
+            if (empty && _ammoOutView == null)
+            {
+                var go = new GameObject("VfxAmmoOut");
+                go.transform.SetParent(transform, false);
+                _ammoOutView = go.AddComponent<SpriteRenderer>();
+                _ammoOutView.sprite = tuning.ammoOutSprite;
+                _ammoOutView.sortingOrder = SortingLayers.EffectOver;
+            }
+            if (_ammoOutView == null) return;
+
+            _ammoOutView.enabled = empty;
+            if (empty && _sim.Robot != null)
+                _ammoOutView.transform.position =
+                    new Vector3(_sim.Robot.position.x, _sim.Robot.position.y, 0f);
         }
 
         /// <summary>한 번 그려지고 사라지는 이펙트 한 장. 반복 없음(연출 2장 「공통 생성 규칙」).</summary>
@@ -600,6 +641,7 @@ namespace MBI.Combat
             if (_sim.TagSkillResolvedThisTick) PlayTagSkillEffect();
 
             PlayInstalledVfx();
+            UpdateAmmoOutView();   // 지속 상태 — 한 번 만들고 껐다 켠다(❓7-1 (가) 가정)
 
             // 처치를 방치 런타임으로 흘린다. 가져가며 비우는 API라 같은 처치를 두 번 세지 않는다.
             IdleSignals.AddKills(_sim.ConsumeKills());
@@ -842,15 +884,29 @@ namespace MBI.Combat
 
             var style = new GUIStyle(GUI.skin.label) { fontSize = 16 };
             var big = new GUIStyle(GUI.skin.label) { fontSize = 34, fontStyle = FontStyle.Bold };
+            // 막대 옆·막대 안 글자. 막대 높이가 14라 16으로 두면 칸 밖으로 넘친다.
+            if (_hudSmall == null)
+            {
+                _hudSmall = new GUIStyle(GUI.skin.label) { fontSize = 12 };
+                _hudSegment = new GUIStyle(GUI.skin.label)
+                {
+                    fontSize = 11,
+                    alignment = TextAnchor.MiddleCenter,
+                };
+            }
 
             GUILayout.BeginArea(new Rect(12, 10, 560, 280));
             GUILayout.Label($"{StageTitle()}  ·  {stage.topic}", style);
             GUILayout.Label(OutputLine(), style);
             GUILayout.Label(AmmoLine(), style);
+            // 탄약 줄 — **저장 노드 재고를 막대 하나로**(UI 문서 3-3). 재고가 0인 탄종은 칸이 없다.
+            DrawAmmoBar();
             GUILayout.Label($"저장고(군수 생산) {LogisticsOutputBridge.AmmoProduce:F1} 발/초", style);
             // 회피 스택은 HP 바로 옆에 붙인다 — 「몇 대 더 버티는가」를 같은 눈길에서 읽게 한다.
             GUILayout.Label($"적 {_sim.Remaining}/{_sim.TotalEnemies}   로봇 HP {_sim.Robot.hp:F0}/{_sim.Robot.maxHp:F0}" +
                             $"   {DodgeLine()}", style);
+            // 회피 눈금 바 — 숫자 옆에 붙인 줄을 그림으로 한 번 더 준다(UI 문서 11-3).
+            DrawDodgeTicks();
             if (robotB != null) GUILayout.Label(TagLine(), style);
             GUILayout.Label($"경과 {_sim.Elapsed:F1}s / {stage.challengeTime:F0}s", style);
             // 재화는 방치 런타임이 게시한 값을 그대로 읽는다(IdleSignals). 여기서 계산하지 않는다 —
@@ -995,6 +1051,66 @@ namespace MBI.Combat
             // 상한을 부스터 대수와 함께 보여 준다 — 「노드를 더 놓으면 칸이 는다」가 화면에서 읽혀야 한다.
             string core = $"회피 {d.Stacks}/{d.Capacity} (부스터 {d.BoosterCount}대)";
             return d.IsInvincible ? core + "  [무적]" : core;
+        }
+
+        /// <summary>
+        /// 회피 눈금 바(UI 문서 11-3). **길이는 고정이고 눈금 수가 상한을 따른다** —
+        /// 부스터 한 대에 두 칸이라, 노드를 놓으면 칸이 늘어나는 것이 그림으로 보인다.
+        ///
+        /// 상한이 열을 넘으면 눈금은 열에서 멈추고 옆에 `10+`가 붙는다. 실제로 그 위쪽이
+        /// 차는 일은 스테이지 제한 시간 안에서는 거의 없다(<see cref="HudMeters.TickCount"/> 주석).
+        /// </summary>
+        private void DrawDodgeTicks()
+        {
+            DodgeSystem d = _sim.Dodge;
+            GUILayout.BeginHorizontal();
+            HudBars.Ticks(HudBars.Row(200f), d.Stacks, d.Capacity, d.IsInvincible);
+            string tag = HudMeters.OverflowTag(d.Capacity);
+            if (tag.Length > 0) GUILayout.Label(tag, _hudSmall);
+            GUILayout.EndHorizontal();
+        }
+
+        /// <summary>
+        /// 탄약 줄(UI 문서 3-3) — **저장 노드 재고**를 막대 하나로 나눠 그린다.
+        ///
+        /// ⚠️ 위의 <see cref="AmmoLine"/>은 **초당 소비**를 적는다. 둘은 다른 것을 잰다 —
+        /// 하나는 지금 있는 발수이고 하나는 빠져나가는 속도다. 같은 줄에 섞지 않는다.
+        ///
+        /// 색은 <see cref="TracerColor"/>를 그대로 쓴다. 화면에 날아가는 탄선과 창고 칸이
+        /// 다른 색이면 「저 노란 것이 다 떨어졌다」가 안 읽힌다.
+        /// </summary>
+        private void DrawAmmoBar()
+        {
+            _ammoSegments.Clear();
+            for (int i = 0; i < AmmoKinds.Length; i++)
+            {
+                AmmoKind k = AmmoKinds[i];
+                _ammoSegments.Add(new HudBars.Segment
+                {
+                    label = AmmoLabelOf(k),
+                    value = _sim.AmmoStockOf(k),
+                    color = TracerColor(k),
+                });
+            }
+            GUILayout.BeginHorizontal();
+            HudBars.Segments(HudBars.Row(300f), _ammoSegments, _sim.AmmoCapacity, _hudSegment);
+            GUILayout.Label($"재고 {_sim.AmmoStock:F0}/{_sim.AmmoCapacity:F0}", _hudSmall);
+            GUILayout.EndHorizontal();
+        }
+
+        private static readonly AmmoKind[] AmmoKinds =
+            { AmmoKind.Pierce, AmmoKind.Split, AmmoKind.Explosive };
+
+        private readonly List<HudBars.Segment> _ammoSegments = new List<HudBars.Segment>(3);
+
+        private static string AmmoLabelOf(AmmoKind kind)
+        {
+            switch (kind)
+            {
+                case AmmoKind.Pierce: return "관통";
+                case AmmoKind.Split: return "분열";
+                default: return "폭발";
+            }
         }
 
         /// <summary>

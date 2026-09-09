@@ -37,6 +37,21 @@ namespace MBI.Core
         /// <summary>전역 병목 원인(변수 패널 아이콘·점멸용). Power → Heat 우선(§3-4-1). None = 정상.</summary>
         public static ConstraintCause GlobalCause;
 
+        // ── 전력 사용률의 재료 (2026-09-09 · UI 문서 3-3) ──────────────────────────────
+        //
+        // ⚠️ **화면에 뿌리는 축은 사용률(수요÷공급)이고 전력 효율이 아니다**(2026-09-06 사용자 확정).
+        // 효율은 min(1, 공급÷수요)라 **모자라기 전까지 꽉 찬 채 움직이지 않아**
+        // 「한 대 더 놓을 수 있나」에 답하지 못한다. 사용률은 상한이 없어 100% 초과가 실제로 뜬다.
+        //
+        // ⚠️ **비율을 여기서 만들지 않는다.** 0으로 나뉘는 경우가 셋이고(UI 문서 3-3)
+        // 그때 화면이 숫자를 `—`로 적어야 하는데, 미리 나눠 두면 **없는 값과 0이 구분되지 않는다.**
+        // 그래서 **분자와 분모를 그대로** 넘기고 나누는 일은 그리는 쪽이 한다.
+        /// <summary>Σ 발전(에너지 노드). 사용률의 분모.</summary>
+        public static float PowerSupply;
+
+        /// <summary>Σ 변동비(대당 전력 × 일감률). 사용률의 분자 — 노는 노드는 0을 먹는다.</summary>
+        public static float PowerDraw;
+
         /// <summary>
         /// 노드별 일감률(260831_V07 승인분). 보드가 **어느 노드가 놀고 있는지**를 여기서 읽는다 —
         /// 초과분을 노는 것으로 몰아 두었으므로 화면에서 뺄 노드가 그대로 지목된다.
@@ -65,6 +80,8 @@ namespace MBI.Core
             PropellantProduce = 0f;
             BoosterCount = 0;
             GlobalCause = ConstraintCause.None;
+            PowerSupply = 0f;
+            PowerDraw = 0f;
         }
     }
 }

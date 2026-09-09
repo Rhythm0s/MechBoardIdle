@@ -232,6 +232,12 @@ namespace MBI.Core
         /// <summary>탄종별 잔량(발). 탄종별 창고 표시·진단용.</summary>
         public float AmmoStockOf(AmmoKind kind) => Act.ammo.StockOf(kind);
 
+        /// <summary>
+        /// 창고 총량 상한(발). **탄종이 나눠 쓰는 한 칸**이라, 탄약 줄이 빈 꼬리를 그리려면
+        /// 이 값이 있어야 한다 — 없으면 있는 것끼리의 비율만 남아 「얼마나 찼는가」가 사라진다.
+        /// </summary>
+        public float AmmoCapacity => Act.ammo.Capacity;
+
         // ---- 드론(로봇 B) ----
 
         /// <summary>드론 몸체 유입(기/초). 러너가 보드 산출에서 매 프레임 주입한다.</summary>

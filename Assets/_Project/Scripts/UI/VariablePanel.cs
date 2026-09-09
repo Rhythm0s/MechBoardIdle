@@ -63,7 +63,14 @@ namespace MBI.UI
             GUILayout.Space(4f);
 
             GUILayout.Label("갭 발생원", _head);
-            GUILayout.Label($"전력  {r.gapPower:F1}   (효율 {Pct(r.powerEfficiency)})", _label);
+            // ⚠️ **전력 줄의 축이 효율에서 사용률로 바뀌었다**(2026-09-06 확정 · UI 문서 3-3).
+            // 효율은 min(1, 공급÷수요)라 모자라기 전까지 100%에 붙어 움직이지 않는다 —
+            // 「한 대 더 놓을 수 있나」에 답을 못 한다. 사용률(수요÷공급)은 상한이 없어
+            // 여유도 초과도 같은 눈금에서 읽힌다. 갭 숫자(gapPower)는 그대로 둔다.
+            float supply = LogisticsOutputBridge.PowerSupply;
+            float draw = LogisticsOutputBridge.PowerDraw;
+            GUILayout.Label($"전력  {r.gapPower:F1}   (사용률 {HudBars.UsageText(supply, draw)})", _label);
+            HudBars.Usage(HudBars.Row(width - 24f), supply, draw);
             GUILayout.Label($"발열  {r.gapHeat:F1}   (감쇠 {Pct(r.heatThrottle)})", _label);
             // 벨트는 다른 둘과 축이 다르다(2026-09-05). 전력·발열은 **식**으로 구한 감쇠이고,
             // 벨트는 「만든 것 중 실제로 닿은 비율」을 **역산**한 값이다 — 정체·갈래·거리가

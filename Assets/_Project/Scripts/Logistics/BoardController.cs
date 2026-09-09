@@ -604,15 +604,28 @@ namespace MBI.Logistics
         private const int ZoneLabelFontPx = 96;
 
 
-        /// <summary>미색 · 불투명도 40% — 밑의 타일을 가리지 않는다(배치 규격).</summary>
-        private static readonly Color ZoneLineColor = new Color(0.96f, 0.94f, 0.86f, 0.40f);
+        /// <summary>
+        /// 구역 표시의 미색. **선과 이름표가 같은 색이라는 것**이 배치 규격의 요구다 —
+        /// 다른 색이면 둘이 다른 물건으로 읽힌다. 그래서 색조는 여기 하나뿐이고,
+        /// 아래 둘은 <b>불투명도만</b> 다르게 가진다.
+        /// </summary>
+        private static readonly Color ZoneTint = new Color(0.96f, 0.94f, 0.86f, 1f);
+
+        /// <summary>경계선 불투명도 40% — 밑의 타일을 가리지 않는다(배치 규격).</summary>
+        private const float ZoneLineAlpha = 0.40f;
 
         /// <summary>
-        /// 이름표는 같은 미색이되 **70%**다 (2026-09-06 확정 · `260906_W04` 2-7).
+        /// 이름표 불투명도 **70%** (2026-09-06 확정 · `260906_W04` 2-7).
         /// 40%는 경계선에만 걸리는 값이었다 — 선은 얇아 흐려도 형태가 남지만 글자는 읽히지 않는다.
-        /// 상수를 나눠 두지 않으면 한쪽을 고칠 때 다른 쪽이 함께 움직인다.
         /// </summary>
-        private static readonly Color ZoneLabelColor = new Color(0.96f, 0.94f, 0.86f, 0.70f);
+        private const float ZoneLabelAlpha = 0.70f;
+
+        private static readonly Color ZoneLineColor = Alpha(ZoneTint, ZoneLineAlpha);
+
+        /// <summary>이름표는 선과 같은 미색이되 더 진하다. 두 값이 **따로** 움직인다.</summary>
+        private static readonly Color ZoneLabelColor = Alpha(ZoneTint, ZoneLabelAlpha);
+
+        private static Color Alpha(Color c, float a) => new Color(c.r, c.g, c.b, a);
 
         /// <summary>
         /// 그리는 층: **타일 위 · 품목 아래.** 물건이 지나가는 것을 가리지 않는다(배치 규격).
