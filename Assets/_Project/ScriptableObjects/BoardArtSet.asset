@@ -36,6 +36,7 @@ MonoBehaviour:
   portOutput: {fileID: 21300000, guid: 67f2ab5e8b383434083b16d8fd42dcfa, type: 3}
   portPower: {fileID: 21300000, guid: 07c016696ace95e4c8625c4240109210, type: 3}
   mountPort: {fileID: 21300000, guid: d6ebdc40b5604d844a5123e1ba91321f, type: 3}
+  boardBackground: {fileID: 21300000, guid: be520f64db01f8344bb2006a7f13d193, type: 3}
   items:
   - kind: 7
     sprite: {fileID: 21300000, guid: 5a402666c4ec9134f839808f261fca3a, type: 3}

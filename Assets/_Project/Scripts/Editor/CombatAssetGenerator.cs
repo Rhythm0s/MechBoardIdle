@@ -75,6 +75,14 @@ namespace MBI.Editor
                 tuning.ammoOutSprite     = LoadVfx("vfx_ammoout");
             }
 
+            // 전투 배경 둘 (2026-09-09 배선). 보스 배경은 **S6에서만** 쓰인다 —
+            // 고르는 일은 러너가 하고 여기서는 둘 다 걸어 두기만 한다.
+            if (tuning != null)
+            {
+                tuning.combatBackgroundSprite = LoadBackground("bg_combat");
+                tuning.bossBackgroundSprite   = LoadBackground("bg_combat_boss");
+            }
+
             if (tuning != null) EditorUtility.SetDirty(tuning);
 
             float capA = json.Param("capA");             // 6 소비 상한
@@ -145,6 +153,18 @@ namespace MBI.Editor
         {
             return AssetDatabase.LoadAssetAtPath<Sprite>($"Assets/_Project/Art/Units/{fileName}.png");
         }
+
+        /// <summary>
+        /// 배경은 `Art/Backgrounds` 아래에 산다 (2026-09-09 배선).
+        ///
+        /// ⚠️ **`internal`인 이유** — 배경 셋이 SO 둘에 나뉘어 걸린다. 전투 배경 둘은
+        /// <see cref="CombatTuning"/>이 들고 보드 배경 하나는 `BoardArtSet`이 드는데,
+        /// 그 둘의 생성기가 다르다. **경로 문자열을 양쪽에 하나씩 두면 폴더를 옮길 때
+        /// 한쪽만 고치게 된다** — 지침 §7 ［09-07］「한 값이 두 곳에 살면 답이 둘이 된다」.
+        /// 그래서 읽는 함수는 하나이고 부르는 곳이 둘이다.
+        /// </summary>
+        internal static Sprite LoadBackground(string fileName)
+            => AssetDatabase.LoadAssetAtPath<Sprite>($"Assets/_Project/Art/Backgrounds/{fileName}.png");
 
         // 이펙트는 Art/VFX 아래에 산다. 없으면 null — 뷰가 자리표시로 폴백한다.
         private static Sprite LoadVfx(string fileName)

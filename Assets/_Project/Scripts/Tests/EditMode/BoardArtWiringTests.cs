@@ -3,6 +3,7 @@ using System.IO;
 using MBI.Data;
 using MBI.Editor;
 using NUnit.Framework;
+using UnityEditor;
 using UnityEngine;
 
 namespace MBI.Tests
@@ -174,6 +175,68 @@ namespace MBI.Tests
                 Assert.AreEqual(1f, s.bounds.size.x, 0.01f, $"{file}: 가로가 한 칸이 아니다");
                 Assert.AreEqual(1f, s.bounds.size.y, 0.01f, $"{file}: 세로가 한 칸이 아니다");
             }
+        }
+
+        // ── 배경 셋 (2026-09-09 배선) ─────────────────────────────────────────────
+
+        private const string BackgroundDir = "Assets/_Project/Art/Backgrounds";
+
+        /// <summary>
+        /// 배경 셋이 SO 자리 셋에 걸렸는가. **셋이 SO 둘에 나뉘어 있어** 한쪽만 붙어도
+        /// 화면의 절반은 멀쩡해 보인다 — 전투는 깔리는데 보드만 안 깔린 것을 눈으로 잡으려면
+        /// 두 화면을 다 열어야 한다.
+        /// </summary>
+        [Test]
+        public void CombatBackgrounds_AreWired()
+        {
+            var tuning = AssetDatabase.LoadAssetAtPath<CombatTuning>(
+                "Assets/_Project/ScriptableObjects/CombatTuning.asset");
+            Assert.IsNotNull(tuning, "CombatTuning.asset이 없다 — 생성기를 먼저 돌린다");
+
+            if (FileExists(BackgroundDir, "bg_combat"))
+                Assert.IsNotNull(tuning.combatBackgroundSprite, "bg_combat.png는 있는데 자리가 비었다");
+            if (FileExists(BackgroundDir, "bg_combat_boss"))
+                Assert.IsNotNull(tuning.bossBackgroundSprite, "bg_combat_boss.png는 있는데 자리가 비었다");
+        }
+
+        [Test]
+        public void BoardBackground_IsWired()
+        {
+            BoardArtSet art = Build();
+            if (!FileExists(BackgroundDir, "bg_board")) return;
+            Assert.IsNotNull(art.boardBackground, "bg_board.png는 있는데 자리가 비었다");
+        }
+
+        [Test]
+        public void BoardBackground_IsExactlyOneCell()
+        {
+            // 캔버스 192 = 한 칸이라 **격자와 그림이 같은 눈금**이다. 어긋나면 칸마다
+            // 조금씩 밀려 보드 전체가 흐트러지는데, 그 밀림은 에러가 아니라 화면에서만 보인다.
+            BoardArtSet art = Build();
+            if (art.boardBackground == null) return;
+            Assert.AreEqual(1f, art.boardBackground.bounds.size.x, 0.01f);
+            Assert.AreEqual(1f, art.boardBackground.bounds.size.y, 0.01f);
+        }
+
+        [Test]
+        public void CombatBackground_IsBiggerThanOneCell_SoTilingIsCheap()
+        {
+            // 캔버스 256 = 1.333칸. 한 칸짜리로 착각해 깔면 장수가 배로 늘고,
+            // 그것을 매 프레임 미는 것이라 값이 그대로 프레임 비용이 된다.
+            var tuning = AssetDatabase.LoadAssetAtPath<CombatTuning>(
+                "Assets/_Project/ScriptableObjects/CombatTuning.asset");
+            if (tuning == null || tuning.combatBackgroundSprite == null) return;
+            Assert.Greater(tuning.combatBackgroundSprite.bounds.size.x, 1f);
+        }
+
+        [Test]
+        public void BackgroundLayer_SitsBelowTheArenaDisc()
+        {
+            // 원반은 「여기까지 움직일 수 있다」는 경계 표시라 **바닥 위**여야 한다.
+            // 같은 층에 두면 어느 쪽이 위인지가 정해지지 않는다.
+            Assert.Less(SortingLayers.BackgroundFar, SortingLayers.Background);
+            Assert.AreEqual(SortingLayers.Step, SortingLayers.Background - SortingLayers.BackgroundFar,
+                "층 간격 10을 지킨다 — ±1~9는 같은 층 안의 미세 조정 몫이다");
         }
 
         [Test]

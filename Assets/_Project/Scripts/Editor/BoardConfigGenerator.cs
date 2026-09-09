@@ -46,7 +46,8 @@ namespace MBI.Editor
             AssetDatabase.Refresh();
             Selection.activeObject = art;
             Debug.Log($"[MBI] BoardArtSet 준비 완료: {ArtPath} — " +
-                      $"노드 {art.FilledNodeCount} · 부속 {art.FilledPartCount} · 품목 {art.FilledItemCount}.");
+                      $"노드 {art.FilledNodeCount} · 부속 {art.FilledPartCount} · 품목 {art.FilledItemCount} · " +
+                      $"배경 {(art.boardBackground != null ? "있음" : "없음")}.");
         }
 
         /// <summary>
@@ -80,6 +81,10 @@ namespace MBI.Editor
             art.beltEnd = LoadBoard("belt_end");
             art.merger = LoadBoard("merger");
             art.sorter = LoadBoard("sorter");
+
+            // 보드 배경 — 읽는 함수는 `CombatAssetGenerator`에 하나뿐이다.
+            // 배경 셋이 SO 둘에 나뉘어 걸리므로 **경로를 양쪽에 두지 않는다**(§7 ［09-07］).
+            art.boardBackground = CombatAssetGenerator.LoadBackground("bg_board");
 
             art.portInput = LoadBoard("port_input");
             art.portOutput = LoadBoard("port_output");

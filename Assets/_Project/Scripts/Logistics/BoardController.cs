@@ -590,8 +590,53 @@ namespace MBI.Logistics
             SpawnQuad(root.transform, o.x, cy, b, h, GridBorderColor, -2);       // 좌
             SpawnQuad(root.transform, o.x + w, cy, b, h, GridBorderColor, -2);   // 우
 
+            BuildBoardBackground(root.transform);
             BuildMountPorts(root.transform);
         }
+
+        /// <summary>
+        /// 보드 바닥 — **칸마다 한 장** (2026-09-09 배선).
+        ///
+        /// 캔버스가 192라 한 장이 정확히 한 칸이다(ArtSpec: 격자 한 칸 = 192px = 1 월드 유닛).
+        /// 그래서 전투 배경처럼 나머지로 밀 것이 없다 — **격자와 그림이 이미 같은 눈금**이다.
+        ///
+        /// ⚠️ **임포트 설정을 안 건드린다.** 한 장을 Repeat 으로 늘리는 대신 복제해 깐다 —
+        /// 그 설정은 `SpriteImportRules`가 `Art/` 전체에 한 규격으로 강제하고 있다.
+        ///
+        /// **실루엣 밖은 깔지 않는다.** 팔·다리 사이 빈칸까지 바닥을 두면 로봇 모양이 사라져
+        /// 「파츠라는 제한 공간」이 화면에서 안 읽힌다(조립 문서 11장 · 유효 117칸).
+        /// </summary>
+        private void BuildBoardBackground(Transform parent)
+        {
+            if (art == null || art.boardBackground == null) return;
+
+            float scale = FitScale(art.boardBackground, _grid.CellSize);
+            for (int x = 0; x < _grid.Columns; x++)
+            for (int y = 0; y < _grid.Rows; y++)
+            {
+                var cell = new Vector2Int(x, y);
+                if (!_grid.IsInside(cell)) continue; // 실루엣 밖
+
+                var go = new GameObject($"bg_{x}_{y}");
+                go.transform.SetParent(parent, false);
+                go.transform.position = CellWorld(cell);
+                go.transform.localScale = Vector3.one * scale;
+
+                var sr = go.AddComponent<SpriteRenderer>();
+                sr.sprite = art.boardBackground;
+                sr.sortingOrder = BoardBackgroundOrder;
+            }
+        }
+
+        /// <summary>
+        /// 보드 바닥의 그리기 순서. 격자 배경(−3)보다 아래라 셀선·노드·품목이 전부 그 위에 남는다.
+        ///
+        /// ⚠️ **여기에 <c>SortingLayers.BackgroundFar</c>(−40)를 쓰지 않는다.** 보드는
+        /// **자기 지역 순서**로 그린다(격자 배경 −3 · 셀선 −2 · 마커 0). 전역 정렬층을 섞으면
+        /// 지침 §7 ［08-29］「전역 정렬층과 지역 그리기 순서 혼용」이 그대로 재현된다 —
+        /// 그때 화살표가 벨트 뒤로 들어가 화면에서 사라졌다.
+        /// </summary>
+        private const int BoardBackgroundOrder = -4;
 
         /// <summary>
         /// 마운트 고정 포트 셋을 그린다(2026-09-09 신설 · <c>PartLayout.MountPorts</c>).

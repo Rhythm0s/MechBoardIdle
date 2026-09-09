@@ -130,8 +130,118 @@ namespace MBI.Combat
                 enabled = false;
                 return;
             }
+            BuildBackground(); // 바닥 그림 — 원반보다 아래(-40). 스테이지가 바뀌면 다시 깐다.
             BuildArena(); // 이동 가능 범위 경계(§C-1) — 상수라 최초 1회만.
             Begin();
+        }
+
+        // ── 전투 배경 (2026-09-09 배선) ────────────────────────────────────────────
+        //
+        // **임포트 설정을 안 건드리고 코드로 격자 복제해 깐다.** 한 장을 Repeat 으로 늘리려면
+        // 임포터의 Wrap 을 바꿔야 하는데, 그 설정은 `SpriteImportRules`가 `Art/` 전체에
+        // 한 규격으로 강제하고 있다 — 배경 하나 때문에 손대면 **다른 스프라이트가 조용히
+        // 따라 바뀐다**(지침 §7 ［08-31］ 「에디터에서만 보면 안 드러나는 결함」과 같은 종류다).
+        //
+        // 까는 넓이는 **시야 + 여유 한 장**이다. 여유가 없으면 아래의 오프셋이 한 장만큼
+        // 밀 때 가장자리에 빈 줄이 생긴다.
+
+        private Transform _bgRoot;
+        private Sprite _bgSprite;      // 지금 깔린 그림 — 보스 스테이지로 바뀌면 다시 깐다
+        private Vector2 _bgTile;       // 한 장의 월드 크기
+        private Vector2 _bgViewport;   // 깔 때 본 시야 — 창이 바뀌면 다시 깐다
+
+        /// <summary>
+        /// 이 스테이지의 바닥 그림. **보스 배경은 S6에서만**이며, 그 판정은
+        /// 이미 있는 <see cref="StageReqType.Budget"/>(「예산식(보스 HP) — S6」)을 그대로 쓴다.
+        /// 새 상수를 만들지 않는다 — 스테이지 id 문자열을 여기서 다시 비교하면
+        /// 「S6이 무엇인가」에 답이 둘이 된다.
+        /// </summary>
+        private Sprite BackgroundForStage()
+        {
+            if (tuning == null) return null;
+            bool boss = stage != null && stage.reqType == StageReqType.Budget;
+            Sprite pick = boss ? tuning.bossBackgroundSprite : tuning.combatBackgroundSprite;
+            // 보스 그림이 아직 없으면 일반 배경으로 내려앉는다 — 바닥이 통째로 사라지는 것보다 낫다.
+            return pick != null ? pick : tuning.combatBackgroundSprite;
+        }
+
+        private void BuildBackground()
+        {
+            Sprite bg = BackgroundForStage();
+            if (bg == null)
+            {
+                if (_bgRoot != null) Destroy(_bgRoot.gameObject);
+                _bgRoot = null;
+                _bgSprite = null;
+                return;
+            }
+
+            Camera cam = Camera.main;
+            float halfH = cam != null && cam.orthographic ? cam.orthographicSize : 5f;
+            float halfW = cam != null && cam.orthographic ? halfH * cam.aspect : halfH;
+
+            if (_bgRoot != null) Destroy(_bgRoot.gameObject);
+
+            var root = new GameObject("Background");
+            root.transform.SetParent(transform, false);
+            _bgRoot = root.transform;
+            _bgSprite = bg;
+            _bgViewport = new Vector2(halfW, halfH);
+
+            // 한 장의 월드 크기는 **재서 쓴다.** 캔버스를 상수로 다시 적으면 아트가 바뀔 때
+            // 조용히 어긋난다(보드 아트 배선의 `FitScale`과 같은 이유).
+            _bgTile = bg.bounds.size;
+            if (_bgTile.x <= 0.0001f || _bgTile.y <= 0.0001f) return;
+
+            // 시야를 덮는 장수 + 양쪽에 한 장씩 여유.
+            int cols = Mathf.CeilToInt(halfW * 2f / _bgTile.x) + 2;
+            int rows = Mathf.CeilToInt(halfH * 2f / _bgTile.y) + 2;
+
+            for (int x = 0; x < cols; x++)
+            for (int y = 0; y < rows; y++)
+            {
+                var go = new GameObject($"bg_{x}_{y}");
+                go.transform.SetParent(root.transform, false);
+                go.transform.localPosition = new Vector3(
+                    (x - (cols - 1) * 0.5f) * _bgTile.x,
+                    (y - (rows - 1) * 0.5f) * _bgTile.y, 0f);
+
+                var sr = go.AddComponent<SpriteRenderer>();
+                sr.sprite = bg;
+                // **아레나 원반보다 아래다.** 원반은 「여기까지 움직일 수 있다」는 경계라
+                // 바닥에 묻히면 뜻이 사라진다.
+                sr.sortingOrder = SortingLayers.BackgroundFar;
+            }
+        }
+
+        /// <summary>
+        /// 바닥을 로봇 위치의 나머지만큼 민다 — **바닥이 로봇 아래로 흐르는 것처럼 보인다.**
+        ///
+        /// 카메라가 고정이라 로봇만 움직이면 바닥이 정지 화면처럼 남는데, 그러면
+        /// 「움직이고 있다」가 화면에서 지워진다. 한 장 폭의 나머지만 쓰므로 **타일 수가
+        /// 안 늘고**, 격자가 자기 자신과 이어져 끝이 안 보인다.
+        /// </summary>
+        private void UpdateBackgroundOffset()
+        {
+            if (_bgRoot == null || _sim == null || _sim.Robot == null) return;
+            Vector2 p = _sim.Robot.position;
+            _bgRoot.localPosition = new Vector3(
+                -Mathf.Repeat(p.x, _bgTile.x),
+                -Mathf.Repeat(p.y, _bgTile.y), 0f);
+        }
+
+        /// <summary>깔아 둔 전제가 바뀌었는가 — 스테이지(보스)와 창 크기 둘뿐이다.</summary>
+        private bool BackgroundNeedsRebuild()
+        {
+            if (_bgRoot == null) return BackgroundForStage() != null;
+            if (BackgroundForStage() != _bgSprite) return true;
+
+            Camera cam = Camera.main;
+            if (cam == null || !cam.orthographic) return false;
+            float halfH = cam.orthographicSize;
+            float halfW = halfH * cam.aspect;
+            // 창이 커지면 덮던 넓이가 모자란다. 줄어드는 쪽은 남는 것이라 다시 깔지 않는다.
+            return halfW > _bgViewport.x + 0.001f || halfH > _bgViewport.y + 0.001f;
         }
 
         /// <summary>이동 가능 아레나 경계 시각화(§C-1): 반경 arenaRadiusTbd 원반 + 테두리 링. 최초 1회.</summary>
@@ -623,6 +733,10 @@ namespace MBI.Combat
             // 시뮬은 순수 계산이라 카메라가 없고, 아는 경계는 아레나 반지름 하나뿐인데
             // 그것은 **스폰 링(화면 바깥)**이라 「화면 안」을 대신할 수 없다.
             PushVisibleBounds();
+
+            // 바닥 — 스테이지나 창이 바뀌었으면 다시 깔고, 아니면 밀기만 한다.
+            if (BackgroundNeedsRebuild()) BuildBackground();
+            UpdateBackgroundOffset();
 
             // 태그 스킬이 터지는 자리도 밖에서 넣는다 — **진입 클립이 다 도는 초**다
             // (260908_W06 2장 · (가) 0.75초). 새 상수를 만들지 않고 이미 있는 클립 초를 그대로 쓴다.

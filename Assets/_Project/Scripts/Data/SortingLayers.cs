@@ -14,6 +14,18 @@ namespace MBI.Data
     /// </summary>
     public static class SortingLayers
     {
+        /// <summary>
+        /// 먼 배경 — **바닥 그림 자체** (2026-09-09 신설 · 배경 아트 배선).
+        ///
+        /// 종전에는 층이 <see cref="Background"/> 하나였고 아레나 원반이 그 자리를 쓰고 있었다.
+        /// 배경 타일을 같은 층에 두면 **원반과 어느 쪽이 위인지가 정해지지 않아** 화면마다
+        /// 달라진다 — 원반은 「여기까지 움직일 수 있다」는 경계 표시라 **바닥 위**여야 한다.
+        ///
+        /// ⚠️ 층 간격 10을 그대로 지킨다. −30에서 ±1~9로 밀어 넣지 않는 이유는,
+        /// 그 자리가 「같은 층 안의 미세 조정」 몫이고 배경과 원반은 **다른 층**이기 때문이다.
+        /// </summary>
+        public const int BackgroundFar = -40;
+
         /// <summary>배경 — 아레나 바닥, 보드 배경 패널.</summary>
         public const int Background = -30;
 

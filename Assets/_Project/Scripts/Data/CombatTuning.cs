@@ -112,6 +112,18 @@ namespace MBI.Data
         [Tooltip("공급이 끊겨 공격이 멈췄다는 표시. ⚠️ 아직 배선되지 않았다 — 사건 자리가 코드에 없다.")]
         public Sprite ammoOutSprite;
 
+        // ── 전투 배경 (2026-09-09 배선) ────────────────────────────────────────────
+        //
+        // 캔버스 256이라 한 장이 1.333칸이고, **코드가 격자로 복제해 깐다.**
+        // 임포트 설정(Wrap)은 건드리지 않는다 — 스프라이트를 Repeat으로 늘리려면
+        // 임포터를 손대야 하는데 그 설정은 `SpriteImportRules`가 한 곳에서 강제하고 있고,
+        // 배경 하나 때문에 그 규격을 흔들면 **다른 스프라이트가 조용히 따라 바뀐다**.
+        [Header("전투 배경 (2026-09-09 배선)")]
+        [Tooltip("전투 바닥. 비어 있으면 안 깐다 — 아레나 원반만 남는다.")]
+        public Sprite combatBackgroundSprite;
+        [Tooltip("보스전 바닥. **S6에서만** 위 것을 대신한다(reqType = Budget).")]
+        public Sprite bossBackgroundSprite;
+
         [Tooltip("위 셋이 한 번 그려지고 사라지는 데 걸리는 초. 이펙트는 로봇보다 짧게 끝난다(연출 2장).")]
         public float vfxOneShotSeconds = 0.2f;
 

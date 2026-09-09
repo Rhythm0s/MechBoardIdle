@@ -54,6 +54,10 @@ namespace MBI.Data
         [Tooltip("마운트 포트 — 보드의 산출이 전투로 넘어가는 자리.")]
         public Sprite mountPort;
 
+        [Header("배경")]
+        [Tooltip("보드 바닥. 캔버스 192라 한 장이 정확히 한 칸이다 — 칸마다 한 장씩 깐다.")]
+        public Sprite boardBackground;
+
         [Header("품목 — 벨트 위를 흐르는 것")]
         [Tooltip("아직 안 온 품목은 목록에 없다. 없으면 색 점으로 그린다.")]
         public List<ItemArt> items = new List<ItemArt>();
