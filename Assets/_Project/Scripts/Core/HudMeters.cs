@@ -109,6 +109,47 @@ namespace MBI.Core
         public static bool SegmentIsVisible(float value) => value > 0f;
 
         /// <summary>
+        /// 점멸이 지금 켜져 있는가. **초당 2.5번**이며 화면 셋이 같은 박자를 쓴다 —
+        /// 변수 패널 바 · 전투 원인 배지 · 조립 마운트 그리드.
+        ///
+        /// ⚠️ **주기가 문서에 없다**(UI 문서 3-3·12-4 어디에도 초·Hz가 없다). 여기 있는 값은
+        /// 종전 코드가 쓰던 것을 **한 자리로 모은 것**이지 새로 정한 것이 아니다.
+        /// 박자가 갈리면 같은 「안 된다」가 서로 다른 사건으로 읽힌다.
+        /// </summary>
+        public static bool BlinkOn(float unscaledTime) => ((int)(unscaledTime * 2.5f) & 1) == 0;
+
+        /// <summary>
+        /// 0인 칸이 차지하는 몫(막대 폭 대비). **재고가 0인 탄종도 칸을 유지한다**
+        /// (2026-09-09 사용자 확정 · UI 문서 3-3 · 구 표기 「칸을 차지하지 않는다」 폐기).
+        ///
+        /// **숨기면 「안 만들고 있다」와 「다 썼다」가 같은 화면이 된다.** 그 둘은 플레이어가
+        /// 해야 할 일이 정반대인 상태다.
+        ///
+        /// ⚠️ **폭이 문서에 없다.** 12장도 3-3도 「0을 적는다」까지만 정했다. 이름 한 글자와
+        /// 0이 들어갈 만큼으로 잡은 잠정값이며 화면에서 고칠 자리다.
+        /// </summary>
+        public const float EmptySegmentShare = 0.12f;
+
+        /// <summary>
+        /// 값이 있는 칸들이 나눠 가질 폭. 0인 칸이 먼저 자리를 떼어 간 나머지다.
+        ///
+        /// ⚠️ **0인 칸이 막대를 다 먹지 않게 막는다** — 셋 다 0이면 떼어 갈 몫이 폭을 넘으므로
+        /// 그때는 고르게 나눈다. 안 막으면 폭이 음수가 되어 칸이 뒤집힌다.
+        /// </summary>
+        public static float FilledWidth(float totalWidth, int emptyCount)
+        {
+            float reserved = totalWidth * EmptySegmentShare * emptyCount;
+            return Mathf.Max(0f, totalWidth - reserved);
+        }
+
+        /// <summary>0인 칸 하나의 폭. 값이 있는 칸이 하나도 없으면 고르게 나눠 갖는다.</summary>
+        public static float EmptySegmentWidth(float totalWidth, int emptyCount, bool anyFilled)
+        {
+            if (emptyCount <= 0) return 0f;
+            return anyFilled ? totalWidth * EmptySegmentShare : totalWidth / emptyCount;
+        }
+
+        /// <summary>
         /// 막대 전체가 나타내는 양. 상한이 있으면 <b>상한이 막대 전체</b>라 빈 꼬리가 남고,
         /// 상한이 없으면 있는 것끼리의 합으로 나눈다.
         ///

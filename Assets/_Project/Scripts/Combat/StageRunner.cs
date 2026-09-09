@@ -600,8 +600,36 @@ namespace MBI.Combat
 
             _ammoOutView.enabled = empty;
             if (empty && _sim.Robot != null)
+            {
+                // **캐릭터 하단** — 바닥 그림자와 같은 발밑이다(`260909_W01` 3-1 · UI 문서 12-1).
+                // 종전에는 로봇 한가운데였고, 그러면 몸통을 덮어 「무엇이 멈췄는지」보다
+                // 「무언가 가려졌다」가 먼저 읽힌다.
+                //
+                // 발밑 오프셋은 **그림자가 쓰는 규칙을 그대로 부른다**(`EffectTiming.ShadowFootOffset`) —
+                // 여기서 따로 계산하면 아트 규격이 바뀔 때 둘이 조용히 어긋난다.
+                //
+                // ⚠️ **그림자보다 위다.** 이 뷰는 `EffectOver`(10)이고 그림자는 `EffectUnder`(-10)이라
+                // 층이 이미 갈려 있다 — 새 상수를 만들지 않는다.
+                float foot = EffectTiming.ShadowFootOffset(RobotSize);
                 _ammoOutView.transform.position =
-                    new Vector3(_sim.Robot.position.x, _sim.Robot.position.y, 0f);
+                    new Vector3(_sim.Robot.position.x, _sim.Robot.position.y + foot, 0f);
+            }
+        }
+
+        /// <summary>
+        /// 조립 화면이 볼 값을 코어에 놓는다 (UI 문서 12장 · `260909_W01` 3-1).
+        ///
+        /// **여기서 판정하지 않는다** — 0인지 아닌지는 <see cref="SupplyStopRules"/>가 가른다.
+        /// 다리에서 나누면 두 화면이 서로 다른 기준을 갖게 된다.
+        /// </summary>
+        private void PublishSupplySignals()
+        {
+            if (_sim == null) { SupplySignals.Reset(); return; }
+
+            MountLoad mount = _sim.ActiveMount;
+            SupplySignals.HasCombat = true;
+            SupplySignals.MountTotal = mount != null ? mount.Total : 0f;
+            SupplySignals.StorageStock = _sim.AmmoStock;
         }
 
         /// <summary>한 번 그려지고 사라지는 이펙트 한 장. 반복 없음(연출 2장 「공통 생성 규칙」).</summary>
@@ -781,7 +809,8 @@ namespace MBI.Combat
             if (_sim.TagSkillResolvedThisTick) PlayTagSkillEffect();
 
             PlayInstalledVfx();
-            UpdateAmmoOutView();   // 지속 상태 — 한 번 만들고 껐다 켠다(❓7-1 (가) 가정)
+            UpdateAmmoOutView();   // 지속 상태 — 한 번 만들고 껐다 켠다(`260909_W01` 3장이 (가)를 확정)
+            PublishSupplySignals();
 
             // 처치를 방치 런타임으로 흘린다. 가져가며 비우는 API라 같은 처치를 두 번 세지 않는다.
             IdleSignals.AddKills(_sim.ConsumeKills());
@@ -1250,7 +1279,10 @@ namespace MBI.Combat
                 });
             }
             GUILayout.BeginHorizontal();
-            HudBars.Segments(HudBars.Row(300f), _ammoSegments, _sim.AmmoCapacity, _hudSegment);
+            // 0인 탄종도 칸을 유지한다 — 숨기면 「안 만들고 있다」와 「다 썼다」가 같은 화면이 된다
+            // (2026-09-09 사용자 확정 · UI 문서 3-3).
+            HudBars.Segments(HudBars.Row(300f), _ammoSegments, _sim.AmmoCapacity, _hudSegment,
+                keepEmpty: true);
             GUILayout.Label($"재고 {_sim.AmmoStock:F0}/{_sim.AmmoCapacity:F0}", _hudSmall);
             GUILayout.EndHorizontal();
         }

@@ -52,6 +52,12 @@ namespace MBI.UI
         }
 
         private static readonly Color Bed = new Color(0.10f, 0.11f, 0.13f, 0.85f);
+
+        /// <summary>0인 칸의 바탕. 바탕보다 아주 조금만 밝다 — 「자리는 있다」까지만 말한다.</summary>
+        private static readonly Color EmptyCell = new Color(0.16f, 0.17f, 0.20f, 0.85f);
+
+        /// <summary>0인 칸의 글자. 값이 있는 칸의 검은 글자와 갈라야 눈이 먼저 채워진 칸을 본다.</summary>
+        private static readonly Color EmptyText = new Color(0.62f, 0.64f, 0.68f);
         private static readonly Color Edge = new Color(0.96f, 0.94f, 0.86f, 0.35f);
 
         // ── 사용률 막대 ────────────────────────────────────────────────────────────
@@ -73,7 +79,8 @@ namespace MBI.UI
         }
 
         /// <summary>점멸 위상 — 100% 초과에서만 쓴다. 변수 패널의 병목 점멸과 같은 주기다.</summary>
-        private static bool Blink() => ((int)(Time.unscaledTime * 2.5f) & 1) == 0;
+        /// <summary>점멸 박자는 코어가 정한다 — 화면 셋이 같은 리듬을 써야 한 뜻으로 읽힌다.</summary>
+        internal static bool Blink() => HudMeters.BlinkOn(Time.unscaledTime);
 
         /// <summary>
         /// 전력 사용률 막대. <paramref name="supply"/>·<paramref name="draw"/>를 **나누지 않은 채**
@@ -151,42 +158,69 @@ namespace MBI.UI
         /// <summary>
         /// 막대 하나를 <paramref name="segments"/>로 나누고 **칸 안에 이름**을 적는다(UI 문서 3-3).
         ///
-        /// ⚠️ **재고가 0인 탄종은 칸을 차지하지 않는다.** 세 칸을 늘 그려 두면 「지금 뭐가
-        /// 있는가」가 아니라 「탄종이 셋이다」만 읽힌다 — 화면이 답해야 하는 물음이 아니다.
+        /// <paramref name="keepEmpty"/>가 참이면 **재고가 0인 탄종도 칸을 유지하고 0을 적는다**
+        /// (2026-09-09 사용자 확정 · UI 문서 3-3). 숨기면 「안 만들고 있다」와 「다 썼다」가
+        /// 같은 화면이 된다 — 플레이어가 해야 할 일이 정반대인 두 상태다.
+        /// 거짓이면 종전대로 0인 칸이 사라진다(탄약 줄 밖의 막대가 쓴다).
         ///
         /// <paramref name="capacity"/>가 0보다 크면 **총량 상한이 막대 전체**다(빈 꼬리가 남는다).
         /// 0이면 있는 것끼리 비율로 나눈다.
         /// </summary>
-        public static void Segments(Rect rect, IReadOnlyList<Segment> segments, float capacity, GUIStyle labelStyle)
+        public static void Segments(Rect rect, IReadOnlyList<Segment> segments, float capacity,
+            GUIStyle labelStyle, bool keepEmpty = false)
         {
             Fill(rect, Bed);
 
             float sum = 0f;
+            int emptyCount = 0;
             for (int i = 0; i < segments.Count; i++)
+            {
                 if (HudMeters.SegmentIsVisible(segments[i].value)) sum += segments[i].value;
+                else emptyCount++;
+            }
+            if (!keepEmpty) emptyCount = 0;
 
             float span = HudMeters.SegmentSpan(sum, capacity);
-            if (span > 0f)
+            float x = rect.x + 1f;
+            float usable = rect.width - 2f;
+            float filledWidth = HudMeters.FilledWidth(usable, emptyCount);
+            float emptyWidth = HudMeters.EmptySegmentWidth(usable, emptyCount, span > 0f);
+
+            for (int i = 0; i < segments.Count; i++)
             {
-                float x = rect.x + 1f;
-                float usable = rect.width - 2f;
-                for (int i = 0; i < segments.Count; i++)
+                Segment s = segments[i];
+                bool visible = HudMeters.SegmentIsVisible(s.value);
+
+                if (!visible && !keepEmpty) continue;   // 종전 규칙 — 0인 칸이 사라진다
+                if (!visible)
                 {
-                    Segment s = segments[i];
-                    if (!HudMeters.SegmentIsVisible(s.value)) continue; // 0인 탄종은 칸이 없다
-                    float w = usable * (s.value / span);
-                    var cell = new Rect(x, rect.y + 1f, w, rect.height - 2f);
-                    Fill(cell, s.color);
-                    if (w >= LabelMinWidth && labelStyle != null)
+                    // **0인 칸.** 색을 안 채우고 자리와 글자만 남긴다 — 채우면 「조금 있다」로 읽힌다.
+                    var slot = new Rect(x, rect.y + 1f, emptyWidth, rect.height - 2f);
+                    Fill(slot, EmptyCell);
+                    if (labelStyle != null)
                     {
-                        // 칸 색이 밝아 검은 글자가 읽힌다 — 흰 글자는 노랑 칸에서 사라진다.
-                        Color prev = GUI.contentColor;
-                        GUI.contentColor = new Color(0.08f, 0.08f, 0.10f);
-                        GUI.Label(cell, s.label, labelStyle);
-                        GUI.contentColor = prev;
+                        Color prevEmpty = GUI.contentColor;
+                        GUI.contentColor = EmptyText;
+                        GUI.Label(slot, $"{s.label} 0", labelStyle);
+                        GUI.contentColor = prevEmpty;
                     }
-                    x += w;
+                    x += emptyWidth;
+                    continue;
                 }
+
+                if (span <= 0f) continue;
+                float w = filledWidth * (s.value / span);
+                var cell = new Rect(x, rect.y + 1f, w, rect.height - 2f);
+                Fill(cell, s.color);
+                if (w >= LabelMinWidth && labelStyle != null)
+                {
+                    // 칸 색이 밝아 검은 글자가 읽힌다 — 흰 글자는 노랑 칸에서 사라진다.
+                    Color prev = GUI.contentColor;
+                    GUI.contentColor = new Color(0.08f, 0.08f, 0.10f);
+                    GUI.Label(cell, s.label, labelStyle);
+                    GUI.contentColor = prev;
+                }
+                x += w;
             }
             Frame(rect, Edge);
         }

@@ -171,6 +171,16 @@ namespace MBI.Logistics
         private static readonly Color GridBorderColor = new Color(0.45f, 0.9f, 0.65f, 0.85f);   // 바깥 테두리
         private static readonly Color PanDimColor = new Color(0.03f, 0.05f, 0.08f, 0.55f);     // 이동 모드 흐림 막
         private static readonly Color HintColor = new Color(0.98f, 0.72f, 0.25f, 0.92f);       // 병목 힌트 바탕(경고 톤)
+
+        /// <summary>
+        /// 상단 경고 띠 바탕 — **빨강**. 조립 층의 색 축이며 「못 쓴다」다(UI 문서 12-6).
+        /// ⚠️ **정확한 색값은 문서에 없다** — 전력 100% 초과가 쓰는 빨강(`HudBars` UsageOver)과
+        /// 같은 계열로 맞췄다. 셋이 같은 뜻이므로 색이 갈리면 뜻이 셋으로 읽힌다.
+        /// </summary>
+        private static readonly Color WarningBandColor = new Color(0.92f, 0.30f, 0.28f, 0.92f);
+
+        /// <summary>띠 글자 — 바탕이 진해 흰 글자가 읽힌다.</summary>
+        private static readonly Color WarningBandText  = new Color(1f, 0.97f, 0.95f);
         // 종류별 배색은 **아트 자체의 색**이다(V02 §1). 코드는 밝기만 곱한다.
         // 아트가 아직 없어 전 노드가 흰 사각으로 나왔고, 그래서 보드에서 코어와 군수를 못 갈랐다.
         // 아래는 **아트가 들어오면 아트가 이기는 플레이스홀더 색상**이다 —
@@ -306,6 +316,12 @@ namespace MBI.Logistics
         /// 격자가 117칸이라 최악에 350개인데, 그걸 프레임마다 Instantiate/Destroy 하면
         /// GC가 끊임없이 돈다. 쓰는 만큼 꺼내 쓰고 남는 것은 꺼 둔다.
         /// </summary>
+        /// <summary>마운트 포트 마커들 — 재고 0일 때 빨갛게 점멸시키려고 들고 있는다.</summary>
+        private readonly List<SpriteRenderer> _mountPortViews = new List<SpriteRenderer>();
+
+        /// <summary>마운트 재고 0 — **빨강**(조립 층 색 축 · UI 문서 12-6 「못 쓴다」).</summary>
+        private static readonly Color MountEmptyColor = new Color(0.92f, 0.30f, 0.28f, 1f);
+
         private readonly List<SpriteRenderer> _itemPool = new List<SpriteRenderer>();
         private readonly List<SpriteRenderer> _itemBodies = new List<SpriteRenderer>();
         private Transform _itemRoot;
@@ -648,6 +664,8 @@ namespace MBI.Logistics
         /// </summary>
         private void BuildMountPorts(Transform parent)
         {
+            // 다시 지을 때 묵은 렌더러가 남으면 죽은 것을 계속 칠하게 된다.
+            _mountPortViews.Clear();
             if (art == null || art.mountPort == null) return;
 
             foreach (MountPort mp in PartLayout.MountPorts)
@@ -662,6 +680,33 @@ namespace MBI.Logistics
                 sr.sprite = art.mountPort;
                 // 셀선 위 · 노드 아래. 마운트 자리에 노드를 놓을 수 있고, 그때 노드가 위여야 한다.
                 sr.sortingOrder = MarkerOrder - 1;
+                _mountPortViews.Add(sr);
+            }
+        }
+
+        /// <summary>
+        /// **마운트 그리드 빨간 점멸** — 마운트 재고가 0일 때 (UI 문서 12-1·12-4 · `260909_W01` 3-1).
+        ///
+        /// **이것이 두 화면을 잇는 유일한 고리다.** 전투 화면은 결과를 내고 조립 화면은 원인을
+        /// 내는데, 이 표시만 결과를 조립 쪽으로 끌고 온다 — 그래서 값이 있다(12-1).
+        ///
+        /// ⚠️ **마운트 칸 자체는 아직 화면에 없다.** 보드에 있는 것은 마운트 **포트 마커** 넷이며,
+        /// 「그리드」라 부를 칸 표시가 코드에 없다. 그 마커가 마운트를 가리키는 유일한 자리라
+        /// 거기에 걸었다 — **자산이 오면 옮길 자리**이고 판정 자리로 올린다.
+        /// </summary>
+        private void UpdateMountPortBlink()
+        {
+            if (_mountPortViews.Count == 0) return;
+
+            bool empty = SupplyStopRules.MountIsEmpty(
+                SupplySignals.HasCombat, SupplySignals.MountTotal);
+            bool on = empty && HudMeters.BlinkOn(Time.unscaledTime);
+
+            for (int i = 0; i < _mountPortViews.Count; i++)
+            {
+                SpriteRenderer sr = _mountPortViews[i];
+                if (sr == null) continue;
+                sr.color = on ? MountEmptyColor : Color.white;
             }
         }
 
@@ -836,6 +881,8 @@ namespace MBI.Logistics
 
         private void Update()
         {
+            UpdateMountPortBlink();
+
             ApplyZoom(); // 보드를 볼 때만 확대한다 — 나가면 원래 시야로 돌아간다
 
             // 촬영 복귀 요청 — 가져가며 내린다.
@@ -1337,6 +1384,7 @@ namespace MBI.Logistics
             if (!GameLayerController.BoardViewActive) return;
             KoreanFont.Apply(); // WebGL엔 시스템 폰트 폴백이 없다
 
+            DrawSupplyWarningBand(); // 0차 — 다른 표시보다 먼저 그린다(UI 문서 12-4)
             DrawTutorialGhost(); // 라벨보다 먼저 — 고스트는 배경이지 글자가 아니다
             DrawZoneLabels();    // 구역 이름표 — 칸 라벨보다 먼저(구역은 바탕이고 칸 내용이 위다)
             DrawCellLabels(); // 버튼보다 먼저 — 팔레트/모드 버튼이 라벨 위에 온다
@@ -1691,6 +1739,42 @@ namespace MBI.Logistics
         /// 자리는 상단 중앙이다 — 좌상단은 전투 HUD, 우상단은 변수 패널이 이미 쓴다.
         /// 막힌 곳이 없으면 아무것도 그리지 않는다: 늘 떠 있는 줄은 읽히지 않는다.
         /// </summary>
+        /// <summary>
+        /// **상단 경고 띠** — 0차 표시 (UI 문서 12-2 · `260909_W01` 3-1).
+        ///
+        /// 자리와 참·거짓은 <see cref="SupplyStopRules"/>가 낸다. 여기는 픽셀만 그린다.
+        ///
+        /// **경고가 있을 때만 뜨고 없으면 자리를 안 먹는다** — 그래서 보드 뷰포트를 줄이지
+        /// 않았다. 줄이면 경고가 없는 대부분의 시간에 빈 띠가 남는다(12-2).
+        ///
+        /// ⚠️ **화면 좌표다.** 보드를 스크롤해도 따라가지 않으므로 <c>UiBlockers</c>에 넣어
+        /// 밑의 보드가 클릭을 먹지 않게 한다 — 안 넣으면 띠 뒤의 칸이 눌린다.
+        ///
+        /// 색은 **빨강**이다 — 조립 층의 색 축이며 「못 쓴다」를 뜻한다(12-6).
+        /// 전투 화면의 주황과 다른 것은 **보드에 적이 없어 붉은색 자리가 비어 있기** 때문이다.
+        /// </summary>
+        private void DrawSupplyWarningBand()
+        {
+            bool storageEmpty = SupplyStopRules.StorageIsEmpty(
+                SupplySignals.HasCombat, SupplySignals.StorageStock);
+            bool powerShort = SupplyStopRules.PowerIsShort(
+                LogisticsOutputBridge.PowerSupply, LogisticsOutputBridge.PowerDraw);
+
+            if (!SupplyStopRules.BandIsVisible(storageEmpty, powerShort)) return;
+
+            Rect band = SupplyStopRules.BandRect(Screen.width, Screen.height);
+            UiBlockers.Add(band);
+
+            HudBars.Fill(band, WarningBandColor);
+            GUI.Label(band, SupplyStopRules.BandText(storageEmpty, powerShort),
+                new GUIStyle(GUI.skin.label)
+                {
+                    fontSize = Mathf.Max(14, Mathf.RoundToInt(band.height * 0.45f)),
+                    alignment = TextAnchor.MiddleCenter,
+                    normal = { textColor = WarningBandText },
+                });
+        }
+
         private void DrawBottleneckHint()
         {
             string hint = BottleneckHint.For(LogisticsOutputBridge.GlobalCause, _lastDiagnostics);
