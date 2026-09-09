@@ -79,7 +79,10 @@ namespace MBI.UI
             go.transform.SetParent(transform, false);
             AudioSource src = go.AddComponent<AudioSource>();
             src.playOnAwake = false;
-            src.loop = true;              // 6장 「반복 재생을 전제로」
+            // ⚠️ **`loop`를 안 쓴다** (2026-09-09 사용자 확정). 그쪽은 파형을 바로 물려 버려
+            // **페이드가 걸릴 자리가 없다** — 끝나는 것을 보고 다시 트는 쪽이라야
+            // 양 끝에 봉투가 걸린다(`MusicLoop`). 반복 자체는 그대로다(6장).
+            src.loop = false;
             src.spatialBlend = 0f;
             src.volume = 0f;
             return src;
@@ -133,6 +136,7 @@ namespace MBI.UI
             next.volume = 0f;
             next.Play();
 
+            next.time = 0f; // 새 곡은 처음부터 — 루프 봉투가 0에서 올라온다
             _fadeLeft = config != null ? Mathf.Max(0f, config.musicCrossfadeSeconds) : 0f;
             if (_fadeLeft <= 0f) ApplyFade(1f); // 0이면 즉시 갈아탄다
         }
@@ -140,18 +144,41 @@ namespace MBI.UI
         private void Update()
         {
             FollowPhase();
+            RestartFinishedMusic();
             TickFade();
             DrainCues();
+        }
+
+        /// <summary>
+        /// 끝난 곡을 처음부터 다시 튼다 (2026-09-09 사용자 확정 · 사운드 문서 6장).
+        ///
+        /// **끝에서 0으로 내려간 뒤 곧바로 처음부터 0에서 올라온다** — 사이에 무음을 두지 않는다.
+        /// 봉투는 <see cref="MusicLoop.Envelope"/>가 만들고 여기서는 **다시 트는 일만** 한다.
+        /// </summary>
+        private void RestartFinishedMusic()
+        {
+            Restart(_musicA);
+            Restart(_musicB);
+        }
+
+        private static void Restart(AudioSource src)
+        {
+            if (src == null || src.clip == null) return;
+            // 크로스페이드로 물러난 소스는 `Stop`으로 꺼 두었다 — 그것까지 되살리면
+            // 지난 국면의 곡이 조용히 다시 돈다. 볼륨이 살아 있는 것만 다시 튼다.
+            if (src.volume <= 0f && !src.isPlaying) return;
+            if (!MusicLoop.ShouldRestart(src.isPlaying, true)) return;
+
+            src.time = 0f;
+            src.Play();
         }
 
         /// <summary>겹쳐 넘기는 구간. 초는 SO가 들고(미확정) 여기서는 비율만 만든다.</summary>
         private void TickFade()
         {
-            float target = AudioMix.MusicGain(config);
             if (_fadeLeft <= 0f)
             {
-                Current().volume = target;
-                Previous().volume = 0f;
+                ApplyFade(1f);
                 if (Previous().isPlaying && Previous().volume <= 0f) Previous().Stop();
                 return;
             }
@@ -161,11 +188,27 @@ namespace MBI.UI
             ApplyFade(1f - _fadeLeft / total);
         }
 
+        /// <summary>
+        /// 두 소스의 음량을 다시 쓴다.
+        ///
+        /// **봉투가 둘 겹친다** — 국면을 넘기는 크로스페이드(<paramref name="t"/>)와
+        /// 곡이 다시 시작하는 자리의 루프 페이드다. 서로 다른 것을 재므로 **곱한다** —
+        /// 국면을 넘기는 중에 이음매가 오면 둘 다 걸리는 것이 맞다.
+        /// </summary>
         private void ApplyFade(float t)
         {
             float target = AudioMix.MusicGain(config);
-            Current().volume = target * Mathf.Clamp01(t);
-            Previous().volume = target * (1f - Mathf.Clamp01(t));
+            float k = Mathf.Clamp01(t);
+            Current().volume = target * k * LoopEnvelopeOf(Current());
+            Previous().volume = target * (1f - k) * LoopEnvelopeOf(Previous());
+        }
+
+        /// <summary>이 소스의 루프 봉투. 판정은 코어가 하고 여기서는 값만 읽어 넘긴다.</summary>
+        private float LoopEnvelopeOf(AudioSource src)
+        {
+            if (src == null || src.clip == null) return 1f;
+            float fade = config != null ? config.musicLoopFadeSeconds : 0f;
+            return MusicLoop.Envelope(src.time, src.clip.length, fade);
         }
 
         private AudioSource Current() => _useA ? _musicA : _musicB;

@@ -109,6 +109,50 @@ namespace MBI.Tests
             Assert.IsTrue(MusicPhaseRule.NeedsSwap(MusicPhase.Boss, MusicPhase.Battle));
         }
 
+        // ── 루프 이음새 (2026-09-09 사용자 확정 · 사운드 문서 6장) ────────────────
+
+        [Test]
+        public void LoopFade_RisesAtTheStartAndFallsAtTheEnd()
+        {
+            const float length = 176f, fade = 2f;
+
+            Assert.AreEqual(0f, MusicLoop.Envelope(0f, length, fade), 1e-4f, "처음은 0에서 올라온다");
+            Assert.AreEqual(0.5f, MusicLoop.Envelope(1f, length, fade), 1e-4f);
+            Assert.AreEqual(1f, MusicLoop.Envelope(fade, length, fade), 1e-4f);
+            Assert.AreEqual(1f, MusicLoop.Envelope(length * 0.5f, length, fade), 1e-4f,
+                "가운데는 그대로 — 곡 전체를 여리게 만드는 것이 아니다");
+            Assert.AreEqual(0.5f, MusicLoop.Envelope(length - 1f, length, fade), 1e-4f);
+            Assert.AreEqual(0f, MusicLoop.Envelope(length, length, fade), 1e-4f, "끝은 0으로 내려간다");
+        }
+
+        [Test]
+        public void LoopFade_OffMeansNoChange()
+        {
+            // 0이면 파형 그대로 이어진다 — 페이드를 끄는 자리다.
+            Assert.AreEqual(1f, MusicLoop.Envelope(0f, 176f, 0f), 1e-4f);
+            Assert.AreEqual(1f, MusicLoop.Envelope(176f, 176f, 0f), 1e-4f);
+        }
+
+        [Test]
+        public void LoopFade_LongerThanHalfTheClip_DoesNotDipTheMiddle()
+        {
+            // ⚠️ 안 줄이면 들어가는 페이드와 나가는 페이드가 겹쳐 **한가운데가 가장 작아진다.**
+            // 짧은 자산을 넣었을 때 조용히 그렇게 되는 것을 막는다.
+            const float length = 4f;
+            float mid = MusicLoop.Envelope(length * 0.5f, length, 10f);
+
+            Assert.AreEqual(1f, mid, 1e-4f, "가운데는 늘 최대여야 한다");
+        }
+
+        [Test]
+        public void LoopRestarts_OnlyWhenTheClipHasStopped()
+        {
+            // `AudioSource.loop`를 안 쓰는 이유가 여기 있다 — 끝나는 것을 봐야 페이드가 걸린다.
+            Assert.IsTrue(MusicLoop.ShouldRestart(isPlaying: false, hasClip: true));
+            Assert.IsFalse(MusicLoop.ShouldRestart(isPlaying: true, hasClip: true), "돌고 있으면 안 건드린다");
+            Assert.IsFalse(MusicLoop.ShouldRestart(isPlaying: false, hasClip: false), "곡이 없으면 틀 것이 없다");
+        }
+
         // ── 무음 (사운드 문서 7장 「모든 소리가 빠져도 게임이 정상 동작해야 한다」) ──
 
         [Test]

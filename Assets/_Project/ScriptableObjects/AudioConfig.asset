@@ -22,6 +22,8 @@ MonoBehaviour:
   volumeConfirm: 1
   musicCrossfadeSeconds: 1.5
   crossfadeConfirm: 1
+  musicLoopFadeSeconds: 2
+  loopFadeConfirm: 1
   musicBattle: {fileID: 8300000, guid: 58ba00a04e68cfe469bb8311f9c967e1, type: 3}
   musicBoss: {fileID: 8300000, guid: 8bab8546001b53f47b7ebf7992dd8ff3, type: 3}
   sfxClips:

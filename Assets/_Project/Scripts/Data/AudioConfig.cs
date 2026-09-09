@@ -42,6 +42,11 @@ namespace MBI.Data
         [Tooltip("크로스페이드 초가 확정인가.")]
         public ConfirmState crossfadeConfirm = ConfirmState.Tbd;
 
+        [Tooltip("곡이 다시 시작하는 자리에서 여리게 지나가는 초 (2026-09-09 사용자 확정 — 페이드 아웃 → 페이드 인). 0이면 페이드 없이 파형 그대로 이어진다.")]
+        [Min(0f)] public float musicLoopFadeSeconds = 2f;
+        [Tooltip("루프 페이드 초가 확정인가. 방식은 사용자가 정했고 점값은 아직이다.")]
+        public ConfirmState loopFadeConfirm = ConfirmState.Tbd;
+
         [Header("자산 (경로는 생성기에만 · §8)")]
         [Tooltip("전투 국면 배경 음악. 비면 아무 곡도 안 튼다 — 자리표시 소리를 만들지 않는다.")]
         public AudioClip musicBattle;
