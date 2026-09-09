@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using System.IO;
+using MBI.Core.Audio;
 using MBI.Data;
 using UnityEditor;
 using UnityEngine;
@@ -85,6 +86,9 @@ namespace MBI.Editor
 
             if (tuning != null) EditorUtility.SetDirty(tuning);
 
+            // 소리 값 묶음 — 곡 둘은 이미 리포에 있고 효과음 여덟은 아직 없다.
+            BuildAudioConfig();
+
             float capA = json.Param("capA");             // 6 소비 상한
             float enh = json.Param("enh");               // 1.45 강화 마운트계수
             float moduleMult = json.Param("moduleMult"); // 1.0 모듈배율
@@ -153,6 +157,47 @@ namespace MBI.Editor
         {
             return AssetDatabase.LoadAssetAtPath<Sprite>($"Assets/_Project/Art/Units/{fileName}.png");
         }
+
+        // ── 소리 (2026-09-09 배선) ────────────────────────────────────────────────
+        //
+        // ⚠️ **경로가 사는 곳은 여기 하나다**(§8). `Assets/_Project/Audio/`는 아트 세션
+        // 소유라 그 아래 파일을 만들거나 고치지 않고 **읽기만 한다**(소유 표 §20-1).
+
+        public const string AudioConfigPath = SoRoot + "/AudioConfig.asset";
+
+        /// <summary>
+        /// 소리 값 묶음을 만들고 **자산 자리만** 다시 채운다.
+        ///
+        /// ⚠️ **값은 안 덮는다.** 겹침 상한과 볼륨은 화면에서 듣고 고치는 값이라
+        /// (사운드 문서 9장 S-1·S-2) 생성기가 재실행될 때마다 되돌리면 **귀로 고른 값이
+        /// 조용히 사라진다.** 여기서 채우는 것은 클립 참조뿐이다.
+        /// </summary>
+        public static AudioConfig BuildAudioConfig()
+        {
+            AudioConfig audio = LoadOrCreate<AudioConfig>(AudioConfigPath);
+
+            audio.musicBattle = LoadBgm("bgm_battle");
+            audio.musicBoss = LoadBgm("bgm_boss");
+
+            // 효과음 여덟 — **순서는 `SoundIds.All`과 같다.** 없는 것은 null로 남고
+            // 재생기가 조용히 건너뛴다(자리표시 소리 금지).
+            var clips = new AudioClip[SoundIds.All.Length];
+            for (int i = 0; i < SoundIds.All.Length; i++) clips[i] = LoadSfx(SoundIds.All[i]);
+            audio.sfxClips = clips;
+
+            EditorUtility.SetDirty(audio);
+            return audio;
+        }
+
+        private static AudioClip LoadBgm(string fileName)
+            => AssetDatabase.LoadAssetAtPath<AudioClip>($"Assets/_Project/Audio/bgm/{fileName}.ogg");
+
+        /// <summary>
+        /// 효과음. ⚠️ **아직 하나도 없다**(소리 자산 대장 2장 — 사용자가 무료 자산으로 조달 중).
+        /// 형식은 대장이 `.wav`로 적어 두었다.
+        /// </summary>
+        private static AudioClip LoadSfx(string fileName)
+            => AssetDatabase.LoadAssetAtPath<AudioClip>($"Assets/_Project/Audio/sfx/{fileName}.wav");
 
         /// <summary>
         /// 배경은 `Art/Backgrounds` 아래에 산다 (2026-09-09 배선).

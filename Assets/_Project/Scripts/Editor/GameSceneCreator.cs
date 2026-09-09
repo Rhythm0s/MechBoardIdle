@@ -73,6 +73,7 @@ namespace MBI.Editor
 
             BuildCombat(scene);
             BuildBoard(scene);
+            BuildAudio(scene);
 
             AssetDatabase.SaveAssets();
             EnsureFolder(ScenesDir);
@@ -169,6 +170,36 @@ namespace MBI.Editor
         }
 
         // 레이어2 — 물류 보드(하단 오프셋). LogisticsSceneCreator와 동일한 주입.
+        /// <summary>
+        /// 소리 하나를 씬에 둔다 (2026-09-09 신설 · 사운드 문서 7장).
+        ///
+        /// **채널 셋을 이 하나가 든다** — 배경 음악 소스 둘(크로스페이드용)과 효과음 자리들을
+        /// `AudioDirector`·`SfxPlayer`가 런타임에 만든다. 씬 YAML에 소스를 박아 두지 않는 이유는
+        /// **자리 수가 SO 값**이기 때문이다(겹침 상한과 함께 화면에서 듣고 고친다).
+        ///
+        /// ⚠️ **`AudioConfig`****가 없어도 씬은 성립한다** — 그때는 아무 소리도 안 나고
+        /// 게임은 그대로 돈다(7장 「모든 소리가 빠져도 정상 동작」).
+        /// </summary>
+        private static void BuildAudio(Scene scene)
+        {
+            var root = new GameObject("Audio");
+            EditorSceneManager.MoveGameObjectToScene(root, scene);
+
+            var director = root.AddComponent<AudioDirector>();
+            var player = root.AddComponent<SfxPlayer>();
+
+            AudioConfig audio = Load<AudioConfig>(CombatAssetGenerator.AudioConfigPath);
+
+            var so = new SerializedObject(director);
+            so.FindProperty("config").objectReferenceValue = audio;
+            so.FindProperty("sfx").objectReferenceValue = player;
+            so.ApplyModifiedPropertiesWithoutUndo();
+
+            var sp = new SerializedObject(player);
+            sp.FindProperty("config").objectReferenceValue = audio;
+            sp.ApplyModifiedPropertiesWithoutUndo();
+        }
+
         private static void BuildBoard(Scene scene)
         {
             var boardRoot = new GameObject("BoardRoot");

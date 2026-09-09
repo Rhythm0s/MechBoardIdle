@@ -1,4 +1,5 @@
 using MBI.Core;
+using MBI.Core.Audio;
 using MBI.Data;
 using System.Collections.Generic;
 using UnityEngine;
@@ -193,9 +194,32 @@ namespace MBI.Logistics
             pub.gap = pub.expected - pub.actual;
 
             LogisticsOutputBridge.Result = pub;
-            LogisticsOutputBridge.GlobalCause = GlobalCause(r);
+
+            ConstraintCause cause = GlobalCause(r);
+            ReportBottleneck(cause);
+            LogisticsOutputBridge.GlobalCause = cause;
 
             board.ApplyDiagnostics(LogisticsDiagnostics.Evaluate(grid, r)); // 노드 상태색
+        }
+
+        /// <summary>직전 틱의 병목 원인. 「상태가 바뀔 때」를 가르는 유일한 기준이다.</summary>
+        private ConstraintCause _lastCause = ConstraintCause.None;
+
+        /// <summary>
+        /// 병목이 **생긴 순간에만** 경고음 (사운드 문서 3장 · 2026-09-09 배선).
+        ///
+        /// **반복하지 않는 근거가 문서에 있다.** 병목은 고칠 때까지 이어지는 상태라,
+        /// 그 내내 울리면 플레이어가 소리를 끄고 **그러면 이 문서의 목적 자체가 사라진다.**
+        /// 그래서 상태가 바뀌는 순간에만 「지금 무언가 달라졌다」를 알린다.
+        ///
+        /// ⚠️ **풀릴 때는 안 낸다.** 해소음은 문서에 없고, 없는 소리를 지어 붙이지 않는다.
+        /// ⚠️ **원인이 갈려도 낸다**(전력 → 발열). 다른 병목이 새로 생긴 것이기 때문이다.
+        /// </summary>
+        private void ReportBottleneck(ConstraintCause cause)
+        {
+            if (cause != _lastCause && cause != ConstraintCause.None)
+                AudioSignals.Play(SoundIds.Bottleneck, SoundIds.KindOf(SoundIds.Bottleneck));
+            _lastCause = cause;
         }
 
         /// <summary>전역 원인(변수패널 아이콘·점멸): Power → Heat 우선(§3-4-1). 벨트는 아이콘 아님(gapBelt 담당).</summary>

@@ -2,6 +2,7 @@ using MBI.UI;
 using System.Collections.Generic;
 using MBI.Core;
 using MBI.Core.Anim;
+using MBI.Core.Audio;
 using MBI.Data;
 using UnityEngine;
 using UnityEngine.InputSystem;
@@ -131,8 +132,24 @@ namespace MBI.Combat
                 return;
             }
             BuildBackground(); // 바닥 그림 — 원반보다 아래(-40). 스테이지가 바뀌면 다시 깐다.
+            PushMusicPhase();  // 어느 곡을 틀지 — 판정은 코어가 하고 여기서는 신호만 쓴다.
             BuildArena(); // 이동 가능 범위 경계(§C-1) — 상수라 최초 1회만.
             Begin();
+        }
+
+        /// <summary>
+        /// 배경 음악의 국면을 신호에 써 둔다 (2026-09-09 · 사운드 문서 6장).
+        ///
+        /// **판정은 `MusicPhaseRule` 한 자리에만 있다** — 배경 그림의 보스 판정과 같은
+        /// `reqType == Budget`을 쓰며, 여기서 스테이지 id를 다시 비교하지 않는다.
+        ///
+        /// ⚠️ **재생기를 직접 부르지 않는다.** 러너가 `AudioSource`를 알면 격리 전투 씬처럼
+        /// 재생기가 없는 자리에서 참조가 빈다 — 신호는 받는 쪽이 없어도 성립한다.
+        /// </summary>
+        private void PushMusicPhase()
+        {
+            if (stage == null) return;
+            AudioSignals.Phase = MusicPhaseRule.Of(stage.reqType);
         }
 
         // ── 전투 배경 (2026-09-09 배선) ────────────────────────────────────────────
@@ -526,6 +543,11 @@ namespace MBI.Combat
 
             float life = Mathf.Max(0.02f, tuning.vfxOneShotSeconds);
 
+            // ⚠️ **소리는 그림과 따로 건다.** 그림이 없어도 사출은 일어났고, 사운드 문서 1장이
+            // 「화면을 안 볼 때도 닿는 통로」로 규정했다 — 그림 유무에 소리를 매달면 그 규정이 깨진다.
+            for (int i = 0; i < _sim.DroneLaunchesThisTick.Count; i++)
+                AudioSignals.Play(SoundIds.DroneLaunch, SoundIds.KindOf(SoundIds.DroneLaunch));
+
             if (tuning.droneLaunchSprite != null)
                 foreach (Vector2 p in _sim.DroneLaunchesThisTick)
                     SpawnOneShot(tuning.droneLaunchSprite, p, life);
@@ -771,6 +793,9 @@ namespace MBI.Combat
                     SpawnShotFx(s);
                     // 발사 반동 — 스프라이트를 늘리지 않고 로봇 전체를 표적 반대로 밀었다 복귀(V01 §3).
                     if (_robotView != null) _robotView.Recoil(s.to - s.from);
+                    // 소리는 **탄선과 같은 사건**에 붙는다 — 소리를 위해 새 사건을 만들지 않는다
+                    // (사운드 문서 개요 「발동 사건 목록을 갖지 않는다」).
+                    AudioSignals.Play(SoundIds.FireA, SoundIds.KindOf(SoundIds.FireA));
                 }
 
             // 피격 점멸 — 로봇 HP가 줄어든 프레임에 한 번. 세기는 일정하다(V01 §3):
@@ -778,7 +803,13 @@ namespace MBI.Combat
             // 세기로 정도를 표현하면 없는 정보를 지어내는 것이 된다.
             if (running && _sim.Robot != null)
             {
-                if (_sim.Robot.hp < _lastRobotHp - 0.0001f && _robotView != null) _robotView.FlashHit();
+                if (_sim.Robot.hp < _lastRobotHp - 0.0001f)
+                {
+                    if (_robotView != null) _robotView.FlashHit();
+                    // ⚠️ 점멸은 뷰가 있어야 하지만 **소리는 뷰와 무관하다** — 사운드 문서 1장이
+                    // 「화면을 안 볼 때도 닿는 통로」로 규정했으니 뷰가 없다고 안 낼 이유가 없다.
+                    AudioSignals.Play(SoundIds.Hit, SoundIds.KindOf(SoundIds.Hit));
+                }
                 _lastRobotHp = _sim.Robot.hp;
             }
 
@@ -1135,6 +1166,11 @@ namespace MBI.Combat
             {
                 // 발동에 **성공했을 때만** 튼다. 실패한 버튼에 연출이 붙으면 안 된 일이 된 것처럼 보인다.
                 _cutscene.Play(_sim.LastMergeSnapshot, _sim.LastBurstDamage);
+                // 합체와 버스트는 **한 순간에 나는 두 사건**이다(MVP 4장 「동시에 일어나는 두 사건」).
+                // 소리도 둘이며, 사운드 문서 4장이 **음색으로** 가르라고 정했다.
+                AudioSignals.Play(SoundIds.Fusion, SoundIds.KindOf(SoundIds.Fusion));
+                if (_sim.LastBurstDamage > 0f)
+                    AudioSignals.Play(SoundIds.Burst, SoundIds.KindOf(SoundIds.Burst));
             }
 
             GUI.enabled = true;

@@ -1,6 +1,7 @@
 using MBI.UI;
 using System.Collections.Generic;
 using MBI.Core;
+using MBI.Core.Audio;
 using MBI.Data;
 using UnityEngine;
 using UnityEngine.InputSystem;
@@ -1137,6 +1138,9 @@ namespace MBI.Logistics
             if (!_grid.TryPlace(cell, node, out _)) return;
 
             SpawnNodeMarker(cell);
+            // 격자에 붙는 순간의 딸깍(사운드 문서 3장). **놓는 데 성공했을 때만** —
+            // 실패한 탭에 소리가 붙으면 안 놓인 것이 놓인 것처럼 들린다.
+            AudioSignals.Play(SoundIds.NodeSnap, SoundIds.KindOf(SoundIds.NodeSnap));
             RefreshConnections(); // 노드 추가로 인접 벨트 연결 상태 변화 반영.
             Debug.Log($"[MBI] 배치: {node.displayName} @ 셀({cell.x},{cell.y}) → 월드 {_grid.CellToWorld(cell)}.");
         }
@@ -1935,6 +1939,37 @@ namespace MBI.Logistics
             }
         }
 
+        /// <summary>직전에 이어져 있던 칸. 「연결이 성립한 순간」을 가르는 유일한 기준이다.</summary>
+        private readonly HashSet<Vector2Int> _connectedSeen = new HashSet<Vector2Int>();
+
+        /// <summary>첫 배선을 봤는가. 시작 보드가 깔리는 것은 플레이어가 이은 것이 아니다.</summary>
+        private bool _connectionsSeeded;
+
+        /// <summary>
+        /// 새로 이어진 칸이 있으면 철컥 한 번 (사운드 문서 3장 · 2026-09-09 배선).
+        ///
+        /// **몇 칸이 늘었든 한 번만 낸다.** 드래그 한 번에 벨트가 여러 칸 깔리는데
+        /// 칸마다 울리면 한 조작에 소리가 뭉텅 난다 — 사건은 「연결이 성립했다」 하나다.
+        ///
+        /// ⚠️ **시작 보드에는 안 낸다.** 온보딩이 깔아 주는 라인은 플레이어가 이은 것이
+        /// 아니고, 그때 울리면 **게임을 켜자마자 조작음이 나서** 자기가 뭘 한 줄 알게 된다.
+        ///
+        /// ⚠️ **줄어드는 것은 세지 않는다.** 제거는 그 나름의 사건이고 문서에 소리가 없다 —
+        /// 없는 소리를 지어 붙이지 않는다.
+        /// </summary>
+        private void ReportNewConnections(HashSet<Vector2Int> connected)
+        {
+            bool grew = false;
+            foreach (Vector2Int cell in connected)
+                if (!_connectedSeen.Contains(cell)) { grew = true; break; }
+
+            _connectedSeen.Clear();
+            foreach (Vector2Int cell in connected) _connectedSeen.Add(cell);
+
+            if (!_connectionsSeeded) { _connectionsSeeded = true; return; }
+            if (grew) AudioSignals.Play(SoundIds.BeltConnect, SoundIds.KindOf(SoundIds.BeltConnect));
+        }
+
         /// <summary>격자 좌하단 코너 월드 좌표 = 보드 위치 중심 정렬(파생값).</summary>
         private static Vector2 ComputeOrigin(BoardConfig cfg, Vector3 boardPos)
         {
@@ -2041,6 +2076,8 @@ namespace MBI.Logistics
             foreach (KeyValuePair<Vector2Int, SpriteRenderer> kv in _beltArrows)
                 if (kv.Value != null)
                     kv.Value.color = connected.Contains(kv.Key) ? BeltConnectedColor : BeltArrowColor;
+
+            ReportNewConnections(connected);
 
             // 흐름 무늬 — **이어져 있고 품목이 잡힌 벨트만** 흐른다.
             // 이어졌는데 품목이 None이면 배선만 있고 아무것도 안 지나가는 것이다.
