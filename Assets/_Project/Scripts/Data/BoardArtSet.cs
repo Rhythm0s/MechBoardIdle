@@ -54,6 +54,19 @@ namespace MBI.Data
         [Tooltip("마운트 포트 — 보드의 산출이 전투로 넘어가는 자리.")]
         public Sprite mountPort;
 
+        [Header("모듈 기호 (2026-09-09 · 260909_W01 5장)")]
+        [Tooltip("생산량 모듈 — 바깥으로 벌어지는 겹꺾쇠 둘. 64 × 64.")]
+        public Sprite moduleOutput;
+        [Tooltip("생산속도 모듈 — 한 방향으로 누운 빗금 셋. 64 × 64.")]
+        public Sprite moduleRate;
+
+        /// <summary>
+        /// 그 모듈의 기호. 없으면 <c>null</c>이고 **부르는 쪽이 안 그린다** —
+        /// 색 사각으로 대신하면 노드 안에서 무엇인지 알 수 없는 얼룩이 된다.
+        /// </summary>
+        public Sprite ModuleSprite(ModuleKind kind) =>
+            kind == ModuleKind.Output ? moduleOutput : moduleRate;
+
         [Header("배경")]
         [Tooltip("보드 바닥. 캔버스 192라 한 장이 정확히 한 칸이다 — 칸마다 한 장씩 깐다.")]
         public Sprite boardBackground;

@@ -79,6 +79,10 @@ namespace MBI.Logistics
         private InputAction _press;
         private readonly Dictionary<Vector2Int, GameObject> _markers = new Dictionary<Vector2Int, GameObject>();
         private readonly Dictionary<Vector2Int, Color> _nodeColors = new Dictionary<Vector2Int, Color>(); // 현재 상태색(선택 복원용)
+
+        /// <summary>칸마다 모듈 기호 자리 둘. 자리는 늘 있고 켜짐만 바뀐다.</summary>
+        private readonly Dictionary<Vector2Int, SpriteRenderer[]> _moduleSymbols =
+            new Dictionary<Vector2Int, SpriteRenderer[]>();
         private Vector2Int? _selected;
 
         // 드래그 설치(§5-4 L1b): press→drag(경로 셀 누적)→release.
@@ -378,19 +382,97 @@ namespace MBI.Logistics
         private static readonly Color ModuleSymbolColor = new Color(1f, 0.62f, 0.20f, 0.95f);
 
         /// <summary>이 노드에 붙은 모듈의 기호를 이어 붙인 것. 없으면 빈 문자열.</summary>
-        private static string ModuleSymbols(NodeInstance node)
+        /// <summary>
+        /// 글자 기호 — **그림이 없는 모듈만.**
+        ///
+        /// `260909_W01` 5장이 「글자로 두지 않는다」로 정했고 그 근거는 **정지 상태에 0.4가
+        /// 곱해지면 글자가 대비로 읽혀 가장 먼저 사라진다**는 것이다. 그래서 그림이 있으면
+        /// 글자를 안 낸다 — 둘을 겹쳐 내면 같은 것을 두 번 말한다.
+        ///
+        /// ⚠️ **그림이 없을 때까지 지우지는 않는다.** 자산이 빠진 판에서 글자마저 없으면
+        /// 모듈이 붙었는지 자체를 화면에서 알 수 없다. 이 갈래는 **자산이 오기 전의 다리**다.
+        /// </summary>
+        private string ModuleSymbols(NodeInstance node)
         {
             if (node == null || node.ModuleCount == 0) return string.Empty;
             string s = string.Empty;
             for (int i = 0; i < NodeInstance.ModuleSlots; i++)
             {
                 ModuleDefinition m = node.ModuleAt(i);
-                if (m != null) s += m.symbol;
+                if (m == null) continue;
+                if (art != null && art.ModuleSprite(m.kind) != null) continue; // 그림이 대신한다
+                s += m.symbol;
             }
             return s;
         }
 
         /// <summary>이 칸의 노드가 놀고 있는가. 일감률이 아직 안 실렸으면 「논다」고 말하지 않는다.</summary>
+        /// <summary>
+        /// 노드 타일 안에 모듈 기호 자리 둘을 만든다 (`260909_W01` 5장).
+        ///
+        /// **자리는 늘 만들고 보이는 것만 켠다** — 모듈은 놀다가 붙으므로, 붙을 때마다
+        /// 오브젝트를 만들면 프레임마다 쓰레기가 난다. 자리와 켜짐은 다른 것이다.
+        ///
+        /// ⚠️ **노드 마커의 자식이지만 색은 물려받지 않는다.** 부모가 산출률 밝기로
+        /// 어두워져도 기호는 그대로다 — 모듈이 붙어 있는가는 노드가 도는가와 무관하다.
+        /// 스프라이트 렌더러는 부모 색을 상속하지 않으므로 자식으로 두어도 안전하다.
+        /// </summary>
+        private void SpawnModuleSymbols(Vector2Int cell, Transform parent)
+        {
+            if (art == null) return;
+
+            var slots = new SpriteRenderer[NodeInstance.ModuleSlots];
+            for (int i = 0; i < slots.Length; i++)
+            {
+                var go = new GameObject($"ModuleSymbol_{i}");
+                go.transform.SetParent(parent, false);
+
+                Vector2 offset = ModuleSymbolLayout.SlotOffset(i);
+                // ⚠️ **부모가 칸 크기로 늘어나 있다.** 노드 마커의 localScale이 이미 칸에
+                // 맞춰져 있으므로 여기서 다시 칸 크기를 곱하면 두 번 곱해진다 —
+                // 자리는 부모 기준의 **비율**로 준다.
+                go.transform.localPosition = new Vector3(offset.x, offset.y, 0f);
+
+                var sr = go.AddComponent<SpriteRenderer>();
+                sr.color = ModuleSymbolLayout.Tint;
+                // 노드 그림 위 · 마커 층 안에서만 움직인다(지침 §7 ［08-29］ — 전역 층을 안 섞는다).
+                sr.sortingOrder = MarkerOrder + 1;
+                sr.enabled = false;
+                slots[i] = sr;
+            }
+            _moduleSymbols[cell] = slots;
+            RefreshModuleSymbols(cell);
+        }
+
+        /// <summary>
+        /// 그 칸의 기호를 지금 상태에 맞춘다. **빈 칸은 안 그린다**(W01 5장) —
+        /// 자리표시를 남기면 「붙일 수 있는 칸이 둘」이 아니라 「모듈이 둘」로 읽힌다.
+        /// </summary>
+        private void RefreshModuleSymbols(Vector2Int cell)
+        {
+            if (!_moduleSymbols.TryGetValue(cell, out SpriteRenderer[] slots)) return;
+
+            NodeInstance node = _grid != null ? _grid.GetAt(cell) : null;
+            for (int i = 0; i < slots.Length; i++)
+            {
+                SpriteRenderer sr = slots[i];
+                if (sr == null) continue;
+
+                ModuleDefinition m = node != null ? node.ModuleAt(i) : null;
+                Sprite sprite = m != null && art != null ? art.ModuleSprite(m.kind) : null;
+
+                // 그림이 없으면 **안 그린다.** 색 사각으로 대신하면 노드 안의 얼룩이 된다 —
+                // 노드·품목과 달리 여기는 자리를 알려 주는 것이 아니라 무엇인지를 알려 주는 자리다.
+                bool show = ModuleSymbolLayout.SlotIsVisible(m) && sprite != null;
+                sr.enabled = show;
+                if (!show) continue;
+
+                sr.sprite = sprite;
+                sr.transform.localScale =
+                    Vector3.one * FitScale(sprite, ModuleSymbolLayout.SymbolSize);
+            }
+        }
+
         private static bool IsIdle(Vector2Int cell)
         {
             var perNode = LogisticsOutputBridge.Workload.perNode;
@@ -1233,6 +1315,7 @@ namespace MBI.Logistics
 
             // 붙는 순간 전력 수요가 바뀐다 — 다시 안 돌리면 변수 패널이 옛 수요를 든 채로 남는다.
             RefreshConnections();
+            RefreshModuleSymbols(cell);
             Debug.Log($"[MBI] 모듈 장착: {module.displayName} → {node.Definition.displayName} " +
                       $"@ 셀({cell.x},{cell.y}) · 산출 ×{node.ModuleOutputMultiplier:F2} · 부하 ×{node.ModulePowerLoadMultiplier:F2}.");
             return true;
@@ -1262,6 +1345,7 @@ namespace MBI.Logistics
             _nodeColors[cell] = c;
 
             SpawnPortMarkers(cell, marker.transform);
+            SpawnModuleSymbols(cell, marker.transform);
         }
 
         /// <summary>

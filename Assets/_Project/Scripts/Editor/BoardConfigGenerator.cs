@@ -84,6 +84,10 @@ namespace MBI.Editor
 
             // 보드 배경 — 읽는 함수는 `CombatAssetGenerator`에 하나뿐이다.
             // 배경 셋이 SO 둘에 나뉘어 걸리므로 **경로를 양쪽에 두지 않는다**(§7 ［09-07］).
+            // 모듈 기호 둘 (2026-09-09 설치 · 아트 커밋 f5c5dad).
+            art.moduleOutput = LoadBoard("mod_m");
+            art.moduleRate = LoadBoard("mod_r");
+
             art.boardBackground = CombatAssetGenerator.LoadBackground("bg_board");
 
             art.portInput = LoadBoard("port_input");
