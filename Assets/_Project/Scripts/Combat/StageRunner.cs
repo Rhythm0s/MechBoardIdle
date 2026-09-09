@@ -1004,6 +1004,9 @@ namespace MBI.Combat
         {
             if (next == null) return;
             stage = next;
+            // ⚠️ **스테이지가 갈릴 때도 국면을 다시 쓴다.** `Start`에서만 쓰면 S6로 들어가도
+            // 전투 곡이 그대로 돈다 — 「보스전은 국면 전환」이 화면에서만 일어나고 귀에서는 안 난다.
+            PushMusicPhase();
             Restart();
         }
 
