@@ -14,9 +14,12 @@ namespace MBI.Tests
     /// 폴더에 있는데 생성기가 그 칸을 비워 두면 화면에는 색 사각이 남는다 —
     /// 에러가 나지 않아 **눈으로 보기 전에는 모른다.**
     ///
-    /// ⚠️ 반대로 **아직 안 온 그림을 여기서 요구하지 않는다.** 지금 없는 것은 누적형·광역형
-    /// 드론 둘이며(2026-09-09 실측), 그것을 실패로 적으면 시험이 **자산 도착 알림**이 된다.
-    /// 도착 여부는 회신문이 나른다.
+    /// ⚠️ 반대로 **아직 안 온 그림을 여기서 요구하지 않는다** — 파일이 없으면 그 항목은 건너뛴다.
+    /// 없는 것을 실패로 적으면 시험이 **자산 도착 알림**이 되고, 그러면 「안 만들기로 한 것」과
+    /// 「만들려다 못 한 것」이 같은 빨간불로 뜬다(지침 §7 ［09-07］). 도착 여부는 회신문이 나른다.
+    ///
+    /// ⚠️ **드론 둘은 폴더가 다르다** — `Art/Items/`에 없고 승인본(`Art/Units/`)을 그대로 쓴다.
+    /// 처음에 품목 폴더만 훑고 「없다」로 적을 뻔한 자리다(자산 레지스트리 「신규 10 + 재사용 2」).
     ///
     /// 배향(회전)이 맞는지는 여기서 못 본다 — 배치모드는 화면을 안 그린다. 그것은 육안이다.
     /// </summary>
@@ -56,6 +59,15 @@ namespace MBI.Tests
             (FlowKind.Propellant, "propellant"),
         };
 
+        /// <summary>승인본을 그대로 쓰는 품목 둘 — 폴더가 다르다(자산 레지스트리 「신규 10 + 재사용 2」).</summary>
+        private static readonly (FlowKind kind, string file)[] UnitItemFiles =
+        {
+            (FlowKind.StackDrone, "drone_n"),
+            (FlowKind.AoeDrone, "drone_w"),
+        };
+
+        private const string UnitDir = "Assets/_Project/Art/Units";
+
         [Test]
         public void EveryNodeArtOnDisk_IsWiredToItsType()
         {
@@ -78,6 +90,35 @@ namespace MBI.Tests
                 Assert.IsNotNull(art.ItemSprite(kind),
                     $"{file}.png는 있는데 {kind} 칸이 비었다");
             }
+        }
+
+        /// <summary>
+        /// 드론 둘은 <b>승인본 폴더에서</b> 온다. 품목 폴더만 훑으면 「자산이 없다」로 읽혀
+        /// 안 만들기로 한 것과 못 만든 것이 섞인다(지침 §7 ［09-07］).
+        /// </summary>
+        [Test]
+        public void DroneItems_ComeFromTheApprovedUnits()
+        {
+            BoardArtSet art = Build();
+            foreach ((FlowKind kind, string file) in UnitItemFiles)
+            {
+                if (!FileExists(UnitDir, file)) continue;
+                Assert.IsNotNull(art.ItemSprite(kind),
+                    $"{file}.png는 있는데 {kind} 칸이 비었다 — 벨트에서 색 점으로 흐른다");
+            }
+        }
+
+        [Test]
+        public void EveryItemKindThatFlowsOnBelts_HasArt()
+        {
+            // 품목 열둘 = 신규 열 + 승인본 재사용 둘. 하나라도 비면 그 품목만 색 점이 되어
+            // **한 벨트 위에서 그림과 점이 섞인다** — 무엇이 안 온 것인지가 화면에서 안 읽힌다.
+            BoardArtSet art = Build();
+            int filled = 0;
+            foreach ((FlowKind kind, string _) in ItemFiles) if (art.ItemSprite(kind) != null) filled++;
+            foreach ((FlowKind kind, string _) in UnitItemFiles) if (art.ItemSprite(kind) != null) filled++;
+            Assert.AreEqual(ItemFiles.Length + UnitItemFiles.Length, filled,
+                "벨트를 흐르는 품목 열둘이 다 붙어야 한다");
         }
 
         [Test]

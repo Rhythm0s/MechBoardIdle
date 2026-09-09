@@ -97,8 +97,16 @@ namespace MBI.Editor
             AddItem(art, FlowKind.PierceAmmo, "ammo_pierce");
             AddItem(art, FlowKind.ExplosiveAmmo, "ammo_explosive");
             AddItem(art, FlowKind.Propellant, "propellant");
-            // ⚠️ **누적형 드론·광역형 드론에는 파일이 없다**(2026-09-09 실측 — `Art/Items/`에 없다).
-            // 지어 넣지 않는다. 벨트에서는 색 점으로 흐르고, 회신문에 자리로 올린다.
+            // 드론 둘은 **`Art/Items/`에 없다.** 없는 것이 아니라 **승인본을 그대로 쓴다** —
+            // 자산 레지스트리 「품목 — 10종」이 「신규 10 + 승인본 재사용 2」로 적어 두었고,
+            // 품목 캔버스가 64로 개정되면서 승인본(64)이 그대로 벨트에 오르게 됐다(미결 I-2 자동 해소).
+            //
+            // ⚠️ **어느 파일이 어느 종인지는 그림을 열어서 확인했다**(2026-09-09).
+            // `drone_n`은 **어둡고 조밀한 덩어리** = 누적형, `drone_w`는 **밝고 납작한 판** = 광역형이며
+            // 15-2 8-2의 `{DRONE TONE}`·`{DRONE SHAPE}` 조건과 그렇게 맞는다.
+            // ⚠️ **15-2 6장의 승인본 그림 설명 둘은 이것과 반대로 붙어 있다** — 자리만 회신문에 올린다.
+            AddUnitItem(art, FlowKind.StackDrone, "drone_n");
+            AddUnitItem(art, FlowKind.AoeDrone, "drone_w");
 
             EditorUtility.SetDirty(art);
             return art;
@@ -117,6 +125,17 @@ namespace MBI.Editor
             if (s == null) return;
             art.items.Add(new BoardArtSet.ItemArt { kind = kind, sprite = s });
         }
+
+        /// <summary>승인본 폴더에서 읽어 오는 품목. 드론 둘만 이 길을 쓴다.</summary>
+        private static void AddUnitItem(BoardArtSet art, FlowKind kind, string fileName)
+        {
+            Sprite s = LoadUnit(fileName);
+            if (s == null) return;
+            art.items.Add(new BoardArtSet.ItemArt { kind = kind, sprite = s });
+        }
+
+        private static Sprite LoadUnit(string fileName)
+            => AssetDatabase.LoadAssetAtPath<Sprite>($"Assets/_Project/Art/Units/{fileName}.png");
 
         private static Sprite LoadBoard(string fileName)
             => AssetDatabase.LoadAssetAtPath<Sprite>($"Assets/_Project/Art/Board/{fileName}.png");
