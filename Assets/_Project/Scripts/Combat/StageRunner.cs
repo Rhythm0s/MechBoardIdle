@@ -345,6 +345,32 @@ namespace MBI.Combat
         /// 창고와 마운트를 버린다 — **촬영용 저장 초기화 전용**(260902_W09 §1-2).
         /// 다음 <c>Begin</c>이 빈 것을 새로 만든다. 정상 플레이에는 이 경로가 없다.
         /// </summary>
+        /// <summary>
+        /// 지금 살아 있는 적을 모두 없앤다 — **개발 빌드 전용 촬영·리허설 도구**
+        /// (2026-09-10 사용자 확정 · 플랜 §67 결함 5).
+        ///
+        /// **왜 필요한가.** 보스 사망 연출을 확인하려면 보스를 죽여야 하는데, 물류가
+        /// 안 돌면 탄이 없어 **영원히 못 죽인다.** 그러면 「사망 벌이 없다」와
+        /// 「죽이지 못했다」가 구분되지 않는다 — 실제로 리허설 2차에서 그렇게 읽혔다.
+        ///
+        /// ⚠️ **승패 판정을 건너뛰지 않는다.** 체력을 0으로 만들 뿐이고, 죽는 것도
+        /// 이기는 것도 시뮬이 평소대로 처리한다 — 그래야 사망 연출이 **실제 경로로** 돈다.
+        /// </summary>
+        public int KillAllEnemies()
+        {
+            if (_sim == null) return 0;
+
+            int n = 0;
+            System.Collections.Generic.IReadOnlyList<CombatEntity> list = _sim.Enemies;
+            for (int i = 0; i < list.Count; i++)
+            {
+                if (list[i] == null || list[i].hp <= 0f) continue;
+                list[i].hp = 0f;
+                n++;
+            }
+            return n;
+        }
+
         public void ResetCarry()
         {
             _storeA = null;

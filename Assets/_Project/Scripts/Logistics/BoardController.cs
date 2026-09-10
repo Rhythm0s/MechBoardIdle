@@ -1723,6 +1723,15 @@ namespace MBI.Logistics
                 float y = Screen.height - sp.y;
                 if (sp.x < -boxW || sp.x > Screen.width + boxW || y < -boxH || y > Screen.height + boxH) continue;
 
+                // ⚠️ **인셋 전투 자리에는 안 그린다**(2026-09-10 · 리허설 2차 결함 2).
+                // 이름표는 구역의 왼윗모서리를 따라가므로 보드를 위로 밀면 **화면 위쪽까지 올라간다.**
+                // 그런데 그 자리는 전투가 덮고 있어 **보드는 안 보이는데 이름표만 뜬다** —
+                // 사용자에게는 「이름표가 파츠에 안 붙고 따로 논다」로 보였다.
+                //
+                // 자리를 옮기지 않는다. 구역 모서리에 붙는 것이 규정이고, 보이지 않는 구역의
+                // 이름표는 **안 그리는 것이 맞다.**
+                if (y + boxH < CombatInsetView.BottomPixels(Screen.height)) continue;
+
                 Color prev = GUI.color;
                 GUI.color = ZoneLabelColor; // 경계선과 같은 미색이되 70% — 글자는 더 진해야 읽힌다
                 GUI.Label(new Rect(sp.x, y, boxW, boxH), text, style);

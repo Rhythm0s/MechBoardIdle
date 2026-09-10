@@ -91,7 +91,28 @@ namespace MBI.Combat
             DrawGaugeButton(y, x, w, h, button);
             y += h + pad;
 
+            DrawKillAllButton(y, x, w, h, button);
+            y += h + pad;
+
             DrawResetButton(y, x, w, h, button);
+        }
+
+        /// <summary>
+        /// 현재 적 전멸 — **개발 빌드 전용 촬영·리허설 도구**(2026-09-10 · 플랜 §67 결함 5).
+        ///
+        /// 물류가 안 돌면 탄이 없어 보스를 못 죽이고, 그러면 **「사망 벌이 없다」와
+        /// 「죽이지 못했다」가 구분되지 않는다.** 이 버튼이 그 둘을 가른다.
+        ///
+        /// ⚠️ **배포 빌드에는 없다** — 저장 초기화·튜토리얼 복귀와 같은 조건이다.
+        /// </summary>
+        private void DrawKillAllButton(float y, float x, float w, float h, GUIStyle style)
+        {
+            if (!ShowTutorial || runner == null) return;
+
+            if (!GUI.Button(new Rect(x, y, w, h), "현재 적 전멸", style)) return;
+
+            int n = runner.KillAllEnemies();
+            Debug.Log($"[MBI] 적 전멸(개발 빌드): {n}기.");
         }
 
         /// <summary>
