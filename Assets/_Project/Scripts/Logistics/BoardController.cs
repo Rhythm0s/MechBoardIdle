@@ -1444,6 +1444,9 @@ namespace MBI.Logistics
         // 조립 뷰에서만 노드 팔레트(우측 세로 버튼) — 선택으로 탭 배치 노드 변경 + 제거 모드.
         private void OnGUI()
         {
+            // 메인 메뉴가 덮고 있으면 그리지 않는다 — IMGUI 는 뒤에 그리는 쪽이 위로 온다
+            // (2026-09-10 · 실측: 오프라인 대화상자가 「게임 시작」 버튼을 덮었다).
+            if (MainMenuGate.IsOpen) return;
             if (!GameLayerController.BoardViewActive) return;
             KoreanFont.Apply(); // WebGL엔 시스템 폰트 폴백이 없다
 

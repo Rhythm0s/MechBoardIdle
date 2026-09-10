@@ -126,6 +126,9 @@ namespace MBI.Combat
         /// </summary>
         private void OnGUI()
         {
+            // 메인 메뉴가 덮고 있으면 그리지 않는다 — IMGUI 는 뒤에 그리는 쪽이 위로 온다
+            // (2026-09-10 · 실측: 오프라인 대화상자가 「게임 시작」 버튼을 덮었다).
+            if (MainMenuGate.IsOpen) return;
             if (_finished) return;
             KoreanFont.Apply();
 

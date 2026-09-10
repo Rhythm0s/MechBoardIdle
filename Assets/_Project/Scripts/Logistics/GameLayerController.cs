@@ -89,6 +89,9 @@ namespace MBI.Logistics
         // 진입/복귀 버튼(하단 중앙, UI 문서 "조립 진입 버튼" 항상 노출). 전투 HUD는 StageRunner가 그림.
         private void OnGUI()
         {
+            // 메인 메뉴가 덮고 있으면 그리지 않는다 — IMGUI 는 뒤에 그리는 쪽이 위로 온다
+            // (2026-09-10 · 실측: 오프라인 대화상자가 「게임 시작」 버튼을 덮었다).
+            if (MainMenuGate.IsOpen) return;
             MBI.UI.KoreanFont.Apply(); // WebGL엔 시스템 폰트 폴백이 없다
             var style = new GUIStyle(GUI.skin.button) { fontSize = 18 };
             const float w = 220f, h = 46f;

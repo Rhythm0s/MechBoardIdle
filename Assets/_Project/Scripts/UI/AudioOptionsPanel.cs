@@ -44,6 +44,13 @@ namespace MBI.UI
         private bool _open;
         private bool _loaded;
 
+        /// <summary>
+        /// 밖에서 연다 — 메인 메뉴의 「볼륨」이 부른다.
+        /// **슬라이더를 새로 만들지 않기 위해서다**(플랜 §66-10). 같은 값을 두 곳에서
+        /// 그리면 한쪽만 고쳐지는 날이 온다.
+        /// </summary>
+        public void Open() => _open = true;
+
         private void Awake() => Load();
 
         /// <summary>

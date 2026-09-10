@@ -90,6 +90,7 @@ namespace MBI.Editor
 
             // 소리 값 묶음 — 곡 둘은 이미 리포에 있고 효과음 여덟은 아직 없다.
             BuildAudioConfig();
+            BuildPortfolioLinks(); // 메인 메뉴 주소 — 자리만 만들고 값은 사용자가 넣는다
 
             float capA = json.Param("capA");             // 6 소비 상한
             float enh = json.Param("enh");               // 1.45 강화 마운트계수
@@ -167,6 +168,24 @@ namespace MBI.Editor
         // 소유라 그 아래 파일을 만들거나 고치지 않고 **읽기만 한다**(소유 표 §20-1).
 
         public const string AudioConfigPath = SoRoot + "/AudioConfig.asset";
+        public const string PortfolioLinksPath = SoRoot + "/PortfolioLinks.asset";
+
+        /// <summary>
+        /// 메인 메뉴가 여는 주소 묶음의 **자리만** 만든다 (플랜 §66-10).
+        ///
+        /// ⚠️ **값을 하나도 안 넣는다.** 주소는 사용자가 주는 값이고 아직 안 왔다.
+        /// 자리표시 주소를 지어 넣으면 심사자가 그것을 눌러 엉뚱한 곳으로 간다 —
+        /// 빈 주소의 버튼은 화면에서 **비활성**이라 눌리지 않는다.
+        ///
+        /// ⚠️ <c>LoadOrCreate</c> 라 **이미 있으면 그대로 둔다.** 사용자가 인스펙터에
+        /// 넣은 주소가 다음 생성에서 날아가면 안 된다.
+        /// </summary>
+        public static PortfolioLinks BuildPortfolioLinks()
+        {
+            PortfolioLinks links = LoadOrCreate<PortfolioLinks>(PortfolioLinksPath);
+            EditorUtility.SetDirty(links);
+            return links;
+        }
 
         /// <summary>
         /// 소리 값 묶음을 만들고 **자산 자리만** 다시 채운다.

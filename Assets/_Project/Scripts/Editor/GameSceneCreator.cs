@@ -188,7 +188,13 @@ namespace MBI.Editor
             var director = root.AddComponent<AudioDirector>();
             var player = root.AddComponent<SfxPlayer>();
             // 볼륨 조절 — 값은 기기에 남고 자산에는 안 들어간다(2026-09-10 사용자 확정).
-            root.AddComponent<AudioOptionsPanel>();
+            AudioOptionsPanel options = root.AddComponent<AudioOptionsPanel>();
+
+            // 메인 메뉴 — 부팅하면 먼저 뜬다(2026-09-10 사용자 확정 · 플랜 §66-10).
+            // ⚠️ 같은 GameObject 에 둔다 — 이 root 는 DontDestroyOnLoad 라 씬을 바꿔도 산다.
+            MainMenuOverlay menu = root.AddComponent<MainMenuOverlay>();
+            menu.audioOptions = options;
+            menu.links = Load<PortfolioLinks>(CombatAssetGenerator.PortfolioLinksPath);
 
             AudioConfig audio = Load<AudioConfig>(CombatAssetGenerator.AudioConfigPath);
 

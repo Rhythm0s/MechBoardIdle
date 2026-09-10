@@ -132,9 +132,24 @@ namespace MBI.Combat
                 return;
             }
             BuildBackground(); // 바닥 그림 — 원반보다 아래(-40). 스테이지가 바뀌면 다시 깐다.
-            PushMusicPhase();  // 어느 곡을 틀지 — 판정은 코어가 하고 여기서는 신호만 쓴다.
             BuildArena(); // 이동 가능 범위 경계 — 상수라 최초 1회만. 규정 자리는 UI 문서다(아래).
+
+            // ⚠️ **메인 메뉴가 떠 있으면 여기서 시작하지 않는다**(2026-09-10 · 플랜 §66-10).
+            // 깔아 두는 것(배경·경계)은 미리 해 둔다 — 메뉴 뒤에 보이는 화면이기 때문이다.
+            // **시뮬과 음악 국면만 미룬다.** 메뉴가 없는 씬에서는 빗장이 없어 곧바로 시작한다.
+            TryBeginWhenAllowed();
+        }
+
+        /// <summary>
+        /// 시작해도 되면 시작한다. **한 번만 돈다** — 빗장이 처음 한 번만 참을 낸다.
+        /// </summary>
+        private bool TryBeginWhenAllowed()
+        {
+            if (!MainMenuGate.TryStart()) return false;
+
+            PushMusicPhase(); // 어느 곡을 틀지 — 판정은 코어가 하고 여기서는 신호만 쓴다.
             Begin();
+            return true;
         }
 
         /// <summary>
@@ -711,6 +726,8 @@ namespace MBI.Combat
 
         private void Update()
         {
+            // 메뉴가 닫히는 프레임에 시작한다. 그 전에는 시뮬이 없으므로 아래로 안 내려간다.
+            if (!_ready && !TryBeginWhenAllowed()) return;
             if (!_ready) return;
 
             // 결과가 나도 끝까지 튼다 — 버스트로 마지막 적이 죽으면 연출이 그 프레임에 끊긴다.
@@ -1052,6 +1069,9 @@ namespace MBI.Combat
         // ---- 최소 HUD (OnGUI, 디버그 표시) ----
         private void OnGUI()
         {
+            // 메인 메뉴가 덮고 있으면 그리지 않는다 — IMGUI 는 뒤에 그리는 쪽이 위로 온다
+            // (2026-09-10 · 실측: 오프라인 대화상자가 「게임 시작」 버튼을 덮었다).
+            if (MainMenuGate.IsOpen) return;
             if (!_ready) return;
             KoreanFont.Apply(); // WebGL엔 시스템 폰트 폴백이 없다 — 안 물리면 한글이 통째로 사라진다
 
