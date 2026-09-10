@@ -118,6 +118,9 @@ namespace MBI.UI
             if (!Mathf.Approximately(next, MusicVolume.Value))
             {
                 MusicVolume.Set(next);
+                // ⚠️ **이 순간이 「사람이 누른 순간」이다** — 웹 오디오의 잠금이 풀리는 자리라
+                // 재생기가 여기서 곡을 새로 걸 수 있다(2026-09-10 · 결함 ③).
+                MusicVolume.PreviewRequested = true;
                 Save();
             }
         }

@@ -59,6 +59,28 @@ namespace MBI.Combat
             _deathPlayed = false;
             _hasLastPosition = false;
 
+            // ⚠️ **다시 묶기 전에 옛 몸을 지운다**(2026-09-10 · 리허설 결함 ② 「태그 유령」).
+            //
+            // 태그 교대는 **같은 뷰를 다시 묶는다**(`StageRunner.BindRobotView`). 그런데 여기는
+            // `Body`·`Shadow`·HP 바를 **새로 만들어 붙이기만** 했다 — 옛 것을 안 지우니
+            // **나간 로봇이 그 자리에 그대로 남았다.** 그것이 사용자가 본 유령이다.
+            //
+            // ⚠️ **09-10 의 첫 수정(`e4215fe`)이 이것을 못 잡은 이유**가 여기 있다.
+            // 그때 걷은 것은 **페이드 유령 복사본**이었고, 진짜로 남던 것은 **덧붙은 자식**이다.
+            // 같은 이름의 증상에 원인이 둘이었다.
+            //
+            // `Destroy` 는 이 프레임 끝에 걸리므로 **먼저 꺼서** 한 프레임도 겹쳐 보이지 않게 한다.
+            for (int i = transform.childCount - 1; i >= 0; i--)
+            {
+                GameObject old = transform.GetChild(i).gameObject;
+                old.SetActive(false);
+                Destroy(old);
+            }
+            _animator = null;
+            _body = null;
+            _bodyRenderer = null;
+            _hpFill = null;
+
             // 본체
             var bodyGo = new GameObject("Body");
             bodyGo.transform.SetParent(transform, false);

@@ -42,7 +42,24 @@ namespace MBI.Core.Audio
         public static void Set(float v) => _value = Clamp(v);
 
         /// <summary>기본값으로 되돌린다.</summary>
-        public static void Reset() => _value = Default;
+        public static void Reset()
+        {
+            _value = Default;
+            PreviewRequested = false;
+        }
+
+        /// <summary>
+        /// **사람이 볼륨을 만졌다** — 미리듣기를 열어도 된다는 표시
+        /// (2026-09-10 · 플랜 §67-3 결함 ③).
+        ///
+        /// 웹에서는 **누르기 전까지 오디오가 잠겨 있어서**, 부팅 때 건 재생은 소리 없이
+        /// 흘러가고 나중에 볼륨만 올려도 살아나지 않는다. 슬라이더를 만진 그 순간이
+        /// **누른 순간**이므로, 그때 재생을 새로 걸 수 있게 여기 남긴다.
+        ///
+        /// ⚠️ **재생기가 한 번 쓰고 내린다.** 계속 서 있으면 곡이 끝날 때마다 미리듣기가
+        /// 다시 열려 메뉴에서 곡이 되살아난다.
+        /// </summary>
+        public static bool PreviewRequested;
 
         /// <summary>
         /// 화면에 적는 말 — **퍼센트 정수**다. 0.3 을 「0.3」으로 적으면 무엇의 0.3 인지 모른다.

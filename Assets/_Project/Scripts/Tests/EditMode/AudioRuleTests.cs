@@ -353,5 +353,46 @@ namespace MBI.Tests
             Assert.AreEqual(2f, config.musicLoopFadeSeconds, 1e-6f, "루프 이음새는 그대로");
         }
 
+
+        // ---- 재생은 사람이 누른 뒤에 건다 (2026-09-10 · 플랜 §67-3 결함 ③) ----
+
+        /// <summary>
+        /// **메뉴가 닫히기 전에는 안 걸고, 닫힌 뒤에는 건다.**
+        ///
+        /// 웹은 사람이 무언가를 누르기 전까지 오디오가 잠겨 있다 — 그때 건 재생은 소리 없이
+        /// 흘러가고 **나중에 볼륨을 올려도 살아나지 않는다.** 사용자가 본 「즉시 안 나고
+        /// 스테이지를 옮기면 난다」가 그것이며, 스테이지 이동이 **새 재생**을 걸어 준 것이다.
+        /// </summary>
+        [Test]
+        public void MusicWaitsForTheFirstPress_ThenStarts()
+        {
+            Assert.IsFalse(MusicStartRule.ShouldStart(menuOpen: true, previewRequested: false),
+                "메뉴가 떠 있는데 걸면 잠긴 채로 흘러간다");
+
+            Assert.IsTrue(MusicStartRule.ShouldStart(menuOpen: false, previewRequested: false),
+                "「게임 시작」을 누른 뒤에는 건다");
+        }
+
+        /// <summary>
+        /// **볼륨 슬라이더도 「누른 것」이다** — 메뉴에서 소리를 맞춰 보려는 사람에게
+        /// 미리듣기가 있어야 한다.
+        /// </summary>
+        [Test]
+        public void TouchingTheSliderCountsAsAPress()
+        {
+            Assert.IsTrue(MusicStartRule.ShouldStart(menuOpen: true, previewRequested: true));
+        }
+
+        /// <summary>
+        /// **미리듣기 표시는 되돌리면 내려간다.** 계속 서 있으면 곡이 끝날 때마다
+        /// 메뉴에서 곡이 되살아난다.
+        /// </summary>
+        [Test]
+        public void ThePreviewFlagIsClearedOnReset()
+        {
+            MusicVolume.PreviewRequested = true;
+            MusicVolume.Reset();
+            Assert.IsFalse(MusicVolume.PreviewRequested);
+        }
     }
 }

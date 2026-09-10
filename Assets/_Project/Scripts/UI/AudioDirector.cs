@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using MBI.Core;
 using MBI.Core.Audio;
 using MBI.Data;
 using UnityEngine;
@@ -115,6 +116,15 @@ namespace MBI.UI
         {
             MusicPhase wanted = AudioSignals.Phase;
             if (_musicStarted && !MusicPhaseRule.NeedsSwap(Phase, wanted)) return;
+
+            // ⚠️ **부팅하자마자 걸지 않는다**(2026-09-10 · 플랜 §67-3 결함 ③).
+            // 웹은 **사람이 무언가를 누르기 전까지 오디오가 잠겨** 있어서, 그때 건 재생은
+            // 소리 없이 흘러가고 **나중에 볼륨을 올려도 살아나지 않는다.**
+            // 「게임 시작」이나 볼륨 슬라이더를 누른 뒤에 건다.
+            if (!MusicStartRule.ShouldStart(MainMenuGate.IsOpen, MusicVolume.PreviewRequested)) return;
+
+            // 미리듣기 표시는 **한 번 쓰고 내린다** — 계속 서 있으면 메뉴에서 곡이 되살아난다.
+            MusicVolume.PreviewRequested = false;
 
             Phase = wanted;
             SwapMusic(ClipFor(wanted));
