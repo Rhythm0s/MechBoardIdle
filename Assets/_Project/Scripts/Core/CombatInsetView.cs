@@ -34,6 +34,21 @@ namespace MBI.Core
         public static float BottomPixels(float screenHeight) => screenHeight * HeightShare;
 
         /// <summary>
+        /// 바닥 그림이 덮어야 하는 가로 반폭 — **인셋이 주 카메라보다 훨씬 넓다.**
+        ///
+        /// 주 카메라는 세로로 긴 화면(1440×2560 · 가로세로비 0.5625)을 그대로 쓰지만,
+        /// 인셋은 같은 가로에 세로가 30% 뿐이라 **가로세로비가 0.5625 ÷ 0.3 = 1.875** 다.
+        /// 바닥을 주 카메라 기준으로만 깔면 **인셋 좌우에 검은 여백이 남는다**
+        /// (2026-09-10 실측 — 조립 화면 상단 전투가 가운데에만 그려졌다).
+        ///
+        /// ⚠️ **둘 중 넓은 쪽을 쓴다.** 인셋을 안 켜는 씬(격리 전투)에서도 넓게 까는 것은
+        /// 낭비지만, 좁게 깔았다가 켜는 순간 여백이 생기는 것보다 낫다 — 바닥은 한 번 깔고
+        /// 스테이지가 바뀔 때만 다시 깐다.
+        /// </summary>
+        public static float BackgroundHalfWidth(float halfHeight, float mainAspect) =>
+            halfHeight * UnityEngine.Mathf.Max(mainAspect, mainAspect / HeightShare);
+
+        /// <summary>
         /// 경고 띠와 맞닿기만 하는가. **겹치면 둘 다 안 읽힌다.**
         /// </summary>
         public static bool ClearsBand(float screenWidth, float screenHeight)

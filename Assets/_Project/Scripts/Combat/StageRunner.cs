@@ -230,7 +230,12 @@ namespace MBI.Combat
 
             Camera cam = Camera.main;
             float halfH = cam != null && cam.orthographic ? cam.orthographicSize : 5f;
-            float halfW = cam != null && cam.orthographic ? halfH * cam.aspect : halfH;
+            // ⚠️ **조립 화면 상단 인셋까지 덮는다**(2026-09-10 · 플랜 §66-21 d 실측).
+            // 인셋 카메라는 세로가 30% 뿐이라 **가로세로비가 주 카메라의 3.3배**다 —
+            // 주 카메라만 보고 깔면 인셋 좌우에 검은 여백이 남는다.
+            float halfW = cam != null && cam.orthographic
+                ? CombatInsetView.BackgroundHalfWidth(halfH, cam.aspect)
+                : halfH;
 
             if (_bgRoot != null) Destroy(_bgRoot.gameObject);
 
@@ -291,7 +296,8 @@ namespace MBI.Combat
             Camera cam = Camera.main;
             if (cam == null || !cam.orthographic) return false;
             float halfH = cam.orthographicSize;
-            float halfW = halfH * cam.aspect;
+            // 깔 때와 **같은 셈**을 쓴다 — 다르면 매 프레임 「모자란다」로 읽혀 계속 다시 깐다.
+            float halfW = CombatInsetView.BackgroundHalfWidth(halfH, cam.aspect);
             // 창이 커지면 덮던 넓이가 모자란다. 줄어드는 쪽은 남는 것이라 다시 깔지 않는다.
             return halfW > _bgViewport.x + 0.001f || halfH > _bgViewport.y + 0.001f;
         }

@@ -42,6 +42,7 @@ MonoBehaviour:
   boosterSprite: {fileID: 21300000, guid: 3524cc9e4bf76bb44bdaa6d87e232889, type: 3}
   droneExpireSprite: {fileID: 21300000, guid: 57ec3a9efbdb0374fbdf4e83ebb8f789, type: 3}
   ammoOutSprite: {fileID: 21300000, guid: 96986f16a4fcf234badde14ac1644fbc, type: 3}
+  ammoOutScaleAssumed: 0.5
   combatBackgroundSprite: {fileID: 21300000, guid: 09e97e297cb9c9347818d9a3eb60f56d, type: 3}
   bossBackgroundSprite: {fileID: 21300000, guid: efe2cdc0b82f2724eacefc077d3f69b1, type: 3}
   vfxOneShotSeconds: 0.2
