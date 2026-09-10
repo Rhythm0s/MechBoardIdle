@@ -37,6 +37,12 @@ namespace MBI.UI
         /// <summary>이 판에 한 번이라도 곡을 튼 적이 있는가. 첫 재생과 국면 전환을 가른다.</summary>
         private bool _musicStarted;
 
+        /// <summary>
+        /// 지금 **곡이 있어야 하는가**. `SwapMusic(null)`로 껐을 때 거짓이 된다.
+        /// ⚠️ 이것이 없으면 「꺼 둔 곡」과 「끝난 곡」이 구분되지 않아 껐는데 다시 돈다.
+        /// </summary>
+        private bool _musicWanted;
+
         // 크로스페이드는 소스 둘을 겹쳐 쓴다 — 하나는 줄고 하나는 는다.
         private AudioSource _musicA;
         private AudioSource _musicB;
@@ -123,6 +129,8 @@ namespace MBI.UI
             AudioSource next = _useA ? _musicB : _musicA;
             _useA = !_useA;
 
+            _musicWanted = clip != null;
+
             if (clip == null)
             {
                 // 곡이 없으면 지금 것을 끄기만 한다 — 자리표시 소리를 만들지 않는다.
@@ -157,16 +165,14 @@ namespace MBI.UI
         /// </summary>
         private void RestartFinishedMusic()
         {
-            Restart(_musicA);
-            Restart(_musicB);
+            // ⚠️ **지금 국면의 곡만 되돌린다.** 물러난 소스까지 보면 지난 국면 곡이 조용히 다시 돈다.
+            if (!_musicWanted) return;
+            Restart(Current());
         }
 
         private static void Restart(AudioSource src)
         {
             if (src == null || src.clip == null) return;
-            // 크로스페이드로 물러난 소스는 `Stop`으로 꺼 두었다 — 그것까지 되살리면
-            // 지난 국면의 곡이 조용히 다시 돈다. 볼륨이 살아 있는 것만 다시 튼다.
-            if (src.volume <= 0f && !src.isPlaying) return;
             if (!MusicLoop.ShouldRestart(src.isPlaying, true)) return;
 
             src.time = 0f;
