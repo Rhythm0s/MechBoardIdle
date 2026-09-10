@@ -217,6 +217,68 @@ the machine is destroyed and comes apart where it stands: the central turret sle
 한 번에 사라지지 않고 부위가 차례로 떨어져 나가며, 폭발이 여러 번 터지고, 잔해가 남는다.
 폭발은 벌이 아니라 **`VFX/vfx_death.png`(초안 · 미승인)를 코드가 뿌리는 자리**다.
 
+## 9. `boss_Idle` 2차 — ⚠️ **폐기** (animation group `17d6f7e9` · 4 생성)
+
+| 항목 | 값 |
+|---|---|
+| 도구 | `animate_character` **mode="v3"** · `directions=["south"]` · `frame_count=4` · `keep_first_frame=true` → **5칸** |
+| 앵커 | 캐릭터 `2fd860bd`(256 승인본 회전 · **남면 겹침 1.000**) |
+| 끝 자세 | **주지 않았다** — 대기는 옮김·축소가 아니고 새 획도 없다 |
+| 재생 | **핑퐁** — 0·1·2·3·4·3·2·1. 프레임을 굽지 않고 코드가 그렇게 돌린다 |
+
+**문안의 출처** — 보스 아트 요청 문서(15-5) **5장 「대기」 행**이다. 동작만 영문으로 옮겼다.
+
+| 15-5 5장 원문 | 옮긴 자리 |
+|---|---|
+| 제자리 가동 | `running in place` · `It stays on the same spot and does not travel.` |
+| 무거운 기계가 돌아가는 느낌 | `a heavy machine ticking over` |
+| **진폭은 실루엣 높이의 4~6%** | `rises and settles by about four to six percent of the machine's own height` |
+| 로봇보다 **느린 주기**로 움직여 덩치가 살아야 함 | `the whole cycle is slow and ponderous, slower than a smaller machine would move, so its bulk reads` |
+
+```
+running in place, a heavy machine ticking over: the hull rises and settles by about four to six percent of the machine's own height, the turret and the pipework on the top deck breathe with it, and the whole cycle is slow and ponderous, slower than a smaller machine would move, so its bulk reads. It stays on the same spot and does not travel.
+```
+
+**목표 진폭** — 첫 칸 실루엣 높이가 **132** 이므로 4~6% 는 **5.3 ~ 7.9px** 이다.
+`the turret and the pipework on the top deck breathe with it` 한 마디는 문서에 없다 —
+**어디가 움직이는지를 도구에 말해 주는 자리**이며, 15-5 3-3 의 「상판에 파이프와 통풍구가 지난다」에서 부위 이름만 가져왔다.
+
+---
+
+## 10. `boss_Idle` 3차 — ✅ **사용자 육안 통과 · 설치** (animation group `a7de890a` · 4 생성)
+
+| 항목 | 값 |
+|---|---|
+| 도구·인자 | 9번과 같다 (`v3` · south · `frame_count=4` · `keep_first_frame=true` → 5칸) |
+| 재생 | 핑퐁 · **1.00초**(사용자 확정 2026-09-10) |
+
+**2차 폐기 사유(사용자 육안)** — 「위아래로 들썩이는 것이 아니라 **전차가 덜덜거리는 느낌**이어야 한다.
+**전차의 느낌이 적다**.」 그래서 문안에서 **`breathe`·`rises and settles`·`slow and ponderous` 셋을 뺐다.**
+
+```
+a heavy tracked tank sitting still with its engine running, juddering in place. The whole hull shakes in short sharp jolts, jerking a little sideways as well as up and down by about four to six percent of the machine's own height. Its tracks and road wheels shudder the most, the gun barrels quiver at their tips, and loose plates on the top deck rattle against the body. The shaking is quick and uneven, a rough mechanical vibration rather than a slow smooth rise and fall, and the machine never leaves its spot or changes its outline.
+```
+
+**2차에서 무엇을 바꿨나**
+
+| 2차 | 3차 |
+|---|---|
+| `a heavy machine ticking over` | `a heavy tracked tank sitting still with its engine running, juddering in place` |
+| `rises and settles` | `shakes in short sharp jolts, jerking a little sideways as well as up and down` |
+| `slow and ponderous` | `quick and uneven, a rough mechanical vibration rather than a slow smooth rise and fall` |
+| `the turret and the pipework breathe with it` | `its tracks and road wheels shudder the most, the gun barrels quiver at their tips, and loose plates on the top deck rattle` |
+| — | `never leaves its spot or changes its outline` |
+
+**「전차의 느낌」을 부위로 못 박은 것이 이 문안의 핵심이다** — 궤도·전륜·포신 끝·상판의 헐거운 판.
+결과는 **가로 흔들림 2px**(2차는 0)과 **칸 사이 화소 차 최대 13.4%**(2차 7.5%)로 나타났다(로그 3-25).
+
+⚠️ **`never changes its outline` 은 안 먹었다** — 세로 실루엣이 여전히 132 → 139 로 늘어난다.
+
+⚠️ **15-5 5장의 「로봇보다 느린 주기」와 어긋난다.** 사용자 지시가 위라 빠른 쪽으로 갔다.
+**5장 개정은 설계 몫**이며 아트는 문안과 값만 낸다.
+
+---
+
 ---
 
 ## 설계에 넘기는 것
