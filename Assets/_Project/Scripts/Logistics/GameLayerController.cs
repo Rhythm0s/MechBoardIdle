@@ -58,15 +58,66 @@ namespace MBI.Logistics
         /// </summary>
         public static bool BoardViewActive => GameViewSignals.BoardViewActive;
 
+        [Tooltip("조립 화면 상단에 전투를 비추는 두 번째 카메라. 비우면 처음 볼 때 만든다.")]
+        public Camera combatInsetCam;
+
         private void Start()
         {
             if (cam == null) cam = Camera.main;
+            EnsureInsetCamera();
             Snap(false);
+        }
+
+        /// <summary>
+        /// 조립 화면 위쪽에 전투를 비추는 카메라를 마련한다
+        /// (2026-09-10 사용자 확정 · 플랜 §66-21 d · UI 문서 「연속성」).
+        ///
+        /// **왜 두 번째 카메라인가.** 하나뿐인 카메라는 전투와 보드 사이를 **오간다** —
+        /// 한 대로는 두 자리를 동시에 비출 수 없다. 시뮬은 원래도 계속 돌고 있었으므로
+        /// **바뀌는 것은 보여 주는가뿐**이다.
+        ///
+        /// ⚠️ **자리는 코어가 정한다**(<see cref="CombatInsetView"/>) — 경고 띠와 맞닿되
+        /// 겹치지 않아야 하고, 그 판정은 띠를 그리는 쪽과 같은 값을 봐야 한다.
+        ///
+        /// ⚠️ **깊이를 주 카메라보다 높게 둔다.** 낮으면 주 카메라가 나중에 그리며
+        /// 화면 전체를 덮어 **이 자리가 지워진다.**
+        /// </summary>
+        private void EnsureInsetCamera()
+        {
+            if (combatInsetCam == null)
+            {
+                var go = new GameObject("CombatInsetCamera");
+                go.transform.SetParent(transform, false);
+                combatInsetCam = go.AddComponent<Camera>();
+            }
+
+            combatInsetCam.orthographic = true;
+            combatInsetCam.rect = CombatInsetView.Viewport;
+            combatInsetCam.depth = (cam != null ? cam.depth : 0f) + 1f;
+            // 전투 배경이 이 자리를 채우지만, 배경이 아직 안 깔린 프레임에 보드가 비치면
+            // 두 화면이 겹쳐 보인다 — 자기 자리를 먼저 지운다.
+            combatInsetCam.clearFlags = CameraClearFlags.SolidColor;
+            combatInsetCam.backgroundColor = cam != null ? cam.backgroundColor : Color.black;
+            combatInsetCam.cullingMask = cam != null ? cam.cullingMask : ~0;
+            combatInsetCam.transform.position = new Vector3(combatCenter.x, combatCenter.y, -10f);
+            combatInsetCam.orthographicSize = combatSize;
+            combatInsetCam.enabled = false; // 전투 화면에서는 필요 없다 — 주 카메라가 이미 전투다
         }
 
         private void Update()
         {
             GameViewSignals.BoardViewActive = _boardView;
+
+            // ⚠️ **조립 화면에서만 켠다.** 전투 화면에서는 주 카메라가 이미 전투를 비추고 있어
+            // 같은 그림을 두 번 그리는 낭비이고, 위쪽 30% 만 배율이 달라져 이상하게 보인다.
+            if (combatInsetCam != null)
+            {
+                combatInsetCam.enabled = _boardView;
+                combatInsetCam.transform.position =
+                    new Vector3(combatCenter.x, combatCenter.y, combatInsetCam.transform.position.z);
+                combatInsetCam.orthographicSize = combatSize;
+            }
+
             if (cam == null) return;
             Vector2 tc = _boardView ? boardCenter : combatCenter;
             float ts = _boardView ? boardSize : combatSize;

@@ -190,5 +190,36 @@ namespace MBI.Tests
             Assert.AreEqual(0f, SupplySignals.MountTotal, D);
             Assert.AreEqual(0f, SupplySignals.StorageStock, D);
         }
+
+        // ---- 조립 화면 상단의 전투 자리 (2026-09-10 사용자 확정 · 플랜 §66-21 d) ----
+
+        /// <summary>
+        /// **전투가 상단 30% 에 서고 경고 띠와 맞닿되 겹치지 않는다.**
+        ///
+        /// 겹치면 「생산이 멈췄습니다」가 전투 위에 얹혀 **둘 다 안 읽힌다.**
+        /// 문서 기준(2560)에서 이 자리는 0~768 이고 띠도 768 에서 시작한다 — 딱 맞물린다.
+        ///
+        /// ⚠️ **뷰포트는 아래에서 위로 잰다.** 위쪽 30% 는 `y = 0.7` 이며,
+        /// 화면 좌표처럼 0.3 을 쓰면 **아래쪽**이 잡힌다 — 그 실수를 여기서 붙든다.
+        /// </summary>
+        [Test]
+        public void CombatInset_TakesTheTopThird_AndTouchesTheBandWithoutOverlapping()
+        {
+            Rect v = CombatInsetView.Viewport;
+
+            Assert.AreEqual(0f, v.x, D);
+            Assert.AreEqual(1f, v.width, D, "가로는 화면 전체");
+            Assert.AreEqual(0.3f, v.height, D, "세로 30%");
+            Assert.AreEqual(0.7f, v.y, D, "아래에서 위로 재므로 위쪽 30%는 0.7에서 시작한다");
+
+            // 기준 해상도 — 문서 값이 그대로 나온다.
+            Assert.AreEqual(768f, CombatInsetView.BottomPixels(2560f), D);
+            Assert.AreEqual(SupplyStopRules.BandRect(1440f, 2560f).y,
+                CombatInsetView.BottomPixels(2560f), D, "전투 아랫변 = 띠 윗변");
+
+            Assert.IsTrue(CombatInsetView.ClearsBand(1440f, 2560f));
+            // 창이 작아져도 둘 다 비율이라 관계가 유지된다.
+            Assert.IsTrue(CombatInsetView.ClearsBand(960f, 600f));
+        }
     }
 }

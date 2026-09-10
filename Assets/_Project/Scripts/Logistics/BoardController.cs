@@ -2212,18 +2212,33 @@ namespace MBI.Logistics
             }
             _beltBodies[cell] = sr;
 
-            var arrow = new GameObject("dir");
-            arrow.transform.SetParent(m.transform, false);
-            Vector2 off = FaceOffset(outFace);
-            arrow.transform.localPosition = new Vector3(off.x * 0.32f, off.y * 0.32f, 0f);
-            arrow.transform.localScale = new Vector3(0.34f, 0.34f, 1f);
-            var asr = arrow.AddComponent<SpriteRenderer>();
-            asr.sprite = UnitSprite();
-            asr.color = BeltArrowColor;
-            // ⚠️ 보드는 **자기 지역 순서대로 그린다**(격자 배경 -3 · 셀선 -2 · 마커 0).
-            // 여기에 SortingLayers.Tile(-20)을 쓰면 화살표가 벨트 몸통(0) 뒤로 들어가 안 보인다 —
-            // 실제로 그래서 방향 표시가 화면에 없었다.
-            asr.sortingOrder = BeltArrowOrder;
+            // ⚠️ **방향 네모는 그림이 붙은 벨트에서 걷었다**(2026-09-10 사용자 확정 · 플랜 §66-21 c).
+            //
+            // 이것은 화살표가 아니라 **흰 사각에 색을 칠한 자리표시**였다. 벨트 타일이 색 사각이던
+            // 시절에는 그것이 유일한 방향 정보였는데, **그림이 붙은 지금은 타일의 방향선이 정보**다.
+            // 자리표시가 그림 위에 얹혀 **칸마다 큰 초록 네모가 먼저 눈에 들었다**(촬영 D구간).
+            //
+            // ⚠️ **연결 여부 표시가 통째로 사라지지는 않는다** — 끝단 미연결 경고(`warn`)는 그대로다.
+            // 그림이 없는 벨트(새 클론·아트 누락)에서는 여기가 유일한 방향 정보라 **그때만 남긴다.**
+            //
+            // ⚠️ **규정 문서가 없다.** §5-4 L2 가 「연결=초록 / 미연결=노랑」을 적었을 뿐
+            // **모양을 규정한 문서는 없다** — 걷는 것을 V03 으로 통보한다.
+            SpriteRenderer asr = null;
+            if (beltArt == null)
+            {
+                var arrow = new GameObject("dir");
+                arrow.transform.SetParent(m.transform, false);
+                Vector2 off = FaceOffset(outFace);
+                arrow.transform.localPosition = new Vector3(off.x * 0.32f, off.y * 0.32f, 0f);
+                arrow.transform.localScale = new Vector3(0.34f, 0.34f, 1f);
+                asr = arrow.AddComponent<SpriteRenderer>();
+                asr.sprite = UnitSprite();
+                asr.color = BeltArrowColor;
+                // ⚠️ 보드는 **자기 지역 순서대로 그린다**(격자 배경 -3 · 셀선 -2 · 마커 0).
+                // 여기에 SortingLayers.Tile(-20)을 쓰면 화살표가 벨트 몸통(0) 뒤로 들어가 안 보인다 —
+                // 실제로 그래서 방향 표시가 화면에 없었다.
+                asr.sortingOrder = BeltArrowOrder;
+            }
 
             // 흐름 무늬 — 입력 면은 격자에서 읽는다(직선·코너·병합기 다 같은 규칙).
             var flow = m.AddComponent<BeltFlowAnimator>();
