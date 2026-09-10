@@ -25,11 +25,21 @@ namespace MBI.Core
         /// <summary>저장 노드(창고)의 탄약 총 재고. 조립 화면이 보는 층이다(UI 문서 12-1).</summary>
         public static float StorageStock;
 
+        /// <summary>
+        /// **지금 전투에 나와 있는 로봇** (2026-09-10 사용자 확정 · 리허설 1차 ⑦).
+        ///
+        /// 물류 도착을 이 로봇 것만 센다 — 마운트는 로봇마다 따로이고, 대기 중인 로봇에게
+        /// 닿은 것은 **지금 싸우는 화력이 아니다.** 종전에는 둘을 합산해 **B 라인을 깔면
+        /// A로 싸우는 동안에도 전투력이 올라가 보였다.**
+        /// </summary>
+        public static MBI.Data.MountOwner ActiveOwner = MBI.Data.MountOwner.RobotA;
+
         public static void Reset()
         {
             HasCombat = false;
             MountTotal = 0f;
             StorageStock = 0f;
+            ActiveOwner = MBI.Data.MountOwner.RobotA;
         }
     }
 }

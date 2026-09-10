@@ -630,6 +630,8 @@ namespace MBI.Combat
             SupplySignals.HasCombat = true;
             SupplySignals.MountTotal = mount != null ? mount.Total : 0f;
             SupplySignals.StorageStock = _sim.AmmoStock;
+            SupplySignals.ActiveOwner =
+                _sim.ActiveRobotIndex == 1 ? MountOwner.RobotB : MountOwner.RobotA;
         }
 
         /// <summary>한 번 그려지고 사라지는 이펙트 한 장. 반복 없음(연출 2장 「공통 생성 규칙」).</summary>

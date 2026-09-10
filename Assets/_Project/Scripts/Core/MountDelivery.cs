@@ -49,13 +49,17 @@ namespace MBI.Core
         /// 전투력이 아니다 — 세면 부품 하나가 탄 하나로 둔갑한다.
         /// </summary>
         public void Observe(IReadOnlyList<MountArrival> arrivals, System.Func<AmmoKind, float> damageOf,
-            float dt)
+            float dt, MountOwner? only = null)
         {
             if (dt > 0f) _pendingSeconds += dt;
             if (arrivals == null || damageOf == null) return;
 
             for (int i = 0; i < arrivals.Count; i++)
             {
+                // ⚠️ **지금 싸우는 로봇 것만 센다** (2026-09-10 사용자 확정 · 리허설 1차 ⑦).
+                // 마운트는 로봇마다 따로다 — 대기 중인 로봇에게 닿은 것은 지금 화력이 아니다.
+                // `only`가 없으면 종전대로 전부 센다(시험이 그 갈래를 쓴다).
+                if (only.HasValue && arrivals[i].owner != only.Value) continue;
                 if (!MountItemMap.TryAmmoKindOf(arrivals[i].kind, out AmmoKind kind)) continue;
 
                 float damage = damageOf(kind);

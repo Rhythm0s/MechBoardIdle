@@ -61,6 +61,9 @@ namespace MBI.Logistics
         [Tooltip("시작 배선. 노드만 있고 벨트가 없으면 연결성 게이트에 걸려 출력이 0이다.")]
         [SerializeField] private List<InitialBelt> initialBelts = new List<InitialBelt>();
 
+        /// <summary>팔레트 버튼 안쪽 여백 — 그림이 테두리와 글자에 안 닿게.</summary>
+        private const float PaletteThumbPad = 4f;
+
         private int _selectedNode; // 팔레트에서 선택된 노드 인덱스
         // 버튼 자리는 MBI.UI.UiBlockers가 모은다 — 다른 어셈블리가 그린 패널까지 함께 막기 위해서다.
 
@@ -1455,8 +1458,12 @@ namespace MBI.Logistics
 
             if (palette == null || palette.Count == 0) return;
 
+            // 글자를 오른쪽으로 민다 — 왼쪽 안쪽은 노드 그림이 쓴다(`DrawPaletteThumb`).
             var style = new GUIStyle(GUI.skin.button) { fontSize = 15 };
             const float w = 130f, h = 36f, pad = 6f;
+            style.padding = new RectOffset(
+                Mathf.CeilToInt(h - PaletteThumbPad), style.padding.right,
+                style.padding.top, style.padding.bottom);
             float x = Screen.width - w - 12f;
             // ⚠️ 변수 패널(우상단 12..262)과 겹치면 안 된다 — 실제로 겹쳐서 「노드 팔레트」 글자가
             // 패널 위에 얹혀 있었다. 그 아래에서 시작한다.
@@ -1481,6 +1488,7 @@ namespace MBI.Logistics
                     _elementMode = null;
                     _selectedModule = -1;
                 }
+                DrawPaletteThumb(rect, palette[i]);
             }
 
             // 벨트 요소(§5-4 L3). 직선·코너는 드래그가 만들고, 이 둘만 탭으로 놓는다 —
@@ -1837,6 +1845,37 @@ namespace MBI.Logistics
                     alignment = TextAnchor.MiddleCenter,
                     normal = { textColor = WarningBandText },
                 });
+        }
+
+        /// <summary>
+        /// 팔레트 버튼 왼쪽에 그 노드의 **그림**을 얹는다 (2026-09-10 사용자 확정 · 리허설 1차).
+        ///
+        /// **글자를 그림으로 바꾸는 것이 아니라 글자 옆에 그림을 더한다** — 보드 위 노드가
+        /// 무엇인지 이름표로는 안 읽히는데(구역 이름표는 잘리고 노드 그림에는 글자가 없다),
+        /// **팔레트가 「이 그림 = 이 이름」을 한 줄에 보여 주면 보드에서 그림만 봐도 읽힌다.**
+        ///
+        /// ✅ **자산이 필요 없다** — `BoardArtSet`이 이미 든 노드 스프라이트를 그대로 쓴다.
+        ///
+        /// ⚠️ **UI 문서 팔레트 절에 이 규정이 없다.** 자리와 크기는 구현 가정이며,
+        /// 버튼 높이에 맞춘 정사각으로 왼쪽 안쪽에 넣었다 — 글자와 안 겹치게 여백을 둔다.
+        /// </summary>
+        private void DrawPaletteThumb(Rect button, NodeDefinition def)
+        {
+            if (art == null || def == null) return;
+            Sprite icon = art.NodeSprite(def.type);
+            if (icon == null) return; // 그림이 없으면 글자만 — 색 사각으로 대신하지 않는다
+
+            float side = button.height - PaletteThumbPad * 2f;
+            var box = new Rect(button.x + PaletteThumbPad, button.y + PaletteThumbPad, side, side);
+            GUI.DrawTextureWithTexCoords(box, icon.texture, SpriteUv(icon), true);
+        }
+
+        /// <summary>스프라이트가 아틀라스 안 어디에 있는지 — 그 조각만 그린다.</summary>
+        private static Rect SpriteUv(Sprite s)
+        {
+            Rect r = s.textureRect;
+            return new Rect(r.x / s.texture.width, r.y / s.texture.height,
+                r.width / s.texture.width, r.height / s.texture.height);
         }
 
         private void DrawBottleneckHint()

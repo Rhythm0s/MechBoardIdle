@@ -165,7 +165,8 @@ namespace MBI.Logistics
             BoardItemTick.Step(grid, board.ItemFlow, Time.deltaTime, throttle.Scale);
 
             // ③ 마운트에 닿은 것을 센다. 읽고 나면 비운다 — 안 비우면 같은 도착이 계속 세어진다.
-            _delivery.Observe(board.ItemFlow.PendingMountArrivals, DamageOf, Time.deltaTime);
+            _delivery.Observe(board.ItemFlow.PendingMountArrivals, DamageOf, Time.deltaTime,
+                SupplySignals.ActiveOwner);
             board.ItemFlow.ClearPendingMountArrivals();
             _delivery.TryDrain(DeliverySampleSeconds, out float deliveredRate);
 
