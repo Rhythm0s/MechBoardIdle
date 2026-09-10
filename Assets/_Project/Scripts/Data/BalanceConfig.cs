@@ -33,8 +33,11 @@ namespace MBI.Data
         public float snapBand = 0.08f;
 
         [Header("요구치 앵커 (S3 돌파 / S4 벽)")]
-        [Tooltip("S3 돌파 요구치(v4 2차 실측 개정 = 145; v3.1은 143). enhance.s3Break.")]
-        public float s3Break = 145f;
+        [Tooltip("S3 **돌파 타깃** 114 — 요구치가 아니다(260910_W01 3-1). " +
+                 "S3 요구치는 StageDefinition.req 의 104 이고 이 값과 별개다. " +
+                 "⚠️ 구 145 는 폐기 — 요구치 20% 하향(09-01)과 분열탄 폐기(09-04)가 둘 다 안 들어간 값이었다. " +
+                 "104 x +10% = 114.4 → 114. enhance.s3Break.")]
+        public float s3Break = 114f;
         [Tooltip("S4 요구치 밴드 [lo, hi]. enhance.s4Band.")]
         public Vector2 s4Band = new Vector2(186f, 215f);
         [Tooltip("S4 강화 비용(⑦ A안 닫힌 곡선). enhance.s4Cost.")]

@@ -81,7 +81,7 @@ namespace MBI.EditorTools
 
             One(sb, std);
             Two(sb, pierce, expl);
-            Three(sb, std, pierce, expl);
+            Three(sb, bal, std, pierce, expl);
             Four(sb, pierce, expl);
 
             return sb.ToString();
@@ -127,7 +127,7 @@ namespace MBI.EditorTools
 
         // ---- 3. 140에서 180으로 갈아탈 이유가 있는가 ----
 
-        private static void Three(StringBuilder sb, Chain std, Chain pierce, Chain expl)
+        private static void Three(StringBuilder sb, BalanceConfig bal, Chain std, Chain pierce, Chain expl)
         {
             sb.AppendLine();
             sb.AppendLine("[3] 조합별 출력·노드와 스테이지 요구치");
@@ -143,6 +143,10 @@ namespace MBI.EditorTools
                 var st = AssetDatabase.LoadAssetAtPath<StageDefinition>($"{StageRoot}/Stage_{id}.asset");
                 if (st != null) sb.AppendLine($"    {id} = {st.req:F0} ({st.reqType})");
             }
+            // ④ 대표 조합에 강화를 걸면 얼마가 되는가 (`260910_W01` 3-2).
+            // **배수는 BalanceConfig 의 enh 를 그대로 쓴다** — 여기서 새 상수를 만들지 않는다.
+            float rep = 4f * std.damage + 2f * expl.damage;
+            sb.AppendLine($"  대표 조합(표준 4 + 폭발 2) {rep:F0} x 강화 {bal.enh:F2} = {rep * bal.enh:F0}");
             sb.AppendLine("  주의: 갈아탈 이유가 있는가는 이 두 표를 겹쳐 보고 설계가 답한다.");
         }
 
