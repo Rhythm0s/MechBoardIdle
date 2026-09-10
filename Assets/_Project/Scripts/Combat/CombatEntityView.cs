@@ -51,7 +51,7 @@ namespace MBI.Combat
         public void FlashHit() => _flashElapsed = 0f;
 
         public void Bind(CombatEntity entity, Color color, float size, int sortingOrder, Sprite art = null,
-            List<UnitAnimClip> clips = null)
+            List<UnitAnimClip> clips = null, int viewScale = 1)
         {
             _entity = entity;
             _size = size; // HP 바 치수는 실제 아트 여부와 무관하게 이 값을 쓴다
@@ -66,10 +66,15 @@ namespace MBI.Combat
 
             if (art != null)
             {
-                // 크기는 **캔버스가 결정한다**(ArtSpec, PPU 192). localScale로 다시 곱하면
-                // 256px 스프라이트가 1.333칸 × 1.333배 = 1.78칸이 되어 두 번 커진다.
+                // 크기는 **캔버스가 결정한다**(ArtSpec, PPU 192). 크기를 맞추려고 임의의 배를
+                // 곱하면 안 된다 — 256px 스프라이트에 1.333을 곱해 1.78칸으로 만드는 식이면
+                // **두 번 커지고** 도트도 뭉개진다.
+                //
+                // ⚠️ **예외는 정수배 하나뿐이다**(2026-09-10 · 보스). 벌 캔버스가 모자랄 때
+                // **한 픽셀이 정확히 n×n 픽셀이 되는 배**만 곱한다. 기본은 1 이라
+                // 아무 데도 영향이 없고, 값은 SO 에서 온다(<see cref="EnemyDefinition.viewScale"/>).
                 body.sprite = art;
-                bodyGo.transform.localScale = Vector3.one;
+                bodyGo.transform.localScale = Vector3.one * Mathf.Max(1, viewScale);
                 body.color = Color.white; // 도트에 색을 입히면 팔레트가 뭉개진다
             }
             else

@@ -351,6 +351,9 @@ namespace MBI.Editor
                 d.role = ToRole(e.key);
                 d.atk = e.atk;
                 d.atkConfirmed = e.confirmed;
+                // 화면 배율 — 보스만 2다(2026-09-10 사용자 확정). 값의 원천은 상수 하나이며
+                // 여기서 SO 로 옮긴다. 코드가 배율을 직접 들고 있지 않게 하려는 것이다(§3).
+                d.viewScale = d.role == EnemyRole.Boss ? ArtSpec.BossViewScale : 1;
                 EditorUtility.SetDirty(d);
                 n++;
             }

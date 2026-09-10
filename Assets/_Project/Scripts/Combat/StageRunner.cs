@@ -118,10 +118,26 @@ namespace MBI.Combat
         }
 
         /// <summary>
-        /// 적 표시 크기(보스 크게). 뷰·충돌 반경이 공유하는 단일 규칙.
-        /// 아트 캔버스 규격에서 온다 — 보스 512px(2.667칸) / 몬스터 128px(0.667칸).
+        /// 적 표시 크기(보스 크게). **뷰·그림자·HP 바·충돌 반경이 공유하는 단일 규칙**이라
+        /// 여기 하나만 고치면 넷이 같이 따라간다.
+        ///
+        /// 아트 캔버스 규격에서 온다 — 몬스터 128px(0.667칸) ·
+        /// 보스는 <see cref="ArtSpec.BossViewSize"/>(벌 256px × 배율 2 = 2.667칸).
+        ///
+        /// ⚠️ **구 서술 폐기** — 「보스 512px」이라 적혀 있었다. 승인본은 **256** 이고
+        /// 코드가 2 배로 키운다(2026-09-10 사용자 확정). 숫자(2.667칸)는 우연히 같지만
+        /// **나오는 길이 다르다** — 512 벌이 오는 날 배율은 1 로 돌아간다.
         /// </summary>
-        private static float EnemySize(float maxHp) => maxHp >= 1000f ? ArtSpec.LargeSize : ArtSpec.MonsterSize;
+        private static float EnemySize(float maxHp) => maxHp >= 1000f ? ArtSpec.BossViewSize : ArtSpec.MonsterSize;
+
+        /// <summary>
+        /// 표시명 → 화면 배율. **값은 SO 에서 온다**(<see cref="EnemyDefinition.viewScale"/>) —
+        /// 코드가 배율을 직접 들고 있지 않게 하려는 것이다(지침 §3).
+        ///
+        /// ⚠️ **시뮬에 넣지 않는다.** 배율은 화면의 일이고 <c>CombatSimulation</c> 은 순수 규칙이다.
+        /// 스폰을 만들 때 여기에 적어 두었다가 뷰를 만들 때 쓴다.
+        /// </summary>
+        private readonly Dictionary<string, int> _viewScaleByLabel = new Dictionary<string, int>();
 
         private void Start()
         {
@@ -706,6 +722,9 @@ namespace MBI.Combat
                 byKey.TryGetValue(c.enemyKey, out EnemyDefinition def);
                 float atk = def != null ? def.atk : 0f;
                 string label = def != null ? def.displayName : c.enemyKey;
+                // 배율은 여기서 한 번 적어 둔다. 없거나 0 이면 1 로 본다 — 낡은 자산이
+                // 적을 통째로 사라지게 만들면 안 된다.
+                _viewScaleByLabel[label] = def != null && def.viewScale > 0 ? def.viewScale : 1;
                 for (int i = 0; i < c.count; i++)
                 {
                     spawns.Add(new EnemySpawn
@@ -868,7 +887,9 @@ namespace MBI.Combat
                     float size = EnemySize(e.maxHp);
                     Color col = big ? new Color(0.9f, 0.35f, 0.2f) : new Color(0.9f, 0.3f, 0.3f);
                     view = NewView($"Enemy_{e.label}");
-                    view.Bind(e, col, size, SortingLayers.Actor);
+                    _viewScaleByLabel.TryGetValue(e.label, out int viewScale);
+                    view.Bind(e, col, size, SortingLayers.Actor, null, null,
+                        viewScale > 0 ? viewScale : 1);
                     _enemyViews[e] = view;
                 }
                 view.Sync();

@@ -17,3 +17,4 @@ MonoBehaviour:
   role: 3
   atk: 20
   atkConfirmed: 0
+  viewScale: 2

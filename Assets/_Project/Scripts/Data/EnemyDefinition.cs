@@ -34,5 +34,10 @@ namespace MBI.Data
         public float atk;
         [Tooltip("balance_v4 enemies[].confirmed. false면 미확정치(§7 오표기 방지).")]
         public bool atkConfirmed;
+
+        [Header("화면 크기")]
+        [Tooltip("스프라이트를 몇 배로 키워 그리는가. 보통 1 — 보스만 2(벌이 256이라 코드가 키운다). " +
+                 "정수만 쓴다. 값의 원천은 ArtSpec.BossViewScale 이고 생성기가 여기에 옮긴다.")]
+        public int viewScale = 1;
     }
 }
