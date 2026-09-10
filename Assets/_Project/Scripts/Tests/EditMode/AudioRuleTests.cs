@@ -286,6 +286,28 @@ namespace MBI.Tests
             MusicVolume.Reset();
         }
 
+        /// <summary>
+        /// **소리 버튼이 변수 패널과 겹치지 않는다** (2026-09-10 · 실제로 겹쳐 있었다).
+        ///
+        /// 겹치면 뒤에 그리는 쪽이 클릭을 먹어 **버튼이 그려지기만 하고 안 눌린다.**
+        /// 화면 없이 잴 수 있는 것은 **자리**뿐이라 자리만 잰다 — 눌리는지는 사람이 본다.
+        /// </summary>
+        [Test]
+        public void SoundButton_DoesNotOverlapTheVariablePanel()
+        {
+            const float margin = 12f;
+            const float w = 1440f;
+
+            // 변수 패널 — VariablePanel.OnGUI 와 같은 셈.
+            var variablePanel = new Rect(w - 300f - margin, margin, 300f, 250f);
+            // 소리 버튼 — AudioOptionsPanel.OnGUI 와 같은 셈.
+            var soundButton = new Rect(w - 96f - margin, 250f + margin * 2f, 96f, 32f);
+
+            Assert.IsFalse(variablePanel.Overlaps(soundButton),
+                $"겹친다 — 변수 {variablePanel} · 소리 {soundButton}");
+            Assert.Greater(soundButton.y, variablePanel.yMax, "소리 버튼은 변수 패널 아래다");
+        }
+
         /// <summary>사람이 올려도 1을 안 넘고 내려도 0 아래로 안 간다.</summary>
         [Test]
         public void MusicVolume_IsClampedToZeroOne()

@@ -14,7 +14,12 @@ namespace MBI.UI
     /// SO 의 `musicVolume` 은 **기본값**이고 여기서 고친 값은 그 사람의 것이다.
     ///
     /// ⚠️ **UI 문서에 이 패널의 규정이 없다.** 자리·크기·여는 방법은 구현 가정이며,
-    /// 규정이 서면 그쪽을 따른다. 지금은 **화면 오른쪽 위 · 다른 패널과 안 겹치는 자리**다.
+    /// 규정이 서면 그쪽을 따른다. 지금은 **화면 오른쪽 · 변수 패널 바로 아래**다.
+    ///
+    /// ⚠️ **구 자리(오른쪽 위 구석)는 폐기됐다** — <see cref="VariablePanel"/> 이 같은 구석을
+    /// 300×250 으로 먼저 차지하고 있어서 **버튼이 그려지기만 하고 눌리지 않았다.**
+    /// 겹친 자리는 뒤에 그리는 쪽이 클릭을 먹는다. 2026-09-10 에 시험판 배경 음악을
+    /// 꺼 두는 일을 하다가, **꺼진 것을 다시 켜 보려는데 버튼이 안 눌려** 드러났다.
     /// </summary>
     public sealed class AudioOptionsPanel : MonoBehaviour
     {
@@ -26,6 +31,15 @@ namespace MBI.UI
         private const float PanelW = 240f;
         private const float PanelH = 76f;
         private const float Margin = 12f;
+
+        /// <summary>
+        /// 변수 패널이 오른쪽 위에 차지하는 높이(<see cref="VariablePanel"/> 의 250 + 여백).
+        /// **그 아래에서 시작한다** — 겹치면 뒤에 그리는 쪽이 클릭을 먹어 버튼이 죽는다.
+        ///
+        /// ⚠️ **숫자를 여기 두는 것은 임시다.** 두 패널의 자리를 한곳에서 정하는 규정이
+        /// UI 문서에 서면 그쪽을 따른다(설계 몫 · `260910_W02` 6장에서 옵션 절 신설로 접수됨).
+        /// </summary>
+        private const float VariablePanelBottom = 250f + Margin * 2f;
 
         private bool _open;
         private bool _loaded;
@@ -56,14 +70,15 @@ namespace MBI.UI
         {
             KoreanFont.Apply();
 
-            // 버튼은 오른쪽 위 — 변수 패널(하단)과 노드 팔레트(오른쪽 300 아래)를 피한다.
-            var button = new Rect(Screen.width - ButtonW - Margin, Margin, ButtonW, ButtonH);
+            // 버튼은 오른쪽 — **변수 패널 바로 아래**에서 시작한다.
+            float top = VariablePanelBottom;
+            var button = new Rect(Screen.width - ButtonW - Margin, top, ButtonW, ButtonH);
             UiBlockers.Add(button);
             if (GUI.Button(button, _open ? "소리 ▲" : "소리 ▼")) _open = !_open;
 
             if (!_open) return;
 
-            var panel = new Rect(Screen.width - PanelW - Margin, Margin + ButtonH + 4f, PanelW, PanelH);
+            var panel = new Rect(Screen.width - PanelW - Margin, top + ButtonH + 4f, PanelW, PanelH);
             UiBlockers.Add(panel);
             GUI.Box(panel, GUIContent.none);
 
