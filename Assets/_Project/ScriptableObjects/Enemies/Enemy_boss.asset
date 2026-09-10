@@ -27,8 +27,6 @@ MonoBehaviour:
     - {fileID: 21300000, guid: b75ff4370ba2de84084da641f4ec27b1, type: 3}
     - {fileID: 21300000, guid: 79316f9132f8583489b1e340d72b42db, type: 3}
     - {fileID: 21300000, guid: c95ce95cb592ba745af8f4b420c04a50, type: 3}
-    - {fileID: 21300000, guid: 4e45bd02004e8f64cbcaa08b5ec95c52, type: 3}
-    - {fileID: 21300000, guid: f4643cda452be2145a7755ad191b3d73, type: 3}
     targetSeconds: 1
     pingPong: 1
     dwellCells: 
