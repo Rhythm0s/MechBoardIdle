@@ -43,6 +43,16 @@ namespace MBI.UI
         /// </summary>
         private bool _musicWanted;
 
+        /// <summary>
+        /// 곡을 튼 뒤 흐른 시간(초). **`AudioSource.time`을 안 쓴다.**
+        ///
+        /// ⚠️ 2026-09-10 리허설에서 **BGM이 아예 안 났다.** 봉투가 `src.time`으로 페이드를
+        /// 만드는데 그 값이 안 오르면 `t / fade`가 **0에 박혀 볼륨이 영영 0**이 된다.
+        /// 스트리밍 클립은 플랫폼에 따라 `time`이 다르게 도므로 **우리가 직접 센다** —
+        /// 이 값은 어디서나 같은 속도로 오른다.
+        /// </summary>
+        private float _headA, _headB;
+
         // 크로스페이드는 소스 둘을 겹쳐 쓴다 — 하나는 줄고 하나는 는다.
         private AudioSource _musicA;
         private AudioSource _musicB;
@@ -145,6 +155,7 @@ namespace MBI.UI
             next.Play();
 
             next.time = 0f; // 새 곡은 처음부터 — 루프 봉투가 0에서 올라온다
+            SetHead(next, 0f);
             _fadeLeft = config != null ? Mathf.Max(0f, config.musicCrossfadeSeconds) : 0f;
             if (_fadeLeft <= 0f) ApplyFade(1f); // 0이면 즉시 갈아탄다
         }
@@ -152,10 +163,28 @@ namespace MBI.UI
         private void Update()
         {
             FollowPhase();
+            AdvanceHeads();
             RestartFinishedMusic();
             TickFade();
             DrainCues();
         }
+
+        /// <summary>도는 소스의 머리를 민다. **우리 시계이므로 플랫폼을 안 탄다.**</summary>
+        private void AdvanceHeads()
+        {
+            float dt = Time.unscaledDeltaTime;
+            if (_musicA != null && _musicA.isPlaying) _headA += dt;
+            if (_musicB != null && _musicB.isPlaying) _headB += dt;
+        }
+
+        private void SetHead(AudioSource src, float value)
+        {
+            if (src == _musicA) _headA = value;
+            else if (src == _musicB) _headB = value;
+        }
+
+        private float HeadOf(AudioSource src) =>
+            src == _musicA ? _headA : src == _musicB ? _headB : 0f;
 
         /// <summary>
         /// 끝난 곡을 처음부터 다시 튼다 (2026-09-09 사용자 확정 · 사운드 문서 6장).
@@ -170,12 +199,13 @@ namespace MBI.UI
             Restart(Current());
         }
 
-        private static void Restart(AudioSource src)
+        private void Restart(AudioSource src)
         {
             if (src == null || src.clip == null) return;
             if (!MusicLoop.ShouldRestart(src.isPlaying, true)) return;
 
             src.time = 0f;
+            SetHead(src, 0f);   // 봉투도 처음부터 — 안 되돌리면 새 곡이 꼬리 페이드로 시작한다
             src.Play();
         }
 
@@ -214,7 +244,7 @@ namespace MBI.UI
         {
             if (src == null || src.clip == null) return 1f;
             float fade = config != null ? config.musicLoopFadeSeconds : 0f;
-            return MusicLoop.Envelope(src.time, src.clip.length, fade);
+            return MusicLoop.Envelope(HeadOf(src), src.clip.length, fade);
         }
 
         private AudioSource Current() => _useA ? _musicA : _musicB;
