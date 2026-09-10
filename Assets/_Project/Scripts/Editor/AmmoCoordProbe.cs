@@ -209,6 +209,14 @@ namespace MBI.EditorTools
             sb.AppendLine($"  완료 출력 = {output:F1} ({perSec:F2}개/초 x 발당 {std.damage:F0})");
             sb.AppendLine($"  첫 도착까지 {firstAt:F1}초 (운송 지연)");
 
+            // ⚠️ **창 값과 정상상태를 가른다**(2026-09-11 사용자 정정).
+            // 위 값은 **60초 창을 그대로 나눈 것**이라 첫 도착까지의 빈 시간이 섞여 있다 —
+            // 값이 모자란 것으로 읽히지만 **정상상태는 그렇지 않다.** 둘 다 적는다.
+            float steady = firstAt < Window ? filledCount / (Window - firstAt) : 0f;
+            sb.AppendLine($"  정상상태 = {steady * std.damage:F1} ({steady:F2}개/초 · " +
+                          $"첫 도착 뒤 {Window - firstAt:F1}초로 나눈 것)");
+            sb.AppendLine("  주의: 「완료 출력」의 창 정의(60초 누적 ÷ 60 인가)는 설계 판정 자리다.");
+
             float cap = bal.mountStackLimit * MountLoad.SlotsRobotA;
             if (perSec > 0f)
                 sb.AppendLine($"  마운트 {cap:F0} 채움 = {firstAt + cap / perSec:F0}초 " +
@@ -230,8 +238,10 @@ namespace MBI.EditorTools
 
             sb.AppendLine();
             sb.AppendLine("  빈 칸 자리 비교 — 60초 도착 개수");
-            sb.AppendLine($"  (가) 군수 한 대를 비운다(현행) | 채우기 전 {nodeGap} | 채운 뒤 {whole}");
-            sb.AppendLine($"  (나) 운반로 벨트 한 칸을 비운다 | 채우기 전 {beltGap} | 채운 뒤 {whole}");
+            // ⚠️ **설계 글자를 쓴다** — (가) = 운반로 벨트 · (나) = 문안 30→40 · (다) = 한 줄.
+            // 구현이 먼저 붙인 (가)/(나)는 **뒤집혀 있었다**(2026-09-11 사용자 정정).
+            sb.AppendLine($"  (가) 합류 뒤 운반로 벨트 한 칸 | 채우기 전 {beltGap} | 채운 뒤 {whole}");
+            sb.AppendLine($"  현행  군수 한 대를 비운다      | 채우기 전 {nodeGap} | 채운 뒤 {whole}");
             sb.AppendLine("  주의: 「놓기 전 0」이 서는 쪽이 튜토리얼 종료 조건과 맞는다 — 판정은 설계.");
         }
 
