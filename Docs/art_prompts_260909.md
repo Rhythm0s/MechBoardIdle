@@ -115,6 +115,107 @@ SHAPE: ONE arrow pointing straight UP toward the top edge of the canvas. A wide 
 
 ---
 
+---
+
+# 보스 — 256 전투 스틸과 사망 벌 (2026-09-10)
+
+**왜 여기 있나** — 사용자 확정 「보스는 512다」 뒤에 도구 상한이 걸렸다(아트 로그 3-24).
+`create_character`·`animate_character`·`animate_image` 가 전부 **256 이 상한**이라 512 로는 회전도 애니도 못 만든다.
+그래서 **512 를 참조로 256 전투 스틸을 새로 뽑고**, 그 위에 회전·사망을 얹었다. 화면 배율은 **코드 2배**다.
+
+## 5. 보스 256 전투 스틸 — ✅ **사용자 승인 · 설치** (job `a73a0def` · md5 `a909ae6a`)
+
+| 항목 | 값 |
+|---|---|
+| 도구 · 캔버스 | `create_image_pro` · **256 × 256** · 후보 **1장**(256 이라 1장이 상한) |
+| 참조 | `Units/boss.png` **512 승인본**을 **176px · 16색으로 줄여** 인라인 base64 로 |
+| 비용 | 20 생성 |
+
+⚠️ **참조를 줄인 것은 그림을 줄인 것이 아니다.** 512 원본은 base64 **111,744자**, 256 팔레트본도 **13,532자**로
+둘 다 클라이언트가 잘랐다. 통과한 것은 **6,528자**(176px · 16색)다. **결과물은 256 으로 새로 그려졌고**
+512 와의 모양 겹침이 **0.977** 이다(구 09-04 벌 첫 칸은 0.744).
+
+**`reference_images[0].usage`**
+
+```
+the same boss machine — its identity, hull shape, plating layout, gun placement, colour palette, and its straight-on non-tilted viewing angle
+```
+
+**`description` 전문**
+
+```
+Pixel art boss war machine, the SAME machine as the reference image, one single machine centred in the frame, alone on a fully transparent background
+
+CAMERA: square to the machine. Its front faces the viewer directly and the left and right halves MIRROR each other about one vertical centre line. The hull edges run parallel to the edges of the image. This is a straight-on view, not a three-quarter view and not an isometric view, and the machine is not rotated or tilted on the ground.
+
+FRAMING: the whole machine fits inside the canvas with a clear empty margin on all four sides. Nothing touches any edge. The gap below the machine at the bottom is as wide as the gap above it at the top.
+
+BUILD: a heavy armoured tracked siege machine, riveted steel plating, a broad flat hull, gun barrels and vents protruding from both sides, hard mechanical edges, nothing organic
+
+COLOR: desaturated gunmetal steel with dark red accent panels, exactly as the reference
+
+RENDERING: flat crisp pixel shapes with a small number of value steps, calm and even, no glow and no light bloom anywhere
+
+EDGES: the machine meets the transparent background directly, a clean unbordered edge
+```
+
+**FRAMING 절의 마지막 문장이 핵심이다** — 「아래 여백 = 위 여백」. 로봇 A 에서 아래 여백 0 이 진폭 측정과
+걷기를 둘 다 막았던 자리이고, 결과는 **L57 R57 T59 B65** 로 지켜졌다(좌우가 같아 정면이라는 증거이기도 하다).
+
+## 6. 회전 8방향 (character `2fd860bd` · 8 생성)
+
+| 항목 | 값 |
+|---|---|
+| 도구 | `create_character` **mode="v3"** · `size=256` |
+| 참조 | `reference_image_url` = 5번 결과의 **PixelLab 무인증 URL** — 줄이지 않고 원본 그대로 |
+
+```
+a heavy armoured tracked siege machine, riveted gunmetal steel plating with dark red accent panels, gun barrels and vents protruding from both sides, hard mechanical edges, nothing organic
+```
+
+**남면 대조 결과** — md5 는 갈렸으나(`a909ae6a` → `ebd7b29d`) **겹침 1.000 · 보이는 화소 12,544개의 색이 전부 같다.**
+다른 것은 알파 6화소와 PNG 인코딩뿐이다. **도구가 첫 칸을 다시 그리지 않았다.**
+
+## 7. 사망 2차 — ⚠️ **폐기** (animation `4e6a9bb4` · group `8ac7a6a4` · 8 생성)
+
+| 항목 | 값 |
+|---|---|
+| 도구 | `animate_character` **mode="v3"** · `directions=["south"]` · `frame_count=8` · `keep_first_frame=true` → **9칸** |
+| 끝 자세 | 승인본을 **세로 ×0.72 · 가로 ×1.06**, 아랫변 고정(151 × 95) · **새 획 0** |
+
+```
+the machine is destroyed and settles onto the ground: its suspension gives way so the whole hull sinks straight down, the side gun barrels droop, and the tracks splay outward as it flattens
+```
+
+**측정은 통과했다** — 세로 132 → 95, **변화 37px = 28.0%**(판정선 10%) · 단조 감소 · 잘린 칸 0.
+⚠️ **폐기 사유 둘** — ① **8칸에서 튄다**: 가로가 204까지 벌어졌다가 마지막에 **151로 되돌아온다(−53px)**,
+7칸과 8칸의 실루엣 겹침 **0.683**. 원인은 **끝 자세가 도구가 간 폭보다 좁아서**다(8칸이 준 끝 자세와 겹침 0.999).
+② **사용자 육안** — 「포탑이 삐뚤어지면서 부포들이 떨어져 나가는 느낌으로」.
+
+## 8. 사망 3차 (animation group `b1044cb9` · 8 생성)
+
+| 항목 | 값 |
+|---|---|
+| 도구·인자 | 7번과 같다 |
+| 끝 자세 | 승인본을 **세로 ×0.72 · 가로 ×1.40**, 아랫변 고정(**199 × 95**) · 새 획 0 |
+
+**가로 배율을 1.06에서 1.40으로 올린 것이 2차의 튐을 고치는 자리다** — 도구가 자연스럽게 간 폭이 204였다.
+
+```
+the machine is destroyed and comes apart where it stands: the central turret slews hard to one side and sags over askew, the four side gun mounts tear loose from the hull and tumble away outward leaving torn empty sockets, and the wrecked hull settles down and spreads out onto its tracks
+```
+
+⚠️ **「포탑이 기울고 부포가 떨어져 나간」 끝 자세도 만들었으나 넘길 수 없었다** (`candidates/boss_Death_pose/end3.png`).
+인라인 base64 한계를 실측했다 — **7,332자에서도 끝 4자가 잘리고**, **4비트 팔레트 PNG 는 디코딩이 안 된다**(8비트여야 한다).
+그 판은 8비트 최소가 7,332자라 통과선을 못 넘었다. **그래서 부위 이탈은 문안이 끌게 두었다.**
+
+⚠️ **메탈슬러그 참고는 문장으로만 반영했다** (사용자 지시 3번). **원본 스프라이트를 참조로 걸지 않는다** —
+남의 저작물이고, 참조로 걸면 그 화풍이 결과에 직접 들어온다. 옮긴 것은 **구조**다:
+한 번에 사라지지 않고 부위가 차례로 떨어져 나가며, 폭발이 여러 번 터지고, 잔해가 남는다.
+폭발은 벌이 아니라 **`VFX/vfx_death.png`(초안 · 미승인)를 코드가 뿌리는 자리**다.
+
+---
+
 ## 설계에 넘기는 것
 
 - **10-5 의 `mod_m` `{SHAPE}` 를 3번 문안으로 갈아 끼운다.** 2번은 「도구가 X 로 읽는다」를 근거와 함께 폐기 표기.
