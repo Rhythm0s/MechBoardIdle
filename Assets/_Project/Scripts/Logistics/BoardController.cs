@@ -1971,7 +1971,10 @@ namespace MBI.Logistics
             var minus = new Rect(x, y, bw, bh);
             var plus = new Rect(x + bw + pad, y, bw, bh);
 
-            GUI.Label(new Rect(x + (bw + pad) * 2f, y + 6f, 160f, 20f),
+            // ⚠️ **버튼에서 한 칸 더 띄운다**(2026-09-10 · 촬영 결함 e). 종전에는 `+` 버튼
+            // 오른쪽 끝에서 6px 뒤에 바로 붙어 **글자가 버튼에 겹쳐 보였다.**
+            // 폭도 160 → 200 으로 늘린다 — 「보드 배율 ×1.00」이 160 에 아슬아슬했다.
+            GUI.Label(new Rect(x + (bw + pad) * 2f + pad * 2f, y + 6f, 200f, 20f),
                 $"보드 배율 ×{_zoom:0.00}", label);
             UiBlockers.Add(minus);
             UiBlockers.Add(plus);

@@ -14,12 +14,16 @@ namespace MBI.UI
     /// SO 의 `musicVolume` 은 **기본값**이고 여기서 고친 값은 그 사람의 것이다.
     ///
     /// ⚠️ **UI 문서에 이 패널의 규정이 없다.** 자리·크기·여는 방법은 구현 가정이며,
-    /// 규정이 서면 그쪽을 따른다. 지금은 **화면 오른쪽 · 변수 패널 바로 아래**다.
+    /// 규정이 서면 그쪽을 따른다. 지금은 **오른쪽 아래 · 심사자용 바로가기 바로 위**다.
     ///
-    /// ⚠️ **구 자리(오른쪽 위 구석)는 폐기됐다** — <see cref="VariablePanel"/> 이 같은 구석을
-    /// 300×250 으로 먼저 차지하고 있어서 **버튼이 그려지기만 하고 눌리지 않았다.**
-    /// 겹친 자리는 뒤에 그리는 쪽이 클릭을 먹는다. 2026-09-10 에 시험판 배경 음악을
-    /// 꺼 두는 일을 하다가, **꺼진 것을 다시 켜 보려는데 버튼이 안 눌려** 드러났다.
+    /// ⚠️ **자리를 두 번 옮겼다**(둘 다 2026-09-10 실측).
+    /// ① 오른쪽 위 구석 — <see cref="VariablePanel"/> 이 같은 구석을 300×250 으로 차지해
+    ///    **버튼이 그려지기만 하고 안 눌렸다**(겹친 자리는 뒤에 그리는 쪽이 클릭을 먹는다).
+    /// ② 변수 패널 바로 아래 — 이번에는 **노드 팔레트 제목과 글자가 겹쳤다**
+    ///    (「노드 팔레소리▼」). 오른쪽 위는 위에서 아래로 변수 패널과 팔레트가 잇달아 차지한다.
+    ///
+    /// 그래서 **아래에서 위로** 붙인다. 화면 세로가 얼마든 바닥에서 같은 거리라
+    /// 위쪽이 무엇으로 차든 안 걸린다 — 위에서 재던 것이 두 번 다 걸린 자리다.
     /// </summary>
     public sealed class AudioOptionsPanel : MonoBehaviour
     {
@@ -33,13 +37,16 @@ namespace MBI.UI
         private const float Margin = 12f;
 
         /// <summary>
-        /// 변수 패널이 오른쪽 위에 차지하는 높이(<see cref="VariablePanel"/> 의 250 + 여백).
-        /// **그 아래에서 시작한다** — 겹치면 뒤에 그리는 쪽이 클릭을 먹어 버튼이 죽는다.
+        /// 바닥에서 버튼 아랫변까지의 거리. **심사자용 바로가기 패널 바로 위**다 —
+        /// 그 패널이 <c>Screen.height - 190</c> 에서 시작하므로 그보다 위에 선다.
         ///
-        /// ⚠️ **숫자를 여기 두는 것은 임시다.** 두 패널의 자리를 한곳에서 정하는 규정이
+        /// ⚠️ **아래에서 잰다.** 위에서 재면 변수 패널·노드 팔레트가 차례로 자리를 넓힐 때마다
+        /// 다시 밀려야 한다 — 실제로 2026-09-10 에 두 번 걸렸다.
+        ///
+        /// ⚠️ **숫자를 여기 두는 것은 임시다.** 화면 요소의 자리를 한곳에서 정하는 규정이
         /// UI 문서에 서면 그쪽을 따른다(설계 몫 · `260910_W02` 6장에서 옵션 절 신설로 접수됨).
         /// </summary>
-        private const float VariablePanelBottom = 250f + Margin * 2f;
+        private const float BottomInset = 190f + ButtonH + Margin;
 
         private bool _open;
         private bool _loaded;
@@ -77,15 +84,16 @@ namespace MBI.UI
         {
             KoreanFont.Apply();
 
-            // 버튼은 오른쪽 — **변수 패널 바로 아래**에서 시작한다.
-            float top = VariablePanelBottom;
+            // 버튼은 오른쪽 아래 — 바닥에서 잰다(위쪽은 두 번 다 걸렸다).
+            float top = Screen.height - BottomInset;
             var button = new Rect(Screen.width - ButtonW - Margin, top, ButtonW, ButtonH);
             UiBlockers.Add(button);
             if (GUI.Button(button, _open ? "소리 ▲" : "소리 ▼")) _open = !_open;
 
             if (!_open) return;
 
-            var panel = new Rect(Screen.width - PanelW - Margin, top + ButtonH + 4f, PanelW, PanelH);
+            // ⚠️ **슬라이더는 버튼 위로 편다.** 아래로 펴면 화면 밖으로 나간다.
+            var panel = new Rect(Screen.width - PanelW - Margin, top - PanelH - 4f, PanelW, PanelH);
             UiBlockers.Add(panel);
             GUI.Box(panel, GUIContent.none);
 
