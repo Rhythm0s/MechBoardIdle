@@ -1131,7 +1131,13 @@ namespace MBI.Combat
                 };
             }
 
-            GUILayout.BeginArea(new Rect(12, 10, 560, 280));
+            // ⚠️ **조립 화면에서는 이 글자가 전투 그림 위에 얹힌다**(2026-09-10 · 플랜 §66-35 ②).
+            // 상단 인셋을 켠 대가라, 글자가 있는 자리만 어둡게 깔아 대비를 되돌린다.
+            // **블록 단위로만** 깐다 — 위쪽을 통째로 덮으면 전투를 그린 뜻이 사라진다.
+            var hud = new Rect(12, 10, 560, 280);
+            if (GameViewSignals.BoardViewActive) UiPlate.Draw(hud);
+
+            GUILayout.BeginArea(hud);
             GUILayout.Label($"{StageTitle()}  ·  {stage.topic}", style);
             GUILayout.Label(OutputLine(), style);
             GUILayout.Label(AmmoLine(), style);

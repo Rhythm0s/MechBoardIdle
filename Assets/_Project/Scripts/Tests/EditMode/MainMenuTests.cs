@@ -2,6 +2,7 @@ using MBI.Core;
 using MBI.Data;
 using NUnit.Framework;
 using UnityEditor;
+using UnityEngine;
 
 namespace MBI.Tests
 {
@@ -111,6 +112,49 @@ namespace MBI.Tests
 
             Assert.IsFalse(links.HasDocument, "포트폴리오 문서 주소는 아직 미기재다");
             Assert.IsFalse(links.HasNotion, "노션 주소는 아직 미기재다");
+        }
+
+        // ---- 볼륨 패널은 메뉴 뒤로 들어가면 안 된다 (2026-09-10 · 플랜 §66-35 ①) ----
+
+        /// <summary>
+        /// **메뉴가 열려 있어도 볼륨 패널은 그려지고, 메뉴보다 앞에 선다.**
+        ///
+        /// 메뉴의 「볼륨」이 여는 것이 **메뉴 뒤로 들어가면 열려도 못 읽고 못 만진다** —
+        /// 실제로 그랬다(리허설 1바퀴 · 결함 ①).
+        ///
+        /// 재는 것은 둘이다. ① 볼륨 패널이 **메뉴가 억제하는 목록에 없다**(있으면 아무것도
+        /// 안 여는 버튼이 된다). ② `GUI.depth` 가 **메뉴보다 낮다** — IMGUI 는 낮을수록 앞이다.
+        ///
+        /// ⚠️ 실제로 보이는지는 화면에서 사람이 본다. 여기서 재는 것은 **차례**뿐이다.
+        /// </summary>
+        [Test]
+        public void TheVolumePanelStaysInFrontOfTheMenu()
+        {
+            Assert.Less(MBI.UI.AudioOptionsPanel.MenuDepth - 1, MBI.UI.AudioOptionsPanel.MenuDepth,
+                "볼륨 패널이 메뉴보다 앞이다 — GUI.depth 는 낮을수록 앞");
+
+            // 메뉴가 억제하는 일곱을 소스에서 센다 — 볼륨 패널이 끼어들면 여기서 빨개진다.
+            string panel = System.IO.File.ReadAllText(
+                "Assets/_Project/Scripts/UI/AudioOptionsPanel.cs");
+            StringAssert.DoesNotContain("if (MainMenuGate.IsOpen) return;", panel,
+                "볼륨 패널을 억제하면 메뉴의 「볼륨」이 아무것도 안 여는 버튼이 된다");
+        }
+
+        /// <summary>
+        /// **바탕 판은 글자 자리만 덮는다.** 위쪽 30% 를 통째로 덮으면 전투를 그린 뜻이 사라진다.
+        /// </summary>
+        [Test]
+        public void TheBackingPlateCoversTheTextOnly_NotTheWholeInset()
+        {
+            var hud = new Rect(12f, 10f, 560f, 280f);
+            Rect plate = MBI.UI.UiPlate.Padded(hud);
+
+            Assert.Less(plate.width, 1440f * 0.6f, "판이 가로를 절반 넘게 먹으면 전투가 가린다");
+            Assert.Less(plate.yMax, MBI.Core.CombatInsetView.BottomPixels(2560f),
+                "판이 인셋 아래로 넘치면 보드까지 어두워진다");
+
+            Assert.Greater(MBI.UI.UiPlate.Alpha, 0f, "0 이면 대비가 안 돌아온다");
+            Assert.Less(MBI.UI.UiPlate.Alpha, 1f, "1 이면 전투가 통째로 가려진다");
         }
     }
 }

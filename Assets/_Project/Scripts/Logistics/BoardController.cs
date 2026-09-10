@@ -1475,6 +1475,11 @@ namespace MBI.Logistics
             // 이동 모드에서는 팔레트를 흐리게 — 지금은 놓을 수 없다는 것을 버튼 상태로 알린다.
             GUI.enabled = _mode == BoardMode.Build;
 
+            // 팔레트도 인셋 위에 걸린다 — 제목부터 마지막 버튼까지 한 판으로 덮는다(§66-35 ②).
+            // 아래 요소·모듈·제거까지 이어지므로 넉넉히 잡는다.
+            float plateH = 26f + palette.Count * (h + pad) + (h + pad) * 5f + 40f;
+            UiPlate.Draw(new Rect(x, y0 - 26f, w + 20f, plateH));
+
             GUI.Label(new Rect(x, y0 - 26f, w, 24f), "노드 팔레트", new GUIStyle(GUI.skin.label) { fontSize = 15 });
             int i;
             for (i = 0; i < palette.Count; i++)
@@ -1926,6 +1931,7 @@ namespace MBI.Logistics
             // 화면 바닥과 화면 위를 각각 기준으로 삼는 두 요소는 언젠가 반드시 만난다.
             // 그래서 같은 기준(왼쪽 위)을 쓰는 배율 줄 옆으로 보낸다.
             var rect = new Rect(12f, 300f, 140f, 46f);
+            UiPlate.Draw(rect); // 인셋 전투 위라 바탕을 깐다(§66-35 ②)
             UiBlockers.Add(rect);
 
             string label = _mode == BoardMode.Pan ? "이동 모드" : "조립 모드";
@@ -1967,6 +1973,9 @@ namespace MBI.Logistics
             // 그려지지 않으므로(StageRunner) 이 줄이 300을 통째로 쓴다.
             // 모드 버튼(12..152)의 오른쪽. 같은 줄에서 세로 가운데를 맞춘다.
             const float x = 164f, y = 308f, bw = 40f, bh = 30f, pad = 6f;
+
+            // 버튼 둘 + 글자를 한 판으로 덮는다(§66-35 ②). 글자 폭 200 까지 든다.
+            UiPlate.Draw(new Rect(x, y, (bw + pad) * 2f + pad * 2f + 200f, bh));
 
             var minus = new Rect(x, y, bw, bh);
             var plus = new Rect(x + bw + pad, y, bw, bh);

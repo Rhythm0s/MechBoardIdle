@@ -57,6 +57,10 @@ namespace MBI.UI
         {
             if (!_open) return;
 
+            // 볼륨 패널이 이 위에 선다(`AudioOptionsPanel.MenuDepth`) — 메뉴가 여는 것이
+            // 메뉴 뒤로 들어가면 안 된다.
+            GUI.depth = AudioOptionsPanel.MenuDepth;
+
             KoreanFont.Apply();
 
             // 화면을 통째로 덮는다. 자리를 내놓아야 아래 보드·전투가 같이 눌리지 않는다.

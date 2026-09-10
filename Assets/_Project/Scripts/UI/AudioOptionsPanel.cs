@@ -36,6 +36,9 @@ namespace MBI.UI
         private const float PanelH = 76f;
         private const float Margin = 12f;
 
+        /// <summary>메인 메뉴가 쓰는 깊이. 이 패널은 그보다 **하나 앞**에 선다.</summary>
+        public const int MenuDepth = 0;
+
         /// <summary>
         /// 바닥에서 버튼 아랫변까지의 거리. **심사자용 바로가기 패널 바로 위**다 —
         /// 그 패널이 <c>Screen.height - 190</c> 에서 시작하므로 그보다 위에 선다.
@@ -82,6 +85,14 @@ namespace MBI.UI
 
         private void OnGUI()
         {
+            // ⚠️ **메뉴보다 앞에 그린다**(2026-09-10 · 플랜 §66-35 ①).
+            // `GUI.depth` 는 **낮을수록 앞**이다. 이 패널은 메뉴의 「볼륨」이 여는 것이라
+            // 메뉴 뒤로 들어가면 **열려도 못 읽고 못 만진다** — 실제로 그랬다.
+            //
+            // ⚠️ 메뉴가 억제하는 `OnGUI` 일곱에 **이 패널은 들어 있지 않다.** 넣으면
+            // 메뉴의 「볼륨」이 아무것도 안 여는 버튼이 된다.
+            GUI.depth = MenuDepth - 1;
+
             KoreanFont.Apply();
 
             // 버튼은 오른쪽 아래 — 바닥에서 잰다(위쪽은 두 번 다 걸렸다).
