@@ -265,6 +265,27 @@ namespace MBI.Tests
                 "SO 기본값이 코어 상수와 같다");
         }
 
+        /// <summary>
+        /// **시험판은 꺼 두고 연다**(사용자 확정 2026-09-10). 배포판 기본 30% 는 그대로다 —
+        /// 두 값은 서로 다른 것을 가리키므로 <c>Default</c> 를 0 으로 내리지 않는다.
+        ///
+        /// ⚠️ 시험이 도는 자리(에디터)는 <c>Debug.isDebugBuild</c> 가 참이라
+        /// **여기서 기대할 수 있는 것은 0 이다.** 배포판 쪽은 상수로 붙든다.
+        /// </summary>
+        [Test]
+        public void MusicVolume_StartsSilentInTestBuilds_ButKeepsTheReleaseDefault()
+        {
+            Assert.AreEqual(0.30f, MusicVolume.Default, 1e-6f, "배포판 기본값은 안 바뀐다");
+
+            Assert.IsTrue(UnityEngine.Debug.isDebugBuild, "시험은 개발 쪽에서 돈다");
+            Assert.AreEqual(0f, MusicVolume.StartupDefault, 1e-6f, "시험판은 꺼진 채로 연다");
+
+            // 끄는 것이지 없애는 것이 아니다 — 올리면 그대로 들어간다.
+            MusicVolume.Set(0.5f);
+            Assert.AreEqual(0.5f, MusicVolume.Value, 1e-6f);
+            MusicVolume.Reset();
+        }
+
         /// <summary>사람이 올려도 1을 안 넘고 내려도 0 아래로 안 간다.</summary>
         [Test]
         public void MusicVolume_IsClampedToZeroOne()

@@ -32,12 +32,18 @@ namespace MBI.UI
 
         private void Awake() => Load();
 
-        /// <summary>기기에 남은 값을 읽는다. 없으면 기본 30%다.</summary>
+        /// <summary>
+        /// 기기에 남은 값을 읽는다. 없으면 <see cref="MusicVolume.StartupDefault"/> —
+        /// **배포판은 30%, 시험판은 0%** 다(사용자 확정 2026-09-10).
+        ///
+        /// ⚠️ **남은 값이 있으면 그것이 이긴다.** 시험판에서 슬라이더를 올린 사람에게
+        /// 다음에 다시 0 을 들이밀지 않는다.
+        /// </summary>
         private void Load()
         {
             if (_loaded) return;
             _loaded = true;
-            MusicVolume.Set(PlayerPrefs.GetFloat(PrefKey, MusicVolume.Default));
+            MusicVolume.Set(PlayerPrefs.GetFloat(PrefKey, MusicVolume.StartupDefault));
         }
 
         private static void Save()

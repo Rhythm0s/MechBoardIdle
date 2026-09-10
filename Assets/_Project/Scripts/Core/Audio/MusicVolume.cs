@@ -17,6 +17,19 @@ namespace MBI.Core.Audio
         /// <summary>기본 **30%** (사용자 확정 2026-09-10). SO 기본값도 같은 값이어야 한다.</summary>
         public const float Default = 0.30f;
 
+        /// <summary>
+        /// **시험판에서는 꺼 두고 연다** (사용자 확정 2026-09-10).
+        ///
+        /// 리허설과 촬영 준비는 **같은 곡을 몇 번이고 다시 듣는 자리**라 곡이 방해가 된다.
+        /// <see cref="Default"/> 를 0 으로 내리지 않는 이유는 **배포판의 기본값이 30% 라는
+        /// 확정이 살아 있기 때문**이다 — 두 값은 서로 다른 것을 가리킨다.
+        ///
+        /// ⚠️ **끄는 것이지 없애는 것이 아니다.** 슬라이더는 그대로라 올리면 들린다.
+        /// 한 번 올리면 그 값이 기기에 남아 다음에도 그 값으로 열린다.
+        /// </summary>
+        public static float StartupDefault =>
+            UnityEngine.Debug.isDebugBuild ? 0f : Default;
+
         private static float _value = Default;
 
         /// <summary>지금 볼륨(0~1).</summary>
