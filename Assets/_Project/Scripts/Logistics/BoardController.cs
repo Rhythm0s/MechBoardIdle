@@ -177,6 +177,23 @@ namespace MBI.Logistics
         private static readonly Color GridLineColor = new Color(0.40f, 0.85f, 0.60f, 0.35f);    // 셀 경계선
         private static readonly Color GridBorderColor = new Color(0.45f, 0.9f, 0.65f, 0.85f);   // 바깥 테두리
         private static readonly Color PanDimColor = new Color(0.03f, 0.05f, 0.08f, 0.55f);     // 이동 모드 흐림 막
+
+        /// <summary>
+        /// 튜토리얼 어둠막의 불투명도 — **가정 0.55** (2026-09-11 · 플랜 §68-5 ①).
+        ///
+        /// 이동 모드 흐림 막과 같은 값으로 뒀다. **UI 문서에 이 막의 절이 없다** —
+        /// `UiPlate.Alpha` 와 같은 역기입 자리이며 값이 서면 여기 하나만 바뀐다.
+        ///
+        /// ⚠️ **바탕 판·이동 흐림과 곱해지는 자리가 있다** — 셋이 겹치면 두 번 세 번 어두워진다.
+        /// 겹치는 범위는 설계가 UI 문서에 함께 적는다(`260911_W01` 3장).
+        /// </summary>
+        private static readonly Color TutorialDimColor = new Color(0.03f, 0.05f, 0.08f, 0.55f);
+
+        /// <summary>고스트 칸 밖을 덮는 조각들. 한 칸에 하나다 — 구멍을 내려면 조각이어야 한다.</summary>
+        private GameObject _tutorialDim;
+
+        /// <summary>지금 막이 비켜 준 칸들. 바뀔 때만 다시 짓는다.</summary>
+        private readonly HashSet<Vector2Int> _dimExempt = new HashSet<Vector2Int>();
         private static readonly Color HintColor = new Color(0.98f, 0.72f, 0.25f, 0.92f);       // 병목 힌트 바탕(경고 톤)
 
         /// <summary>
@@ -330,6 +347,12 @@ namespace MBI.Logistics
             // 병합기를 놓아도 영영 「안 채워짐」이고 스테이지 0이 끝나지 않는다.
             bool filled = _grid.GetAt(cell) != null || _grid.GetBeltAt(cell) != null;
             TutorialSignals.GhostCellFilled = filled;
+
+            // ⚠️ **고스트 칸 밖은 어둡게**(2026-09-11 사용자 확정 · 튜토리얼 기획서 3장).
+            // 놓을 자리를 하나로 좁혀야 「무엇을 하라는 것인지」가 화면에서 선다.
+            // 채우면 막이 걷힌다 — 그것이 수업이 끝났다는 신호다.
+            RefreshTutorialDim(filled ? null : (Vector2Int?)cell);
+
             if (filled) return; // 놓았으면 고스트는 사라진다(3장 삭제 조건)
 
             Camera cam = boardCamera != null ? boardCamera : Camera.main;
@@ -791,6 +814,60 @@ namespace MBI.Logistics
             sr.sprite = UnitSprite();
             sr.color = PanDimColor;
             sr.sortingOrder = SortingLayers.Hud; // 이동 모드 흐림 막 — 보드 요소 전부보다 위
+        }
+
+        /// <summary>
+        /// 고스트 칸 **밖**을 덮는 막을 다시 짓는다 (2026-09-11 · 플랜 §68-5 ①).
+        ///
+        /// ⚠️ **한 장으로는 구멍을 못 낸다.** 이동 모드 흐림(<see cref="BuildDimOverlay"/>)은
+        /// 보드 전체를 사각 하나로 덮는데, 여기는 **비켜 줄 칸**이 있어야 하므로 **칸마다 조각**이다.
+        ///
+        /// 비켜 주는 것은 둘이다 — **고스트 칸**과 **거기 닿는 벨트 칸**.
+        /// 벨트 끝을 같이 비켜 주지 않으면 「어디로 이어지는 자리인지」가 안 보인다.
+        /// </summary>
+        private void RefreshTutorialDim(Vector2Int? ghost)
+        {
+            var want = new HashSet<Vector2Int>();
+            if (ghost.HasValue && _grid != null)
+            {
+                Vector2Int c = ghost.Value;
+                want.Add(c);
+                foreach (PortFace f in new[] { PortFace.North, PortFace.East, PortFace.South, PortFace.West })
+                {
+                    Vector2Int nb = c + BeltRouting.Delta(f);
+                    if (_grid.GetBeltAt(nb) != null) want.Add(nb);
+                }
+            }
+
+            // 바뀐 것이 없으면 손대지 않는다 — 매 프레임 다시 지으면 깜빡인다.
+            if (_tutorialDim != null && want.SetEquals(_dimExempt)) return;
+
+            if (_tutorialDim != null) Destroy(_tutorialDim);
+            _tutorialDim = null;
+            _dimExempt.Clear();
+            foreach (Vector2Int c in want) _dimExempt.Add(c);
+
+            if (!ghost.HasValue || _grid == null) return;
+
+            _tutorialDim = new GameObject("TutorialDim");
+            _tutorialDim.transform.SetParent(transform, false);
+
+            for (int x = 0; x < _grid.Columns; x++)
+            for (int y = 0; y < _grid.Rows; y++)
+            {
+                var cell = new Vector2Int(x, y);
+                if (!_grid.IsInside(cell) || _dimExempt.Contains(cell)) continue;
+
+                var go = new GameObject($"dim_{cell.x}_{cell.y}");
+                go.transform.SetParent(_tutorialDim.transform, false);
+                go.transform.position = CellWorld(cell);
+                go.transform.localScale = Vector3.one * _grid.CellSize;
+
+                var sr = go.AddComponent<SpriteRenderer>();
+                sr.sprite = UnitSprite();
+                sr.color = TutorialDimColor;
+                sr.sortingOrder = SortingLayers.Hud;
+            }
         }
 
         // 중심(cx,cy)·크기(w,h)의 단색 사각 스프라이트 하나.
@@ -1492,6 +1569,17 @@ namespace MBI.Logistics
                 var rect = new Rect(x, y0 + i * (h + pad), w, h);
                 UiBlockers.Add(rect);
 
+                // ⚠️ **튜토리얼 동안에는 놓을 것 하나만 켠다**(2026-09-11 · 플랜 §68-5 ①).
+                //
+                // 고스트가 「여기」를 가리켜도 팔레트가 전부 켜져 있으면 **무엇을 놓으라는
+                // 것인지**가 안 선다 — 기획서 2장·8장의 「강제」가 그 뜻이다.
+                // 채우면 저절로 풀린다(고스트가 사라지면 이 조건도 거짓이 된다).
+                bool tutorialLock = TutorialSignals.GhostCell.HasValue
+                                    && !TutorialSignals.GhostCellFilled;
+                bool allowed = !tutorialLock || palette[i].type == NodeType.MunitionsBasic;
+                bool wasEnabled = GUI.enabled;
+                GUI.enabled = wasEnabled && allowed;
+
                 bool sel = !_removeMode && i == _selectedNode;
                 if (GUI.Button(rect, (sel ? "● " : "") + palette[i].displayName, style))
                 {
@@ -1501,6 +1589,7 @@ namespace MBI.Logistics
                     _selectedModule = -1;
                 }
                 DrawPaletteThumb(rect, palette[i]);
+                GUI.enabled = wasEnabled;
             }
 
             // 벨트 요소(§5-4 L3). 직선·코너는 드래그가 만들고, 이 둘만 탭으로 놓는다 —
