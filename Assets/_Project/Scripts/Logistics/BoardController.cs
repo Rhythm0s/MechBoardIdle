@@ -1691,7 +1691,12 @@ namespace MBI.Logistics
                 fontStyle = FontStyle.Bold,
             };
 
-            float boxW = 120f * fontScale;
+            // ⚠️ **폭을 글자에서 잰다**(2026-09-10 · 촬영 결함 b).
+            // 종전에는 `120 * fontScale` 로 박혀 있었는데 **글자 하나가 이미 96 아트픽셀**이라
+            // 세 글자 이름표(`팔R`·`다리L`)가 **한 글자에서 잘렸다.** 화면에는 「다」·「로」처럼
+            // 거대한 한 글자만 남아, 리허설 1차에서 「보드 글자가 깨진다」로 올라온 그 자리다.
+            //
+            // **글자 크기 문제가 아니라 상자 문제였다** — 96 은 그대로 두고 상자만 글자에 맞춘다.
             float boxH = fontPx + 6f * fontScale;
 
             foreach (PartRect p in PartLayout.Parts)
@@ -1704,6 +1709,9 @@ namespace MBI.Logistics
                     o.x + p.origin.x * config.cellSize + inset,
                     o.y + (p.origin.y + p.size.y) * config.cellSize - inset,
                     0f);
+
+                // 글자마다 폭이 다르다(`몸통` 두 자 · `다리L` 세 자). 스타일에 물어본다.
+                float boxW = style.CalcSize(new GUIContent(text)).x;
 
                 Vector3 sp = cam.WorldToScreenPoint(corner);
                 if (sp.z <= 0f) continue;

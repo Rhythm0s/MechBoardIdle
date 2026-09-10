@@ -74,7 +74,10 @@ namespace MBI.UI
             float draw = LogisticsOutputBridge.PowerDraw;
             GUILayout.Label($"전력  {r.gapPower:F1}   (사용률 {HudBars.UsageText(supply, draw)})", _label);
             HudBars.Usage(HudBars.Row(width - 24f), supply, draw);
-            GUILayout.Label($"발열  {r.gapHeat:F1}   (감쇠 {Pct(r.heatThrottle)})", _label);
+            // ⚠️ **발열 줄은 폐기됐다**(2026-09-02 폐기 확정 · 2026-09-10 이행).
+            // 09-02 에 축이 없어진 값인데 패널에는 남아 **촬영 D구간에 그대로 찍혔다.**
+            // 값을 만드는 쪽(`gapHeat`·`heatThrottle`)은 안 건드린다 — 여기서 걷는 것은
+            // **화면에 적는 일**이고, 계산을 지우는 것은 별개 판정이다.
             // 벨트는 다른 둘과 축이 다르다(2026-09-05). 전력·발열은 **식**으로 구한 감쇠이고,
             // 벨트는 「만든 것 중 실제로 닿은 비율」을 **역산**한 값이다 — 정체·갈래·거리가
             // 전부 여기 섞여 들어온다. 그래서 「감쇠」가 아니라 「도달」로 적는다.
