@@ -17,4 +17,88 @@ MonoBehaviour:
   role: 2
   atk: 8
   atkConfirmed: 0
+  sprite: {fileID: 21300000, guid: 9b4cc2303f410504fa32a2a8c6fd8731, type: 3}
+  animClips:
+  - state: 0
+    direction: 0
+    frames:
+    - {fileID: 21300000, guid: 18f0854da8d741449925e9b8f195c936, type: 3}
+    - {fileID: 21300000, guid: a6fa68c74595b1a4c8c4e4e6649ded92, type: 3}
+    - {fileID: 21300000, guid: 609c99e09f0cd9647be94a58a110fbc8, type: 3}
+    - {fileID: 21300000, guid: 17de1fc0192b89e46a6113d41f487ff1, type: 3}
+    - {fileID: 21300000, guid: 66cf3d1bb3d829c4d9d3e476d9009485, type: 3}
+    - {fileID: 21300000, guid: 25d7a88591c5d6343a54225702917cf3, type: 3}
+    - {fileID: 21300000, guid: 4fd9b6563c2448341be612533f22f461, type: 3}
+    targetSeconds: 1
+    pingPong: 1
+    dwellCells: 
+    cellOrder: 
+  - state: 1
+    direction: 0
+    frames:
+    - {fileID: 21300000, guid: 0b12aafaaaf09c74087980a016696014, type: 3}
+    - {fileID: 21300000, guid: 3e05eb85f73dd734f80898dca42eca8b, type: 3}
+    - {fileID: 21300000, guid: 8f7835fbbb77c594fa396c364d5cc61d, type: 3}
+    - {fileID: 21300000, guid: 3c420fd937b5f9348b6df2af280482b0, type: 3}
+    - {fileID: 21300000, guid: eb5477379dc01e54abe9c2920e71cf6b, type: 3}
+    - {fileID: 21300000, guid: bda25b21b3a267241acb591d62882791, type: 3}
+    targetSeconds: 1
+    pingPong: 0
+    dwellCells: 
+    cellOrder: 
+  - state: 1
+    direction: 1
+    frames:
+    - {fileID: 21300000, guid: c7f32b76ec522bd458271dea818e164d, type: 3}
+    - {fileID: 21300000, guid: 4aada64860607f241a770cf4a1fe086f, type: 3}
+    - {fileID: 21300000, guid: 1bd6be87ad40c0f4a9e32beee853745f, type: 3}
+    - {fileID: 21300000, guid: eb536cd03a9e2f24fa7dace80887064c, type: 3}
+    - {fileID: 21300000, guid: 12432fba601adaa4b9e55ea62b4b40f0, type: 3}
+    - {fileID: 21300000, guid: 38ba3ae9d165dc34c93e38dc4fb2aafa, type: 3}
+    targetSeconds: 1
+    pingPong: 0
+    dwellCells: 
+    cellOrder: 
+  - state: 1
+    direction: 2
+    frames:
+    - {fileID: 21300000, guid: 82e8a2c2087c4604baeba5a32f1995bc, type: 3}
+    - {fileID: 21300000, guid: 47d6f2976d678dc40b0d33732c28001c, type: 3}
+    - {fileID: 21300000, guid: c483f4b83d5d1f2479cd620432c4c87c, type: 3}
+    - {fileID: 21300000, guid: 19daec5aaa7178b48832dda83726f750, type: 3}
+    - {fileID: 21300000, guid: 820794c74b4f3d94c8976f4aedf3612a, type: 3}
+    - {fileID: 21300000, guid: 2da04a9732ae7df4c8ac5f18bdfda4a2, type: 3}
+    targetSeconds: 1
+    pingPong: 0
+    dwellCells: 
+    cellOrder: 
+  - state: 1
+    direction: 3
+    frames:
+    - {fileID: 21300000, guid: 8fac3b44cc77f6942a33b86e787820a3, type: 3}
+    - {fileID: 21300000, guid: 4fd4b96bf04f9b14b8cef94687e65dbf, type: 3}
+    - {fileID: 21300000, guid: 8226ceca7b10ce74d9900bb6ed405856, type: 3}
+    - {fileID: 21300000, guid: ca46deda1d749e943b87ded152c620da, type: 3}
+    - {fileID: 21300000, guid: e492e541976f59b45a97effe36ae68f3, type: 3}
+    - {fileID: 21300000, guid: 21f28414ec804cb4d9959fdadbd203a5, type: 3}
+    targetSeconds: 1
+    pingPong: 0
+    dwellCells: 
+    cellOrder: 
+  - state: 2
+    direction: 0
+    frames:
+    - {fileID: 21300000, guid: b6163c319a8e1bf408e824ef0e94bec2, type: 3}
+    - {fileID: 21300000, guid: 0ef633a347250024ea911953ac794622, type: 3}
+    - {fileID: 21300000, guid: d3693f4c8939bfa49b5867602a07fd76, type: 3}
+    - {fileID: 21300000, guid: b6dd8f9a3d4d2284ea831c1f988b7d5a, type: 3}
+    - {fileID: 21300000, guid: 7fd9db00b0177634c8c4d04ecae874d1, type: 3}
+    - {fileID: 21300000, guid: 97284efec10597847beba5d7b2f3333f, type: 3}
+    - {fileID: 21300000, guid: 2c5d7fd7336bb3749b352d55eef22b36, type: 3}
+    - {fileID: 21300000, guid: eb502714620f4e848a34e6ef2b4d4855, type: 3}
+    - {fileID: 21300000, guid: 090e37939e16d424899b6e87e4049048, type: 3}
+    targetSeconds: 2
+    pingPong: 0
+    dwellCells: 
+    cellOrder: 
   viewScale: 1

@@ -338,8 +338,56 @@ namespace MBI.Editor
         }
 
         // ---- 적 4종: atk 카탈로그(hp/def는 스테이지) ----
+        /// <summary>
+        /// 적 키 → 아트 이름. **키와 파일 이름이 다르다** — 아트는 `mob_*` 로 뽑았고
+        /// 밸런스는 병종 이름으로 부른다. 그 간극이 여기 한 곳에만 있다(§8).
+        ///
+        /// ⚠️ **보스는 `boss` 가 아니라 `boss_256` 이다.** `Units/boss.png` 는 **512 스틸·컷인용**이고,
+        /// 전투 승인본은 **256**(`boss_256`)이다. 512 를 걸면 캔버스만으로 이미 2.667칸인데
+        /// 거기에 배율 2 가 또 곱해져 **5.33칸**이 된다 — 화면의 절반을 덮는다.
+        /// </summary>
+        private static string ArtNameFor(string enemyKey)
+        {
+            switch (enemyKey)
+            {
+                case "infantry": return "mob_infantry";
+                case "artillery": return "mob_cannon";
+                case "armor": return "mob_armor";
+                case "boss": return "boss";
+                default: return null;
+            }
+        }
+
+        /// <summary>
+        /// 스틸 이름 — **벌 폴더 이름과 갈리는 것은 보스뿐이다.**
+        ///
+        /// 벌은 `Anim/boss_*` 에 있고 전투 스틸은 `Units/boss_256.png` 다.
+        /// ⚠️ `Units/boss.png` 는 **512 스틸·컷인용**이다. 그것을 걸면 캔버스만으로 이미
+        /// 2.667칸인데 배율 2 가 또 곱해져 **5.33칸** — 화면 절반을 덮는다.
+        /// </summary>
+        private static string StillNameFor(string enemyKey)
+            => enemyKey == "boss" ? "boss_256" : ArtNameFor(enemyKey);
+
+        /// <summary>
+        /// 스틸 한 장. <c>Units/</c> 에 없으면 **대기 벌의 남면 첫 칸**을 스틸로 쓴다 —
+        /// 몬스터 셋은 스틸을 따로 안 뽑았고 벌만 있다. 둘 다 없으면 null 이라
+        /// 뷰가 색 사각으로 떨어진다(자리표시 그림을 만들지 않는다).
+        /// </summary>
+        private static Sprite LoadUnitStill(string artName)
+        {
+            if (string.IsNullOrEmpty(artName)) return null;
+
+            Sprite unit = LoadArt(artName);
+            if (unit != null) return unit;
+
+            return AssetDatabase.LoadAssetAtPath<Sprite>(
+                $"Assets/_Project/Art/Anim/{artName}_Idle/south/frame_000.png");
+        }
+
         private static int BuildEnemies(BalanceJson json)
         {
+            // 벌의 재생 시간은 조율 SO 에서 온다(로봇과 같은 값). 없으면 LoadAnimClips 가 기본을 쓴다.
+            CombatTuning tuning = AssetDatabase.LoadAssetAtPath<CombatTuning>(TuningPath);
             if (json.enemies == null) return 0;
             int n = 0;
             foreach (EnemyEntry e in json.enemies)
@@ -351,6 +399,13 @@ namespace MBI.Editor
                 d.role = ToRole(e.key);
                 d.atk = e.atk;
                 d.atkConfirmed = e.confirmed;
+
+                // 그림 — 로봇과 같은 길로 주입한다. 경로는 생성기에만 있고 런타임은 참조만 본다.
+                string artName = ArtNameFor(e.key);
+                d.sprite = LoadUnitStill(StillNameFor(e.key));
+                d.animClips = artName != null
+                    ? LoadAnimClips(artName, tuning)
+                    : new System.Collections.Generic.List<UnitAnimClip>();
                 // 화면 배율 — 보스만 2다(2026-09-10 사용자 확정). 값의 원천은 상수 하나이며
                 // 여기서 SO 로 옮긴다. 코드가 배율을 직접 들고 있지 않게 하려는 것이다(§3).
                 d.viewScale = d.role == EnemyRole.Boss ? ArtSpec.BossViewScale : 1;

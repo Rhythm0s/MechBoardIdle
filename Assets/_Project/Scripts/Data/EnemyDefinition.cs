@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using UnityEngine;
 
 namespace MBI.Data
@@ -34,6 +35,13 @@ namespace MBI.Data
         public float atk;
         [Tooltip("balance_v4 enemies[].confirmed. false면 미확정치(§7 오표기 방지).")]
         public bool atkConfirmed;
+
+        [Header("그림 (경로는 생성기에만 — 런타임은 이 참조만 본다)")]
+        [Tooltip("스틸 한 장. 벌이 없거나 아직 안 걸린 방향에서 그대로 남는다. null이면 색 사각 폴백.")]
+        public Sprite sprite;
+
+        [Tooltip("대기·이동·사망 벌. 비면 스틸 한 장이 그대로 남는다 — 자리표시 움직임을 만들지 않는다.")]
+        public List<UnitAnimClip> animClips = new List<UnitAnimClip>();
 
         [Header("화면 크기")]
         [Tooltip("스프라이트를 몇 배로 키워 그리는가. 보통 1 — 보스만 2(벌이 256이라 코드가 키운다). " +

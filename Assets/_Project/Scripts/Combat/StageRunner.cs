@@ -139,6 +139,10 @@ namespace MBI.Combat
         /// </summary>
         private readonly Dictionary<string, int> _viewScaleByLabel = new Dictionary<string, int>();
 
+        /// <summary>표시명 → 그림. 뷰가 받는 것은 <c>CombatEntity</c> 뿐이라 정의를 여기서 찾는다.</summary>
+        private readonly Dictionary<string, EnemyDefinition> _artByLabel =
+            new Dictionary<string, EnemyDefinition>();
+
         private void Start()
         {
             if (robot == null || stage == null || tuning == null)
@@ -725,6 +729,8 @@ namespace MBI.Combat
                 // 배율은 여기서 한 번 적어 둔다. 없거나 0 이면 1 로 본다 — 낡은 자산이
                 // 적을 통째로 사라지게 만들면 안 된다.
                 _viewScaleByLabel[label] = def != null && def.viewScale > 0 ? def.viewScale : 1;
+                // 그림도 여기서 한 번 잡아 둔다 — 뷰는 CombatEntity 만 들고 있어 정의를 못 찾는다.
+                _artByLabel[label] = def;
                 for (int i = 0; i < c.count; i++)
                 {
                     spawns.Add(new EnemySpawn
@@ -888,7 +894,10 @@ namespace MBI.Combat
                     Color col = big ? new Color(0.9f, 0.35f, 0.2f) : new Color(0.9f, 0.3f, 0.3f);
                     view = NewView($"Enemy_{e.label}");
                     _viewScaleByLabel.TryGetValue(e.label, out int viewScale);
-                    view.Bind(e, col, size, SortingLayers.Actor, null, null,
+                    _artByLabel.TryGetValue(e.label, out EnemyDefinition art);
+                    view.Bind(e, col, size, SortingLayers.Actor,
+                        art != null ? art.sprite : null,
+                        art != null ? art.animClips : null,
                         viewScale > 0 ? viewScale : 1);
                     _enemyViews[e] = view;
                 }

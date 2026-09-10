@@ -13,6 +13,42 @@ namespace MBI.Tests
     /// </summary>
     public sealed class BossViewScaleTests
     {
+        /// <summary>
+        /// **적 넷이 다 그림을 받았다** (2026-09-10 · 플랜 §66-16 · 촬영 B·C 구간 결함).
+        ///
+        /// 종전에는 <c>Bind</c> 에 그림 인자가 아예 없어 **적이 전부 색 사각**이었다.
+        /// 승인·설치까지 끝난 벌이 폴더에 있는데 읽는 코드가 0건이었던 자리다.
+        ///
+        /// ⚠️ **벌 개수는 안 잰다.** 방향과 상태가 아직 다 안 뽑혀 있고(보스는 남·북뿐),
+        /// 없는 방향은 스틸이 그대로 남는 것이 규정이다. 여기서 재는 것은 **자리가 찼는가**다.
+        /// </summary>
+        [Test]
+        public void EveryEnemyGotItsArt()
+        {
+            foreach (string key in new[] { "infantry", "artillery", "armor", "boss" })
+            {
+                EnemyDefinition e = Load(key);
+                Assert.NotNull(e, key);
+                Assert.NotNull(e.sprite, $"{key} 스틸이 비었다 — 색 사각으로 떨어진다");
+                Assert.IsNotEmpty(e.animClips, $"{key} 벌이 비었다");
+            }
+        }
+
+        /// <summary>
+        /// **보스 스틸은 256 이어야 한다.** 512(`Units/boss.png`)를 걸면 캔버스만으로
+        /// 이미 2.667칸인데 배율 2 가 또 곱해져 **5.33칸**이 된다 — 화면 절반을 덮는다.
+        /// </summary>
+        [Test]
+        public void TheBossStillIsThe256Canvas_NotThe512One()
+        {
+            EnemyDefinition boss = Load("boss");
+            Assert.NotNull(boss.sprite, "보스 스틸");
+
+            Assert.AreEqual(ArtSpec.RobotCanvas, (int)boss.sprite.rect.width,
+                "보스 전투 스틸은 256 이다 — 512 는 스틸·컷인용");
+            Assert.AreEqual(ArtSpec.RobotCanvas, (int)boss.sprite.rect.height);
+        }
+
         private const float D = 0.001f;
         private const string EnemiesDir = "Assets/_Project/ScriptableObjects/Enemies";
 

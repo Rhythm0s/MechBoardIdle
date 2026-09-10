@@ -17,4 +17,62 @@ MonoBehaviour:
   role: 3
   atk: 20
   atkConfirmed: 0
+  sprite: {fileID: 21300000, guid: 364dfadcd2bd29441b4357eddc458215, type: 3}
+  animClips:
+  - state: 0
+    direction: 0
+    frames:
+    - {fileID: 21300000, guid: b2aacdc92adf090469cc37337d13222f, type: 3}
+    - {fileID: 21300000, guid: fccb576c967e975419fa5e2d44bf55d2, type: 3}
+    - {fileID: 21300000, guid: b75ff4370ba2de84084da641f4ec27b1, type: 3}
+    - {fileID: 21300000, guid: 79316f9132f8583489b1e340d72b42db, type: 3}
+    - {fileID: 21300000, guid: c95ce95cb592ba745af8f4b420c04a50, type: 3}
+    - {fileID: 21300000, guid: 4e45bd02004e8f64cbcaa08b5ec95c52, type: 3}
+    - {fileID: 21300000, guid: f4643cda452be2145a7755ad191b3d73, type: 3}
+    targetSeconds: 1
+    pingPong: 1
+    dwellCells: 
+    cellOrder: 
+  - state: 1
+    direction: 0
+    frames:
+    - {fileID: 21300000, guid: 7f420cb12d60a1940af549911590476a, type: 3}
+    - {fileID: 21300000, guid: 634430102147d0c47ac6a65080e11a37, type: 3}
+    - {fileID: 21300000, guid: c2f654f1e4100d74aa2197d7fb7ef608, type: 3}
+    - {fileID: 21300000, guid: 09bc1c99e69aae64c9ec7f66ea3a00bb, type: 3}
+    - {fileID: 21300000, guid: fa204a4d860005c4493064370db96605, type: 3}
+    - {fileID: 21300000, guid: 396db06243601494da8e84a4d12567c9, type: 3}
+    targetSeconds: 1
+    pingPong: 0
+    dwellCells: 
+    cellOrder: 
+  - state: 1
+    direction: 1
+    frames:
+    - {fileID: 21300000, guid: e17133acb8c69b04f8e299bb9e9e5716, type: 3}
+    - {fileID: 21300000, guid: f84f4ac19659002498d1f12a7c41f35b, type: 3}
+    - {fileID: 21300000, guid: 21c382f84f5af9c4f926ea53c44a2f4e, type: 3}
+    - {fileID: 21300000, guid: 95cf8fd73949061418f15ff2649237af, type: 3}
+    - {fileID: 21300000, guid: 31c20799f32e1cb43ac9b8891e72736c, type: 3}
+    - {fileID: 21300000, guid: 54b19a81e602499478810caea7632df1, type: 3}
+    targetSeconds: 1
+    pingPong: 0
+    dwellCells: 
+    cellOrder: 
+  - state: 2
+    direction: 0
+    frames:
+    - {fileID: 21300000, guid: 65742fdccbfdb0041be2895011e47909, type: 3}
+    - {fileID: 21300000, guid: 51482d1cac9230d41af34c76dc2375f1, type: 3}
+    - {fileID: 21300000, guid: 5d621f90f3a7be54d84d58fc01dde0a5, type: 3}
+    - {fileID: 21300000, guid: a86aa028a39388c4ca55b18001e2fc1c, type: 3}
+    - {fileID: 21300000, guid: 376ab0796608c9a40b8e8251391f3851, type: 3}
+    - {fileID: 21300000, guid: 72831f3952538bc4c9401f19d31fe4e4, type: 3}
+    - {fileID: 21300000, guid: f57fd941e4434ef4e9d33ec80fc71e4c, type: 3}
+    - {fileID: 21300000, guid: ca485eb41e96b8c409ec5cc7ecf4c71a, type: 3}
+    - {fileID: 21300000, guid: 2816a8a15abed8543947f8a4c0f6267b, type: 3}
+    targetSeconds: 2
+    pingPong: 0
+    dwellCells: 
+    cellOrder: 
   viewScale: 2
