@@ -103,9 +103,9 @@ namespace MBI.Editor
     [Serializable] public sealed class EnhanceBlock
     {
         public float s4Cost;
-        public float s3Break;
         public float enhPoint;     // v4: 강화 확정점 1.45(= params.enh)
-        public float[] s4Band;
+        // ⚠️ s3Break · s4Band 는 폐기(260910_W02 2-1·2-2). json 쪽에는 `s3BreakRetired`·
+        // `s4BandRetired` 문자열만 남아 있고, 미러할 수치가 없으므로 필드를 두지 않는다.
         public float[] enhBand;
         public float snapBand;
     }

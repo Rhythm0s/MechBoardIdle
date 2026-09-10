@@ -195,8 +195,8 @@ namespace MBI.Tests
         /// <summary>
         /// 관통1 · 표준1 · 폭발2 = **130**(대표 배치).
         /// ⚠️ **대표 상태 출력이 145에서 130으로 내려갔다** (`260909_W01` 2-1 · 표준탄 25 → 10).
-        /// **`s3Break`(S3 돌파 요구치)는 145 그대로다** — 종전에 둘이 같았던 것은 값이 우연히
-        /// 맞아떨어진 것이고, 이제 갈라졌다. **여기서 s3Break를 따라 내리지 않는다** —
+        /// ⚠️ **구 서술 폐기** — 「`s3Break`(145)는 그대로다」로 적혀 있었는데,
+        /// 그 앵커 자체가 **없어졌다**(2026-09-10 · `260910_W02` 2-2). **여기서 따라갈 값이 없다** —
         /// 요구치는 밸런스가 재산출할 값이지 대표 상태가 끌고 다닐 값이 아니다(W01 2-5).
         /// </summary>
         [Test]
@@ -218,7 +218,7 @@ namespace MBI.Tests
             Assert.AreEqual(1, agg.muniPierce);
             Assert.AreEqual(1, agg.muniSplit);
             Assert.AreEqual(2, agg.muniExplosive);
-            Assert.AreEqual(130f, Output(agg), D, "대표 배치 = 130 (구 145 · s3Break와 갈라졌다)");
+            Assert.AreEqual(130f, Output(agg), D, "대표 배치 = 130 (구 145 · 구 s3Break 앵커는 폐기)");
         }
 
         // ---- 시작 보드(온보딩) ----

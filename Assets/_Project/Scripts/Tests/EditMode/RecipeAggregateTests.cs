@@ -86,7 +86,8 @@ namespace MBI.Tests
 
         /// <summary>
         /// 관통1 · 표준1 · 폭발2 = **145**(대표 배치). 20 + 25 + 100.
-        /// 2026-08-25 실측이자 s3Break이다 — 이 값이 흔들리면 밸런스 전체가 흔들린다.
+        /// 2026-08-25 실측이다 — 이 값이 흔들리면 밸런스 전체가 흔들린다.
+        /// ⚠️ 구 「이자 s3Break」 표기는 폐기 — 그 앵커가 없어졌다(260910_W02 2-2).
         /// </summary>
         [Test]
         public void Regression_RepresentativeMix_Output145()
@@ -102,7 +103,7 @@ namespace MBI.Tests
             Assert.AreEqual(1, agg.muniPierce);
             Assert.AreEqual(1, agg.muniSplit);
             Assert.AreEqual(2, agg.muniExplosive);
-            Assert.AreEqual(145f, Output(agg), D, "대표 배치 = 145 = s3Break");
+            Assert.AreEqual(145f, Output(agg), D, "대표 배치 = 145 (08-25 실측 · 구 s3Break 표기는 폐기)");
         }
 
         /// <summary>

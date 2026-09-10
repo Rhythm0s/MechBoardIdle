@@ -94,7 +94,8 @@ namespace MBI.Tests
             new MunitionsLine(AmmoKind.Explosive, 2f, 50f, agg.MuniCountOf(AmmoKind.Explosive)),
         };
 
-        /// <summary>대표 배치(관통1·표준1·폭발2 = 군수 4개) → 145. §9 s3Break 앵커.</summary>
+        /// <summary>대표 배치(관통1·표준1·폭발2 = 군수 4개) → 145.
+        /// ⚠️ 구 「§9 s3Break 앵커」 표기는 폐기 — 그 앵커가 없어졌다(260910_W02 2-2).</summary>
         [Test]
         public void RepresentativeBoard_FourMunitionsNodes_Yields145()
         {

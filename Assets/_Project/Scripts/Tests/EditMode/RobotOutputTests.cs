@@ -7,7 +7,9 @@ namespace MBI.Tests
 {
     /// <summary>
     /// 출력 산출의 단일 원천(§5-6 커밋 A). 앵커는 balance_v4.json 확정치(전부 confirmed:true):
-    /// pA 1/1/2 · dA 20/25/50 · enh 1.45. 대표 출력 145 = s3Break, 강화 시 210.25(S4 밴드 186~215 안).
+    /// pA 1/1/2 · dA 20/25/50 · enh 1.45. 대표 출력 145, 강화 시 210.25.
+    /// ⚠️ 구 「= s3Break … S4 밴드 186~215 안」은 폐기 — 앵커도 밴드도 없어졌다(260910_W02 2-1·2-2).
+    /// S4 는 이제 고정치 183 이다.
     /// </summary>
     public sealed class RobotOutputTests
     {

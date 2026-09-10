@@ -133,7 +133,7 @@ namespace MBI.Combat
             }
             BuildBackground(); // 바닥 그림 — 원반보다 아래(-40). 스테이지가 바뀌면 다시 깐다.
             PushMusicPhase();  // 어느 곡을 틀지 — 판정은 코어가 하고 여기서는 신호만 쓴다.
-            BuildArena(); // 이동 가능 범위 경계(§C-1) — 상수라 최초 1회만.
+            BuildArena(); // 이동 가능 범위 경계 — 상수라 최초 1회만. 규정 자리는 UI 문서다(아래).
             Begin();
         }
 
@@ -261,7 +261,19 @@ namespace MBI.Combat
             return halfW > _bgViewport.x + 0.001f || halfH > _bgViewport.y + 0.001f;
         }
 
-        /// <summary>이동 가능 아레나 경계 시각화(§C-1): 반경 arenaRadiusTbd 원반 + 테두리 링. 최초 1회.</summary>
+        /// <summary>
+        /// 이동 가능 아레나 경계 시각화: 반경 <c>arenaRadiusTbd</c> 원반 + 테두리 링. 최초 1회.
+        ///
+        /// ⚠️ **규정 자리는 UI 문서다** (2026-09-10 · `260910_W02` 5장). 종전 주석의 `§C-1` 은
+        /// 어느 문서의 절인지 짚어 주지 않아 **다음에 여는 사람이 원천을 못 찾는다.**
+        /// 이동 한계 · 스폰 링 · 자동 조종 한계 · 태그 스킬 범위가 **모두 화면 위의 경계**라
+        /// UI 문서가 든다.
+        ///
+        /// ⚠️ **값은 아직 미확정이다** — 사용자가 「일단 안 건드린다」로 정했고
+        /// <c>arenaRadiusTbd</c> 라는 이름 그대로다. **소관만 옮기고 값이 비었다는 것을 함께 적는다** —
+        /// 소관만 옮기면 다음 사람이 「UI 문서에 있겠지」로 읽는다.
+        /// 육안 판정은 **리허설 2차**에서 한다.
+        /// </summary>
         private void BuildArena()
         {
             var go = new GameObject("ArenaBounds");

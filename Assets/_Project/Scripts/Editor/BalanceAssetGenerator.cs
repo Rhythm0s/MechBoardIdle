@@ -111,8 +111,7 @@ namespace MBI.Editor
 
             c.enhBand = new Vector2(json.enhance.enhBand[0], json.enhance.enhBand[1]);
             c.snapBand = json.enhance.snapBand;
-            c.s3Break = json.enhance.s3Break;
-            c.s4Band = new Vector2(json.enhance.s4Band[0], json.enhance.s4Band[1]);
+            // s3Break · s4Band 미러는 폐기했다(260910_W02 2-1·2-2) — 원천에 수치가 없다.
             c.s4Cost = json.enhance.s4Cost;
 
             c.challengeTime = json.Stage("S1").challengeTime;

@@ -55,7 +55,7 @@ namespace MBI.Tests
             Assert.AreEqual(2f, RateOf(AmmoKind.Explosive), 0.001f, "폭발 2발/초");
             Assert.AreEqual(1f, RateOf(AmmoKind.Standard), 0.001f, "표준 1발/초");
             Assert.AreEqual(1f, RateOf(AmmoKind.Pierce), 0.001f, "관통 1발/초");
-            Assert.AreEqual(145f, Output(), 0.001f, "폭발50×2 + 표준25 + 관통20 = 145 = s3Break");
+            Assert.AreEqual(145f, Output(), 0.001f, "폭발50×2 + 표준25 + 관통20 = 145 (구 s3Break 표기는 폐기)");
         }
 
         [Test]

@@ -14,7 +14,9 @@ namespace MBI.Editor
     /// 메뉴: MBI/Generate Combat Data (Robot+Enemy+Stage).
     ///
     /// - 수치 원천은 json(§9). 코드에 밸런스 리터럴을 두지 않는다(§3).
-    /// - 무기 발사율 = 물류 생산율 pA(대표 상태, mock): 관통1/표준1/폭발2 → 출력 ΣpA×dA = 145 = s3Break.
+    /// - 무기 발사율 = 물류 생산율 pA(대표 상태, mock): 관통1/표준1/폭발2 → 출력 ΣpA×dA = 145.
+    ///   ⚠️ 구 주석의 「= s3Break」는 폐기 — 그 앵커가 없어졌고(260910_W02 2-2), 이 145 도
+    ///   표준탄 좌표 개정(09-09) 전의 mock 값이라 지금 대표 조합 140 과 다르다.
     ///   무기 기계 최대치가 아니라 물류 산출(핵심 명제 = 물류가 제약). 실 물류 시뮬 완성 시 동적 산출로 교체.
     /// - 재실행 시 같은 경로 자산을 덮어써 GUID 보존(참조 안정).
     /// </summary>
@@ -94,7 +96,8 @@ namespace MBI.Editor
             float moduleMult = json.Param("moduleMult"); // 1.0 모듈배율
 
             // shotsPerSec = 물류 생산 발사율(대표 상태 pA, mock). 무기 기계 최대치 아님(§물류 제약).
-            // 출력 = Σ pA×dA = 1×20 + 1×25 + 2×50 = 145 = s3Break(§9). 벨트/시뮬 완성 시 동적 산출로 교체.
+            // 출력 = Σ pA×dA = 1×20 + 1×25 + 2×50 = 145 (mock). 벨트/시뮬 완성 시 동적 산출로 교체.
+            // ⚠️ 「= s3Break」 표기는 폐기 — 앵커가 없어졌다(260910_W02 2-2).
             var weapons = new List<WeaponSpec>
             {
                 new WeaponSpec(AmmoKind.Pierce, json.Param("dA0"), json.Param("pA0")),    // 20 × 1

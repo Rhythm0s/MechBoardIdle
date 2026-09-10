@@ -13,7 +13,8 @@ namespace MBI.Tests
     public sealed class CombatSimulationTests
     {
         // 대표 상태 물류 생산율(pA 1/1/2) → 폭발2 + 표준1 + 관통1 발/초 = **130**/초
-        // (`260909_W01` 2-1 · 표준탄 25 → 10). s3Break 145와 갈라졌다 — 그쪽은 안 건드린다.
+        // (`260909_W01` 2-1 · 표준탄 25 → 10).
+        // ⚠️ 「s3Break 145와 갈라졌다」는 폐기 — 그 앵커가 없어졌다(260910_W02 2-2).
         private static List<WeaponSpec> RepresentativeWeapons() => new List<WeaponSpec>
         {
             new WeaponSpec(AmmoKind.Pierce, 20f, 1f),

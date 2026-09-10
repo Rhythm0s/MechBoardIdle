@@ -8,9 +8,13 @@ namespace MBI.Tests
 {
     /// <summary>
     /// balance_v4.json 앵커 검증(CLAUDE.md §4 검증 방법).
-    /// BalanceConfig.asset 값이 원천 json을 미러함을 assert. 재도출 체인은 sanity-only —
-    /// v4는 s3Break을 2차 실측으로 145로 개정(v3.1의 round(130×1.1)=143에서 상향)했고,
-    /// S4밴드[186,215]는 원천 확정치(145×enhBand 재도출[189,218]과 불일치)라 재도출이 아닌 미러로 검증.
+    /// BalanceConfig.asset 값이 원천 json을 미러함을 assert.
+    ///
+    /// ⚠️ **요구치를 정하는 규칙이 바뀌었다** (2026-09-10 · `260910_W02` 2-1·2-2).
+    /// 요구치는 이제 **도달치 × 0.9**(역산)이고, 여기 있는 셋은 그 관계를 잰다 —
+    /// 대표 조합 **140** · S3 **126** · S4 **Fixed 183**.
+    /// **돌파 타깃(`s3Break`)과 S4 밴드(`s4Band`)는 폐기됐다** — 미러할 값 자체가 없어졌다.
+    /// 턱걸이를 막는 장치는 **상수 0.9 하나**이며, 돌파 체감이 부족하면 그 상수를 올린다.
     /// 재현/참고값은 TestContext.WriteLine 으로 로그에 인쇄.
     ///
     /// 실행 전 메뉴 MBI/Generate Balance + Nodes 로 자산 생성 필요.
@@ -20,8 +24,12 @@ namespace MBI.Tests
         private const string ConfigPath = "Assets/_Project/ScriptableObjects/BalanceConfig.asset";
         private const float Delta = 0.001f;
 
-        // S3 돌파 마진(+10%): CLAUDE.md §9 "S3 돌파 = req + 10% 마진". 재현 규칙 상수.
-        private const double S3BreakMargin = 1.1;
+        /// <summary>
+        /// 요구치 역산 상수 — **요구치 = 도달치 × 0.9** (`260910_W02` 2-2).
+        /// ⚠️ 구 `S3BreakMargin`(돌파 +10%)은 **폐기**됐다. 둘을 겹쳐 걸면 타깃이 도달치의
+        /// 99% 가 되어 남는 여유가 반올림 잔여와 구분되지 않았다.
+        /// </summary>
+        private const double ReqRatio = 0.9;
 
         private BalanceConfig _config;
         private BalanceJson _json;
@@ -38,6 +46,9 @@ namespace MBI.Tests
         private static long RoundAway(double v) =>
             (long)Math.Round(v, MidpointRounding.AwayFromZero);
 
+        /// <summary>대표 조합 = **표준 4 + 폭발 2** = 140. 원천 좌표에서 그때그때 낸다 — 새 상수를 만들지 않는다.</summary>
+        private float Representative() => 4f * _json.Param("dA1") + 2f * _json.Param("dA2");
+
         // ---- 0. 드리프트 감시: SO가 원천 json을 미러하는가 ----
         [Test]
         public void Config_MirrorsSource_NoDrift()
@@ -45,9 +56,10 @@ namespace MBI.Tests
             Assert.AreEqual(_json.meta.schemaVersion, _config.schemaVersion, "schemaVersion 드리프트(§7)");
             Assert.AreEqual(_json.Param("origin"), _config.origin, Delta);
             Assert.AreEqual(_json.Param("enh"), _config.enh, Delta);
-            Assert.AreEqual(_json.enhance.s3Break, _config.s3Break, Delta);
-            Assert.AreEqual(_json.enhance.s4Band[0], _config.s4Band.x, Delta);
-            Assert.AreEqual(_json.enhance.s4Band[1], _config.s4Band.y, Delta);
+            Assert.AreEqual(_json.enhance.enhBand[0], _config.enhBand.x, Delta);
+            Assert.AreEqual(_json.enhance.enhBand[1], _config.enhBand.y, Delta);
+            Assert.AreEqual(_json.enhance.snapBand, _config.snapBand, Delta);
+            Assert.AreEqual(_json.enhance.s4Cost, _config.s4Cost, Delta);
         }
 
         /// <summary>
@@ -89,11 +101,10 @@ namespace MBI.Tests
         [Test]
         public void Anchor2_S4_IsAnEnhancementOnlyWall()
         {
-            // ⚠️ **`s3Break`를 대표 조합으로 쓰던 것을 갈랐다** (2026-09-10 · `260910_W01` 3-1·3-2).
-            // 그 상수는 **S3 돌파 타깃**이지 대표 조합이 아니다. 둘이 145로 같아 보였을 뿐이다.
-            // 대표 조합은 **표준 4 + 폭발 2**이며 원천 좌표에서 그때그때 낸다 — 새 상수를 만들지 않는다.
-            float representative = 4f * _json.Param("dA1") + 2f * _json.Param("dA2");  // 140
-            float s4Req = _json.Stage("S4").reqBand[0];                                // 149
+            // ⚠️ **S4 는 밴드가 아니라 고정치다** (2026-09-10 · `260910_W02` 2-4) —
+            // 종전에 여기서 읽던 `reqBand[0]`(149)은 **폐기**됐고 `req` 183 이 정본이다.
+            float representative = Representative();                                   // 140
+            float s4Req = _json.Stage("S4").req;                                       // 183
             float enhanced = representative * _config.enh;                             // 203
 
             TestContext.WriteLine(
@@ -104,50 +115,73 @@ namespace MBI.Tests
             Assert.GreaterOrEqual(enhanced, s4Req, "강화하면 넘는다");
         }
 
-        // ---- 3. S3 돌파 타깃 = 114 (260910_W01 3-1 재지정) ----
+        // ---- 3. 요구치는 도달치 × 0.9 다 (260910_W02 2-1·2-2 정본) ----
+
+        /// <summary>
+        /// ⚠️ **구 `Anchor3_S3Break_Is114_AndNowMatchesItsFormula` 는 폐기**됐다 —
+        /// 재던 값(`s3Break` 114)과 규칙(돌파 +10%)이 **둘 다 없어졌다.**
+        ///
+        /// 이 자리가 재는 것은 새 규칙 하나다 — **요구치 = 도달치 × 0.9.**
+        /// S3 는 도달 140 × 0.9 = **126**, S4 는 강화 후 도달 203 × 0.9 = **183**.
+        /// **S1 과 S2 가 같은 54 인 것은 오타가 아니다**(`260910_W02` 2-3).
+        /// </summary>
         [Test]
-        public void Anchor3_S3Break_Is114_AndNowMatchesItsFormula()
+        public void Anchor3_Requirements_AreReachTimesNinetyPercent()
         {
-            // ⚠️ **구 145 는 폐기됐다.** 갈라진 값이 아니라 **두 번 낡은 값**이었다 —
-            // 요구치 20% 하향(09-01)과 분열탄 폐기(09-04)가 둘 다 안 들어갔다(`260910_W01` 3-1).
-            //
-            // ✅ **이제 도출식이 원천과 맞는다.** 145 시절에는 미러만 했고 도출은 sanity-only 였는데,
-            // 하향 후 요구치 104 에 돌파 마진을 걸면 **round(104 × 1.1) = 114** 로 값이 그대로 나온다.
-            float s3Req = _json.Stage("S3").req;                    // 104
-            long derived = RoundAway(s3Req * S3BreakMargin);        // 114
+            float representative = Representative();                 // 140
+            float enhanced = representative * _config.enh;           // 203
+
+            long s3Derived = RoundAway(representative * ReqRatio);   // 126
+            long s4Derived = RoundAway(enhanced * ReqRatio);         // 183
+
             TestContext.WriteLine(
-                $"[재현] round({s3Req}×{S3BreakMargin}) = {derived} · 원천 {_json.enhance.s3Break}");
+                $"[재현] S3 = round({representative}x{ReqRatio}) = {s3Derived} · " +
+                $"S4 = round({enhanced:F1}x{ReqRatio}) = {s4Derived}");
 
-            Assert.AreEqual(114f, _json.enhance.s3Break, Delta, "원천 json s3Break = 114");
-            Assert.AreEqual(_json.enhance.s3Break, _config.s3Break, Delta, "SO가 원천 미러");
-            Assert.AreEqual(derived, (long)_config.s3Break, "도출식이 원천과 맞는다");
-            Assert.Greater(_config.s3Break, s3Req, "돌파 타깃 > S3 요구치(마진 존재)");
+            Assert.AreEqual(126f, _json.Stage("S3").req, Delta, "S3 정본 126");
+            Assert.AreEqual(s3Derived, (long)_json.Stage("S3").req, "S3 도출식이 원천과 맞는다");
+
+            Assert.AreEqual(183f, _json.Stage("S4").req, Delta, "S4 정본 183");
+            Assert.AreEqual(s4Derived, (long)_json.Stage("S4").req, "S4 도출식이 원천과 맞는다");
+
+            Assert.AreEqual(54f, _json.Stage("S1").req, Delta, "S1 정본 54");
+            Assert.AreEqual(_json.Stage("S1").req, _json.Stage("S2").req, Delta,
+                "S2 는 S1 과 같은 값이 맞다 — 오타가 아니다(260910_W02 2-3)");
         }
 
-        // ---- 4. S4 밴드 = [186,215] (v4 원천 확정치, 미러) ----
+        // ---- 4. 돌파 타깃과 S4 밴드는 원천에서 사라졌다 ----
+
+        /// <summary>
+        /// ⚠️ **구 `Anchor4_S4Band_Is186To215_MirrorsSource` 는 폐기**됐다.
+        ///
+        /// 폐기를 **표기로만 두면 값이 조용히 돌아온다.** 이 자리는 그것을 막는다 —
+        /// S4 는 밴드가 아니라 고정치여야 하고, `reqBand` 가 남아 있으면 두 벌이 다시 생긴다.
+        /// </summary>
         [Test]
-        public void Anchor4_S4Band_Is186To215_MirrorsSource()
+        public void Anchor4_RetiredAnchors_DoNotComeBack()
         {
-            // v4: S4밴드[186,215]는 원천 확정치. s3Break(145)×enhBand로 재도출하면 [189,218]가 되어
-            // 원천과 불일치 → 재도출 금지, 미러만(재도출은 sanity-only).
-            float[] band = _json.enhance.s4Band;
-            TestContext.WriteLine($"[미러] S4밴드 = [{band[0]}, {band[1]}] (원천 확정)");
+            Assert.AreEqual("fixed", _json.Stage("S4").reqType,
+                "S4 는 Fixed 다 — 밴드로 되돌아가지 않는다");
+            Assert.IsTrue(_json.Stage("S4").reqBand == null || _json.Stage("S4").reqBand.Length == 0,
+                "S4 에 reqBand 가 남아 있으면 요구치가 두 벌이 된다");
 
-            Assert.AreEqual(186f, band[0], Delta, "원천 S4밴드 하한");
-            Assert.AreEqual(215f, band[1], Delta, "원천 S4밴드 상한");
-            Assert.AreEqual(band[0], _config.s4Band.x, Delta, "SO 밴드 하한 미러");
-            Assert.AreEqual(band[1], _config.s4Band.y, Delta, "SO 밴드 상한 미러");
-            Assert.Less(_config.s3Break, _config.s4Band.x, "s3Break < S4밴드.lo (S4 강화-only 벽)");
+            Assert.AreEqual(183f, _json.Stage("S4").req, Delta,
+                "S4 요구치는 stages 에 있다 — enhance 블록이 아니다");
+
+            // ⚠️ 도달치 203 은 구 밴드 상한 215 아래였다. 그 상한이 없어졌으므로
+            // 「밴드 안에 든다」는 판정도 함께 사라진다 — 남는 것은 요구치를 넘느냐 하나다.
+            Assert.Greater(Representative() * _config.enh, _json.Stage("S4").req,
+                "강화 후 도달치가 요구치를 넘는다");
         }
 
-        // ---- 5. 강화 위치: s3Break×enh ∈ [186,215], enh ∈ enhBand ----
+        // ---- 5. 강화 위치: 대표 조합×enh 가 S4 요구치를 넘고 enh ∈ enhBand ----
         [Test]
-        public void Anchor5_Enh_Is145_LandsInsideBand()
+        public void Anchor5_Enh_Is145_AndClearsTheS4Requirement()
         {
             // ⚠️ **기준을 대표 조합으로 옮겼다** (`260910_W01` 3-2) — 종전에는 `s3Break`에 곱했다.
-            float representative = 4f * _json.Param("dA1") + 2f * _json.Param("dA2");  // 140
+            float representative = Representative();                                   // 140
             float enhanced = representative * _config.enh;                             // 203
-            float s4Req = _json.Stage("S4").reqBand[0];                                // 149
+            float s4Req = _json.Stage("S4").req;                                       // 183
 
             TestContext.WriteLine(
                 $"[재현] 대표×enh = {representative}×{_config.enh} = {enhanced:F1} · S4 요구치 {s4Req}");
@@ -156,7 +190,9 @@ namespace MBI.Tests
             Assert.GreaterOrEqual(_config.enh, _config.enhBand.x, "enh ≥ enhBand.lo");
             Assert.LessOrEqual(_config.enh, _config.enhBand.y, "enh ≤ enhBand.hi");
             Assert.GreaterOrEqual(enhanced, s4Req, "강화 결과가 S4 요구치를 넘는다");
-            Assert.LessOrEqual(enhanced, _config.s4Band.y, "강화 결과 ≤ S4 밴드 상한");
+            // ⚠️ 구 「강화 결과 ≤ S4 밴드 상한」은 폐기 — 상한 자체가 없어졌다(260910_W02 2-1).
+            // 대신 역산 관계를 잰다: 요구치는 도달치보다 낮고, 그 차가 0.9 에서 나온다.
+            Assert.Less(s4Req, enhanced, "요구치 < 도달치 — 역산이므로 항상 여유가 있다");
         }
 
         // ---- 6. 오프라인 상한 = 36시간 (경제 항목 중 유일한 확정치) ----

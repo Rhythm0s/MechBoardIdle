@@ -32,14 +32,18 @@ namespace MBI.Data
         [Tooltip("요구치 스냅 허용 오차(±). enhance.snapBand.")]
         public float snapBand = 0.08f;
 
-        [Header("요구치 앵커 (S3 돌파 / S4 벽)")]
-        [Tooltip("S3 **돌파 타깃** 114 — 요구치가 아니다(260910_W01 3-1). " +
-                 "S3 요구치는 StageDefinition.req 의 104 이고 이 값과 별개다. " +
-                 "⚠️ 구 145 는 폐기 — 요구치 20% 하향(09-01)과 분열탄 폐기(09-04)가 둘 다 안 들어간 값이었다. " +
-                 "104 x +10% = 114.4 → 114. enhance.s3Break.")]
-        public float s3Break = 114f;
-        [Tooltip("S4 요구치 밴드 [lo, hi]. enhance.s4Band.")]
-        public Vector2 s4Band = new Vector2(186f, 215f);
+        // ⚠️ **`s3Break`(돌파 타깃)와 `s4Band` 는 폐기됐다** (2026-09-10 · `260910_W02` 2-1·2-2).
+        //
+        // **요구치를 정하는 규칙 자체가 바뀌었다** — 이제 요구치 = 도달치 × **0.9**(역산)이고,
+        // 턱걸이를 막는 장치는 **그 상수 0.9 하나뿐**이다. 거기에 돌파 타깃 +10% 를 또 얹으면
+        // 타깃이 도달치의 99% 가 되어 **남는 여유가 반올림 잔여와 구분되지 않았다.**
+        // 돌파 체감이 부족하면 **0.9 를 올린다** — 타깃을 되살리지 않는다.
+        //
+        // S4 도 밴드가 아니라 **고정치 183**이며, 요구치는 여기가 아니라
+        // <see cref="StageDefinition"/> 의 `reqType`·`req` 에 있다.
+        // 구 값은 `balance_v4.json` 의 `enhance.s3BreakRetired`·`s4BandRetired` 에 폐기 표기로 남겼다.
+
+        [Header("강화 비용")]
         [Tooltip("S4 강화 비용(⑦ A안 닫힌 곡선). enhance.s4Cost.")]
         public float s4Cost = 100f;
 

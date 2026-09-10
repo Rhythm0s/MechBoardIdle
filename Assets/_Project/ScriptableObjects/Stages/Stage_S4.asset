@@ -14,9 +14,9 @@ MonoBehaviour:
   m_EditorClassIdentifier: MBI.Data::MBI.Data.StageDefinition
   stageId: S4
   topic: "\uB9C8\uC6B4\uD2B8 \uAC15\uD654(\uBCBD)"
-  reqType: 1
-  req: 0
-  reqBand: {x: 149, y: 215}
+  reqType: 0
+  req: 183
+  reqBand: {x: 0, y: 0}
   powerModel: 1
   challengeTime: 120
   enhMaterialReward: 0
