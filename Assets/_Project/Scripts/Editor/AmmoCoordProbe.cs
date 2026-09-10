@@ -179,13 +179,14 @@ namespace MBI.EditorTools
         // ---- 5. 시작 보드 (260910_W01 8-5 제약 넷·다섯) ----
 
         /// <summary>
-        /// **W01 8-5 가 물은 셋을 잰다** — 완료 출력 · 마운트 40 채움 시간 · 보드 칸 수.
+        /// **W01 8-5 가 물은 셋을 잰다** — 완료 출력 · 마운트 채움 시간 · 보드 칸 수.
         ///
-        /// ⚠️ **손으로 세지 않는다.** 시험이 쓰는 것과 **같은 경로**로 격자를 짓고
-        /// (`PartLayout.BuildMask` 로 실루엣까지) `LogisticsNetwork.Aggregate` 를 태운다 —
-        /// 전부 유효한 격자로 재면 실루엣 밖 칸이 세어져 씬과 다른 값이 나온다.
+        /// ⚠️ **구성은 `MountDeliveryTests.BuildStartingBoard` 와 같게 맞춘다.**
+        /// 처음에는 벨트를 깔고 <see cref="BeltAutoOrient"/>·<see cref="BeltFlow"/> 를 **안 풀어서**
+        /// 아무것도 안 이어졌고, 그 상태로 「출력 0」을 냈다(폐기). 벨트는 놓는 것만으로 흐르지 않는다.
         ///
-        /// ⚠️ **여기도 판정하지 않는다.** 제약 넷(약 8초)·다섯(S1 을 여유 있게)에 닿는지는 설계가 본다.
+        /// ⚠️ **도착으로 잰다.** 노드를 세는 회계가 아니라 **마운트에 실제로 닿은 것**을 센다 —
+        /// 밸런스 문서가 실제 전투력을 도착량으로 정했고, 벨트가 끊기면 회계는 안 변해도 도착은 0이 된다.
         /// </summary>
         private static void Five(StringBuilder sb, BalanceConfig bal, Chain std)
         {
@@ -194,78 +195,71 @@ namespace MBI.EditorTools
 
             var mask = PartLayout.BuildMask();
             sb.AppendLine($"  보드 격자 {PartLayout.Columns} x {PartLayout.Rows} = " +
-                          $"{PartLayout.Columns * PartLayout.Rows}칸 · **실루엣 안 {mask.Count}칸**");
+                          $"{PartLayout.Columns * PartLayout.Rows}칸 · 실루엣 안 {mask.Count}칸");
 
-            NetworkAggregate before = StartingAggregate(fillEmptySlot: false);
-            NetworkAggregate after = StartingAggregate(fillEmptySlot: true);
-            sb.AppendLine($"  이어진 노드 — 채우기 전 {before.nodeCount} · 채운 뒤 {after.nodeCount} " +
-                          $"(코어 {(after.hasCore ? "있음" : "없음")})");
-            sb.AppendLine($"  군수 노드 — 관통 {after.muniPierce} · 표준 {after.muniSplit} · 폭발 {after.muniExplosive}");
-            sb.AppendLine($"  전력 — 공급 {after.powerSupply:F0} / 소비 {after.powerDraw:F1}");
-            sb.AppendLine($"  배치 실패 — 노드 {_lastPlaceFail} · 벨트 {_lastBeltFail}/{_lastBeltTotal}");
-            sb.AppendLine($"  시작 보드 선언 — 노드 {StartingBoard.Nodes.Count} + 빈칸 1 · 벨트 {StartingBoard.Belts.Count}");
+            const float Window = 60f;
+            int emptyCount = Arrivals(BuildStartingBoard(false), Window, out _);
+            int filledCount = Arrivals(BuildStartingBoard(true), Window, out float firstAt);
 
-            float empty = OutputOf(bal, std, before);
-            float filled = OutputOf(bal, std, after);
-            sb.AppendLine($"  빈 칸 채우기 전 출력 {empty:F0} → 채운 뒤 **{filled:F0}**");
+            sb.AppendLine($"  {Window:F0}초 도착 개수 — 빈 칸 채우기 전 {emptyCount} → 채운 뒤 {filledCount}");
 
-            float shotsPerSec = std.damage > 0f ? filled / std.damage : 0f;
-            sb.AppendLine($"  표준탄 {shotsPerSec:F2}발/초 (출력 {filled:F0} / 발당 {std.damage:F0})");
+            float perSec = filledCount / Window;
+            float output = perSec * std.damage;
+            sb.AppendLine($"  완료 출력 = {output:F1} ({perSec:F2}개/초 x 발당 {std.damage:F0})");
+            sb.AppendLine($"  첫 도착까지 {firstAt:F1}초 (운송 지연)");
 
             float cap = bal.mountStackLimit * MountLoad.SlotsRobotA;
-            if (shotsPerSec > 0f)
-                sb.AppendLine($"  마운트 {cap:F0} 채움 = **{cap / shotsPerSec:F0}초** (적재량 {cap:F0} / {shotsPerSec:F2}발/초)");
+            if (perSec > 0f)
+                sb.AppendLine($"  마운트 {cap:F0} 채움 = {firstAt + cap / perSec:F0}초 " +
+                              $"(첫 도착 {firstAt:F1} + {cap:F0} / {perSec:F2})");
             else
-                sb.AppendLine($"  마운트 {cap:F0} 채움 = 안 찬다 (산출 0)");
+                sb.AppendLine($"  마운트 {cap:F0} 채움 = 안 찬다 (도착 0)");
 
             sb.AppendLine("  주의: 제약 4(약 8초)와 5(S1 을 여유 있게)에 닿는지는 설계가 판정한다.");
         }
 
-        /// <summary>
-        /// 표준탄 라인만 센다. **기초 군수는 새 구조에서 표준탄만 만든다**(`RecipeCatalog`) —
-        /// 노드의 `AmmoKind` 필드는 구 구조의 잔재라 여기서 쓰지 않는다.
-        /// </summary>
-        private static float OutputOf(BalanceConfig bal, Chain std, NetworkAggregate agg)
-        {
-            int muni = agg.muniPierce + agg.muniSplit + agg.muniExplosive;
-            var lines = new List<MunitionsLine>
-            {
-                new MunitionsLine(AmmoKind.Standard, std.lineSpec, std.damage, muni),
-            };
-            return AmmoLineProduction.TotalOutput(lines, bal.muniPerNode);
-        }
-
-        /// <summary>시작 보드를 시험과 같은 경로로 짓고 집계한다.</summary>
-        private static NetworkAggregate StartingAggregate(bool fillEmptySlot)
+        /// <summary><c>MountDeliveryTests.BuildStartingBoard</c> 와 같은 구성.</summary>
+        private static BoardGrid BuildStartingBoard(bool fillEmptySlot)
         {
             var g = new BoardGrid(PartLayout.Columns, PartLayout.Rows, 1f,
                 Vector2.zero, PartLayout.BuildMask());
 
-            _lastPlaceFail = 0; _lastBeltFail = 0; _lastBeltTotal = 0;
-            foreach (StartingBoard.Slot slot in StartingBoard.Nodes) PlaceSlot(g, slot);
-            if (fillEmptySlot) PlaceSlot(g, StartingBoard.FillsEmptySlot);
+            foreach (StartingBoard.Slot slot in StartingBoard.Nodes)
+                g.TryPlace(slot.cell, Node(slot.nodeId), out _);
 
             foreach (StartingBoard.Run run in StartingBoard.Belts)
-            {
-                _lastBeltTotal++;
-                bool ok = run.merger
-                    ? g.TryPlaceBeltElement(run.cell, BeltElementKind.Merger,
-                        new[] { run.inFace }, new[] { run.outFace }, FlowKind.None, out _)
-                    : g.TryPlaceBelt(run.cell, run.inFace, run.outFace, FlowKind.None, out _);
-                if (!ok) _lastBeltFail++;
-            }
+                g.TryPlaceBelt(run.cell, run.inFace, run.outFace, FlowKind.None, out _);
 
-            return LogisticsNetwork.Aggregate(g, LogisticsReach.ConnectedNodes(g));
+            if (fillEmptySlot)
+                g.TryPlace(StartingBoard.FillsEmptySlot.cell,
+                    Node(StartingBoard.FillsEmptySlot.nodeId), out _);
+
+            // ⚠️ **이 둘이 빠지면 아무것도 안 흐른다.** 놓는 것과 이어지는 것은 다른 단계다.
+            BeltAutoOrient.Resolve(g);
+            BeltFlow.Resolve(g);
+            return g;
         }
 
-        private static int _lastPlaceFail, _lastBeltFail, _lastBeltTotal;
-
-        private static void PlaceSlot(BoardGrid g, StartingBoard.Slot slot)
+        /// <summary>보드를 돌려 마운트에 닿은 개수를 센다. 첫 도착 시각도 함께 낸다.</summary>
+        private static int Arrivals(BoardGrid grid, float seconds, out float firstAt)
         {
-            var def = AssetDatabase.LoadAssetAtPath<NodeDefinition>($"{NodeRoot}/Node_{slot.nodeId}.asset");
-            if (def == null) { _lastPlaceFail++; return; }
-            if (g.TryPlace(slot.cell, def, out NodeInstance placed)) placed.AmmoKind = slot.ammo;
-            else _lastPlaceFail++;
+            var flow = new BeltItemFlow();
+            flow.Rebuild(grid);
+
+            const float dt = 0.05f;
+            int count = 0;
+            firstAt = 0f;
+
+            int steps = Mathf.RoundToInt(seconds / dt);
+            for (int i = 0; i < steps; i++)
+            {
+                BoardItemTick.Step(grid, flow, dt, 1f);
+                int n = flow.PendingMountArrivals.Count;
+                if (n > 0 && count == 0) firstAt = (i + 1) * dt;
+                count += n;
+                flow.ClearPendingMountArrivals();
+            }
+            return count;
         }
 
         // ---- 도구 ----
