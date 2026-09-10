@@ -1903,6 +1903,11 @@ namespace MBI.Logistics
             var rect = new Rect((Screen.width - w) * 0.5f, 12f, w, h);
             UiBlockers.Add(rect);
 
+            // ⚠️ **이 글자도 인셋 전투 위에 얹힌다**(2026-09-10 · 플랜 §66-36 ②).
+            // 아래 `GUI.Box` 는 옅어서 밝은 바닥을 못 가린다 — 같은 알파의 판을 먼저 깐다.
+            // 블록 단위이며 안내 한 줄만 덮는다.
+            UiPlate.Draw(rect);
+
             Color prev = GUI.color;
             GUI.color = HintColor;
             GUI.Box(rect, GUIContent.none);
@@ -1964,7 +1969,12 @@ namespace MBI.Logistics
 
         private void DrawZoom()
         {
+            // ⚠️ **기본 skin 의 회색을 안 쓴다**(2026-09-10 · 플랜 §66-36 ①).
+            // 상단 인셋 위라 바탕이 밝고, 회색 글자는 판을 깔아도 여전히 안 읽혔다.
+            // HUD 와 **같은 흰색**으로 맞춘다 — 같은 줄에 있는 글자가 서로 다른 색이면
+            // 하나는 꺼져 있는 것처럼 보인다.
             var label = new GUIStyle(GUI.skin.label) { fontSize = 14 };
+            label.normal.textColor = Color.white;
             var style = new GUIStyle(GUI.skin.button) { fontSize = 16 };
 
             // ⚠️ **한 줄로 눕힌다.** 라벨을 버튼 위에 얹었더니 y 308이 되어 태그 버튼과 겹쳤다
