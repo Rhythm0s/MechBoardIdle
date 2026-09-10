@@ -65,6 +65,9 @@ EDGES: no black outline anywhere, the silhouette meets the transparent backgroun
 근거는 「한 문서 = 한 책임」에 걸리지 않는다는 것이다 — 두 책임이 이미 다르다. **설계 판정이 위다.**
 겹치는 열은 실물에서 찍는 쪽(아트 로그)을 남기고 이 파일에서 뺀다.
 
+⚠️ **보드 모듈 기호 둘(`mod_m`·`mod_r`)의 프롬프트는 `Docs/art_prompts_260909.md` 에 있다** (2026-09-10 신설).
+이 파일은 **애니메이션 27벌**을 담는다 — 대상이 다르므로 나눴다.
+
 ---
 
 ## 애니메이션 27벌 — 클립별 인자와 프롬프트 전문
