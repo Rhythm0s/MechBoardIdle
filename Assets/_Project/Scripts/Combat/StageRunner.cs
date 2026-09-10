@@ -645,32 +645,6 @@ namespace MBI.Combat
         }
 
         /// <summary>
-        /// 물러나는 로봇을 그 자리에 남겨 <b>페이드 아웃</b>으로 지운다(W01 2-3 사용자 확정).
-        /// 뷰는 하나뿐이라 다시 묶으면 이전 그림이 그 순간 사라진다 — 그래서 그림 한 장을
-        /// 복사한 유령을 두고 지운다. 어느 문서가 이 규정을 갖는지는 아직 정해지지 않았다
-        /// (W01 9장 3 — UI 문서「연출 표현 규칙」으로 보이나 확인 전이다).
-        /// </summary>
-        private void SpawnFadeGhost()
-        {
-            if (_robotView == null) return;
-            SpriteRenderer src = _robotView.GetComponentInChildren<SpriteRenderer>();
-            if (src == null || src.sprite == null) return;
-
-            var go = new GameObject("RobotFadeGhost");
-            go.transform.position = src.transform.position;
-            go.transform.localScale = src.transform.lossyScale;
-            var sr = go.AddComponent<SpriteRenderer>();
-            sr.sprite = src.sprite;
-            sr.color = src.color;
-            sr.flipX = src.flipX;
-            sr.sortingLayerID = src.sortingLayerID;
-            sr.sortingOrder = src.sortingOrder - 1;
-
-            float seconds = tuning != null ? tuning.animTagInSeconds : 0.75f;
-            go.AddComponent<FadeOutAndDestroy>().Begin(sr, seconds);
-        }
-
-        /// <summary>
         /// 라이브 물류 → 발사율(§5-6 D2). 코어 명제가 코드에서 성립하는 지점이다:
         /// 보드에서 노드를 빼면 브릿지 출력이 떨어지고, 그만큼 발사율이 줄어 전투가 실제로 약해진다.
         ///
@@ -797,8 +771,12 @@ namespace MBI.Combat
             // 교대했으면 뷰를 새 로봇에 다시 묶는다 — 안 하면 B가 싸우는데 A가 서 있다.
             if (_sim.ActiveRobotIndex != _viewedRobotIndex || IsMerged != _viewedMerged)
             {
+                // ⚠️ **유령을 안 남긴다** (2026-09-10 사용자 확정 · 리허설 1차).
+                // 물러나는 로봇을 페이드로 지우던 것을 **폐기**했다 — 새 로봇이 들어오는 내내
+                // 옛 로봇이 같이 서 있어 **둘이 겹쳐 보였다.** 뷰는 하나뿐이라 다시 묶으면
+                // 그 순간 이전 그림이 사라진다. 그것이 지금 원하는 것이다.
+                // ⚠️ `260907_W01` 2-3의 「페이드 아웃으로 지운다」는 **사용자가 09-10에 폐기**했다.
                 bool tagSwitch = _sim.ActiveRobotIndex != _viewedRobotIndex && IsMerged == _viewedMerged;
-                if (tagSwitch) SpawnFadeGhost();
                 BindRobotView();
                 if (tagSwitch) PlayTagEntrance();
             }

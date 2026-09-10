@@ -256,34 +256,10 @@ namespace MBI.Logistics
         /// (관통탄 「관」 · 폭발탄 「폭」 · 표준탄 「탄」). 색이 비슷한 것끼리 글자가
         /// 달라야 라벨이 색의 보조가 아니라 대체가 된다.
         /// </summary>
-        private static string FlowLabel(FlowKind kind)
-        {
-            switch (kind)
-            {
-                case FlowKind.Material: return "품";
-                case FlowKind.Ammo: return "탄";   // 구 탄약(폐기)
-                case FlowKind.Power: return "전";
-                case FlowKind.Heat: return "열";
-                case FlowKind.Drone: return "드";  // 구 드론 몸체(폐기)
-                case FlowKind.Propellant: return "추";
+        // ⚠️ **`FlowLabel` 을 걷었다** (2026-09-10 사용자 확정 · 리허설 1차).
+        // 흐르는 품목을 한 글자로 적던 표였는데, **품목 그림 열둘이 배선되면서 자리표시가 끝났다.**
+        // 대응(품목 → 그림)은 `BoardArtSet.ItemSprite` 가 들고 있다 — 표를 두 곳에 두지 않는다.
 
-                case FlowKind.CoreEnergy: return "코";
-                case FlowKind.BasicParts: return "부";
-                case FlowKind.PowerMaterial: return "발";
-                case FlowKind.Battery: return "배";
-                case FlowKind.DefenseMaterial: return "방";
-
-                case FlowKind.StandardAmmo: return "탄";
-                case FlowKind.PierceAmmo: return "관";
-                case FlowKind.ExplosiveAmmo: return "폭";
-
-                case FlowKind.DroneBodyParts: return "드";
-                case FlowKind.StackDrone: return "누";
-                case FlowKind.AoeDrone: return "광";
-
-                default: return "";
-            }
-        }
 
         /// <summary>
         /// 노드 라벨. 군수 노드는 **종류가 아니라 지금 만드는 것**을 적는다 —
@@ -1648,9 +1624,13 @@ namespace MBI.Logistics
                 if (kv.Value == null) continue;
                 BeltInstance belt = _grid.GetBeltAt(kv.Key);
                 // 병합기·분류기는 **무엇인지가 먼저**다 — 직선 벨트와 형태가 같아 글자로만 갈린다.
+                //
+                // ⚠️ **흐르는 품목의 한 글자는 안 적는다** (2026-09-10 사용자 확정 · 리허설 1차).
+                // 「코」·「전」 같은 글자는 **품목 그림이 없던 시절의 자리표시**였는데, 품목 열둘이
+                // 배선되면서 **그림이 흐르는 위에 글자가 겹쳤다.** 무엇이 흐르는지는 그림이 말한다.
                 string label = belt != null && belt.Element == BeltElementKind.Merger ? "합"
                     : belt != null && belt.Element == BeltElementKind.Sorter ? "분"
-                    : FlowLabel(BeltFlow.KindAt(_grid, kv.Key));
+                    : string.Empty;
                 if (label.Length == 0) continue; // 비어 있는 벨트는 색으로만 — 글자까지 깔면 시끄럽다
                 DrawLabelAt(cam, kv.Value.transform.position, label, beltStyle, Color.black, 52f);
             }
