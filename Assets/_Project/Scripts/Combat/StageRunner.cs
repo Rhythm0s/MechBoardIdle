@@ -652,12 +652,19 @@ namespace MBI.Combat
                 // 종전에는 로봇 한가운데였고, 그러면 몸통을 덮어 「무엇이 멈췄는지」보다
                 // 「무언가 가려졌다」가 먼저 읽힌다.
                 //
-                // 발밑 오프셋은 **그림자가 쓰는 규칙을 그대로 부른다**(`EffectTiming.ShadowFootOffset`) —
-                // 여기서 따로 계산하면 아트 규격이 바뀔 때 둘이 조용히 어긋난다.
+                // ⚠️ **크기를 줄인다**(2026-09-10 사용자 확정 · 촬영 전 임시).
+                // 이 그림은 256 캔버스에 실루엣 212px 이라 **로봇(220px)만 하다.** 그대로 두면
+                // 「무엇이 멈췄는지」보다 「무언가 가려졌다」가 먼저 읽힌다.
+                // 배율은 조율 SO 의 **가정치**이고 코어가 상한(절반 이하)으로 자른다.
+                float scale = EffectTiming.AmmoOutScale(tuning.ammoOutScaleAssumed);
+                _ammoOutView.transform.localScale = new Vector3(scale, scale, 1f);
+
+                // ⚠️ **그림자 발밑보다 더 내려간다.** `ShadowFootOffset` 자리는 아직 실루엣 안이라
+                // 거기 두면 아이콘 위쪽이 다리를 덮는다 — 여기서는 몸통 밖으로 통째로 내린다.
                 //
                 // ⚠️ **그림자보다 위다.** 이 뷰는 `EffectOver`(10)이고 그림자는 `EffectUnder`(-10)이라
                 // 층이 이미 갈려 있다 — 새 상수를 만들지 않는다.
-                float foot = EffectTiming.ShadowFootOffset(RobotSize);
+                float foot = EffectTiming.AmmoOutFootOffset(RobotSize, RobotSize * scale);
                 _ammoOutView.transform.position =
                     new Vector3(_sim.Robot.position.x, _sim.Robot.position.y + foot, 0f);
             }

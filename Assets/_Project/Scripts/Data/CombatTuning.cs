@@ -109,8 +109,13 @@ namespace MBI.Data
         public Sprite boosterSprite;
         [Tooltip("드론이 충전량을 다 쓰고 흩어지는 것.")]
         public Sprite droneExpireSprite;
-        [Tooltip("공급이 끊겨 공격이 멈췄다는 표시. ⚠️ 아직 배선되지 않았다 — 사건 자리가 코드에 없다.")]
+        [Tooltip("공급이 끊겨 공격이 멈췄다는 표시.")]
         public Sprite ammoOutSprite;
+
+        [Tooltip("탄약 소진 아이콘을 몇 배로 줄여 그리는가. ⚠️ 가정 — 연출 문서에 크기 절이 없다. " +
+                 "0.5 는 아이콘 실루엣(212px)이 로봇 실루엣(220px)의 절반 이하가 되는 값이며 " +
+                 "상한은 EffectTiming.AmmoOutScaleMax(0.52). 설계가 연출 문서에 역기입할 자리다.")]
+        public float ammoOutScaleAssumed = 0.5f;
 
         // ── 전투 배경 (2026-09-09 배선) ────────────────────────────────────────────
         //

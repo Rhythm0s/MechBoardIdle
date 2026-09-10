@@ -129,5 +129,42 @@ namespace MBI.Tests
             Assert.Greater(EffectTiming.ShadowSize(ArtSpec.LargeSize).x,
                 EffectTiming.ShadowSize(ArtSpec.DroneSize).x, "보스 그림자가 드론보다 크다");
         }
+
+        // ---- 탄약 소진 아이콘 (2026-09-10 사용자 확정 · 촬영 전 임시) ----
+
+        /// <summary>
+        /// **아이콘이 로봇 실루엣의 절반을 안 넘고, 몸통 밖 발 아래에 놓인다.**
+        ///
+        /// 실측 — `vfx_ammoout` 은 256 캔버스에 실루엣 **212px**, 로봇은 같은 캔버스에 **220px** 이다.
+        /// 그대로 두면 아이콘이 로봇만 해져 「무엇이 멈췄는지」보다 「무언가 가려졌다」가 먼저 읽힌다.
+        ///
+        /// ⚠️ **화면에서 커 보이는지는 사람이 본다.** 여기서 재는 것은 폭과 자리뿐이다.
+        /// </summary>
+        [Test]
+        public void AmmoOutIcon_StaysUnderHalfTheRobot_AndSitsBelowTheBody()
+        {
+            const float robotSilhouette = 220f;  // px · robot_a.png 실측
+            const float iconSilhouette = 212f;   // px · vfx_ammoout.png 실측
+
+            float scale = EffectTiming.AmmoOutScale(0.5f);
+            Assert.AreEqual(0.5f, scale, 0.0001f, "가정치가 상한 아래라 그대로 쓰인다");
+
+            Assert.LessOrEqual(iconSilhouette * scale, robotSilhouette * 0.5f,
+                "아이콘 실루엣이 로봇 실루엣의 절반을 넘는다");
+
+            // 상한은 넘겨도 잘린다 — SO 값을 잘못 넣어도 화면이 덮이지 않는다.
+            Assert.AreEqual(EffectTiming.AmmoOutScaleMax, EffectTiming.AmmoOutScale(3f), 0.0001f);
+            Assert.Greater(EffectTiming.AmmoOutScale(0f), 0f, "0을 넣어도 사라지지 않는다");
+
+            // 자리 — 아이콘 위쪽 끝이 본체 아래쪽 끝보다 낮아야 몸통을 안 덮는다.
+            float body = ArtSpec.RobotSize;
+            float icon = body * scale;
+            float y = EffectTiming.AmmoOutFootOffset(body, icon);
+
+            Assert.LessOrEqual(y + icon * 0.5f, -body * 0.5f + 0.0001f,
+                "아이콘 윗변이 몸통 아랫변 위로 올라왔다 — 다리를 덮는다");
+            Assert.Less(y, EffectTiming.ShadowFootOffset(body),
+                "그림자 발밑보다 더 내려간다 — 그 자리는 아직 실루엣 안이다");
+        }
     }
 }

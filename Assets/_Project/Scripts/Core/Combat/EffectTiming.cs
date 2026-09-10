@@ -58,5 +58,41 @@ namespace MBI.Core
 
         /// <summary>그림자가 놓이는 발밑 오프셋(본체 중심 기준). 캔버스 하단 근처.</summary>
         public static float ShadowFootOffset(float bodySize) => -bodySize * 0.42f;
+
+        // ---- 탄약 소진 아이콘 (2026-09-10 사용자 확정 · 촬영 전 임시) ----
+
+        /// <summary>
+        /// 아이콘을 몇 배로 줄여 그리는가의 **상한**.
+        ///
+        /// **왜 줄여야 하는가.** `vfx_ammoout` 은 **256 캔버스에 실루엣 212px** 로,
+        /// 로봇 실루엣 **220px** 과 거의 같다. 그대로 두면 아이콘이 로봇만 해져
+        /// 「무엇이 멈췄는지」보다 **「무언가 가려졌다」가 먼저 읽힌다.**
+        ///
+        /// 상한을 0.52 로 잡은 근거 — 아이콘 실루엣이 로봇 실루엣의 **절반 이하**가 되어야 하고,
+        /// 아이콘은 캔버스의 212/256, 로봇은 220/256 을 쓰므로
+        /// <c>배율 × 212 ≤ 220 ÷ 2</c> → 배율 ≤ **0.519** 다.
+        ///
+        /// ⚠️ **이 숫자는 실측이지만 규정이 아니다.** 연출 문서에 아이콘 크기 절이 없어
+        /// 구현이 가정으로 넣었다 — 설계가 역기입한다.
+        /// </summary>
+        public const float AmmoOutScaleMax = 0.52f;
+
+        /// <summary>고른 배율을 쓸 수 있는 값으로 자른다. 0 이하면 아이콘이 사라진다.</summary>
+        public static float AmmoOutScale(float requested) =>
+            UnityEngine.Mathf.Clamp(requested, 0.05f, AmmoOutScaleMax);
+
+        /// <summary>
+        /// 아이콘이 놓이는 자리(본체 중심 기준) — **발 아래**다.
+        ///
+        /// 그림자가 쓰는 발밑(<see cref="ShadowFootOffset"/>)보다 **더 내려간다.**
+        /// 그 자리는 아직 실루엣 안이라, 거기에 두면 아이콘 위쪽이 다리를 덮는다.
+        /// 여기서는 **본체 캔버스 아래쪽 끝**에서 아이콘 높이의 절반만큼 더 내려
+        /// 아이콘이 통째로 몸통 밖에 놓이게 한다.
+        ///
+        /// ⚠️ 그림자와 겹치는 것은 괜찮다 — 층이 갈려 있어(EffectOver 대 EffectUnder)
+        /// 아이콘이 위에 그려진다.
+        /// </summary>
+        public static float AmmoOutFootOffset(float bodySize, float iconSize) =>
+            -bodySize * 0.5f - iconSize * 0.5f;
     }
 }
