@@ -187,6 +187,8 @@ namespace MBI.Editor
 
             var director = root.AddComponent<AudioDirector>();
             var player = root.AddComponent<SfxPlayer>();
+            // 볼륨 조절 — 값은 기기에 남고 자산에는 안 들어간다(2026-09-10 사용자 확정).
+            root.AddComponent<AudioOptionsPanel>();
 
             AudioConfig audio = Load<AudioConfig>(CombatAssetGenerator.AudioConfigPath);
 

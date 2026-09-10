@@ -18,10 +18,10 @@ MonoBehaviour:
   warningVolume: 1
   effectVolume: 0.75
   uiVolume: 0.5
-  musicVolume: 0.45
+  musicVolume: 0.3
   volumeConfirm: 1
-  musicCrossfadeSeconds: 1.5
-  crossfadeConfirm: 1
+  musicCrossfadeSeconds: 2.25
+  crossfadeConfirm: 0
   musicLoopFadeSeconds: 2
   loopFadeConfirm: 1
   musicBattle: {fileID: 8300000, guid: 58ba00a04e68cfe469bb8311f9c967e1, type: 3}

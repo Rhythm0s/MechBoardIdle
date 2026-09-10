@@ -246,5 +246,62 @@ namespace MBI.Tests
             Assert.AreEqual(SoundKind.Ui, SoundIds.KindOf(SoundIds.BeltConnect));
             Assert.AreEqual(SoundKind.Effect, SoundIds.KindOf(SoundIds.FireA));
         }
+
+        // ---- 배경 음악 볼륨 — 사람이 고른다 (2026-09-10 사용자 확정) ----
+
+        /// <summary>
+        /// **기본은 30%다.** SO 기본값과 코어 상수가 **같은 값**이어야 한다 —
+        /// 갈리면 씬에서 켤 때와 코드가 기대하는 것이 달라진다.
+        /// </summary>
+        [Test]
+        public void MusicVolume_DefaultsTo30Percent_AndMatchesTheAsset()
+        {
+            Assert.AreEqual(0.30f, MusicVolume.Default, 1e-6f, "코어 기본값");
+
+            var config = UnityEditor.AssetDatabase.LoadAssetAtPath<AudioConfig>(
+                "Assets/_Project/ScriptableObjects/AudioConfig.asset");
+            Assert.NotNull(config, "AudioConfig 자산");
+            Assert.AreEqual(MusicVolume.Default, config.musicVolume, 1e-6f,
+                "SO 기본값이 코어 상수와 같다");
+        }
+
+        /// <summary>사람이 올려도 1을 안 넘고 내려도 0 아래로 안 간다.</summary>
+        [Test]
+        public void MusicVolume_IsClampedToZeroOne()
+        {
+            MusicVolume.Set(5f);
+            Assert.AreEqual(1f, MusicVolume.Value, 1e-6f);
+
+            MusicVolume.Set(-2f);
+            Assert.AreEqual(0f, MusicVolume.Value, 1e-6f);
+
+            MusicVolume.Reset();
+            Assert.AreEqual(MusicVolume.Default, MusicVolume.Value, 1e-6f);
+        }
+
+        /// <summary>화면에 적는 말은 **퍼센트 정수**다 — 0.3을 「0.3」으로 적으면 무엇의 0.3인지 모른다.</summary>
+        [Test]
+        public void MusicVolume_LabelIsAWholePercent()
+        {
+            Assert.AreEqual("30%", MusicVolume.Label(0.30f));
+            Assert.AreEqual("0%", MusicVolume.Label(0f));
+            Assert.AreEqual("100%", MusicVolume.Label(1f));
+        }
+
+        /// <summary>
+        /// **크로스페이드가 50% 넓어졌다** (2026-09-10 사용자 확정 · 1.5 → 2.25).
+        /// ⚠️ **루프 이음새(2초)는 안 건드렸다** — 「브금 전환 시」가 가리킨 것은 국면 전환이다.
+        /// </summary>
+        [Test]
+        public void Crossfade_IsFiftyPercentWider_ButLoopFadeIsUntouched()
+        {
+            var config = UnityEditor.AssetDatabase.LoadAssetAtPath<AudioConfig>(
+                "Assets/_Project/ScriptableObjects/AudioConfig.asset");
+            Assert.NotNull(config);
+
+            Assert.AreEqual(2.25f, config.musicCrossfadeSeconds, 1e-6f, "1.5 × 1.5");
+            Assert.AreEqual(2f, config.musicLoopFadeSeconds, 1e-6f, "루프 이음새는 그대로");
+        }
+
     }
 }

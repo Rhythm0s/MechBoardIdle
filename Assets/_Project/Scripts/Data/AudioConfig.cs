@@ -32,13 +32,13 @@ namespace MBI.Data
         [Tooltip("조작음. **가장 작아야 한다** — 플레이어가 스스로 낸 소리다.")]
         [Range(0f, 1f)] public float uiVolume = 0.50f;
         [Tooltip("배경 음악. 앞에 나서지 않는다 — 효과음이 상태를 알리는 통로라 덮으면 안 된다(6장).")]
-        [Range(0f, 1f)] public float musicVolume = 0.45f;
+        [Range(0f, 1f)] public float musicVolume = 0.30f;
         [Tooltip("볼륨 배치가 확정인가. Tbd = 자산이 나온 뒤 같은 화면에서 대조할 자리.")]
         public ConfirmState volumeConfirm = ConfirmState.Tbd;
 
         [Header("배경 음악")]
         [Tooltip("국면이 바뀔 때 곡을 겹쳐 넘기는 초. ⚠️ 미확정 — 화면에서 듣고 정한다. 0이면 즉시 갈아탄다.")]
-        [Min(0f)] public float musicCrossfadeSeconds = 1.5f;
+        [Min(0f)] public float musicCrossfadeSeconds = 2.25f;
         [Tooltip("크로스페이드 초가 확정인가.")]
         public ConfirmState crossfadeConfirm = ConfirmState.Tbd;
 

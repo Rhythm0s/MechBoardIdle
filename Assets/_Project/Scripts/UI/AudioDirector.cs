@@ -233,10 +233,19 @@ namespace MBI.UI
         /// </summary>
         private void ApplyFade(float t)
         {
-            float target = AudioMix.MusicGain(config);
+            // **사람이 고른 볼륨이 기준이다** — SO 값은 기본값이고 여기서는 지금 값을 쓴다.
+            float target = MusicVolume.Value;
+
+            // ⚠️ **선형으로 넘기면 가운데가 꺼진다.** 두 곡을 t 와 1−t 로 섞으면 중간에서
+            // 합이 √2 만큼 모자라 **볼륨이 한 번 파인다.** 등파워 곡선(사인·코사인)은
+            // 제곱의 합이 1 이라 넘기는 내내 크기가 유지된다 — 2026-09-10 사용자 확정
+            // 「볼륨 낮추는 구간이 부드럽게 넘어가도록」이 가리키는 자리다.
             float k = Mathf.Clamp01(t);
-            Current().volume = target * k * LoopEnvelopeOf(Current());
-            Previous().volume = target * (1f - k) * LoopEnvelopeOf(Previous());
+            float inGain = Mathf.Sin(k * Mathf.PI * 0.5f);
+            float outGain = Mathf.Cos(k * Mathf.PI * 0.5f);
+
+            Current().volume = target * inGain * LoopEnvelopeOf(Current());
+            Previous().volume = target * outGain * LoopEnvelopeOf(Previous());
         }
 
         /// <summary>이 소스의 루프 봉투. 판정은 코어가 하고 여기서는 값만 읽어 넘긴다.</summary>
