@@ -587,9 +587,13 @@ namespace MBI.Logistics
             if (initialBelts != null)
                 foreach (InitialBelt b in initialBelts)
                 {
+                    // ⚠️ **선언한 면을 쓴다**(2026-09-11). 종전에는 병합기를 **서→동으로 박아**
+                    // 시작 보드가 적어 둔 면을 통째로 버렸다 — 네 줄 배치의 합류가 전부
+                    // 엉뚱한 쪽으로 흘렀다. 받는 면은 출력면을 뺀 나머지 셋이다.
                     bool ok = b.merger
                         ? _grid.TryPlaceBeltElement(b.cell, BeltElementKind.Merger,
-                            new[] { PortFace.West }, new[] { PortFace.East }, FlowKind.None, out _)
+                            StartingBoard.MergerInFaces(b.outFace), new[] { b.outFace },
+                            FlowKind.None, out _)
                         : _grid.TryPlaceBelt(b.cell, b.inFace, b.outFace, FlowKind.None, out _);
                     if (ok) SpawnBeltMarker(b.cell, b.outFace);
                 }

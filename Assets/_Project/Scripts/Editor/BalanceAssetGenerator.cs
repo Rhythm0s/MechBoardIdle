@@ -36,6 +36,27 @@ namespace MBI.Editor
         // ⚠️ 2026-09-04 레시피 개정으로 **필요 생산치가 재산출 대상**이 됐다(`260904_W02` 6장).
         // 확정될 때까지 문서에 있던 값을 그대로 쓰되 이름으로 미확정임을 남긴다.
         private const float ProcOutputPerSecTbd = 1f;
+
+        /// <summary>
+        /// 코어 대당 산출 — **10** (2026-09-11 사용자 확정 · `260911_W01` 2장 값 1).
+        ///
+        /// 밸런스 문서「노드 생산력과 레시피」가 생산력 10 을 **가공·군수 공통**으로 두었고
+        /// **코어를 예외로 둔 문장이 없다.** 6 으로 딱 맞추면 보드를 키울 때 **코어부터 막힌다.**
+        ///
+        /// ⚠️ 구 값 1 은 폐기 — 그 값이 「코어 한 대가 가공 하나만 먹인다」의 뿌리였다.
+        /// </summary>
+        private const float CoreOutputPerSec = 10f;
+
+        /// <summary>
+        /// 코어 출력면 수 — **넷** (2026-09-11 사용자 확정 · `260911_W01` 2장 값 2).
+        ///
+        /// 네 방향으로 내보내면 **끝마다 라인이 하나씩 서고**, 라인 하나가 초당 한 발을 만든다.
+        /// 네 줄 = 4발/초 = 도달 40 → S1 요구치 = 40 × 0.9 = **36**.
+        ///
+        /// ⚠️ **분류기를 안 들이는 대신 고른 길이다**(W01 2-4) — 분류기는 S3 수업이고
+        /// 튜토리얼 데이터 모델에 들이면 수업 순서가 깨진다.
+        /// </summary>
+        private const int CoreOutputFaces = 4;
         private const float MuniPowerDraw = 2f;    // 군수 — 만들기도 하고 나르기도 한다
 
         // 복합 군수 대당 전력 **3 — 확정** (2026-09-10 · `260910_W01` 4장 8번).
@@ -160,19 +181,11 @@ namespace MBI.Editor
             // 드론 유입(기/초). params pB = 1.0 확정치 — 드론 몸체 조합표의 산출 속도.
             float droneInflow = config.droneInflow;
 
-            // 코어 — 물류 허브(탄약·전력 소비, 물류 산출). 고정비 0(확정).
+            // 코어 — 물류 허브(전력 소비, 물류 산출). 고정비 0(확정).
             WriteNode(config, "core", "코어", NodeType.Core, true,
                 new NodeResourceProfile { powerDraw = CorePowerDraw, confirm = ConfirmState.Confirmed },
-                new List<NodePort>
-                {
-                    // ⚠️ **탄약 입력을 폐기했다** (2026-09-05 · `260904_W03` 1장).
-                    // 코드에만 있던 것이다 — 조립 문서는 처음부터 「코어 = 입력 없음 · 모든
-                    // 라인의 시작」이라 적고 있었고, 「코어가 탄약을 받는다」는 근거가 어느
-                    // 문서에도 없었다. 도착지는 마운트 고정 포트다(W01 2-2).
-                    new NodePort(PortFace.South, PortIO.Input, FlowKind.Power),
-                    new NodePort(PortFace.North, PortIO.Output, FlowKind.CoreEnergy),
-                },
-                BuildRecipes(NodeType.Core, ProcOutputPerSecTbd, config.nodeProductionPower));
+                CorePorts(),
+                BuildRecipes(NodeType.Core, CoreOutputPerSec, config.nodeProductionPower));
 
             // 가공 — 물류 품목 처리. 전력 1/초(확정).
             // ⚠️ 가공의 **발열**은 부하 열에 없다. 표에 있는 발열원은 에너지 하나뿐이라
@@ -291,7 +304,7 @@ namespace MBI.Editor
             {
                 var inputs = new List<RecipeInput>();
                 foreach (FlowKind need in row.inputs)
-                    inputs.Add(new RecipeInput { kind = need, perOutput = RecipeCatalog.PerOutputTbd });
+                    inputs.Add(new RecipeInput { kind = need, perOutput = RecipeCatalog.PerOutput });
 
                 // ⚠️ **추진제는 주기도 스택도 다르다.** 15초에 1개와 스택 3은 둘 다
                 // 자산에 있던 **선언치**이며, 표를 돌며 전부 같은 값을 넣으면 그것을 잃는다 —
@@ -325,6 +338,29 @@ namespace MBI.Editor
                 });
             }
             return list;
+        }
+
+        /// <summary>
+        /// 코어의 면 넷 (2026-09-11 · `260911_W01` 값 2).
+        ///
+        /// ⚠️ **탄약 입력은 2026-09-05 에 폐기됐다**(`260904_W03` 1장) — 조립 문서는 처음부터
+        /// 「코어 = 입력 없음 · 모든 라인의 시작」이라 적고 있었다. 도착지는 마운트 고정 포트다.
+        ///
+        /// ⚠️ **그런데 전력 입력은 남아 있었다**(남면 · <c>FlowKind.Power</c>).
+        /// 「입력면이 0 이라 네 면을 다 출력에 쓸 수 있다」는 근거는 **그 면을 못 본 것**이다.
+        /// 전력을 받는 노드는 **코어 하나뿐**이라(에너지의 출력이 닿을 곳이 여기밖에 없다),
+        /// 네 면을 다 출력으로 돌리면 **에너지가 라인에서 빠져 전력 공급이 0 이 된다.**
+        ///
+        /// **그래도 W01 값 그대로 넣는다** — 「값을 맞추려 배치를 고치지 말고 재서 그대로
+        /// 올려 달라」가 지시다. 결과는 하네스가 재서 그대로 보고한다.
+        /// </summary>
+        private static List<NodePort> CorePorts()
+        {
+            var faces = new[] { PortFace.North, PortFace.East, PortFace.South, PortFace.West };
+            var ports = new List<NodePort>();
+            for (int i = 0; i < CoreOutputFaces && i < faces.Length; i++)
+                ports.Add(new NodePort(faces[i], PortIO.Output, FlowKind.CoreEnergy));
+            return ports;
         }
 
         private static void WriteNode(BalanceConfig config, string id, string display, NodeType type,

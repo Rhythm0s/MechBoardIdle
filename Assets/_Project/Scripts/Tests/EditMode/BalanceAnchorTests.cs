@@ -144,7 +144,13 @@ namespace MBI.Tests
             Assert.AreEqual(183f, _json.Stage("S4").req, Delta, "S4 정본 183");
             Assert.AreEqual(s4Derived, (long)_json.Stage("S4").req, "S4 도출식이 원천과 맞는다");
 
-            Assert.AreEqual(54f, _json.Stage("S1").req, Delta, "S1 정본 54");
+            // ⚠️ **S1·S2 는 54 에서 36 으로 내려갔다**(2026-09-11 · `260911_W01` 값 4).
+            // 54 는 도달 60 전제였고, **60 의 출처는 「표준탄 라인 스펙 6발/초」** 였다 —
+            // 그것은 **마운트 소비 상한**이지 시작 보드가 채워야 할 값이 아니다(W01 2-2).
+            // 네 줄 보드의 도달은 40 이고 40 × 0.9 = 36 이다.
+            Assert.AreEqual(36f, _json.Stage("S1").req, Delta, "S1 정본 36");
+            Assert.AreEqual(RoundAway(40f * ReqRatio), (long)_json.Stage("S1").req,
+                "S1 도 같은 역산이다 — 도달 40 × 0.9");
             Assert.AreEqual(_json.Stage("S1").req, _json.Stage("S2").req, Delta,
                 "S2 는 S1 과 같은 값이 맞다 — 오타가 아니다(260910_W02 2-3)");
         }

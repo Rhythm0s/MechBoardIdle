@@ -78,8 +78,16 @@ namespace MBI.Core
                 NodeInstance node = grid.GetAt(cell);
                 if (node == null || node.Definition == null || !node.Definition.implemented) continue;
 
-                // 안 이어진 노드는 라인이 아니다 — 놓여 있다고 세지 않는다.
-                if (connectedOnly != null && !connectedOnly.Contains(cell)) continue;
+                // ⚠️ **발전은 연결과 무관하다**(2026-09-11 · 문서와 구현 불일치 해소).
+                //
+                // 밸런스 문서가 「전력망은 **전역**이고 벨트와 무관하다」로 적고 있는데
+                // 코드는 발전량을 **이어진 노드**에서만 셌다. 그래서 에너지 노드를 벨트로
+                // 코어에 물려야 전력이 섰고, 코어 남면의 `Power` 입력이 그 배선의 흔적이었다
+                // (`260901_V02` · 보드 아트 4장). **에너지는 놓기만 하면 발전한다.**
+                //
+                // 소비는 그대로 **이어진 노드만** 센다 — 안 이어진 노드는 일을 안 하니 안 먹는다.
+                bool inLine = connectedOnly == null || connectedOnly.Contains(cell);
+                if (!inLine) { a.powerSupply += node.Definition.resources.powerSupply; continue; }
 
                 if (node.Definition.type == NodeType.Core) a.hasCore = true;
                 if (node.Definition.type == NodeType.Booster) a.boosterCount++;

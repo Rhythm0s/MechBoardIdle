@@ -263,9 +263,12 @@ namespace MBI.Tests
             Assert.AreEqual(30f, Output(start), D, "관통 + 표준 = 20 + 10");
             Assert.AreEqual(FlowKind.None, BeltFlow.KindAt(g, new Vector2Int(4, 6)),
                 "빈칸의 벨트는 비어 있다 — 그것이 다음에 할 일의 표시다");
-            // 고정비도 **이어진 노드만** 센다: 코어 0 + 에너지 1 + 군수 2대 × 2 = 5.
-            // 에너지가 대당 1을 먹게 되면서 4에서 5로 올랐다(260901_V02 §2층).
-            Assert.AreEqual(5f, start.powerDraw, D, "군수 2대 + 에너지 1대분");
+            // 고정비는 **이어진 노드만** 센다: 코어 0 + 군수 2대 × 2 = 4.
+            //
+            // ⚠️ **에너지가 여기서 빠졌다**(2026-09-11). 전력망이 전역이 되면서 에너지는
+            // **벨트로 안 이어진다** — 발전은 놓기만 하면 되고, 대신 「이어진 노드」에 안 들어
+            // 수요에서도 빠진다. 5 에서 4 로 내린 것은 그 파급이다.
+            Assert.AreEqual(4f, start.powerDraw, D, "군수 2대분 — 에너지는 라인 밖이다");
 
             // 빈칸을 채운다.
             g.TryPlace(new Vector2Int(3, 6), _muni, out NodeInstance expl);

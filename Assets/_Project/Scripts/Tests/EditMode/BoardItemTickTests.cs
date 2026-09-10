@@ -127,7 +127,11 @@ namespace MBI.Tests
             def.implemented = true;
             def.ports = new List<NodePort>
             {
-                new NodePort(PortFace.West, PortIO.Input, FlowKind.Power),
+                // ⚠️ **먹는 것을 전력에서 코어 에너지로 바꿨다**(2026-09-11).
+                // 전력망이 전역이 되면서 **전력은 벨트로 안 흐른다** — 이 시험이 재는 것은
+                // 「도착한 재료가 실제로 생산에 쓰이는가」이지 전력이 아니므로,
+                // 벨트로 흐르는 품목으로 바꾸면 뜻이 그대로 산다.
+                new NodePort(PortFace.West, PortIO.Input, FlowKind.CoreEnergy),
                 new NodePort(PortFace.East, PortIO.Output, FlowKind.Ammo),
             };
             def.recipes = new List<NodeRecipe>
@@ -138,7 +142,7 @@ namespace MBI.Tests
                     displayName = "탄약",
                     inputs = new List<RecipeInput>
                     {
-                        new RecipeInput { kind = FlowKind.Power, perOutput = perOutput },
+                        new RecipeInput { kind = FlowKind.CoreEnergy, perOutput = perOutput },
                     },
                     output = FlowKind.Ammo,
                     outputPerSec = perSec,
@@ -218,12 +222,12 @@ namespace MBI.Tests
             var flow = new BeltItemFlow();
             flow.Rebuild(grid);
 
-            node.TakeInput(FlowKind.Power, 6f); // 2개당 1산출 → 최대 3개
+            node.TakeInput(FlowKind.CoreEnergy, 6f); // 2개당 1산출 → 최대 3개
 
             for (int i = 0; i < 20; i++) BoardItemTick.Step(grid, flow, 0.1f);
 
             Assert.AreEqual(3f, node.OutputBuffer, Delta, "재고 6 ÷ 개당 2 = 3개까지만");
-            Assert.AreEqual(0f, node.InputBuffer[FlowKind.Power], Delta, "먹은 만큼 줄었다");
+            Assert.AreEqual(0f, node.InputBuffer[FlowKind.CoreEnergy], Delta, "먹은 만큼 줄었다");
             Assert.IsTrue(node.IsStarved, "다 먹었으면 다시 재료 없음이다");
         }
 
@@ -239,17 +243,17 @@ namespace MBI.Tests
             for (int x = 0; x <= 1; x++)
             {
                 grid.TryPlaceBelt(new Vector2Int(x, 1),
-                    PortFace.West, PortFace.East, FlowKind.Power, out _);
+                    PortFace.West, PortFace.East, FlowKind.CoreEnergy, out _);
             }
             NodeInstance node = PlaceEater(grid, new Vector2Int(2, 1), perSec: 1f, perOutput: 1f);
 
             var flow = new BeltItemFlow();
             flow.Rebuild(grid);
 
-            Assert.IsTrue(flow.TryInsert(new Vector2Int(0, 1), FlowKind.Power));
+            Assert.IsTrue(flow.TryInsert(new Vector2Int(0, 1), FlowKind.CoreEnergy));
             for (int i = 0; i < 20; i++) BoardItemTick.Step(grid, flow, 0.1f);
 
-            Assert.AreEqual(1, flow.ArrivedOf(FlowKind.Power), "한 개가 노드에 닿았다");
+            Assert.AreEqual(1, flow.ArrivedOf(FlowKind.CoreEnergy), "한 개가 노드에 닿았다");
             Assert.Greater(node.OutputBuffer, 0f, "닿은 재료로 실제로 만들었다");
             Assert.AreEqual(0, flow.PendingArrivals.Count, "옮긴 뒤 비워야 두 번 안 들어간다");
         }

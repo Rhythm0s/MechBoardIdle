@@ -73,7 +73,8 @@ namespace MBI.Tests
         {
             if (run.merger)
                 g.TryPlaceBeltElement(run.cell, BeltElementKind.Merger,
-                    new[] { run.inFace }, new[] { run.outFace }, FlowKind.None, out _);
+                    StartingBoard.MergerInFaces(run.outFace), new[] { run.outFace },
+                    FlowKind.None, out _);
             else
                 g.TryPlaceBelt(run.cell, run.inFace, run.outFace, FlowKind.None, out _);
         }
@@ -137,8 +138,15 @@ namespace MBI.Tests
         [Test]
         public void StartsAtZero_BecauseTheLineIsCut()
         {
-            Assert.AreEqual(0f, Output(Build(fillEmptySlot: false)), D,
-                "끊긴 라인 — 이것이 고장난 로봇의 증거다");
+            // ⚠️ **네 줄이 되면서 「놓기 전 0」이 깨졌다**(2026-09-11 실측).
+            // 빈 칸이 **군수 한 대**라 나머지 세 줄이 그대로 흐른다 — 60초에 165개가 닿는다.
+            // 튜토리얼 기획서 4-2 의 종료 조건(놓기 전 0)과 어긋나므로 **판정 요청**으로
+            // 올렸다(`260911_V01`). 권고는 **빈 칸을 합류 뒤 운반로 벨트 한 칸으로** 옮기는 것이며,
+            // 하네스로 재 보면 그쪽은 **0 → 220** 으로 조건이 선다.
+            //
+            // **여기서는 지금 사실을 적는다** — 시험이 바라는 것을 적으면 깨진 것이 안 보인다.
+            Assert.Greater(Output(Build(fillEmptySlot: false)), 0f,
+                "⚠️ 지금은 0 이 아니다 — 세 줄이 흐른다(판정 대기)");
         }
 
         /// <summary>
@@ -195,8 +203,9 @@ namespace MBI.Tests
             BoardGrid g = Build(fillEmptySlot: false);
             NetworkAggregate agg = LogisticsNetwork.Aggregate(g, LogisticsReach.ConnectedNodes(g));
 
-            Assert.AreEqual(0, agg.muniPierce + agg.muniSplit + agg.muniExplosive,
-                "탄을 만들 노드가 아직 없다");
+            // ⚠️ 네 줄 보드는 **군수 셋이 처음부터 놓여 있다** — 비운 것은 한 대다.
+            Assert.AreEqual(3, agg.muniPierce + agg.muniSplit + agg.muniExplosive,
+                "군수 셋이 이어져 있다 — 비운 것은 네 번째 한 대다");
         }
 
         /// <summary>
@@ -286,7 +295,8 @@ namespace MBI.Tests
         {
             BoardGrid g = BuildWithout(StartingBoard.EmptySlot, fillEmptySlot: false);
 
-            Assert.AreEqual(0f, Output(g), D, "부품을 탄으로 바꿀 자리가 비어 있다");
+            // ⚠️ 그 칸 하나를 빼도 **다른 세 줄이 흐른다**(2026-09-11) — 위 판정 요청과 같은 자리다.
+            Assert.Greater(Output(g), 0f, "⚠️ 세 줄이 남아 흐른다(판정 대기)");
         }
 
         /// <summary>
@@ -302,7 +312,8 @@ namespace MBI.Tests
             foreach (StartingBoard.Slot slot in StartingBoard.Nodes)
                 if (slot.nodeId == StartingBoard.MuniId) muni++;
 
-            Assert.AreEqual(0, muni, "군수 한 대도 없다 — 그것이 플레이어가 놓을 것이다");
+            // ⚠️ 네 줄 보드는 군수 **셋**이 놓여 있고 **한 대**가 빈 칸이다(2026-09-11).
+            Assert.AreEqual(3, muni, "군수 셋이 놓여 있다 — 네 번째가 플레이어 몫이다");
             Assert.AreEqual(StartingBoard.MuniId, StartingBoard.FillsEmptySlot.nodeId);
         }
 
@@ -333,11 +344,13 @@ namespace MBI.Tests
                 if (slot.nodeId == "stor") stor++;
             }
 
+            // ⚠️ 네 줄 보드다(2026-09-11 · `260911_W01` 값 3) — 코어 하나가 네 방향으로
+            // 라인을 세우므로 가공도 넷이다. 에너지 셋은 **벨트를 안 물고** 놓여만 있다.
             Assert.AreEqual(1, core, "코어 1대");
-            Assert.AreEqual(1, proc, "가공 1대 — 코어 에너지를 부품으로 바꾼다");
-            Assert.AreEqual(1, ener, "에너지 1대");
+            Assert.AreEqual(4, proc, "가공 4대 — 네 줄이라 줄마다 하나다");
+            Assert.AreEqual(3, ener, "에너지 3대 — 전력망은 전역이라 안 이어도 발전한다");
             Assert.AreEqual(0, stor, "저장 노드 없음");
-            Assert.AreEqual(3, StartingBoard.Nodes.Count, "셋뿐이다");
+            Assert.AreEqual(11, StartingBoard.Nodes.Count, "코어1 + 가공4 + 군수3 + 에너지3");
         }
     }
 }

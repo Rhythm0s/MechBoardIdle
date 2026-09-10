@@ -106,13 +106,14 @@ namespace MBI.Core
         /// </summary>
         private static void PushToBelt(BeltItemFlow flow, NodeInstance node, Vector2Int cell)
         {
-            if (!flow.TryNextOf(cell, out Vector2Int to)) return;
-
             while (node.OutputBuffer >= OneItem)
             {
                 // 먼저 자리를 잡고 그 다음에 버퍼를 던다. 순서를 바꾸면 벨트가 찼을 때
                 // 물건이 버퍼에서 빠진 채 어디에도 없는 상태가 된다.
-                if (!flow.TryInsert(to, node.BufferKind)) return;
+                //
+                // ⚠️ **갈래가 여럿이면 번갈아 민다**(2026-09-11) — 코어 출력면이 넷이 되면서
+                // 첫 갈래로만 밀면 네 줄 중 한 줄만 급전된다.
+                if (!flow.TryPushFrom(cell, node.BufferKind)) return;
 
                 float taken = NodeProduction.Withdraw(node.OutputBuffer, OneItem, out float after);
                 if (taken <= 0f) return;

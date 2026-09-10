@@ -86,6 +86,7 @@ namespace MBI.EditorTools
             Three(sb, bal, std, pierce, expl);
             Four(sb, pierce, expl);
             Five(sb, bal, std);
+            Six(sb);
 
             return sb.ToString();
         }
@@ -216,6 +217,22 @@ namespace MBI.EditorTools
                 sb.AppendLine($"  마운트 {cap:F0} 채움 = 안 찬다 (도착 0)");
 
             sb.AppendLine("  주의: 제약 4(약 8초)와 5(S1 을 여유 있게)에 닿는지는 설계가 판정한다.");
+
+            // ── 빈 칸을 어디로 둘 것인가 (2026-09-11 · V01 판정 요청 재료)
+            //
+            // 튜토리얼 기획서 4-2 는 「놓기 전 0」을 종료 조건으로 삼는다. 그런데 네 줄이
+            // 되면서 **군수 한 대를 비워도 나머지 셋이 흐른다** — 수업이 안 선다.
+            // 대안은 **합류 뒤 운반로 벨트 한 칸**을 비우는 것이다. 둘을 나란히 잰다.
+            const float W = 60f;
+            int nodeGap = Arrivals(BuildStartingBoard(false), W, out _);
+            int beltGap = Arrivals(BuildStartingBoardMissingBelt(new Vector2Int(6, 5)), W, out _);
+            int whole = Arrivals(BuildStartingBoard(true), W, out _);
+
+            sb.AppendLine();
+            sb.AppendLine("  빈 칸 자리 비교 — 60초 도착 개수");
+            sb.AppendLine($"  (가) 군수 한 대를 비운다(현행) | 채우기 전 {nodeGap} | 채운 뒤 {whole}");
+            sb.AppendLine($"  (나) 운반로 벨트 한 칸을 비운다 | 채우기 전 {beltGap} | 채운 뒤 {whole}");
+            sb.AppendLine("  주의: 「놓기 전 0」이 서는 쪽이 튜토리얼 종료 조건과 맞는다 — 판정은 설계.");
         }
 
         /// <summary><c>MountDeliveryTests.BuildStartingBoard</c> 와 같은 구성.</summary>
@@ -227,8 +244,10 @@ namespace MBI.EditorTools
             foreach (StartingBoard.Slot slot in StartingBoard.Nodes)
                 g.TryPlace(slot.cell, Node(slot.nodeId), out _);
 
+            // ⚠️ **병합기는 병합기로 놓는다.** 종전에는 이 줄이 `merger` 를 통째로 무시해
+            // 합류 칸이 직선 벨트가 됐다 — 하네스가 게임과 다른 보드를 재고 있었다(2026-09-11).
             foreach (StartingBoard.Run run in StartingBoard.Belts)
-                g.TryPlaceBelt(run.cell, run.inFace, run.outFace, FlowKind.None, out _);
+                PlaceRun(g, run);
 
             if (fillEmptySlot)
                 g.TryPlace(StartingBoard.FillsEmptySlot.cell,
@@ -238,6 +257,112 @@ namespace MBI.EditorTools
             BeltAutoOrient.Resolve(g);
             BeltFlow.Resolve(g);
             return g;
+        }
+
+        // ---- 6. 시작 보드 진단 — 어디서 끊겼는가 (2026-09-11 · `260911_W01` 2-5) ----
+
+        /// <summary>
+        /// 도착이 0 일 때 **어디서 끊겼는지**를 낸다.
+        ///
+        /// 「0 이다」만으로는 배치가 틀린 것인지 규격이 막는 것인지 못 가른다 —
+        /// 실제로 네 줄 첫 배치에서 그 자리에 섰다. 여기서 내는 것은 셋이다:
+        /// **노드마다 라인에 들었는가 · 링크가 몇 개인가 · 전력이 서는가.**
+        /// </summary>
+        private static void Six(StringBuilder sb)
+        {
+            sb.AppendLine();
+            sb.AppendLine("[6] 시작 보드 진단 — 빈 칸을 채운 판");
+
+            BoardGrid grid = BuildStartingBoard(true);
+            var connected = new HashSet<Vector2Int>(LogisticsReach.ConnectedNodes(grid));
+            List<BeltLink> links = BeltRouting.BuildLinks(grid);
+
+            sb.AppendLine($"  링크 {links.Count}개 · 라인에 든 노드 {connected.Count}개");
+            sb.AppendLine("  칸 | 노드 | 라인에 드는가");
+
+            for (int y = grid.Rows - 1; y >= 0; y--)
+            for (int x = 0; x < grid.Columns; x++)
+            {
+                var cell = new Vector2Int(x, y);
+                NodeInstance node = grid.GetAt(cell);
+                if (node?.Definition == null) continue;
+                sb.AppendLine($"  ({x},{y}) | {node.Definition.displayName} | " +
+                              (connected.Contains(cell) ? "예" : "아니오"));
+            }
+
+            WorkloadRate.Result work = WorkloadRate.Compute(grid, connected, null);
+            NetworkAggregate agg = LogisticsNetwork.Aggregate(grid, connected, work);
+            sb.AppendLine($"  전력 공급 {agg.powerSupply:F1} · 소비 {agg.powerDraw:F1} " +
+                          $"· 코어 있음 {agg.hasCore} · 탄약 생산 {agg.ammoProduce:F2}/초");
+            sb.AppendLine($"  탄약 경로 수 {LogisticsReach.AmmoPathCount(grid)} " +
+                          $"(한 줄 처리량 {BeltLaneThroughput:F0}/초 — 넘치면 벨트가 먼저 막힌다)");
+            sb.AppendLine("  주의: 전력 공급이 0이면 화면에서는 아무것도 안 만들어진다 — " +
+                          "하네스는 배율 1로 돌려 운송만 잰다.");
+
+            // 60초 돌린 뒤 **어느 칸이 막혀 있는지** — W01 2-5 「벨트가 먼저 막히는지」의 답이다.
+            var flow = new BeltItemFlow();
+            flow.Rebuild(grid);
+            for (int i = 0; i < 1200; i++)
+            {
+                BoardItemTick.Step(grid, flow, 0.05f, 1f);
+                flow.ClearPendingMountArrivals();
+            }
+            sb.AppendLine("  60초 뒤 칸 상태 — 개수 / 막힘");
+            for (int y = grid.Rows - 1; y >= 0; y--)
+            for (int x = 0; x < grid.Columns; x++)
+            {
+                var c = new Vector2Int(x, y);
+                if (grid.GetBeltAt(c) == null) continue;
+                int n = flow.ItemsAt(c).Count;
+                if (n == 0 && !flow.IsBlocked(c)) continue;
+                sb.AppendLine($"  ({x},{y}) | {n}개 | {(flow.IsBlocked(c) ? "막힘" : "-")}");
+            }
+            sb.AppendLine($"  이론 한 줄 처리량 = {BeltItemFlow.CellsPerSecondTbd:F0}칸/초 ÷ " +
+                          $"{BeltItemFlow.MinGapCells:F2}칸 = {BeltItemFlow.CellsPerSecondTbd / BeltItemFlow.MinGapCells:F0}/초 " +
+                          $"(한 칸 최대 {BeltItemFlow.MaxPerCell}개)");
+
+            // 벨트 면은 `BeltAutoOrient` 가 이웃을 보고 다시 잡는다 — 적어 둔 면과 다를 수 있다.
+            sb.AppendLine("  벨트 | 입력면 | 출력면 | 나르는 것");
+            for (int y = grid.Rows - 1; y >= 0; y--)
+            for (int x = 0; x < grid.Columns; x++)
+            {
+                BeltInstance b = grid.GetBeltAt(new Vector2Int(x, y));
+                if (b == null) continue;
+                sb.AppendLine($"  ({x},{y}) | {b.InFace} | {b.OutFace} | {b.Kind}");
+            }
+        }
+
+        /// <summary>운반로 벨트 한 칸을 빼고 지은 판 — 「빈 칸 = 벨트」 안을 재려는 것이다.</summary>
+        private static BoardGrid BuildStartingBoardMissingBelt(Vector2Int omit)
+        {
+            var g = new BoardGrid(PartLayout.Columns, PartLayout.Rows, 1f,
+                Vector2.zero, PartLayout.BuildMask());
+
+            foreach (StartingBoard.Slot slot in StartingBoard.Nodes)
+                g.TryPlace(slot.cell, Node(slot.nodeId), out _);
+            g.TryPlace(StartingBoard.FillsEmptySlot.cell,
+                Node(StartingBoard.FillsEmptySlot.nodeId), out _);   // 군수는 다 놓는다
+
+            foreach (StartingBoard.Run run in StartingBoard.Belts)
+            {
+                if (run.cell == omit) continue;
+                PlaceRun(g, run);
+            }
+
+            BeltAutoOrient.Resolve(g);
+            BeltFlow.Resolve(g);
+            return g;
+        }
+
+        /// <summary>벨트 하나를 놓는다. **병합기는 병합기로** 놓는다(받는 면은 규칙이 준다).</summary>
+        private static void PlaceRun(BoardGrid g, StartingBoard.Run run)
+        {
+            if (run.merger)
+                g.TryPlaceBeltElement(run.cell, BeltElementKind.Merger,
+                    StartingBoard.MergerInFaces(run.outFace), new[] { run.outFace },
+                    FlowKind.None, out _);
+            else
+                g.TryPlaceBelt(run.cell, run.inFace, run.outFace, FlowKind.None, out _);
         }
 
         /// <summary>보드를 돌려 마운트에 닿은 개수를 센다. 첫 도착 시각도 함께 낸다.</summary>

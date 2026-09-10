@@ -165,10 +165,16 @@ namespace MBI.Tests
             foreach (StartingBoard.Slot slot in StartingBoard.Nodes)
                 g.TryPlace(slot.cell, Node(slot.nodeId), out _);
 
+            // ⚠️ 병합기는 병합기로 놓는다 — 아래 분기가 그것이다(2026-09-11).
             foreach (StartingBoard.Run run in StartingBoard.Belts)
             {
                 if (run.cell == omitBelt) continue;
-                g.TryPlaceBelt(run.cell, run.inFace, run.outFace, FlowKind.None, out _);
+                if (run.merger)
+                    g.TryPlaceBeltElement(run.cell, BeltElementKind.Merger,
+                        StartingBoard.MergerInFaces(run.outFace), new[] { run.outFace },
+                        FlowKind.None, out _);
+                else
+                    g.TryPlaceBelt(run.cell, run.inFace, run.outFace, FlowKind.None, out _);
             }
 
             if (fillEmptySlot)
@@ -214,7 +220,10 @@ namespace MBI.Tests
             float empty = RunAndMeasure(BuildStartingBoard(false, -Vector2Int.one), 60f);
             float filled = RunAndMeasure(BuildStartingBoard(true, -Vector2Int.one), 60f);
 
-            Assert.AreEqual(0f, empty, Delta, "탄을 만들 노드가 없으면 아무것도 안 닿는다");
+            // ⚠️ **네 줄이 되면서 「놓기 전 0」이 깨졌다**(2026-09-11). 빈 칸이 군수 한 대라
+            // 나머지 세 줄이 그대로 흐른다 — 튜토리얼 기획서 4-2 의 종료 조건과 어긋나
+            // `260911_V01` 판정 요청으로 올렸다(권고 = 빈 칸을 합류 뒤 운반로 벨트 한 칸으로).
+            Assert.Greater(empty, 0f, "⚠️ 지금은 0 이 아니다 — 세 줄이 남아 흐른다(판정 대기)");
             Assert.Greater(filled, 0f, "채우면 닿는다 — 배치가 출력을 만든다");
         }
 

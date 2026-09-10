@@ -129,11 +129,18 @@ namespace MBI.Tests
             BeltAutoOrient.Resolve(g);
             Assert.AreEqual(PortFace.East, m.OutFaces[0], "아직 아무것도 없으면 동쪽(기본)");
 
-            // 이제 북쪽에 코어를 붙인다 — 코어의 남쪽 면이 전력 입력이다.
+            // ⚠️ **코어로는 안 된다**(2026-09-11) — 전력망이 전역이 되면서 코어의 `Power`
+            // 입력이 없어졌고, **아무것도 안 받는 노드는 출구가 아니다.**
             g.TryPlace(new Vector2Int(2, 4), _core, out _);
             BeltAutoOrient.Resolve(g);
+            Assert.AreEqual(PortFace.East, m.OutFaces[0], "코어는 받지 않으므로 그대로다");
 
-            Assert.AreEqual(PortFace.North, m.OutFaces[0], "붙이고 나면 그쪽을 가리킨다");
+            // 대신 **받아 주는 벨트**를 북쪽에 붙인다 — 남쪽에서 받는 면이어야 한다.
+            // 「받아 줄 수 있는가」를 실제로 보는지가 여기서 갈린다(2026-09-11 수정).
+            g.TryPlaceBelt(new Vector2Int(2, 2), PortFace.North, PortFace.South, FlowKind.None, out _);
+            BeltAutoOrient.Resolve(g);
+
+            Assert.AreEqual(PortFace.South, m.OutFaces[0], "붙이고 나면 그쪽을 가리킨다");
             Assert.IsTrue(Has(m.InFaces, PortFace.East), "동쪽이 이제 입구로 돌아섰다");
         }
 
@@ -184,7 +191,11 @@ namespace MBI.Tests
 
             BeltAutoOrient.Resolve(g);
             Assert.AreEqual(first, m.OutFaces[0], "다시 잡아도 같다");
-            Assert.AreEqual(PortFace.North, first, "면 우선순위는 북 → 동 → 남 → 서");
+
+            // ⚠️ **코어는 이제 아무것도 안 받는다**(2026-09-11 · 전력망 전역화).
+            // 남면의 `Power` 입력이 없어지면서 **코어는 출구 후보가 아니다** —
+            // 받아 줄 이웃이 없으니 기본값 동쪽에 선다. 결정론은 그대로다.
+            Assert.AreEqual(PortFace.East, first, "받아 줄 이웃이 없으면 기본값 동쪽");
         }
     }
 }

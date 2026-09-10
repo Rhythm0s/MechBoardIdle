@@ -66,6 +66,16 @@ namespace MBI.Core
         private static void TryLink(BoardGrid grid, List<BeltLink> links,
             Vector2Int cell, PortFace outFace, FlowKind kind)
         {
+            // ⚠️ **전력은 벨트로 안 나른다**(2026-09-11 · 문서와 구현 불일치 해소).
+            //
+            // 밸런스 문서의 전력망은 **전역**이다. 그런데 에너지 노드에 `Power` 출력 포트가
+            // 있어서 여기가 링크를 세웠고, 그 링크가 코어 남면의 `Power` 입력으로 이어졌다 —
+            // **벨트로 전기를 나르는 그림**이 코드에만 있었다.
+            //
+            // 포트는 남긴다. 화면에서 「여기가 발전소다」를 보여 주는 **표시**이고,
+            // 지우면 보드 아트 4장의 마커가 근거를 잃는다.
+            if (kind == FlowKind.Power) return;
+
             Vector2Int nb = cell + Delta(outFace);
             if (!grid.IsInside(nb)) return;
             PortFace need = NodeConnectionRules.Opposite(outFace); // 이웃이 맞닿는 면

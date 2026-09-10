@@ -180,6 +180,8 @@ namespace MBI.Core
                 }
             }
 
+            _rotor.Clear(); // 배치가 바뀌면 차례도 처음부터
+
             foreach (BeltLink link in BeltRouting.BuildLinks(grid))
             {
                 if (!_next.TryGetValue(link.fromCell, out List<Vector2Int> outs))
@@ -278,6 +280,35 @@ namespace MBI.Core
             if (!_next.TryGetValue(cell, out List<Vector2Int> outs) || outs.Count == 0) return false;
             to = outs[0];
             return true;
+        }
+
+        /// <summary>갈래마다 다음에 밀 차례. 칸별로 돌아간다.</summary>
+        private readonly Dictionary<Vector2Int, int> _rotor = new Dictionary<Vector2Int, int>();
+
+        /// <summary>
+        /// 이 칸에서 **갈래를 번갈아** 하나 밀어 넣는다 (2026-09-11).
+        ///
+        /// ⚠️ **위 <see cref="TryNextOf"/> 는 첫 갈래만 준다.** 그 주석이 「여럿인 노드가 생기면
+        /// 골라 주는 쪽으로 바꿔야 한다」고 예고해 두었는데, **코어 출력면이 넷이 되면서
+        /// 그 날이 왔다** — 첫 갈래로만 밀면 코어가 네 줄 중 **한 줄에만 급전**한다.
+        /// 실측에서 생산 4/초가 도착 0.92/초로 줄던 자리다.
+        ///
+        /// **차례로 돌린다.** 막힌 갈래는 건너뛰되 차례는 넘기지 않는다 — 넘기면 한 줄이
+        /// 막혔을 때 그 줄이 영영 밀리지 않는다.
+        /// </summary>
+        public bool TryPushFrom(Vector2Int from, FlowKind kind)
+        {
+            if (!_next.TryGetValue(from, out List<Vector2Int> outs) || outs.Count == 0) return false;
+
+            _rotor.TryGetValue(from, out int start);
+            for (int i = 0; i < outs.Count; i++)
+            {
+                int idx = (start + i) % outs.Count;
+                if (!TryInsert(outs[idx], kind)) continue;
+                _rotor[from] = (idx + 1) % outs.Count;
+                return true;
+            }
+            return false;
         }
 
         /// <summary>이 칸의 아이템들. 렌더링과 진단이 읽는다.</summary>
