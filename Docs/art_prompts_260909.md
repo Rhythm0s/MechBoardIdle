@@ -279,6 +279,55 @@ a heavy tracked tank sitting still with its engine running, juddering in place. 
 
 ---
 
+## 11. `boss_Move` 남·북 2차 (animation group `a8e7a7e1` · 12 생성)
+
+| 항목 | 값 |
+|---|---|
+| 도구 | `animate_character` **v3** · `directions=["south","north"]` · `frame_count=6` · **`keep_first_frame=false`** → 6칸 |
+| 앵커 | 캐릭터 `2fd860bd` (256 승인본 회전) |
+| 결과 | **남면 ✅ 사용자 육안 통과 · 설치** / **북면 ❌ 반려** — 「남면과 다른 이미지」 |
+
+**문안의 근거** — ⚠️ **15-5 5장에 이동 행이 없다.** 표는 대기·사망 둘뿐이고 아래에
+「이동 애니메이션은 넣지 않았다 … 미결 X-1」이 그대로 있다(2026-09-10 10:46 판 재열람).
+그래서 **3-3 외형 규정**(궤도·포신·차체)과 **5-1 의 전차 문법**에서 끌어왔다.
+
+```
+a heavy tracked tank driving forward at a slow crawl. Its tracks roll and the road wheels turn, the hull rocks a little as it grinds along, and the gun barrels sway with the motion. The camera does not move: the machine is drawn at the same size in every frame, seen from the same square-on angle throughout, never turning to a three-quarter or isometric angle and never getting smaller or larger.
+```
+
+**폐기된 09-04 판을 무엇으로 막았나**
+
+| 09-04 판의 결함 | 막은 문장 |
+|---|---|
+| 구 모델을 참조로 썼다 | 앵커 자체를 새 256 승인본의 회전으로 바꿨다 |
+| 아이소매트릭으로 기운다 | `seen from the same square-on angle throughout, never turning to a three-quarter or isometric angle` |
+| 여섯 칸에 걸쳐 기체가 줄어든다(남면 228 → 188) | `The camera does not move: the machine is drawn at the same size in every frame … never getting smaller or larger` |
+
+---
+
+## 12. `boss_Move` 북면 3차 — ✅ **사용자 육안 통과 · 설치** (animation group `cb2cb2db` · 6 생성)
+
+| 항목 | 값 |
+|---|---|
+| 도구·인자 | 11번과 같다 (북면만) |
+
+**반려 사유(사용자 육안)** — 「**남면과 다른 이미지**」·「**남면 기준으로 진행해야 함**」.
+2차 북면은 대기 첫 칸과의 겹침 **0.780**, 이음새 최솟값 **0.787** 로 하한(0.78)에 간신히 걸쳐 있었다 —
+도구가 **뒷면을 칸마다 다시 지어낸** 자리다. 그래서 **정체를 문장으로 묶었다.**
+
+```
+the SAME heavy tracked tank as in its other views, now seen from directly behind, driving forward at a slow crawl away from the viewer. Keep its identity exactly: the same hull outline, the same plating layout, the same number and placement of gun barrels, the same gunmetal steel with dark red accent panels. Its tracks roll and the road wheels turn, the hull rocks a little as it grinds along. The camera does not move: the machine is drawn at the same size in every frame, held square-on to the viewer, never turning to a three-quarter or isometric angle, never getting smaller or larger, and never changing its outline between frames.
+```
+
+**2차에서 더한 것 셋** — ① `the SAME … as in its other views` ② `Keep its identity exactly:` 뒤에 **네 가지를 이름으로**
+(선체 윤곽 · 장갑 배치 · 포신 수와 자리 · 색) ③ `never changing its outline between frames`.
+
+**결과** — 이음새 최솟값 **0.787 → 0.910** · 칸 사이 화소 차 최대 **21.3% → 13.0%** ·
+크기 흔들림 **3·3px → 1·2px**(남면과 같다). 대기 첫 칸과의 겹침은 **0.789** 로 남면(0.946)에 못 미치나
+**뒷모습이라 앞모습과 같을 수 없다** — 통과는 육안이 정했다.
+
+---
+
 ---
 
 ## 설계에 넘기는 것
