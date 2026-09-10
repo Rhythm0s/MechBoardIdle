@@ -38,10 +38,12 @@ namespace MBI.Editor
         private const float ProcOutputPerSecTbd = 1f;
         private const float MuniPowerDraw = 2f;    // 군수 — 만들기도 하고 나르기도 한다
 
-        // 복합 군수 대당 전력 — **잠정 3** (`260909_W01` 2-1). 기초 군수 2보다 하나 위다.
-        // ⚠️ **W01 2-6이 이 값을 「가장 약한 자리 둘」 중 하나로 적었다** — 「기초보다 무겁다」는
-        // 방향만 있고 크기를 정할 잣대가 없다. 그래서 값은 넣되 프로필은 Tbd로 남긴다.
-        private const float MuniComplexPowerDrawTbd = 3f;
+        // 복합 군수 대당 전력 **3 — 확정** (2026-09-10 · `260910_W01` 4장 8번).
+        // ✅ **실측이 잣대를 대신했다.** 밸런스 문서가 「잠정 점값 · 실측 뒤 교체」로 두었고
+        // 하네스가 값을 냈다 — 관통4+폭발2에서 소비 42/초 · 에너지 5대. 전력이 0이었을 때는
+        // 3대였으므로 **두 대가 늘어난 것이 값 3의 대가**이며, 그 크기가 「기초보다 무겁다」에 맞는다.
+        // ⚠️ 구 표기 「잠정 · 크기를 정할 잣대가 없다」는 폐기됐다.
+        private const float MuniComplexPowerDraw = 3f;
         private const float EnergyPowerDraw = 1f;  // 에너지 — 내는 쪽도 자기 몫을 먹는다
         private const float StoragePowerDraw = 2f; // 저장 — 쌓아둘 뿐 아무것도 바꾸지 않는다
         private const float BoosterPowerDraw = 2f; // 부스터 — 스택이 차면 멈춘다(일감률 0)
@@ -220,11 +222,10 @@ namespace MBI.Editor
             // ⚠️ 산출 속도와 개당 소비량은 **아직 미확정**이다. 값을 만들지 않고 카탈로그의
             // 센티넬을 그대로 쓰며, 밸런스가 정하면 그쪽만 고치면 된다.
             WriteNode(config, "munix", "복합 군수", NodeType.MunitionsComplex, true,
-                // 대당 전력 **3**(잠정 · `260909_W01` 2-1). 종전에는 0(미설정 센티넬)이었고
-                // 그동안 복합 군수는 전력을 한 푼도 안 먹었다 — 전력 축이 이 노드에 안 걸렸다.
-                // ⚠️ **값이 왔어도 확정은 아니다.** 크기를 정할 잣대가 없어 방향만 맞춘 점값이므로
-                // `confirm`은 Tbd 그대로 둔다 — 실측 넷 중 4번이 이 값을 겨눈다.
-                new NodeResourceProfile { powerDraw = MuniComplexPowerDrawTbd, confirm = ConfirmState.Tbd },
+                // 대당 전력 **3 — 확정**(2026-09-10 · `260910_W01` 4장 8번). 종전에는 0(미설정
+                // 센티넬)이었고 그동안 복합 군수는 전력을 한 푼도 안 먹었다 — 전력 축이 이 노드에
+                // 안 걸렸다. 실측(에너지 3대 → 5대)이 크기를 재 주어 `Tbd`를 푼다.
+                new NodeResourceProfile { powerDraw = MuniComplexPowerDraw, confirm = ConfirmState.Confirmed },
                 new List<NodePort>
                 {
                     new NodePort(PortFace.West, PortIO.Input, FlowKind.StandardAmmo),

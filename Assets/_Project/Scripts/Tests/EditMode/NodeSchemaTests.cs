@@ -68,11 +68,13 @@ namespace MBI.Tests
                 //   **쉴드만 Tbd였다** — 일곱 종 중 유일하게 대당 발열이 공백이었다.
                 //
                 // 2026-09-04에 **복합 군수가 여덟째로 늘면서 Tbd가 둘이 됐다**(`260904_W01` 3장).
-                // 확정된 것은 「대당 전력 7종」이고 복합 군수는 그 표에 없다 — 기초 군수 값을
-                // 가져다 쓰면 값을 발명하는 것이므로 비워 두었다.
+                // ✅ **2026-09-10에 복합 군수가 확정되어 다시 하나가 됐다**(`260910_W01` 4장 8번).
+                // 밸런스 문서가 「잠정 점값 · 실측 뒤 교체」로 두었고 **하네스가 값을 냈다** —
+                // 관통4+폭발2에서 에너지 3대 → 5대. **두 대가 늘어난 것이 값 3의 대가**다.
                 // ⚠️ 발열 확정치는 코드에 안 들어간다(§2층 적용 경계). 그래도 Confirmed인 이유는
                 // 이 표기가 **전력** 부하 열의 확정 여부를 가리키기 때문이다.
-                bool valueMissing = n.type == NodeType.Shield || n.type == NodeType.MunitionsComplex;
+                // **남은 Tbd 는 쉴드 하나뿐이다** — 일곱 종 중 유일하게 대당 발열이 공백이다.
+                bool valueMissing = n.type == NodeType.Shield;
                 ConfirmState expected = valueMissing ? ConfirmState.Tbd : ConfirmState.Confirmed;
 
                 Assert.AreEqual(expected, n.resources.confirm,

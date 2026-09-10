@@ -1850,7 +1850,7 @@ namespace MBI.Logistics
             UiBlockers.Add(band);
 
             HudBars.Fill(band, WarningBandColor);
-            GUI.Label(band, SupplyStopRules.BandText(storageEmpty, powerShort),
+            GUI.Label(band, SupplyStopRules.BandText,
                 new GUIStyle(GUI.skin.label)
                 {
                     fontSize = Mathf.Max(14, Mathf.RoundToInt(band.height * 0.45f)),

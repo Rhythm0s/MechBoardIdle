@@ -103,20 +103,21 @@ namespace MBI.Tests
         }
 
         /// <summary>
-        /// **둘이 함께면 둘 다 적는다.** 하나를 고르면 나머지 하나가 화면에서 사라지고,
-        /// 그것이 이 장이 막으려는 것이다.
+        /// **문구는 하나다** (`260910_W01` 4장 2번). 경고가 무엇이든 같은 말을 적는다 —
+        /// **0차는 원인을 말하지 않는다.**
+        ///
+        /// ⚠️ 구 시험 폐기 — 「둘 다일 때 둘 다 적는다」를 붙들고 있었는데,
+        /// **문구가 하나가 되면서 그 물음 자체가 사라졌다.**
         /// </summary>
         [Test]
-        public void BandText_WithBothWarnings_KeepsBoth()
+        public void BandText_SaysOnlyThatItStopped_NeverWhy()
         {
-            string both = SupplyStopRules.BandText(storageEmpty: true, powerShort: true);
+            StringAssert.Contains("멈췄", SupplyStopRules.BandText);
 
-            StringAssert.Contains(SupplyStopRules.StorageText, both);
-            StringAssert.Contains(SupplyStopRules.PowerText, both);
-
-            Assert.AreEqual(SupplyStopRules.PowerText, SupplyStopRules.BandText(false, true));
-            Assert.AreEqual(SupplyStopRules.StorageText, SupplyStopRules.BandText(true, false));
-            Assert.IsEmpty(SupplyStopRules.BandText(false, false));
+            // 원인을 말하는 낱말이 들어가면 0차가 1차에서 3차의 일을 대신하게 된다.
+            StringAssert.DoesNotContain("전력", SupplyStopRules.BandText);
+            StringAssert.DoesNotContain("탄약", SupplyStopRules.BandText);
+            StringAssert.DoesNotContain("재고", SupplyStopRules.BandText);
         }
 
         // ---- 탄약 줄 0 표기 (3-3) ----
