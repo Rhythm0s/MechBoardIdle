@@ -820,6 +820,72 @@ namespace MBI.Logistics
         }
 
         /// <summary>
+        /// 지금 보드를 **하네스가 읽는 꼴로** 찍는다 (2026-09-11 · 플랜 §71-14 ② · 개발 빌드 도구).
+        ///
+        /// **왜 있는가.** 리허설 결함 ① 은 사용자 화면에서만 나고 하네스에서는 안 난다.
+        /// 재현하려면 **사용자가 놓은 배치 그대로**를 하네스에 먹여야 하는데, 지금까지는
+        /// 스크린샷을 보고 사람이 좌표를 옮겨 적는 수밖에 없었다 — **한 칸만 틀려도 다른 보드를
+        /// 재게 된다.** 오늘 하네스가 병합기를 직선 벨트로 놓고 게임과 다른 보드를 잰 것이
+        /// 바로 그 사고였다.
+        ///
+        /// ⚠️ **병합기·분류기는 면을 전부 적는다.** 입력면이 여럿인 것이 병합기의 뜻이고,
+        /// 첫 면만 적으면 옮겨 적은 쪽에서 다시 직선 벨트가 된다.
+        /// </summary>
+        private void FulfilBoardDump()
+        {
+            BoardDumpSignals.Requested = false;
+            if (_grid == null) return;
+
+            var sb = new System.Text.StringBuilder();
+            sb.AppendLine("# 보드 좌표 덤프 (개발 빌드 · " + System.DateTime.Now.ToString("HH:mm:ss") + ")");
+            sb.AppendLine("# 노드: x y 종류 / 벨트: x y 입력면… > 출력면… [요소]");
+
+            var nodes = new List<string>();
+            var belts = new List<string>();
+            for (int x = 0; x < _grid.Columns; x++)
+            for (int y = 0; y < _grid.Rows; y++)
+            {
+                var cell = new Vector2Int(x, y);
+                if (!_grid.IsInside(cell)) continue;
+
+                NodeInstance n = _grid.GetAt(cell);
+                if (n != null && n.Definition != null)
+                    nodes.Add($"node {cell.x} {cell.y} {n.Definition.type}");
+
+                BeltInstance b = _grid.GetBeltAt(cell);
+                if (b == null) continue;
+                belts.Add($"belt {cell.x} {cell.y} {Faces(b.InFaces)} > {Faces(b.OutFaces)} {b.Element}");
+            }
+
+            nodes.Sort(System.StringComparer.Ordinal);
+            belts.Sort(System.StringComparer.Ordinal);
+            sb.AppendLine($"# 노드 {nodes.Count} · 벨트 {belts.Count}");
+            foreach (string line in nodes) sb.AppendLine(line);
+            foreach (string line in belts) sb.AppendLine(line);
+
+            // 재현에 필요한 값이 좌표만은 아니다 — 지금 무엇이 흐르고 있었는지도 같이 적는다.
+            sb.AppendLine($"# 빈 칸 요청 {StartingBoard.EmptySlot.x} {StartingBoard.EmptySlot.y}" +
+                          $" · 고스트 {(TutorialSignals.GhostCell.HasValue ? TutorialSignals.GhostCell.Value.ToString() : "없음")}" +
+                          $" · 채워짐 {TutorialSignals.GhostCellFilled}");
+
+            BoardDumpSignals.Latest = sb.ToString();
+            BoardDumpSignals.Version++;
+
+            // ⚠️ **클립보드가 본체다.** WebGL 에서 Debug.Log 는 브라우저 콘솔에만 남아
+            // 사용자가 F12 를 열어야 보인다 — 붙여 넣을 수 있어야 하네스로 넘어간다.
+            GUIUtility.systemCopyBuffer = BoardDumpSignals.Latest;
+            Debug.Log(BoardDumpSignals.Latest);
+        }
+
+        private static string Faces(PortFace[] faces)
+        {
+            if (faces == null || faces.Length == 0) return "-";
+            var parts = new string[faces.Length];
+            for (int i = 0; i < faces.Length; i++) parts[i] = faces[i].ToString();
+            return string.Join(",", parts);
+        }
+
+        /// <summary>
         /// 고스트 칸 **밖**을 덮는 막을 다시 짓는다 (2026-09-11 · 플랜 §68-5 ①).
         ///
         /// ⚠️ **한 장으로는 구멍을 못 낸다.** 이동 모드 흐림(<see cref="BuildDimOverlay"/>)은
@@ -1026,6 +1092,8 @@ namespace MBI.Logistics
 
         private void Update()
         {
+            if (BoardDumpSignals.Requested) FulfilBoardDump();
+
             UpdateMountPortBlink();
 
             ApplyZoom(); // 보드를 볼 때만 확대한다 — 나가면 원래 시야로 돌아간다

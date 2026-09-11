@@ -95,6 +95,34 @@ namespace MBI.Combat
             y += h + pad;
 
             DrawResetButton(y, x, w, h, button);
+            y += h + pad;
+
+            DrawBoardDumpButton(y, x, w, h, button);
+        }
+
+        /// <summary>
+        /// 보드 좌표 덤프 — **하네스 재현 입력을 클립보드에 뜬다**
+        /// (2026-09-11 · 플랜 §71-14 ② · 개발 빌드 전용).
+        ///
+        /// 리허설 결함 ① 은 사용자 화면에서만 나고 하네스에서는 안 난다. 재현하려면
+        /// **놓인 배치 그대로**가 필요한데 스크린샷을 보고 옮겨 적으면 한 칸만 틀려도
+        /// **다른 보드를 재게 된다** — 오늘 하네스가 실제로 그랬다.
+        ///
+        /// ⚠️ **조립 화면에서 눌 수 없다**(이 패널이 거기서는 안 그려진다 · 위 주석).
+        /// 보드를 놓고 **「▲ 전투로」로 돌아와** 누르면 된다 — 덤프는 **지금 보드 상태**를
+        /// 읽으므로 어느 화면에서 눌러도 같은 값이 나온다.
+        /// </summary>
+        private void DrawBoardDumpButton(float y, float x, float w, float h, GUIStyle style)
+        {
+            if (!ShowTutorial) return; // 배포 빌드에는 없다
+
+            bool had = BoardDumpSignals.Version > 0;
+            string label = had
+                ? $"보드 좌표 덤프 (복사됨 {BoardDumpSignals.Version})"
+                : "보드 좌표 덤프 (클립보드로)";
+
+            if (GUI.Button(new Rect(x, y, w, h), label, style))
+                BoardDumpSignals.Requested = true; // 보드가 다음 Update 에 채운다
         }
 
         /// <summary>
