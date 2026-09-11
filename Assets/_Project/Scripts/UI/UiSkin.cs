@@ -62,6 +62,15 @@ namespace MBI.UI
         /// <summary>손이 올라간 상태의 밝기 곱. ⚠️ **가정 1.12** — 밝아지는 쪽이 반응이다.</summary>
         public const float HoverMul = 1.12f;
 
+        /// <summary>
+        /// 잠긴 상태의 밝기 곱 — **DIM**(2026-09-11 사용자 확정 · 플랜 §71-33 ③).
+        ///
+        /// 0.45 는 보드의 튜토리얼 어둠막(불투명도 0.55)이 남기는 밝기와 같다 —
+        /// 화면 안에서 「잠김」이 **한 가지 어둡기**로만 말해지게 맞춘 것이다.
+        /// 두 자리가 다른 값을 쓰면 같은 뜻이 두 밝기로 보인다.
+        /// </summary>
+        public const float LockedMul = 0.45f;
+
         /// <summary>밝기만 옮긴다 — **색조·알파는 안 건드린다.**</summary>
         public static Color Brighten(Color c, float mul) =>
             new Color(Mathf.Clamp01(c.r * mul), Mathf.Clamp01(c.g * mul), Mathf.Clamp01(c.b * mul), c.a);
@@ -130,6 +139,26 @@ namespace MBI.UI
 
         /// <summary>판 텍스처 — 상자·영역이 쓴다.</summary>
         public static Texture2D PlateTexture { get { EnsureTextures(); return _plate; } }
+
+        /// <summary>
+        /// 노드 상태 표식 그림 (2026-09-11 · 플랜 §71-33 ③). **없으면 null** —
+        /// 자리표시를 대신 주지 않는다. 무엇을 뜻하는지가 그림에만 있어 흰 사각으로는 뜻이 안 선다.
+        /// </summary>
+        public static Texture2D IconTexture(MBI.Core.NodeIcon icon)
+        {
+            var art = Resources.Load<UiSkinAssets>(UiSkinAssets.ResourcePath);
+            if (art == null) return null;
+
+            switch (icon)
+            {
+                case MBI.Core.NodeIcon.Normal: return art.iconLogiNormal;
+                case MBI.Core.NodeIcon.Slow: return art.iconLogiSlow;
+                case MBI.Core.NodeIcon.Stopped: return art.iconLogiStop;
+                case MBI.Core.NodeIcon.NotConnected: return art.iconNotConnected;
+                case MBI.Core.NodeIcon.PowerShort: return art.iconPowerShort;
+                default: return null;
+            }
+        }
 
         /// <summary>잠긴 버튼 바탕. IMGUI 에 꺼진 상태 칸이 없어 **호출부가 직접 깐다**.</summary>
         public static Texture2D DisabledTexture { get { EnsureTextures(); return _off; } }
@@ -206,11 +235,24 @@ namespace MBI.UI
                 _border = Mathf.Max(1, art.border);
 
                 _normal = art.buttonNormal;
-                // ⚠️ **없는 것은 코드 생성본으로 메운다** — 기본 그림을 눌림에 돌려 쓰면
-                // **눌러도 안 바뀌는 버튼**이 된다(상태가 화면에서 사라진다).
-                _hover = art.buttonNormal != null ? art.buttonNormal : Make(Lighten(Fill, 0.06f), Border);
-                _active = art.buttonPressed != null ? art.buttonPressed : Make(Darken(Fill, 0.35f), Accent);
-                _off = art.buttonLocked != null ? art.buttonLocked : Make(Darken(Fill, 0.45f), Disabled);
+
+                // ⚠️ **없는 상태는 기본 그림을 틴트해서 쓴다**(2026-09-11 사용자 확정 · §71-33 ③).
+                // 종전에는 코드 생성본으로 메웠는데, 그러면 **한 버튼 안에서 기본은 그림이고
+                // 눌림은 코드**가 되어 누를 때마다 톤이 갈린다. 밝기만 옮기면 같은 그림이
+                // 같은 톤으로 밝아지고 어두워진다.
+                //
+                // ⚠️ **그림을 돌려 쓰지는 않는다** — 같은 텍스처를 그대로 물리면
+                // **눌러도 안 바뀌는 버튼**이 되어 상태가 화면에서 사라진다. 틴트가 그 차이다.
+                _hover = art.buttonNormal != null
+                    ? Tinted(art.buttonNormal, HoverMul) : Make(Lighten(Fill, 0.06f), Border);
+                _active = art.buttonPressed != null ? art.buttonPressed
+                    : art.buttonNormal != null ? Tinted(art.buttonNormal, PressedMul)
+                    : Make(Darken(Fill, 0.35f), Accent);
+                _off = art.buttonLocked != null ? art.buttonLocked
+                    : art.buttonNormal != null ? Tinted(art.buttonNormal, LockedMul)
+                    : Make(Darken(Fill, 0.45f), Disabled);
+                // ⚠️ **패널 하나가 패널과 띠를 겸한다**(사용자 확정) — 띠용 칸을 따로 안 늘린다.
+                // 9-슬라이스라 같은 그림이 어떤 비율로도 늘어난다.
                 _plate = art.panel != null ? art.panel : Make(UiPlate.Tint, Border);
 
                 if (_normal != null) return;
@@ -257,6 +299,54 @@ namespace MBI.UI
             tex.SetPixels(px);
             tex.Apply(false, false);
             return tex;
+        }
+
+        /// <summary>
+        /// 텍스처 하나를 **밝기만 옮겨** 베낀다 (2026-09-11 · §71-33 ③ 폴백).
+        ///
+        /// ⚠️ **`GetPixels` 로 읽지 않는다.** 임포트한 그림은 보통 `isReadable = false` 라
+        /// 읽는 순간 예외가 나고, 읽게 켜면 **메모리가 두 배**가 된다(사본이 CPU 쪽에 남는다).
+        /// `Graphics.Blit` 은 GPU 에서 베끼므로 원본 설정을 안 건드린다.
+        ///
+        /// ⚠️ 못 베끼면 **원본을 그대로 돌려준다** — 틴트가 없는 편이
+        /// 버튼이 통째로 안 보이는 것보다 낫다.
+        /// </summary>
+        private static Texture2D Tinted(Texture2D src, float mul)
+        {
+            if (src == null) return null;
+
+            RenderTexture rt = RenderTexture.GetTemporary(
+                src.width, src.height, 0, RenderTextureFormat.ARGB32);
+            RenderTexture prev = RenderTexture.active;
+            try
+            {
+                Graphics.Blit(src, rt);
+                RenderTexture.active = rt;
+
+                var copy = new Texture2D(src.width, src.height, TextureFormat.RGBA32, false)
+                {
+                    filterMode = FilterMode.Point,
+                    wrapMode = TextureWrapMode.Clamp,
+                    hideFlags = HideFlags.HideAndDontSave,
+                };
+                copy.ReadPixels(new Rect(0, 0, src.width, src.height), 0, 0);
+
+                Color[] px = copy.GetPixels();   // 사본은 우리가 지었으니 읽을 수 있다
+                for (int i = 0; i < px.Length; i++) px[i] = Brighten(px[i], mul);
+                copy.SetPixels(px);
+                copy.Apply(false, false);
+                return copy;
+            }
+            catch (System.Exception e)
+            {
+                Debug.LogWarning($"[MBI] 그릇 틴트 실패 — 원본을 그대로 쓴다: {e.Message}");
+                return src;
+            }
+            finally
+            {
+                RenderTexture.active = prev;
+                RenderTexture.ReleaseTemporary(rt);
+            }
         }
 
         private static Color Lighten(Color c, float by) =>

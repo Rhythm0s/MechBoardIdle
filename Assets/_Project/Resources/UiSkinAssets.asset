@@ -17,3 +17,8 @@ MonoBehaviour:
   buttonLocked: {fileID: 0}
   panel: {fileID: 0}
   border: 16
+  iconLogiNormal: {fileID: 2800000, guid: 13985f64605057b4181f56eee1f82886, type: 3}
+  iconLogiSlow: {fileID: 2800000, guid: be6980abb42d0494abb7d932be9f2aaa, type: 3}
+  iconLogiStop: {fileID: 2800000, guid: e450d79cb673f1e47b0a515c8d008813, type: 3}
+  iconNotConnected: {fileID: 2800000, guid: abccef0fec0ef884ea22dc61bb6766a7, type: 3}
+  iconPowerShort: {fileID: 2800000, guid: 2f82bc75dfbff3b429316130924e20c5, type: 3}

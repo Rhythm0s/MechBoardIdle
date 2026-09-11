@@ -42,11 +42,19 @@ namespace MBI.Editor
             // `SpriteImportRules` 가 강제한 값이 그대로 돌아온다.
             so.border = BorderOf("ui_plate_button", ArtSpec.UiPlateBorder);
 
+            // ⚠️ **상태 표식 다섯**(2026-09-11 · §71-33 ③). 09-04 설치본인데 배선이 없었다.
+            so.iconLogiNormal = Load("icon_logi_normal");
+            so.iconLogiSlow = Load("icon_logi_slow");
+            so.iconLogiStop = Load("icon_logi_stop");
+            so.iconNotConnected = Load("icon_not_connected");
+            so.iconPowerShort = Load("icon_power_short");
+
             EditorUtility.SetDirty(so);
             AssetDatabase.SaveAssets();
 
             Debug.Log($"[MBI] UI 그릇 자산 — 기본 {Mark(so.buttonNormal)} · 눌림 {Mark(so.buttonPressed)}"
-                      + $" · 잠김 {Mark(so.buttonLocked)} · 패널 {Mark(so.panel)} · 여백 {so.border}");
+                      + $" · 잠김 {Mark(so.buttonLocked)} · 패널 {Mark(so.panel)} · 여백 {so.border}"
+                      + $" · 표식 {IconCount(so)}/5");
         }
 
         /// <summary>그림에 박힌 9-슬라이스 여백. 못 읽으면 규격 기본값.</summary>
@@ -63,5 +71,16 @@ namespace MBI.Editor
             AssetDatabase.LoadAssetAtPath<Texture2D>($"{ArtDir}/{name}.png");
 
         private static string Mark(Texture2D t) => t != null ? "있음" : "없음";
+
+        private static int IconCount(UiSkinAssets so)
+        {
+            int n = 0;
+            if (so.iconLogiNormal != null) n++;
+            if (so.iconLogiSlow != null) n++;
+            if (so.iconLogiStop != null) n++;
+            if (so.iconNotConnected != null) n++;
+            if (so.iconPowerShort != null) n++;
+            return n;
+        }
     }
 }

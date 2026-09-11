@@ -33,6 +33,23 @@ namespace MBI.Data
         [Tooltip("9-슬라이스 여백(px). 원본 64 에 16 (260911_W02 9장).")]
         public int border = 16;
 
+        // ── 노드 상태 표식 다섯 (2026-09-11 배선 · 플랜 §71-33 ③) ────────────────
+        //
+        // ⚠️ **자산은 09-04 부터 있었는데 코드가 한 곳에서도 안 읽었다**(실측 참조 0건).
+        // 효과음 여덟과 같은 꼴이라 같은 방식으로 잇는다 — 경로는 생성기에만 두고
+        // 런타임은 이 참조만 본다. 비면 표식을 **안 그린다**(자리표시로 대신하지 않는다:
+        // 무엇을 뜻하는지가 그림에만 있어 흰 사각으로는 뜻이 안 선다).
+        [Tooltip("정상 가동. ⚠️ 지금은 안 쓴다 — NodeStatusIcon.ShowWhenNormal 이 false(가정).")]
+        public Texture2D iconLogiNormal;
+        [Tooltip("감속 가동.")]
+        public Texture2D iconLogiSlow;
+        [Tooltip("정지.")]
+        public Texture2D iconLogiStop;
+        [Tooltip("끝단 미연결.")]
+        public Texture2D iconNotConnected;
+        [Tooltip("전력 부족.")]
+        public Texture2D iconPowerShort;
+
         /// <summary>`Resources` 기준 경로 — 이름 하나를 둘이 쓰므로 여기 둔다.</summary>
         public const string ResourcePath = "UiSkinAssets";
 

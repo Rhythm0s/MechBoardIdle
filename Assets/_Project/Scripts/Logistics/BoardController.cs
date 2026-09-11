@@ -475,6 +475,9 @@ namespace MBI.Logistics
             }
         }
 
+        /// <summary>상태 표식의 한 변 = 칸의 몇 할인가. ⚠️ **가정 0.3** — 규격 문서에 절이 없다.</summary>
+        private const float StatusIconCellFraction = 0.3f;
+
         private static bool IsIdle(Vector2Int cell)
         {
             var perNode = LogisticsOutputBridge.Workload.perNode;
@@ -1080,6 +1083,64 @@ namespace MBI.Logistics
         /// 모서리에 붙여도 제 구역 안이지만, 마운트는 **한 칸**이라 모서리에 붙이면
         /// 옆 칸 위에 얹힌다.
         /// </summary>
+        /// <summary>
+        /// 노드 상태 표식 (2026-09-11 신설 · 플랜 §71-33 ③).
+        ///
+        /// **왜 신설하는가.** 상태는 지금 `NodeStatusTint` 의 **밝기**로만 말한다.
+        /// 어두운 칸이 「정지」인지 「그늘진 그림」인지 옆 칸과 견줘야 알 수 있고,
+        /// **전력 부족과 미연결은 밝기 축에 자리 자체가 없다.**
+        /// 아이콘 다섯은 09-04 부터 `Art/UI/` 에 있었는데 **코드가 한 곳에서도 안 읽었다.**
+        ///
+        /// ⚠️ **화면 좌표로 굳히지 않는다** — 매 프레임 `WorldToScreenPoint` 로 다시 잰다.
+        /// 보드 위에 그리는 것을 한 번 잰 화면 좌표로 그리면 **스크롤에서 떨어진다**
+        /// (`Docs/HANDOFF.md` 함정). 마운트 이름표와 같은 규격이다.
+        ///
+        /// ⚠️ **판정은 `NodeStatusIcon` 이 한다** — 여기는 고르지 않고 그리기만 한다(§3).
+        /// </summary>
+        private void DrawStatusIcons(Camera cam)
+        {
+            if (_lastDiagnostics == null || _lastDiagnostics.Count == 0) return;
+
+            var dangling = new HashSet<Vector2Int>(BeltRouting.DanglingWarningCells(_grid));
+
+            // 칸의 3할. ⚠️ **가정** — 규격 문서에 표식 크기 절이 없다(설계 역기입 자리).
+            float sizeWorld = config.cellSize * StatusIconCellFraction;
+            float half = config.cellSize * 0.5f;
+
+            foreach (NodeDiagnostic d in _lastDiagnostics)
+            {
+                float ratio = d.targetRate > 0f ? d.actualRate / d.targetRate : 1f;
+                NodeIcon icon = NodeStatusIcon.Of(
+                    d.cause == ConstraintCause.Power, dangling.Contains(d.cell), ratio);
+                if (icon == NodeIcon.None) continue;
+
+                Texture2D tex = UiSkin.IconTexture(icon);
+                if (tex == null) continue;   // 그림이 없으면 안 그린다 — 자리표시로 대신하지 않는다
+
+                // 칸의 **오른윗모서리 안쪽**. 왼윗모서리는 마운트 이름표가 쓴다 —
+                // 같은 자리에 둘을 얹으면 서로 가린다.
+                Vector3 c = CellWorld(d.cell);
+                Vector3 corner = new Vector3(c.x + half - sizeWorld * 0.5f,
+                                             c.y + half - sizeWorld * 0.5f, 0f);
+                Vector3 sp = cam.WorldToScreenPoint(corner);
+                if (sp.z <= 0f) continue;
+
+                // 화면에서의 한 변 — 월드 길이를 화면으로 옮겨 잰다(줌을 따라간다).
+                Vector3 edge = cam.WorldToScreenPoint(corner + new Vector3(sizeWorld, 0f, 0f));
+                float px = Mathf.Abs(edge.x - sp.x);
+                if (px < 2f) continue;   // 너무 작으면 점이라 뜻이 안 선다
+
+                float y = Screen.height - sp.y - px * 0.5f;
+                float x = sp.x - px * 0.5f;
+                if (x < -px || x > Screen.width || y < -px || y > Screen.height) continue;
+
+                // ⚠️ **인셋 전투 자리에는 안 그린다** — 보드는 안 보이는데 표식만 뜬다.
+                if (y < CombatInsetView.BottomPixels(Screen.height)) continue;
+
+                GUI.DrawTexture(new Rect(x, y, px, px), tex, ScaleMode.ScaleToFit);
+            }
+        }
+
         private void DrawMountLabels(Camera cam, Vector2 o, GUIStyle style, float fontScale)
         {
             if (_mountPortViews.Count == 0) return;
@@ -2101,6 +2162,7 @@ namespace MBI.Logistics
             // 글자만 미색으로 남으면 **경고가 반쪽**이 된다. 같은 판정을 두 번 하지 않고
             // `UpdateMountPortBlink` 와 같은 규칙을 읽는다.
             DrawMountLabels(cam, o, style, fontScale);
+            DrawStatusIcons(cam);
 
             foreach (PartRect p in PartLayout.Parts)
             {
