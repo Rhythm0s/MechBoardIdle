@@ -18,7 +18,7 @@ namespace MBI.Tests
         {
             var goal = new Stage0Goal();
 
-            Assert.IsFalse(goal.NodePlaced);
+            Assert.IsFalse(goal.SlotFilled);
             Assert.IsFalse(goal.MountFilled);
             Assert.IsFalse(goal.IsComplete);
         }
@@ -67,7 +67,7 @@ namespace MBI.Tests
 
             goal.Observe(emptySlotFilled: true, mountIsFull: false);
 
-            Assert.IsTrue(goal.NodePlaced);
+            Assert.IsTrue(goal.SlotFilled);
             Assert.IsFalse(goal.IsComplete);
         }
 
@@ -96,7 +96,7 @@ namespace MBI.Tests
             goal.Observe(emptySlotFilled: true, mountIsFull: false);
             goal.Observe(emptySlotFilled: false, mountIsFull: false); // 관측이 끊겨도
 
-            Assert.IsTrue(goal.NodePlaced, "한 번 놓았으면 놓은 것이다");
+            Assert.IsTrue(goal.SlotFilled, "한 번 놓았으면 놓은 것이다");
         }
 
         /// <summary>
@@ -124,7 +124,7 @@ namespace MBI.Tests
 
             goal.Reset();
 
-            Assert.IsFalse(goal.NodePlaced);
+            Assert.IsFalse(goal.SlotFilled);
             Assert.IsFalse(goal.MountFilled);
             Assert.IsFalse(goal.IsComplete);
         }

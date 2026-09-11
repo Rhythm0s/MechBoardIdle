@@ -21,13 +21,18 @@ namespace MBI.Core
     public sealed class Stage0Goal
     {
         /// <summary>빈 칸에 노드를 놓았는가. 한 번 서면 내려가지 않는다.</summary>
-        public bool NodePlaced { get; private set; }
+        /// <summary>
+        /// 비워 둔 칸이 채워졌는가. ⚠️ **구 이름 `NodePlaced` 폐기**(2026-09-11 설계 확정 (가)) —
+        /// 채우는 것이 노드가 아니라 **벨트**가 됐다. 목표의 뜻은 「그 칸을 채운다」이지
+        /// 「노드를 놓는다」가 아니었다.
+        /// </summary>
+        public bool SlotFilled { get; private set; }
 
         /// <summary>마운트가 가득 찬 적이 있는가. 한 번 서면 내려가지 않는다.</summary>
         public bool MountFilled { get; private set; }
 
         /// <summary>둘 다 섰는가. 이것이 스테이지 0의 종료 조건이다.</summary>
-        public bool IsComplete => NodePlaced && MountFilled;
+        public bool IsComplete => SlotFilled && MountFilled;
 
         /// <summary>
         /// 매 프레임 관찰. 값이 참으로 오는 순간을 걸어 잠근다.
@@ -36,7 +41,7 @@ namespace MBI.Core
         /// <param name="mountIsFull">마운트가 만충인가</param>
         public void Observe(bool emptySlotFilled, bool mountIsFull)
         {
-            if (emptySlotFilled) NodePlaced = true;
+            if (emptySlotFilled) SlotFilled = true;
 
             // ⚠️ **놓은 뒤부터 센다.** 순서가 수업이기 때문이다 —
             // 「놓으면 이어진다」 다음에 「이어지면 쌓인다」를 보는 것이 이 스테이지의 내용물이다.
@@ -44,13 +49,13 @@ namespace MBI.Core
             // 순서를 안 지키면 이렇게 된다: 시작 보드가 이미 정상 작동 중이라 마운트는
             // 5초 남짓이면 저절로 찬다. 그러면 플레이어가 노드를 놓는 순간 곧바로 끝나고,
             // 쌓이는 장면을 한 번도 못 본다 — 브라우저 실측에서 실제로 그랬다(2026-09-01).
-            if (NodePlaced && mountIsFull) MountFilled = true;
+            if (SlotFilled && mountIsFull) MountFilled = true;
         }
 
         /// <summary>다시 시작할 때. 걸쇠를 전부 푼다.</summary>
         public void Reset()
         {
-            NodePlaced = false;
+            SlotFilled = false;
             MountFilled = false;
         }
     }
