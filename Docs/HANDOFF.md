@@ -889,6 +889,10 @@ sorter_single_branch:
 item_invisible_on_belt:
   bug: 벨트와 아이템을 같은 FlowColor로 칠해 물건이 배경에 묻힘
   lesson: "같은 품목은 같은 색"이 옳은 원칙이었는데 그것이 물건을 지웠다
+webgl_click_not_reaching_unity:
+  bug: 개발 빌드에서 자동화 클릭이 Unity 에 안 닿는다 (2026-09-11 실측)
+  tried: 네이티브 클릭 / hover 뒤 클릭 / JS 포인터 다운·업 250ms — 셋 다 「게임 시작」 안 눌림
+  lesson: 화면 확인은 사람 손이 필요하다. 리허설 결함 ①의 "자동화 쪽" 가정과 같은 증상
 ```
 
 **공통점: 스스로 실패하지 않는다.** 사람이 문서와 코드를 대조해야만 드러난다. 시뮬레이터 결과 문서 6장이 이 목록의 본진.
