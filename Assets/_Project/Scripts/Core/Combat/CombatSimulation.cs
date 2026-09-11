@@ -85,6 +85,24 @@ namespace MBI.Core
         public float attackRange;
         public float attackInterval;
         public float radius;      // 충돌 반경(분리). 0이면 분리 없음.
+        /// <summary>투사체 속도(유닛/초). 0 = 즉발(현행). 포격만 >0 이다(§71-33 ②).</summary>
+        public float projectileSpeed;
+    }
+
+    /// <summary>
+    /// 적이 쏜 **날아가는 것** (2026-09-11 · §71-33 ② 공격 패턴 (가)).
+    ///
+    /// ⚠️ **조준점은 쏜 순간의 로봇 자리로 고정한다** — 따라오지 않는다. 그래야 포격이
+    /// 「피할 수 있는 공격」이 되고, 안 움직이면 맞는다. 유도로 만들면 사거리를 벌린 의미가 없다.
+    /// </summary>
+    public struct EnemyProjectile
+    {
+        public Vector2 position;
+        public Vector2 aim;       // 쏜 순간의 로봇 자리. 여기까지 가면 사라진다.
+        public Vector2 direction; // 단위 방향(고정)
+        public float speed;
+        public float atk;
+        public float remaining;   // 조준점까지 남은 거리(유닛)
     }
 
     /// <summary>
@@ -586,6 +604,12 @@ namespace MBI.Core
         public Vector2 RobotPosition => Robot != null ? Robot.position : Vector2.zero;
         public IReadOnlyList<CombatEntity> Enemies => _enemies;
         public IReadOnlyList<ShotEvent> ShotsThisTick => _shots;
+
+        /// <summary>
+        /// 지금 날고 있는 적 투사체들. **한 틱짜리 사건이 아니라 상태다** —
+        /// `ShotsThisTick` 과 달리 매 틱 비우지 않는다(맞거나 지나칠 때까지 산다).
+        /// </summary>
+        public IReadOnlyList<EnemyProjectile> EnemyProjectiles => _enemyProjectiles;
         public int TotalEnemies => _spawnQueue.Count;
         public int Remaining => _enemies.Count;
 
@@ -856,6 +880,9 @@ namespace MBI.Core
 
             SpawnDue();
             MoveAndAttackEnemies(dt);
+            // ⚠️ **쏜 뒤에 옮긴다.** 이번 틱에 낳은 포탄도 한 걸음 나아간다 —
+            // 적 발 밑에 한 프레임 멈춰 있으면 화면에서 「튀어나오는」 것으로 보인다.
+            MoveEnemyProjectiles(dt);
             // ResolveSeparation(밀어내기) 폐기 — 구현 사양이 "밀어내지 않음 · 막히면 멈춤"으로 확정됐다.
             // 겹침은 이동 시점에 IsBlocked로 막으므로 사후 보정이 필요 없다.
             RobotFire(dt);
@@ -952,6 +979,8 @@ namespace MBI.Core
         }
 
         // 스폰 시각 = index * spawnCadence. cadence<=0 이면 전원 t=0.
+        private readonly List<EnemyProjectile> _enemyProjectiles = new List<EnemyProjectile>();
+
         private void SpawnDue()
         {
             while (_spawnedCount < _spawnQueue.Count)
@@ -975,6 +1004,7 @@ namespace MBI.Core
                     attackInterval = s.attackInterval,
                     attackCooldown = 0f, // 사거리 진입 즉시 첫 타
                     radius = s.radius,
+                    projectileSpeed = s.projectileSpeed,
                 });
                 _spawnedCount++;
             }
@@ -1007,6 +1037,11 @@ namespace MBI.Core
                     {
                         e.attackCooldown += Mathf.Max(0.0001f, e.attackInterval);
 
+                        // ⚠️ **투사체는 여기서 피해를 주지 않는다**(2026-09-11 · §71-33 ②).
+                        // 날아가는 것 하나를 낳고 끝낸다 — 회피도 무적도 **맞는 순간**에 본다.
+                        // 쏘는 순간에 판정하면 「피했는데 맞았다」가 생긴다.
+                        if (e.projectileSpeed > 0f) { LaunchProjectile(e); continue; }
+
                         // 자동 회피는 **명중 판정에 들어오는 순간** 판정한다. 위협 반대 방향으로 뺀다.
                         // 이미 수동으로 피하고 있으면 재발동 금지에 걸려 추진제가 두 번 나가지 않는다.
                         Act.dodge.TryDodge(true, (Act.body.position - e.position).normalized,
@@ -1019,6 +1054,65 @@ namespace MBI.Core
                         Act.body.hp -= e.atk; // 로봇 방어 스탯 없음 — 받는 피해 = 몬스터 공격력(§9)
                     }
                 }
+            }
+        }
+
+        /// <summary>
+        /// 쏜 순간의 로봇 자리를 겨눠 한 발 낳는다. **유도가 아니다** — 방향과 사거리가 여기서 굳는다.
+        /// </summary>
+        private void LaunchProjectile(CombatEntity e)
+        {
+            Vector2 aim = Act.body.position;
+            Vector2 d = aim - e.position;
+            float dist = d.magnitude;
+            // 겹쳐 있으면 방향이 안 선다 — 그때는 즉발로 떨어뜨린다(0 나눗셈 자리).
+            if (dist <= 0.0001f) { Act.body.hp -= e.atk; return; }
+
+            _enemyProjectiles.Add(new EnemyProjectile
+            {
+                position = e.position,
+                aim = aim,
+                direction = d / dist,
+                speed = e.projectileSpeed,
+                atk = e.atk,
+                remaining = dist,
+            });
+        }
+
+        /// <summary>
+        /// 날아가는 것들을 옮기고 **접촉**을 본다 (명중 = 접촉 · 사용자 확정).
+        ///
+        /// ⚠️ **역순으로 지운다.** 앞에서부터 지우면 뒤 원소가 당겨져 **한 발씩 건너뛴다** —
+        /// 화면에서는 「가끔 안 맞는 포탄」으로 보이고 원인이 안 읽힌다.
+        /// </summary>
+        private void MoveEnemyProjectiles(float dt)
+        {
+            // 로봇 반경이 0 인 시험 설정이 있다 — 그때 접촉이 영영 안 서면 포탄이 지나가 버린다.
+            float contact = Mathf.Max(Act.body.radius, 0.25f);
+
+            for (int i = _enemyProjectiles.Count - 1; i >= 0; i--)
+            {
+                EnemyProjectile p = _enemyProjectiles[i];
+                float step = p.speed * dt;
+                p.position += p.direction * step;
+                p.remaining -= step;
+
+                if (EnemyAttackRule.Hits(p.position, Act.body.position, contact))
+                {
+                    _enemyProjectiles.RemoveAt(i);
+
+                    // 회피·무적은 **여기서** 본다. 위협 방향은 포탄이 온 쪽이다.
+                    Act.dodge.TryDodge(true, -p.direction, false, Vector2.zero);
+                    if (Act.dodge.IsInvincible) continue;
+
+                    Act.body.hp -= p.atk;
+                    continue;
+                }
+
+                // 조준점을 지나쳤다 — 피한 것이다. 유도가 아니라서 여기서 끝난다.
+                if (p.remaining <= 0f) { _enemyProjectiles.RemoveAt(i); continue; }
+
+                _enemyProjectiles[i] = p;
             }
         }
 

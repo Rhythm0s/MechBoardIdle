@@ -31,6 +31,13 @@ namespace MBI.Core
         public float attackInterval;
         public float attackCooldown; // 남은 재사용 대기(초)
 
+        /// <summary>
+        /// 투사체 속도(유닛/초). **0 = 즉발**(현행 · 보병·장갑·보스).
+        /// 0 보다 크면 공격이 그 자리에서 hp 를 깎지 않고 **날아가는 것 하나를 낳는다**
+        /// (2026-09-11 · §71-33 ② 공격 패턴 (가) · 포격만).
+        /// </summary>
+        public float projectileSpeed;
+
         public bool IsAlive => hp > 0f;
     }
 }

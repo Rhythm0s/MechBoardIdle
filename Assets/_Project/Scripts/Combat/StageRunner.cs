@@ -726,6 +726,42 @@ namespace MBI.Combat
         }
 
         /// <summary>한 번 그려지고 사라지는 이펙트 한 장. 반복 없음(연출 2장 「공통 생성 규칙」).</summary>
+        /// <summary>
+        /// 날아오는 적 포탄을 그린다 (2026-09-11 · §71-33 ②).
+        ///
+        /// ⚠️ **한 발짜리 오브젝트를 매 프레임 만들지 않는다** — 투사체는 사건이 아니라
+        /// **상태**라 사는 내내 프레임마다 새로 만들면 쓰레기가 쌓인다.
+        /// 목록 길이에 맞춰 **늘려 두고 껐다 켠다.**
+        ///
+        /// ⚠️ **자리표시 흰 사각이다** — 적 포탄 그림은 아직 없다. 태그 탄환(`vfx_tagbullet`)을
+        /// 빌려 쓰지 않는다: 그건 **로봇이 쏘는 것**이라, 같은 그림이면 화면에서
+        /// 「내가 쏜 것」과 「나에게 오는 것」이 구분되지 않는다.
+        /// </summary>
+        private void SyncEnemyProjectileViews()
+        {
+            var live = _sim.EnemyProjectiles;
+
+            while (_projectileViews.Count < live.Count)
+            {
+                var go = new GameObject($"EnemyProjectile{_projectileViews.Count}");
+                go.transform.SetParent(transform, false);
+                var sr = go.AddComponent<SpriteRenderer>();
+                sr.sprite = PlaceholderSprite.White();
+                sr.sortingOrder = SortingLayers.EffectOver;
+                // ⚠️ **크기는 가정 0.25 유닛**(격자 한 칸의 1/4). 연출 문서에 적 포탄 절이 없다.
+                go.transform.localScale = Vector3.one * ProjectileViewUnits;
+                _projectileViews.Add(sr);
+            }
+
+            for (int i = 0; i < _projectileViews.Count; i++)
+            {
+                SpriteRenderer sr = _projectileViews[i];
+                bool on = i < live.Count;
+                if (sr.gameObject.activeSelf != on) sr.gameObject.SetActive(on);
+                if (on) sr.transform.position = live[i].position;
+            }
+        }
+
         private void SpawnOneShot(Sprite sprite, Vector2 position, float seconds)
         {
             var go = new GameObject("Vfx");
@@ -758,6 +794,27 @@ namespace MBI.Combat
             _output = LogisticsOutputBridge.Output;
         }
 
+        /// <summary>
+        /// 앞의 것이 0 이 아니면 그것을 쓴다. **0 은 「안 정했다」는 뜻**이지 0 이라는 값이 아니다.
+        /// </summary>
+        private static float Pick(float fromAsset, float fromRule, float fallback)
+        {
+            if (fromAsset > 0f) return fromAsset;
+            if (fromRule > 0f) return fromRule;
+            return fallback;
+        }
+
+        private static float RoleRange(EnemyDefinition def) =>
+            def != null ? EnemyAttackRule.RangeOrZero(def.role) : 0f;
+
+        private static float RoleProjectile(EnemyDefinition def) =>
+            def != null ? EnemyAttackRule.ProjectileSpeedOrZero(def.role) : 0f;
+
+        /// <summary>적 포탄 자리표시의 한 변(월드 유닛). ⚠️ 가정 — 연출 문서에 절이 없다.</summary>
+        private const float ProjectileViewUnits = 0.25f;
+
+        private readonly List<SpriteRenderer> _projectileViews = new List<SpriteRenderer>();
+
         private List<EnemySpawn> BuildSpawns()
         {
             var byKey = new Dictionary<string, EnemyDefinition>();
@@ -783,9 +840,17 @@ namespace MBI.Combat
                         hp = c.hp,
                         def = c.def,
                         atk = atk,
-                        moveSpeed = tuning.enemyMoveSpeedTbd,
-                        attackRange = tuning.enemyAttackRangeTbd,
-                        attackInterval = tuning.enemyAttackIntervalTbd,
+                        // ⚠️ **셋 다 「칸 → 병종 규칙 → 튜닝」 순이다**(2026-09-11 · §71-33 ②).
+                        // 종전에는 넷이 튜닝 하나를 똑같이 써서 **보병과 포격이 같이 움직였다.**
+                        moveSpeed = Pick(def != null ? def.moveSpeed : 0f, 0f,
+                            tuning.enemyMoveSpeedTbd),
+                        attackRange = Pick(def != null ? def.attackRange : 0f,
+                            RoleRange(def), tuning.enemyAttackRangeTbd),
+                        attackInterval = Pick(def != null ? def.attackInterval : 0f, 0f,
+                            tuning.enemyAttackIntervalTbd),
+                        // ⚠️ 투사체만 마지막 단이 **0**이다 — 즉발이 현행이라 폴백이 따로 없다.
+                        projectileSpeed = Pick(def != null ? def.projectileSpeed : 0f,
+                            RoleProjectile(def), 0f),
                         radius = EnemySize(c.hp) * 0.5f,
                     });
                 }
@@ -896,6 +961,7 @@ namespace MBI.Combat
             if (_sim.TagSkillResolvedThisTick) PlayTagSkillEffect();
 
             PlayInstalledVfx();
+            SyncEnemyProjectileViews();
             UpdateAmmoOutView();   // 지속 상태 — 한 번 만들고 껐다 켠다(`260909_W01` 3장이 (가)를 확정)
             PublishSupplySignals();
 
