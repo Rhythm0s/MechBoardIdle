@@ -2063,8 +2063,9 @@ namespace MBI.Logistics
             // ⚠️ **이제 왼쪽 위도 아니다**(2026-09-11 · 플랜 §68-4 (A)). 문서 9-4 의
             // **부유 띠**가 「미니맵·모드」의 자리이며, 거기로 내보내면 상단 인셋 전투 위에
             // 깔던 `UiPlate` 도 함께 없어진다 — 판을 깔던 이유가 **자리가 틀렸기 때문**이었다.
-            // 전투 화면의 합체·태그 원형과 같은 칸을 쓰지만 **둘은 같은 화면에 안 뜬다.**
-            var rect = UiLayout.RoundButtonRect(1, Screen.width, Screen.height);
+            // ⚠️ **모드 버튼은 부유 띠 오른쪽**이다(2026-09-11 사용자 확정 · 미니맵이 왼쪽).
+            // 전투 화면의 합체·태그 원형은 **레이어 1** 이라 애초에 다른 화면의 자리다.
+            var rect = UiLayout.FloatBandSlot(right: true, Screen.width, Screen.height);
             UiBlockers.Add(rect);
 
             string label = _mode == BoardMode.Pan ? "이동 모드" : "조립 모드";
@@ -2158,7 +2159,7 @@ namespace MBI.Logistics
             // 깔린다 — 자리를 안 옮기면 막대 600×160 이 미니맵을 통째로 덮는다.
             //
             // ⚠️ **가로세로비를 지킨다.** 칸은 정사각이라 보드 형태가 왜곡되면 실루엣이 안 읽힌다.
-            Rect slot = UiLayout.RoundButtonRect(0, Screen.width, Screen.height);
+            Rect slot = UiLayout.FloatBandSlot(right: false, Screen.width, Screen.height);
             float ratio = config.rows / Mathf.Max(1f, config.columns);
             float mapH = Mathf.Min(slot.height, slot.width * ratio);
             float mapW = mapH / Mathf.Max(0.001f, ratio);

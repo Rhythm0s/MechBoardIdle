@@ -93,11 +93,12 @@ namespace MBI.Tests
             Assert.IsTrue(UiLayout.MeetsMinButton(UiLayout.RoundButtonDiameter), "원형 200");
             Assert.IsTrue(UiLayout.MeetsMinButton(UiLayout.BarButtonHeight), "막대 높이 160");
 
-            // ⚠️ **적용 버튼 높이 128 은 최소 150 을 밑돈다** — 문서 안의 두 값이 어긋난다
-            // (액션바 128 · 버튼 최소 150). **여기서 정하지 않는다** — 지금 사실을 적고
-            // `260911_V01` 판정 요청으로 올린다. 값이 서면 이 단언이 뒤집힌다.
+            // ⚠️ **적용 버튼 높이 128 은 최소 150 을 밑돈다** — **UI 아트 5-3 vs 6-2** 의
+            // 문서 안 충돌이다(액션바·적용 128 / 버튼 최소 150). 둘 다 **레이어 2** 의 수라
+            // 견주는 것이 맞다. **여기서 정하지 않는다** — 지금 사실을 적고
+            // `260911_V01` 2-4 판정 요청으로 올린다. 값이 서면 이 단언이 뒤집힌다.
             Assert.IsFalse(UiLayout.MeetsMinButton(UiLayout.ApplyButtonHeight),
-                "⚠️ 적용 128 < 최소 150 — 문서 안 어긋남(판정 대기)");
+                "⚠️ 적용 128 < 최소 150 — UI 아트 5-3 vs 6-2 충돌(판정 대기)");
         }
 
         [Test]
@@ -114,46 +115,96 @@ namespace MBI.Tests
         }
 
         [Test]
-        public void 조립_진입_막대는_액션바_안에_있다()
+        public void 조립_진입_막대는_레이어_1_좌표에_앉는다()
         {
+            // ⚠️ **구 시험을 걷었다**(2026-09-11 사용자 정정). 종전에는 「막대 160 이 액션바 128 을
+            // 위아래 16씩 넘친다」를 재고 있었는데, **두 수는 다른 화면의 수**다 —
+            // 조립 진입은 **레이어 1**(전투 화면 · 절대 좌표 720, 2460)이고 액션바는 레이어 2 다.
+            // 없는 충돌을 시험이 지키고 있었다.
             Rect bar = UiLayout.EnterBoardRect(1440f, 2560f);
-            Rect band = UiLayout.BandRect(UiLayout.Band.ActionBar, 1440f, 2560f);
 
             Assert.AreEqual(600f, bar.width, D);
             Assert.AreEqual(160f, bar.height, D);
-            Assert.AreEqual(720f, bar.center.x, D, "가운데");
-
-            // ⚠️ 막대 160 이 액션바 128 보다 크다 — **문서 값 그대로라 위아래로 넘친다.**
-            // 값을 맞추려 줄이지 않는다(그러면 문서와 다른 것을 그리게 된다).
-            // 넘치는 양이 얼마인지를 여기 적어 두고 설계 판정을 기다린다(`260911_V01`).
-            float overflow = (bar.height - band.height) * 0.5f;
-            Assert.AreEqual(16f, overflow, D, "위아래로 16씩 넘친다 — 판정 대기");
+            Assert.AreEqual(720f, bar.center.x, D, "x720 = 화면 한가운데");
+            Assert.AreEqual(2460f, bar.center.y, D, "y2460");
+            Assert.LessOrEqual(bar.yMax, UiLayout.DesignHeight, "화면 밖으로 안 나간다");
         }
 
         [Test]
-        public void 원형_둘은_부유_띠_안에서_안_겹친다()
+        public void 원형_둘은_x1280_에_세로로_쌓인다()
         {
-            Rect a = UiLayout.RoundButtonRect(0, 1440f, 2560f);
-            Rect b = UiLayout.RoundButtonRect(1, 1440f, 2560f);
+            Rect tag = UiLayout.RoundButtonRect(0, 1440f, 2560f);
+            Rect merge = UiLayout.RoundButtonRect(1, 1440f, 2560f);
+
+            Assert.AreEqual(200f, tag.width, D);
+            Assert.AreEqual(tag.width, tag.height, D, "원형이라 정사각이다");
+            Assert.AreEqual(1280f, tag.center.x, D, "둘 다 x1280");
+            Assert.AreEqual(1280f, merge.center.x, D);
+            Assert.AreEqual(2080f, tag.center.y, D, "태그가 위");
+            Assert.AreEqual(2300f, merge.center.y, D, "합체가 아래");
+
+            // 가운데 사이가 220 이고 지름이 200 이라 20 이 뜬다 — 붙으면 오조작이 난다.
+            Assert.IsFalse(tag.Overlaps(merge), "태그와 합체가 겹치면 오조작이 난다");
+            Assert.AreEqual(20f, merge.y - tag.yMax, D, "사이 20");
+        }
+
+        [Test]
+        public void 레이어_1_셋은_조립_띠에_안_들어간다()
+        {
+            // 사용자 확정: 「조립 진입·합체·태그는 조립 화면 띠에 안 들어간다.」
+            // 레이어 2 의 띠 자리와 섞어 재던 것이 오늘의 오진이었다 — 그 자리를 여기서 막는다.
+            Assert.AreEqual(2560f, UiLayout.DesignTop(UiLayout.Band.ActionBar)
+                                   + UiLayout.ActionBarHeight, D, "레이어 2 는 띠로 2560 을 채운다");
+
+            // 레이어 1 의 셋은 **띠 소속이 아니라 좌표**다. 좌표가 어느 띠와 겹치든 그것은
+            // 다른 화면의 자리라 충돌이 아니다 — 겹침을 단언하지 **않는** 것이 이 시험의 내용이다.
+            Assert.AreEqual(2460f, UiLayout.EnterBoardCenter.y, D);
+            Assert.AreEqual(2080f, UiLayout.TagButtonCenter.y, D);
+            Assert.AreEqual(2300f, UiLayout.MergeButtonCenter.y, D);
+            Assert.AreEqual(120f, UiLayout.InfoBarHeight, D, "상단 정보줄 120");
+            Assert.AreEqual(new Vector2(40f, 160f), UiLayout.StatusPanelOrigin, "상태창 x40 y160");
+        }
+
+        [Test]
+        public void 부유_띠는_미니맵_좌_모드_우다()
+        {
+            Rect map = UiLayout.FloatBandSlot(right: false, 1440f, 2560f);
+            Rect mode = UiLayout.FloatBandSlot(right: true, 1440f, 2560f);
             Rect band = UiLayout.BandRect(UiLayout.Band.FloatBand, 1440f, 2560f);
 
-            Assert.AreEqual(200f, a.width, D);
-            Assert.AreEqual(a.width, a.height, D, "원형이라 정사각이다");
-            Assert.IsFalse(a.Overlaps(b), "태그와 합체가 겹치면 오조작이 난다");
-            Assert.IsTrue(a.x < b.x, "0 = 태그(왼쪽) · 1 = 합체(오른쪽 끝)");
-            Assert.IsTrue(band.y <= a.y && a.yMax <= band.yMax, "부유 띠 안");
+            Assert.Less(map.x, mode.x, "미니맵이 왼쪽 · 모드 버튼이 오른쪽");
+            Assert.IsFalse(map.Overlaps(mode));
+            Assert.IsTrue(band.y <= map.y && map.yMax <= band.yMax, "부유 띠 안");
+            Assert.IsTrue(UiLayout.MeetsMinButton(mode.height), "모드 버튼도 최소 150 을 지킨다");
         }
 
         [Test]
-        public void 팔레트는_원형_왼쪽에서_끝난다()
+        public void 팔레트는_미니맵과_모드_사이다()
         {
             // 팔레트 자리는 **가정**이지만, 같은 띠를 쓰는 미니맵·모드와 겹치지 않는 것은
             // 가정이 아니라 규칙이다 — 겹치면 눌리는 쪽이 그리는 차례로 정해진다.
             Rect pal = UiLayout.PaletteRect(1440f, 2560f);
-            Rect left = UiLayout.RoundButtonRect(0, 1440f, 2560f);
+            Rect map = UiLayout.FloatBandSlot(right: false, 1440f, 2560f);
+            Rect mode = UiLayout.FloatBandSlot(right: true, 1440f, 2560f);
 
-            Assert.IsFalse(pal.Overlaps(left), "팔레트와 미니맵/태그 칸이 겹치면 안 된다");
+            Assert.IsFalse(pal.Overlaps(map), "팔레트와 미니맵이 겹치면 안 된다");
+            Assert.IsFalse(pal.Overlaps(mode), "팔레트와 모드 버튼이 겹치면 안 된다");
             Assert.Greater(pal.width, 0f, "기준 창에서는 자리가 남는다");
+        }
+
+        [Test]
+        public void 액션바_둘은_안_겹친다()
+        {
+            // 적용(오른쪽 · 문서)과 「전투로」(왼쪽 · 가정)가 같은 띠를 쓴다.
+            Rect apply = UiLayout.ApplyRect(1440f, 2560f);
+            Rect exit = UiLayout.ExitBoardRect(1440f, 2560f);
+            Rect band = UiLayout.BandRect(UiLayout.Band.ActionBar, 1440f, 2560f);
+
+            Assert.AreEqual(320f, apply.width, D);
+            Assert.AreEqual(128f, apply.height, D);
+            Assert.IsFalse(apply.Overlaps(exit));
+            Assert.IsTrue(band.y <= apply.y && apply.yMax <= band.yMax + D, "액션바 안");
+            Assert.IsTrue(band.y <= exit.y && exit.yMax <= band.yMax + D, "액션바 안");
         }
     }
 }

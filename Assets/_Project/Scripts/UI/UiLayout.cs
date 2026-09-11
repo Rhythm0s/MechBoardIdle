@@ -17,6 +17,17 @@ namespace MBI.UI
     /// ⚠️ **세로로 환산한다.** 기준 캔버스는 1440×2560(비 0.5625)인데 실제 창은 비가 다르다.
     /// 가로로 맞추면 세로 띠 다섯이 화면 밖으로 밀리므로 **세로를 맞추고 가로는 창 전체**를 쓴다 —
     /// <see cref="SupplyStopRules.BandRect"/> 가 이미 쓰는 환산이며 여기가 그 출처가 된다.
+    ///
+    /// ⚠️⚠️ **레이어 둘은 서로 다른 화면이다** (2026-09-11 사용자 확정 · 정정).
+    ///
+    /// | | 레이어 1 — **전투 화면** | 레이어 2 — **조립 화면** |
+    /// |---|---|---|
+    /// | 꼴 | **절대 좌표**(기준 캔버스 위 자리 하나하나) | **띠 다섯**(세로로 쌓아 2560 을 채운다) |
+    /// | 든 것 | 상단 정보줄 · 상태창 · 방치 보상 · 태그 · 합체 · 조립 진입 | 인셋 · 보드 · 부유 띠 · 변수 패널 · 액션바 |
+    ///
+    /// **조립 진입·합체·태그는 조립 화면 띠에 안 들어간다.** 종전 코드는 이 셋을 레이어 2 의
+    /// 띠 안에 앉히려다 「막대 160 이 액션바 128 을 넘는다」는 **없는 충돌**을 만들어 냈다 —
+    /// 두 수는 **다른 화면의 수**라 애초에 견줄 것이 아니었다.
     /// </summary>
     public static class UiLayout
     {
@@ -113,10 +124,46 @@ namespace MBI.UI
         /// <summary>지금 창에서의 띠 자리.</summary>
         public static Rect BandRect(Band band) => BandRect(band, Screen.width, Screen.height);
 
-        // ───────────────────────────── 레이어 1 · 요소 치수 ─────────────────────────────
+        // ═════════════════════════ 레이어 1 · 전투 화면 (절대 좌표) ═════════════════════════
         //
-        //  UI 아트 요청 문서(20) 4장. **원형·막대는 실물 크기가 정보다** —
-        //  손가락이 닿는 크기라 창이 작아지면 같은 비율로 줄어야 한다.
+        //  UI 아트 요청 문서(20) 4장 · 2026-09-11 사용자 확정.
+        //  **자리는 좌표로 주어졌다** — 띠로 쪼개 앉히는 것이 아니다.
+        //
+        //      y    0 ┌──────────────────────────┐
+        //             │ 상단 정보줄        120   │
+        //         120 ├──────────────────────────┤
+        //         160 │ 상태창 (x40)             │        방치 보상 → 우상단
+        //             │                          │
+        //        2080 │              ◯ 태그  x1280 (지름 200)
+        //        2300 │              ◯ 합체  x1280 (지름 200)
+        //        2460 │      ▭ 조립 진입  x720 · 600×160
+        //        2560 └──────────────────────────┘
+        //
+        //  ⚠️ **x·y 는 가운데다.** 막대의 x720 이 화면 한가운데(1440÷2)라는 데서 따라온다 —
+        //  왼윗모서리로 읽으면 막대가 오른쪽으로 300 밀린다.
+        //
+        //  **원형 둘은 세로로 쌓인다**(2080 → 2300 · 사이 220 > 지름 200). 가로로 나란히
+        //  두면 x1280 하나로 둘을 못 앉힌다.
+
+        /// <summary>상단 정보줄 높이 (기준 캔버스).</summary>
+        public const float InfoBarHeight = 120f;
+
+        /// <summary>상태창 왼윗모서리 (기준 캔버스). ⚠️ **크기는 문서에 없다** — 그리는 쪽이 잰다.</summary>
+        public static Vector2 StatusPanelOrigin => new Vector2(40f, 160f);
+
+        /// <summary>태그 원형의 **가운데** (기준 캔버스).</summary>
+        public static Vector2 TagButtonCenter => new Vector2(1280f, 2080f);
+
+        /// <summary>합체 원형의 **가운데** (기준 캔버스). 태그 아래 220 — 지름 200 이라 20 이 뜬다.</summary>
+        public static Vector2 MergeButtonCenter => new Vector2(1280f, 2300f);
+
+        /// <summary>조립 진입 막대의 **가운데** (기준 캔버스). x720 = 화면 한가운데.</summary>
+        public static Vector2 EnterBoardCenter => new Vector2(720f, 2460f);
+
+        // ───────────────────────────── 요소 치수 ─────────────────────────────
+        //
+        //  **원형·막대는 실물 크기가 정보다** — 손가락이 닿는 크기라
+        //  창이 작아지면 같은 비율로 줄어야 한다.
 
         /// <summary>합체·태그 **원형 버튼** 지름 (기준 캔버스). 링 게이지가 이 테두리를 돈다.</summary>
         public const float RoundButtonDiameter = 200f;
@@ -130,7 +177,13 @@ namespace MBI.UI
         /// <summary>액션바 「적용」 버튼 가로 (기준 캔버스).</summary>
         public const float ApplyButtonWidth = 320f;
 
-        /// <summary>「적용」 버튼 세로. <see cref="ActionBarHeight"/> 와 **같아야 한다**(시험이 지킨다).</summary>
+        /// <summary>
+        /// 「적용」 버튼 세로. <see cref="ActionBarHeight"/> 와 **같아야 한다**(시험이 지킨다) —
+        /// 둘 다 레이어 2 의 수라 견주는 것이 맞다.
+        ///
+        /// ⚠️ **문서 안 충돌 하나가 여기 남는다** — UI 아트 5-3 의 액션바 128 과
+        /// 6-2 의 버튼 최소 150 이 서로 안 맞는다. **판정 대기**(`260911_V01` 2-4).
+        /// </summary>
         public const float ApplyButtonHeight = 128f;
 
         /// <summary>
@@ -160,33 +213,80 @@ namespace MBI.UI
 
         // ───────────────────────────── 자리 ─────────────────────────────
 
-        /// <summary>조립 진입 막대 — 액션바 가운데. 「항상 노출」이라 자리가 고정이다.</summary>
-        public static Rect EnterBoardRect(float screenWidth, float screenHeight)
+        /// <summary>
+        /// 레이어 1 의 **가운데 좌표 + 크기** → 실제 창 사각.
+        /// 가로는 기준 캔버스를 창 가운데에 놓고 잰다(<see cref="Px(Rect,float,float)"/> 와 같다).
+        /// </summary>
+        public static Rect Centered(Vector2 designCenter, float designW, float designH,
+            float screenWidth, float screenHeight) =>
+            Px(new Rect(designCenter.x - designW * 0.5f, designCenter.y - designH * 0.5f,
+                designW, designH), screenWidth, screenHeight);
+
+        /// <summary>
+        /// 조립 진입 막대 — **레이어 1** 의 (720, 2460) · 600×160. 전투 화면에서만 그린다.
+        ///
+        /// ⚠️ **액션바와 무관하다**(2026-09-11 정정). 종전에는 이것을 레이어 2 의 액션바 128 안에
+        /// 앉히려 해서 「160 이 128 을 위아래 16씩 넘친다」는 **없는 충돌**이 나왔다.
+        /// </summary>
+        public static Rect EnterBoardRect(float screenWidth, float screenHeight) =>
+            Centered(EnterBoardCenter, BarButtonWidth, BarButtonHeight, screenWidth, screenHeight);
+
+        /// <summary>
+        /// 조립 화면의 「전투로」 — ⚠️ **가정이다.** 문서가 정한 액션바 내용물은 「적용 320×128」
+        /// 하나이고, 돌아가는 버튼의 자리는 적혀 있지 않다.
+        ///
+        /// **액션바 왼쪽**에 두었다 — 적용(오른쪽)과 안 겹치고, 높이를 띠에 맞춘다.
+        /// 값이 서면 이 메서드 하나만 바뀐다.
+        /// </summary>
+        public static Rect ExitBoardRect(float screenWidth, float screenHeight)
         {
             Rect bar = BandRect(Band.ActionBar, screenWidth, screenHeight);
             float s = Scale(screenHeight);
-            float w = BarButtonWidth * s, h = BarButtonHeight * s;
-            return new Rect((screenWidth - w) * 0.5f, bar.y + (bar.height - h) * 0.5f, w, h);
+            float margin = 24f * s;
+            return new Rect(bar.x + margin, bar.y, BarButtonWidth * s * 0.5f, bar.height);
+        }
+
+        /// <summary>액션바 「적용」 — 오른쪽 끝. 높이가 띠와 같아 띠를 꽉 채운다.</summary>
+        public static Rect ApplyRect(float screenWidth, float screenHeight)
+        {
+            Rect bar = BandRect(Band.ActionBar, screenWidth, screenHeight);
+            float s = Scale(screenHeight);
+            float margin = 24f * s, w = ApplyButtonWidth * s;
+            return new Rect(screenWidth - margin - w, bar.y, w, ApplyButtonHeight * s);
         }
 
         /// <summary>
-        /// 합체·태그 원형 둘 — 부유 띠 **오른쪽**에 나란히. 전투 화면에서만 그려진다.
-        /// <paramref name="index"/> 0 = 태그 · 1 = 합체(오른쪽 끝).
+        /// 합체·태그 원형 둘 — **레이어 1** 의 x1280 에 **세로로 쌓인다**(태그 2080 · 합체 2300).
+        /// 전투 화면에서만 그려진다.
+        ///
+        /// ⚠️ **가로로 나란히가 아니다**(2026-09-11 정정). 좌표가 둘 다 x1280 이라
+        /// 가로로 두면 한 자리에 둘을 앉히게 된다.
+        /// <paramref name="index"/> 0 = 태그(위) · 1 = 합체(아래).
         /// </summary>
-        public static Rect RoundButtonRect(int index, float screenWidth, float screenHeight)
+        public static Rect RoundButtonRect(int index, float screenWidth, float screenHeight) =>
+            Centered(index == 0 ? TagButtonCenter : MergeButtonCenter,
+                RoundButtonDiameter, RoundButtonDiameter, screenWidth, screenHeight);
+
+        /// <summary>
+        /// 부유 띠의 **미니맵(왼쪽)·모드 버튼(오른쪽)** 자리 (2026-09-11 사용자 확정).
+        /// <paramref name="right"/> 가 참이면 모드 버튼이다.
+        ///
+        /// ⚠️ **레이어 2 다** — 전투 화면의 원형 둘과 자리를 다투지 않는다(다른 화면이다).
+        /// </summary>
+        public static Rect FloatBandSlot(bool right, float screenWidth, float screenHeight)
         {
             Rect band = BandRect(Band.FloatBand, screenWidth, screenHeight);
             float s = Scale(screenHeight);
-            float d = RoundButtonDiameter * s, gap = 24f * s, margin = 24f * s;
-            float right = screenWidth - margin - d;
-            return new Rect(right - (1 - index) * (d + gap),
-                band.y + (band.height - d) * 0.5f, d, d);
+            float d = Mathf.Min(RoundButtonDiameter * s, band.height - 24f * s);
+            float margin = 24f * s;
+            float x = right ? screenWidth - margin - d : margin;
+            return new Rect(x, band.y + (band.height - d) * 0.5f, d, d);
         }
 
         /// <summary>
         /// 노드 팔레트 자리 — ⚠️ **가정이다.** UI 문서에 팔레트 자리 절이 없다(미결 표 1번).
         ///
-        /// **부유 띠 왼쪽**에 가로로 두었다. 근거는 둘이다 —
+        /// 부유 띠의 **미니맵(왼쪽)과 모드 버튼(오른쪽) 사이**에 두었다. 근거는 둘이다 —
         /// ① 종전 자리(보드 위 오른쪽)는 `UiPlate` 와 튜토리얼 DIM 이 겹치는 **유일한** 자리였고
         ///    보드 밖으로 내보내면 그 겹침이 **0** 이 된다(플랜 §69 2번).
         /// ② 부유 띠는 미니맵·모드와 같은 「보드를 조작하는 것」 층이다.
@@ -197,10 +297,10 @@ namespace MBI.UI
         {
             Rect band = BandRect(Band.FloatBand, screenWidth, screenHeight);
             float s = Scale(screenHeight);
-            float margin = 24f * s;
-            // 원형 둘이 오른쪽을 쓰므로 그 왼쪽까지만 차지한다.
-            float right = RoundButtonRect(0, screenWidth, screenHeight).x - margin;
-            return new Rect(margin, band.y, Mathf.Max(0f, right - margin), band.height);
+            float gap = 16f * s;
+            float left = FloatBandSlot(false, screenWidth, screenHeight).xMax + gap;
+            float right = FloatBandSlot(true, screenWidth, screenHeight).x - gap;
+            return new Rect(left, band.y, Mathf.Max(0f, right - left), band.height);
         }
     }
 }

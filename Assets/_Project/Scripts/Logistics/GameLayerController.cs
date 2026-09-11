@@ -148,7 +148,13 @@ namespace MBI.Logistics
             // 문서는 조립 진입을 **막대 600×160**(기준 1440×2560)으로 정해 두었고,
             // 자리는 **액션바 띠**(하단 128) 가운데다. 종전 값은 문서 어디에도 없었고
             // 창이 커질수록 손가락에 비해 작아졌다 — 최소 150px 규정을 한참 밑돈다.
-            var rect = MBI.UI.UiLayout.EnterBoardRect(Screen.width, Screen.height);
+            // ⚠️ **화면마다 자리가 다르다**(2026-09-11 사용자 확정 · 레이어 둘).
+            // 전투 화면에서는 **레이어 1** 의 조립 진입 막대(720, 2460 · 600×160)이고,
+            // 조립 화면에서는 **레이어 2** 의 액션바 안이다 — 조립 진입 막대는 조립 화면 띠에
+            // 안 들어간다. 한 자리로 두면 두 레이어의 수를 섞게 된다.
+            var rect = _boardView
+                ? MBI.UI.UiLayout.ExitBoardRect(Screen.width, Screen.height)
+                : MBI.UI.UiLayout.EnterBoardRect(Screen.width, Screen.height);
             // 글자는 버튼 높이를 따라간다 — 고정 18 이면 큰 버튼 안에서 점이 된다.
             var style = new GUIStyle(GUI.skin.button)
             {
