@@ -33,7 +33,11 @@ namespace MBI.UI
         private const float ButtonW = 96f;
         private const float ButtonH = 32f;
         private const float PanelW = 240f;
-        private const float PanelH = 76f;
+        /// <summary>
+        /// 슬라이더 **셋** 이 들어간다 (2026-09-11 · 사운드 문서 7장 채널 셋).
+        /// 한 줄 = 이름표 26 + 슬라이더 20 + 사이 6 = 52. 위아래 여백 16.
+        /// </summary>
+        private const float PanelH = 16f + 52f * 3f;
         private const float Margin = 12f;
 
         /// <summary>메인 메뉴가 쓰는 깊이. 이 패널은 그보다 **하나 앞**에 선다.</summary>
@@ -64,23 +68,27 @@ namespace MBI.UI
         private void Awake() => Load();
 
         /// <summary>
-        /// 기기에 남은 값을 읽는다. 없으면 <see cref="MusicVolume.StartupDefault"/> —
-        /// **배포판은 30%, 시험판은 0%** 다(사용자 확정 2026-09-10).
+        /// 기기에 남은 값을 읽는다 — **채널 셋 각각**(2026-09-11 · 플랜 §71-16 ③).
+        /// 없으면 기본값: 배경은 <see cref="MusicVolume.StartupDefault"/>(배포 30% · 시험 0%),
+        /// 효과음·조작음은 **가정 100%**.
         ///
         /// ⚠️ **남은 값이 있으면 그것이 이긴다.** 시험판에서 슬라이더를 올린 사람에게
         /// 다음에 다시 0 을 들이밀지 않는다.
+        ///
+        /// ⚠️ **구 키 하나를 이어받는다** — 종전에는 배경만 `PrefKey` 에 저장했다.
+        /// 새 키가 없고 구 키가 있으면 그것을 배경 값으로 읽는다. 안 이어받으면
+        /// 이미 볼륨을 맞춰 둔 기기가 **다음 실행에서 0 으로 되돌아간다.**
         /// </summary>
         private void Load()
         {
             if (_loaded) return;
             _loaded = true;
-            MusicVolume.Set(PlayerPrefs.GetFloat(PrefKey, MusicVolume.StartupDefault));
-        }
 
-        private static void Save()
-        {
-            PlayerPrefs.SetFloat(PrefKey, MusicVolume.Value);
-            PlayerPrefs.Save();
+            string musicKey = AudioChannels.KeyOf(AudioChannels.Channel.Music);
+            if (!PlayerPrefs.HasKey(musicKey) && PlayerPrefs.HasKey(PrefKey))
+                PlayerPrefs.SetFloat(musicKey, PlayerPrefs.GetFloat(PrefKey));
+
+            AudioChannels.Load();
         }
 
         private void OnGUI()
@@ -108,20 +116,36 @@ namespace MBI.UI
             UiBlockers.Add(panel);
             GUI.Box(panel, GUIContent.none);
 
-            var label = new Rect(panel.x + 10f, panel.y + 8f, panel.width - 20f, 22f);
-            GUI.Label(label, $"배경 음악  {MusicVolume.Label(MusicVolume.Value)}");
-
-            var slider = new Rect(panel.x + 10f, panel.y + 34f, panel.width - 20f, 20f);
-            float next = GUI.HorizontalSlider(slider, MusicVolume.Value, 0f, 1f);
-
-            // ⚠️ **바뀐 프레임에만 남긴다.** 매 프레임 `PlayerPrefs`를 쓰면 디스크를 계속 두드린다.
-            if (!Mathf.Approximately(next, MusicVolume.Value))
+            // 채널 셋 — 사운드 문서 7장. **하나로 묶지 않는다**: 셋은 사람이 서로 다른
+            // 이유로 줄이는 것이라, 묶으면 하나가 거슬려도 나머지 둘까지 함께 잃는다.
+            float y = panel.y + 8f;
+            foreach (AudioChannels.Channel ch in new[]
             {
-                MusicVolume.Set(next);
-                // ⚠️ **이 순간이 「사람이 누른 순간」이다** — 웹 오디오의 잠금이 풀리는 자리라
-                // 재생기가 여기서 곡을 새로 걸 수 있다(2026-09-10 · 결함 ③).
-                MusicVolume.PreviewRequested = true;
-                Save();
+                AudioChannels.Channel.Music,
+                AudioChannels.Channel.Effect,
+                AudioChannels.Channel.Ui,
+            })
+            {
+                float now = AudioChannels.Value(ch);
+                GUI.Label(new Rect(panel.x + 10f, y, panel.width - 20f, 22f),
+                    $"{AudioChannels.Label(ch)}  {MusicVolume.Label(now)}");
+
+                float next = GUI.HorizontalSlider(
+                    new Rect(panel.x + 10f, y + 26f, panel.width - 20f, 20f), now, 0f, 1f);
+
+                // ⚠️ **바뀐 프레임에만 남긴다.** 매 프레임 `PlayerPrefs` 를 쓰면 디스크를 계속 두드린다.
+                if (!Mathf.Approximately(next, now))
+                {
+                    AudioChannels.Set(ch, next);
+                    AudioChannels.Save(ch);
+
+                    // ⚠️ **이 순간이 「사람이 누른 순간」이다** — 웹 오디오의 잠금이 풀리는
+                    // 자리라 재생기가 여기서 곡을 새로 걸 수 있다(2026-09-10 · 결함 ③).
+                    // **어느 슬라이더를 만졌든 잠금은 풀린다** — 제스처는 채널을 안 가린다.
+                    MusicVolume.PreviewRequested = true;
+                }
+
+                y += 52f;
             }
         }
     }

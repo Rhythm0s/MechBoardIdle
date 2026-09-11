@@ -123,7 +123,11 @@ namespace MBI.UI
             if (d.evicted && src.isPlaying) src.Stop(); // 가장 오래된 것을 끊는다(7장)
 
             src.clip = clip;
-            src.volume = AudioMix.GainOf(config, kind);
+            // ⚠️ **믹스 × 사람의 선택**(2026-09-11 · 플랜 §71-16 ③).
+            // `AudioMix` 는 갈래 사이의 **관계**(경고 > 효과음 > 조작음)를 들고,
+            // `AudioChannels` 는 그 위에 곱해지는 **사람의 선택**이다. 둘을 섞으면
+            // 사람이 효과음을 올린 순간 경고보다 커져 관계가 깨진다.
+            src.volume = AudioMix.GainOf(config, kind) * AudioChannels.Value(kind);
             src.Play();
 
             _slotId[d.slot] = id;
