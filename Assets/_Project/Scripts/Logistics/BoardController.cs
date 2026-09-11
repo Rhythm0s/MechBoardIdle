@@ -670,11 +670,12 @@ namespace MBI.Logistics
                 // 두 번 그려져 그 자리만 진해지고 점선 위상이 어긋난다(PartLayout.BoundaryRuns 주석).
                 foreach (PartLayout.BoundaryRun r in PartLayout.BoundaryRuns())
                 {
+                    Color runColor = BoundaryColor(r);
                     float len = r.length * config.cellSize;
                     float ex = o.x + r.from.x * config.cellSize;
                     float ey = o.y + r.from.y * config.cellSize;
-                    if (r.horizontal) SpawnDashedEdge(root.transform, ex + len * 0.5f, ey, len, true);
-                    else              SpawnDashedEdge(root.transform, ex, ey + len * 0.5f, len, false);
+                    if (r.horizontal) SpawnDashedEdge(root.transform, ex + len * 0.5f, ey, len, true, runColor);
+                    else              SpawnDashedEdge(root.transform, ex, ey + len * 0.5f, len, false, runColor);
                 }
                 return;
             }
@@ -726,6 +727,13 @@ namespace MBI.Logistics
                 var sr = go.AddComponent<SpriteRenderer>();
                 sr.sprite = art.boardBackground;
                 sr.sortingOrder = BoardBackgroundOrder;
+
+                // ⚠️ **칸마다 제 파츠 색으로 옅게 물들인다**(2026-09-11 · 플랜 §71-16 ⑧).
+                // 종전에는 117칸이 전부 같은 바닥이라 **어느 칸이 어느 파츠인지**를
+                // 점선이 끊기는 자리를 눈으로 좇아야만 알 수 있었다.
+                // 색은 `SpriteRenderer.color` 로 **곱해지므로** 흰 쪽으로 당긴 값을 쓴다 —
+                // 알파를 낮추면 투명해질 뿐 색이 안 섞인다(`PartPalette.FloorOf`).
+                sr.color = PartPalette.FloorOf(PartLayout.PartAt(cell));
             }
         }
 
@@ -1034,7 +1042,8 @@ namespace MBI.Logistics
         /// 잘리지 않도록** 주기 수를 반올림해 간격을 변 길이에 맞춘다. 안 맞추면 파츠마다 끝
         /// 조각 길이가 달라져 경계가 어긋나 보인다.
         /// </summary>
-        private void SpawnDashedEdge(Transform parent, float cx, float cy, float length, bool horizontal)
+        private void SpawnDashedEdge(Transform parent, float cx, float cy, float length, bool horizontal,
+            Color color)
         {
             float unit = config.cellSize / ZonePx;
             float thick = Mathf.Max(ZoneLineThickPx * unit, 0.01f);
@@ -1049,9 +1058,97 @@ namespace MBI.Logistics
             for (int i = 0; i < count; i++)
             {
                 float c = start + step * i + dash * 0.5f; // 조각 중심
-                if (horizontal) SpawnQuad(parent, c, cy, dash, thick, ZoneLineColor, ZoneLineOrder);
-                else            SpawnQuad(parent, cx, c, thick, dash, ZoneLineColor, ZoneLineOrder);
+                if (horizontal) SpawnQuad(parent, c, cy, dash, thick, color, ZoneLineOrder);
+                else            SpawnQuad(parent, cx, c, thick, dash, color, ZoneLineOrder);
             }
+        }
+
+        /// <summary>
+        /// 마운트 고정 포트에 「마운트」 이름표 (2026-09-11 · 플랜 §71-16 ②).
+        ///
+        /// **구역 이름표와 같은 규격**을 쓴다 — 같은 보드 위의 글자가 서로 다른 크기·색이면
+        /// 하나는 꺼져 있는 것처럼 보인다(배율 라벨에서 이미 겪은 자리다).
+        ///
+        /// ⚠️ **글자는 포트 칸의 왼윗모서리가 아니라 칸 가운데 위**에 붙인다. 구역은 넓어
+        /// 모서리에 붙여도 제 구역 안이지만, 마운트는 **한 칸**이라 모서리에 붙이면
+        /// 옆 칸 위에 얹힌다.
+        /// </summary>
+        private void DrawMountLabels(Camera cam, Vector2 o, GUIStyle style, float fontScale)
+        {
+            if (_mountPortViews.Count == 0) return;
+
+            // ⚠️ **점멸은 포트 그림과 같은 판정이다**(`UpdateMountPortBlink`). 두 번 재면
+            // 글자와 그림이 서로 다른 박자로 깜빡인다.
+            bool empty = SupplyStopRules.MountIsEmpty(
+                SupplySignals.HasCombat, SupplySignals.MountTotal);
+            bool blink = empty && HudMeters.BlinkOn(Time.unscaledTime);
+
+            var mountStyle = new GUIStyle(style) { alignment = TextAnchor.LowerCenter };
+            Color prev = GUI.color;
+            GUI.color = blink ? MountEmptyColor : ZoneLabelColor;
+
+            const string text = "마운트";
+            float boxW = mountStyle.CalcSize(new GUIContent(text)).x;
+            float boxH = mountStyle.fontSize + 6f * fontScale;
+
+            foreach (MountPort mp in PartLayout.MountPorts)
+            {
+                // 칸 가운데 위 — 포트 그림 바로 위에 얹힌다.
+                Vector3 above = CellWorld(mp.cell) + new Vector3(0f, config.cellSize * 0.55f, 0f);
+                Vector3 sp = cam.WorldToScreenPoint(above);
+                if (sp.z <= 0f) continue;
+
+                float y = Screen.height - sp.y;
+                if (sp.x < -boxW || sp.x > Screen.width + boxW || y < -boxH || y > Screen.height + boxH) continue;
+
+                // ⚠️ **인셋 전투 자리에는 안 그린다** — 구역 이름표와 같은 이유다(보드는
+                // 안 보이는데 글자만 뜬다).
+                if (y < CombatInsetView.BottomPixels(Screen.height)) continue;
+
+                GUI.Label(new Rect(sp.x - boxW * 0.5f, y - boxH, boxW, boxH), text, mountStyle);
+            }
+
+            GUI.color = prev;
+        }
+
+        /// <summary>
+        /// 경계 한 변의 색 — **그 변에 닿는 파츠**의 색 (2026-09-11 · 플랜 §71-16 ⑧).
+        ///
+        /// ⚠️ **두 파츠가 맞닿은 변은 미색으로 남긴다.** 어느 쪽 색을 주어도 한쪽이
+        /// 다른 쪽 영역을 침범한 것처럼 읽히고, 점선은 **두 파츠가 공유하는 한 줄**이라
+        /// 실제로 어느 한쪽 것이 아니다(그래서 파츠 루프 밖에서 한 번만 그린다).
+        /// 실루엣 바깥면만 제 파츠 색을 갖는다 — 거기서는 안쪽 파츠가 하나뿐이다.
+        ///
+        /// ⚠️ **변 전체가 한 파츠에 닿을 때만** 그 색이다. 한 변이 여러 파츠를 지나면
+        /// 중간에 색이 갈려 점선이 끊긴 것처럼 보이므로 미색으로 둔다.
+        /// </summary>
+        private static Color BoundaryColor(PartLayout.BoundaryRun r)
+        {
+            RobotPart found = RobotPart.None;
+
+            for (int i = 0; i < r.length; i++)
+            {
+                // 변의 양쪽 칸. 가로변이면 위·아래, 세로변이면 좌·우다.
+                Vector2Int a = r.horizontal
+                    ? new Vector2Int(r.from.x + i, r.from.y)
+                    : new Vector2Int(r.from.x, r.from.y + i);
+                Vector2Int b = r.horizontal
+                    ? new Vector2Int(r.from.x + i, r.from.y - 1)
+                    : new Vector2Int(r.from.x - 1, r.from.y + i);
+
+                RobotPart pa = PartLayout.PartAt(a);
+                RobotPart pb = PartLayout.PartAt(b);
+
+                // 양쪽 다 파츠면 공유 변이다 — 미색.
+                if (pa != RobotPart.None && pb != RobotPart.None) return PartPalette.Neutral;
+
+                RobotPart inner = pa != RobotPart.None ? pa : pb;
+                if (inner == RobotPart.None) continue;      // 둘 다 실루엣 밖(있을 수 없지만 안전)
+                if (found == RobotPart.None) found = inner;
+                else if (found != inner) return PartPalette.Neutral; // 한 변이 여러 파츠를 지난다
+            }
+
+            return found == RobotPart.None ? ZoneLineColor : PartPalette.LineOf(found);
         }
 
         private void SpawnQuad(Transform parent, float cx, float cy, float w, float h, Color col, int order)
@@ -1928,6 +2025,17 @@ namespace MBI.Logistics
             //
             // **글자 크기 문제가 아니라 상자 문제였다** — 96 은 그대로 두고 상자만 글자에 맞춘다.
             float boxH = fontPx + 6f * fontScale;
+
+            // ⚠️ **마운트에도 이름표를 붙인다**(2026-09-11 사용자 육안 · 플랜 §71-16 ②).
+            //
+            // 마운트 포트 그림은 진작 배선돼 있었는데(`BuildMountPorts`) **무엇인지 말하는
+            // 글자가 없어** 그냥 또 하나의 마커로 보였다. 보드의 산출이 전투로 넘어가는
+            // 유일한 자리이므로 「왜 라인이 여기서 끝나야 하는가」가 글자로 서야 한다.
+            //
+            // ⚠️ **UI 12-4 의 점멸과 한자리에 둔다** — 재고가 0 이면 그림이 빨갛게 깜빡이는데
+            // 글자만 미색으로 남으면 **경고가 반쪽**이 된다. 같은 판정을 두 번 하지 않고
+            // `UpdateMountPortBlink` 와 같은 규칙을 읽는다.
+            DrawMountLabels(cam, o, style, fontScale);
 
             foreach (PartRect p in PartLayout.Parts)
             {
