@@ -128,10 +128,10 @@ namespace MBI.Tests
         }
 
         [Test]
-        public void 잣대는_가정_20초다()
+        public void 잣대는_확정_20초다()
         {
-            // ⚠️ 문서에 절이 없다 — 설계 역기입 자리. 짧으면 잠깐 뒤처진 적까지
-            // 순간이동해 화면에서 적이 튄다.
+            // ✅ **사용자 확정**(§71-27) — 가정이 아니다. 설계가 문서에 역기입한다.
+            // 짧으면 잠깐 뒤처진 적까지 순간이동해 화면에서 적이 튄다.
             Assert.AreEqual(20f, OffscreenRespawnRule.UnreachableSeconds, D);
 
             // 경계는 **초과**다 — 딱 닿는 거리는 안 되돌린다.

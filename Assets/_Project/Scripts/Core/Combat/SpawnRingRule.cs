@@ -65,7 +65,8 @@ namespace MBI.Core.Combat
     public static class OffscreenRespawnRule
     {
         /// <summary>
-        /// 못 닿는다고 보는 시간(초). ⚠️ **가정 20** — 문서에 절이 없다(설계 역기입 자리).
+        /// 못 닿는다고 보는 시간(초). ✅ **사용자 확정 20**(2026-09-11 · 플랜 §71-27) —
+        /// **가정이 아니다.** 설계가 문서에 역기입한다.
         /// 짧으면 잠깐 뒤처진 적까지 순간이동해 **화면에서 적이 튄다.**
         /// </summary>
         public const float UnreachableSeconds = 20f;
