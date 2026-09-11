@@ -355,6 +355,21 @@ the SAME heavy tracked tank as in its other views, seen from directly in front, 
 
 ---
 
+## 14. `boss_Move` 동면 — ✅ **사용자 육안 통과 · 설치** (group `6f4cc994` · 6 생성)
+
+**왜 뽑았나** — `CombatEntityView` 가 **가로 우세면 East/West** 를 부르는데 보스는 둘 다 없어
+**남면으로 떨어지고 있었다**(정면을 보고 옆으로 미끄러짐). **동면 하나로 닫힌다** — 서면은 코드가 `flipX` 로 만든다.
+
+인자는 13번과 같다. `end_frame_url` = **동면 회전본**. 방향구만 바꿨다.
+
+```
+the SAME heavy tracked tank as in its other views, seen from its right side, driving forward at a slow crawl toward the right edge of the frame. Keep its identity exactly: the same hull outline, the same plating layout, the same number and placement of gun barrels, the same gunmetal steel with dark red accent panels. Its tracks roll and the road wheels turn, the hull rocks a little as it grinds along. The camera does not move: the machine is drawn at the same size in every frame, held square-on to the viewer, never turning to a three-quarter or isometric angle, never getting smaller or larger, and never changing its outline between frames. The motion is one full cycle of the tracks that ends exactly where it began, so the last frame runs straight back into the first.
+```
+
+**결과** — wrap 화소 차 **0.7%** · 이음새 최솟값 **0.947**(wrap **0.993**) · **가로 176 으로 여섯 칸 고정**.
+
+---
+
 ---
 
 ## 설계에 넘기는 것
