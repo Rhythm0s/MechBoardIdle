@@ -40,20 +40,37 @@ namespace MBI.Core
         /// <summary>
         /// 지금 국면. **차례가 있다** — 앞선 것을 못 했으면 뒤엣것을 물을 이유가 없다.
         ///
-        /// ⚠️ <see cref="Phase.BuildMode"/> 가 <see cref="Phase.PlaceNode"/> 보다 앞이다.
-        /// 고스트가 떠 있어도 **이동 모드면 보드를 눌러도 안 놓인다** — 그 자리에서 막힌 것이
-        /// T-7 의 근거였다.
+        /// ⚠️⚠️ **국면은 신호만으로 안 정해진다 — 보드의 현재 모드가 같이 들어온다**
+        /// (2026-09-11 결함 수정 · 플랜 §71-19 ①).
+        ///
+        /// 종전에는 「고스트가 떠 있으면 놓기 국면」이었고, 놓기 국면은 **이미 조립 모드라는
+        /// 뜻**으로 읽어 모드 버튼을 잠갔다. 그런데 **이동 모드인 채로 고스트가 뜨는 자리**가
+        /// 있었고, 거기서 **모드 버튼이 잠긴 채 조립 모드로 들어갈 수 없었다** — 강제가
+        /// 아니라 **정지**였다. 막다른 국면을 시험이 못 잡은 이유도 같다: 시험이 신호만
+        /// 넣고 모드를 안 넣었으니 **없는 상태 조합**을 검사한 셈이다.
+        ///
+        /// 이제 고스트가 떠 있어도 **이동 모드면 모드 국면**이다 — 먼저 조립 모드로 바꾸게 한다.
         /// </summary>
-        public static Phase Current
+        public static Phase Current =>
+            Resolve(TutorialSignals.HighlightBoardButton,
+                    TutorialSignals.HighlightBuildMode,
+                    TutorialSignals.GhostCell.HasValue && !TutorialSignals.GhostCellFilled,
+                    TutorialSignals.BoardInBuildMode);
+
+        /// <summary>
+        /// 국면을 입력에서 직접 따라 낸다(시험·진단용). **모드가 네 번째 입력이다.**
+        /// </summary>
+        public static Phase Resolve(bool urgeEnterBoard, bool urgeBuildMode,
+            bool ghostWaiting, bool inBuildMode)
         {
-            get
-            {
-                if (TutorialSignals.HighlightBoardButton) return Phase.EnterBoard;
-                if (TutorialSignals.HighlightBuildMode) return Phase.BuildMode;
-                if (TutorialSignals.GhostCell.HasValue && !TutorialSignals.GhostCellFilled)
-                    return Phase.PlaceNode;
-                return Phase.None;
-            }
+            if (urgeEnterBoard) return Phase.EnterBoard;
+
+            // ⚠️ **모드가 먼저다.** 이동 모드면 보드를 눌러도 안 놓이므로, 고스트가 떠 있어도
+            // 할 수 있는 일은 「조립 모드로 바꾸기」 하나뿐이다.
+            if (ghostWaiting) return inBuildMode ? Phase.PlaceNode : Phase.BuildMode;
+
+            if (urgeBuildMode) return Phase.BuildMode;
+            return Phase.None;
         }
 
         /// <summary>튜토리얼이 조작을 붙잡고 있는가.</summary>

@@ -161,6 +161,17 @@ namespace MBI.Logistics
                 fontSize = Mathf.Max(12, Mathf.RoundToInt(rect.height * 0.28f)),
             };
 
+            // ⚠️ **조립 화면에서는 액션바 띠에 그릇을 깐다**(2026-09-11 실측 · §71-19 ②).
+            // 안 깔면 그 자리로 **보드 실루엣의 다리**가 비쳐 보인다 — 부유 띠와 같은 뿌리다.
+            // 전투 화면에서는 안 깐다: 거기 막대는 **레이어 1** 이라 띠가 없다.
+            if (_boardView)
+            {
+                Rect bar = MBI.UI.UiLayout.BandRect(
+                    MBI.UI.UiLayout.Band.ActionBar, Screen.width, Screen.height);
+                MBI.UI.UiBlockers.Add(bar);
+                GUI.DrawTexture(bar, MBI.UI.UiSkin.PlateTexture);
+            }
+
             MBI.UI.UiBlockers.Add(rect); // 보드가 누르는 순간 판정한다 — UiBlockers 주석
 
             // ⚠️ **국면이 허용할 때만 눌린다**(2026-09-11 · 플랜 §71-16 ④).
@@ -170,7 +181,6 @@ namespace MBI.Logistics
                 : TutorialGate.Control.EnterBoard);
             bool wasEnabled = GUI.enabled;
             GUI.enabled = wasEnabled && allowed;
-            if (!allowed) GUI.DrawTexture(rect, MBI.UI.UiSkin.DisabledTexture);
             ButtonRect = rect;
             PointerOverButton = rect.Contains(Event.current.mousePosition);
 
@@ -191,6 +201,8 @@ namespace MBI.Logistics
                 if (GUI.Button(rect, "▲ 전투로", style)) _boardView = false;
             }
 
+            // ⚠️ **어둠막은 버튼 뒤에** — 앞에 그리면 버튼이 제 바탕으로 덮는다(2026-09-11).
+            if (!allowed) GUI.DrawTexture(rect, MBI.UI.UiSkin.DisabledTexture);
             GUI.enabled = wasEnabled;
         }
     }

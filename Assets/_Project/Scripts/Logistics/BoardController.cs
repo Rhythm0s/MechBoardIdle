@@ -1218,6 +1218,12 @@ namespace MBI.Logistics
         private void Update()
         {
             if (BoardDumpSignals.Requested) FulfilBoardDump();
+
+            // ⚠️ **게이트가 이것을 읽는다**(2026-09-11 · §71-19 ①). 국면은 신호만으로
+            // 안 정해진다 — 이동 모드인 채로 고스트가 뜨면 할 수 있는 일은
+            // 「조립 모드로 바꾸기」 하나뿐이다.
+            TutorialSignals.BoardInBuildMode = _mode == BoardMode.Build;
+
             UpdateTutorialDim();
 
             UpdateMountPortBlink();
@@ -1755,9 +1761,24 @@ namespace MBI.Logistics
             //  합체·태그 원형과 자리를 다투지 않는다(그 둘은 전투 화면에만 그려진다).
             // ────────────────────────────────────────────────────────────────
             float sc = UiLayout.Scale(Screen.height);
+
+            // ⚠️ **띠 전체에 그릇을 깐다**(2026-09-11 실측 · 플랜 §71-19 ②).
+            //
+            // 종전에는 팔레트 자리에만 판을 깔아, 미니맵·모드 버튼 칸에는 **보드가 그대로
+            // 비쳐 보였다.** 사용자 눈에는 「캐릭터 그림」으로 보였는데 **실측하니 보드
+            // 실루엣의 다리**였다 — 보드 카메라는 화면 전체를 그리고(조립 화면 세로 월드
+            // −25 ~ −15) 부유 띠는 **격자 행 2.5~3.3** 위에 얹힌다. 그 행이 `다리L`·`다리R`
+            // 구역(y 0~3)이다. 그림 출처는 `Art/Backgrounds/bg_board.png`(바닥 타일)와
+            // 그 위의 파츠 색·셀선이다.
+            //
+            // ⚠️ **띠가 보드를 덮는 구조 자체는 그대로다** — 보드 뷰포트를 보드 띠
+            // (768~2098)로 자르는 것이 구조적으로 옳지만, 그 카메라는 전투 화면도 쓰므로
+            // 지금 건드리지 않는다. **설계 판정거리로 올린다.**
+            Rect fullBand = UiLayout.BandRect(UiLayout.Band.FloatBand, Screen.width, Screen.height);
+            UiBlockers.Add(fullBand);
+            GUI.DrawTexture(fullBand, UiSkin.PlateTexture);
+
             Rect band = UiLayout.PaletteRect(Screen.width, Screen.height);
-            UiBlockers.Add(band);
-            GUI.DrawTexture(band, UiSkin.PlateTexture);
 
             float pad = 12f * sc;
             float side = Mathf.Min(UiLayout.MinButton * sc, band.height - pad * 2f);
@@ -1801,9 +1822,6 @@ namespace MBI.Logistics
                 bool wasEnabled = GUI.enabled;
                 GUI.enabled = wasEnabled && allowed;
 
-                // IMGUI 에 꺼진 상태 칸이 없어 잠긴 것은 **여기서 직접** 어둡게 깐다(UiSkin 주석).
-                if (!allowed) GUI.DrawTexture(rect, UiSkin.DisabledTexture);
-
                 bool sel = !_removeMode && i == _selectedNode;
                 if (GUI.Button(rect, (sel ? "● " : "") + palette[i].displayName, style))
                 {
@@ -1813,6 +1831,12 @@ namespace MBI.Logistics
                     _selectedModule = -1;
                 }
                 DrawPaletteThumb(rect, palette[i]);
+
+                // ⚠️ **어둠막은 버튼 뒤에 그린다**(2026-09-11 재육안 · IMGUI 는 뒤에 그리는
+                // 쪽이 위로 온다). 앞에 그렸더니 **버튼이 제 바탕으로 덮어** 막이 한 번도
+                // 안 보였다 — 화면에서는 팔레트가 전부 밝았다. 그림도 함께 덮는다.
+                if (!allowed) GUI.DrawTexture(rect, UiSkin.DisabledTexture);
+
                 GUI.enabled = wasEnabled;
                 bx += step;
             }
@@ -1826,7 +1850,6 @@ namespace MBI.Logistics
                 bool on = !_removeMode && _elementMode == e;
                 bool wasE = GUI.enabled;
                 GUI.enabled = wasE && elementAllowed;
-                if (!elementAllowed) GUI.DrawTexture(eRect, UiSkin.DisabledTexture);
 
                 // 강제 버튼(튜토리얼 기획서 2장) — 지금 놓아야 할 것을 빛나게 한다.
                 // 고스트는 **자리**만 말하므로, 무엇을 놓을지 모르면 자리를 알아도 막힌다.
@@ -1844,6 +1867,7 @@ namespace MBI.Logistics
                     _removeMode = false;
                     _selectedModule = -1;
                 }
+                if (!elementAllowed) GUI.DrawTexture(eRect, UiSkin.DisabledTexture);
                 GUI.enabled = wasE;
                 bx += step;
             }
@@ -1863,13 +1887,13 @@ namespace MBI.Logistics
                     bool on = !_removeMode && _selectedModule == m;
                     bool wasM = GUI.enabled;
                     GUI.enabled = wasM && moduleAllowed;
-                    if (!moduleAllowed) GUI.DrawTexture(mRect, UiSkin.DisabledTexture);
                     if (GUI.Button(mRect, (on ? "●" : "") + modulePalette[m].displayName, style))
                     {
                         _selectedModule = on ? -1 : m;
                         _removeMode = false;
                         _elementMode = null;
                     }
+                    if (!moduleAllowed) GUI.DrawTexture(mRect, UiSkin.DisabledTexture);
                     GUI.enabled = wasM;
                     bx += step;
                 }
@@ -1881,12 +1905,12 @@ namespace MBI.Logistics
             bool removeAllowed = TutorialGate.Allows(TutorialGate.Control.Remove);
             bool wasR = GUI.enabled;
             GUI.enabled = wasR && removeAllowed;
-            if (!removeAllowed) GUI.DrawTexture(rmRect, UiSkin.DisabledTexture);
             if (GUI.Button(rmRect, (_removeMode ? "● " : "") + "제거", style))
             {
                 _removeMode = !_removeMode;
                 if (_removeMode) { _elementMode = null; _selectedModule = -1; }
             }
+            if (!removeAllowed) GUI.DrawTexture(rmRect, UiSkin.DisabledTexture);
             GUI.enabled = wasR;
 
             GUI.EndScrollView();
@@ -2297,7 +2321,6 @@ namespace MBI.Logistics
             bool modeAllowed = TutorialGate.Allows(TutorialGate.Control.ModeToggle);
             bool wasMode = GUI.enabled;
             GUI.enabled = wasMode && modeAllowed;
-            if (!modeAllowed) GUI.DrawTexture(rect, UiSkin.DisabledTexture);
 
             string label = _mode == BoardMode.Pan ? "이동 모드" : "조립 모드";
 
@@ -2309,6 +2332,7 @@ namespace MBI.Logistics
             if (GUI.Button(rect, urge ? "조립 모드로 →" : label, style)) ToggleMode();
 
             GUI.color = prev;
+            if (!modeAllowed) GUI.DrawTexture(rect, UiSkin.DisabledTexture);
             GUI.enabled = wasMode;
         }
 

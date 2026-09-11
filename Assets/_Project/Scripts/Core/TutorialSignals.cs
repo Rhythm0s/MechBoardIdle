@@ -65,6 +65,20 @@ namespace MBI.Core
         /// </summary>
         public static bool ClearEmptySlotRequested;
 
+        /// <summary>
+        /// 보드가 지금 **조립 모드**인가 — <b>보드가 쓰고 튜토리얼 게이트가 읽는다.</b>
+        /// (2026-09-11 결함 수정 · 플랜 §71-19 ①)
+        ///
+        /// ⚠️ <b>이것이 없어서 막다른 국면이 났다.</b> 게이트가 「놓기」 국면을 <b>고스트가
+        /// 떠 있는가</b>로만 잡았는데, 그 국면은 <b>이미 조립 모드라는 뜻</b>으로 읽고
+        /// 모드 버튼을 잠갔다 — 실제로는 이동 모드인 채로 고스트가 떠서
+        /// <b>모드 버튼이 잠긴 채 조립 모드로 들어갈 수 없었다.</b>
+        ///
+        /// 「지금 무엇을 할 수 있는가」는 신호만으로 못 정한다. <b>보드가 어떤 상태인지</b>가
+        /// 같이 들어와야 한다.
+        /// </summary>
+        public static bool BoardInBuildMode;
+
         /// <summary>도메인 리로드 비활성 시 이전 Play의 값이 남는 것을 막는다.</summary>
         public static void Reset()
         {
@@ -74,6 +88,7 @@ namespace MBI.Core
             HighlightMerger = false;
             HighlightBuildMode = false;
             ClearEmptySlotRequested = false;
+            BoardInBuildMode = false;
         }
     }
 }

@@ -34,20 +34,42 @@ namespace MBI.Tests
         {
             // 앞선 것을 못 했으면 뒤엣것을 물을 이유가 없다 — 셋이 동시에 켜져도 앞이 이긴다.
             TutorialSignals.GhostCell = new Vector2Int(7, 8);
+            TutorialSignals.BoardInBuildMode = true;
             Assert.AreEqual(TutorialGate.Phase.PlaceNode, TutorialGate.Current);
-
-            // ⚠️ 이동 모드면 보드를 눌러도 안 놓인다 — 그 자리에서 막힌 것이 T-7 의 근거다.
-            TutorialSignals.HighlightBuildMode = true;
-            Assert.AreEqual(TutorialGate.Phase.BuildMode, TutorialGate.Current);
 
             TutorialSignals.HighlightBoardButton = true;
             Assert.AreEqual(TutorialGate.Phase.EnterBoard, TutorialGate.Current);
+        }
+
+        /// <summary>
+        /// ⚠️ **2026-09-11 재육안 결함 ①.** 고스트가 떠 있는데 **이동 모드**면 종전에는
+        /// 「놓기」 국면으로 읽어 **모드 버튼을 잠갔다** — 조립 모드로 들어갈 길이 없어
+        /// 강제가 아니라 **정지**였다.
+        ///
+        /// 시험이 못 잡은 이유도 같다 — 신호만 넣고 **모드를 안 넣어** 없는 상태 조합을
+        /// 검사했다. 이제 모드가 네 번째 입력이다.
+        /// </summary>
+        [Test]
+        public void 이동_모드면_고스트가_떠_있어도_모드_국면이다()
+        {
+            TutorialSignals.GhostCell = new Vector2Int(7, 8);
+            TutorialSignals.BoardInBuildMode = false;   // 이동 모드
+
+            Assert.AreEqual(TutorialGate.Phase.BuildMode, TutorialGate.Current);
+            Assert.IsTrue(TutorialGate.Allows(TutorialGate.Control.ModeToggle),
+                "여기서 모드 버튼이 잠기면 조립 모드로 들어갈 길이 없다");
+
+            TutorialSignals.BoardInBuildMode = true;    // 조립 모드로 바꿨다
+            Assert.AreEqual(TutorialGate.Phase.PlaceNode, TutorialGate.Current);
+            Assert.IsFalse(TutorialGate.Allows(TutorialGate.Control.ModeToggle),
+                "놓기 국면에서는 이동 모드로 되돌아가지 않는다");
         }
 
         [Test]
         public void 채우면_붙잡지_않는다()
         {
             TutorialSignals.GhostCell = new Vector2Int(7, 8);
+            TutorialSignals.BoardInBuildMode = true;
             Assert.IsTrue(TutorialGate.Locked);
 
             TutorialSignals.GhostCellFilled = true;
@@ -71,6 +93,7 @@ namespace MBI.Tests
         public void 모드_국면은_모드_버튼_하나만_켠다()
         {
             TutorialSignals.HighlightBuildMode = true;
+            TutorialSignals.BoardInBuildMode = false;
 
             Assert.IsTrue(TutorialGate.Allows(TutorialGate.Control.ModeToggle));
             // ⚠️ 전투로 돌아가는 것도 막는다 — 나가면 아무것도 빛나지 않는 화면이 된다.
@@ -82,6 +105,7 @@ namespace MBI.Tests
         public void 놓기_국면은_기초_군수와_보드만_켠다()
         {
             TutorialSignals.GhostCell = new Vector2Int(7, 8);
+            TutorialSignals.BoardInBuildMode = true;
 
             Assert.IsTrue(TutorialGate.Allows(TutorialGate.Control.PaletteMunitions));
             Assert.IsTrue(TutorialGate.AllowsBoardTap);
@@ -96,16 +120,29 @@ namespace MBI.Tests
         }
 
         [Test]
-        public void 어느_국면에도_할_일이_남아_있다()
+        public void 어느_입력_조합에도_할_일이_남아_있다()
         {
-            // **막다른 자리가 없는가.** 허용이 하나도 없는 국면이 있으면 플레이어가
-            // 할 수 있는 일이 사라진다 — 강제가 아니라 정지다.
-            foreach (TutorialGate.Phase p in System.Enum.GetValues(typeof(TutorialGate.Phase)))
+            // ⚠️ **구 시험은 국면만 돌았다** — 그래서 「이동 모드 + 고스트」라는 **실제로
+            // 일어난 조합**을 한 번도 안 넣었고, 막다른 자리를 놓쳤다(2026-09-11 결함 ①).
+            // 이제 **입력 네 개의 모든 조합**을 돈다.
+            for (int bits = 0; bits < 16; bits++)
             {
-                bool any = TutorialGate.AllowsBoardTap && p == TutorialGate.Phase.PlaceNode;
+                bool enter = (bits & 1) != 0, urgeMode = (bits & 2) != 0;
+                bool ghost = (bits & 4) != 0, build = (bits & 8) != 0;
+
+                TutorialGate.Phase p = TutorialGate.Resolve(enter, urgeMode, ghost, build);
+
+                bool any = false;
                 foreach (TutorialGate.Control c in System.Enum.GetValues(typeof(TutorialGate.Control)))
                     if (TutorialGate.Allows(p, c)) any = true;
-                Assert.IsTrue(any, $"{p} 국면에 할 수 있는 일이 없다");
+
+                Assert.IsTrue(any,
+                    $"진입{enter} 모드강조{urgeMode} 고스트{ghost} 조립모드{build} → {p} : 할 수 있는 일이 없다");
+
+                // ⚠️ **놓기 국면은 조립 모드일 때만 나온다.** 이동 모드에서 놓기로 읽으면
+                // 모드 버튼이 잠긴 채 보드가 안 먹어 그대로 정지다.
+                if (p == TutorialGate.Phase.PlaceNode)
+                    Assert.IsTrue(build, "이동 모드인데 놓기 국면으로 읽혔다");
             }
         }
 
@@ -115,6 +152,7 @@ namespace MBI.Tests
             // 배율과 미니맵은 **보는 것**이지 놓는 것이 아니다. 막으면 고스트가 화면 밖에
             // 있을 때 찾아갈 길이 없어진다 — 놓기 국면에서만 열어 둔다.
             TutorialSignals.GhostCell = new Vector2Int(7, 8);
+            TutorialSignals.BoardInBuildMode = true;
             Assert.IsTrue(TutorialGate.Allows(TutorialGate.Control.Zoom));
             Assert.IsTrue(TutorialGate.Allows(TutorialGate.Control.MiniMap));
         }
