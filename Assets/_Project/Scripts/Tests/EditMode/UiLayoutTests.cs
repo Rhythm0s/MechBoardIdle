@@ -22,7 +22,7 @@ namespace MBI.Tests
             // 하나를 고치면서 다른 하나를 안 고치면 틈이나 겹침이 생긴다 — 그 자리를 여기서 막는다.
             float sum = UiLayout.CombatHeight + UiLayout.BoardHeight + UiLayout.FloatBandHeight
                         + UiLayout.VariablePanelHeight + UiLayout.ActionBarHeight;
-            Assert.AreEqual(UiLayout.DesignHeight, sum, D, "768 + 1352 + 200 + 112 + 128 = 2560");
+            Assert.AreEqual(UiLayout.DesignHeight, sum, D, "768 + 1330 + 200 + 112 + 150 = 2560");
         }
 
         [Test]
@@ -93,12 +93,12 @@ namespace MBI.Tests
             Assert.IsTrue(UiLayout.MeetsMinButton(UiLayout.RoundButtonDiameter), "원형 200");
             Assert.IsTrue(UiLayout.MeetsMinButton(UiLayout.BarButtonHeight), "막대 높이 160");
 
-            // ⚠️ **적용 버튼 높이 128 은 최소 150 을 밑돈다** — **UI 아트 5-3 vs 6-2** 의
-            // 문서 안 충돌이다(액션바·적용 128 / 버튼 최소 150). 둘 다 **레이어 2** 의 수라
-            // 견주는 것이 맞다. **여기서 정하지 않는다** — 지금 사실을 적고
-            // `260911_V01` 2-4 판정 요청으로 올린다. 값이 서면 이 단언이 뒤집힌다.
-            Assert.IsFalse(UiLayout.MeetsMinButton(UiLayout.ApplyButtonHeight),
-                "⚠️ 적용 128 < 최소 150 — UI 아트 5-3 vs 6-2 충돌(판정 대기)");
+            // ✅ **닫혔다**(2026-09-11 설계 확정 (가)). 구 128 은 버튼 최소 150 을 밑돌아
+            // UI 아트 5-3 과 6-2 가 서로 안 맞았다 — **띠를 버튼 최소에 맞추는 쪽**으로
+            // 답이 왔고, 보드에서 22 를 덜어 다섯 합 2560 을 지켰다.
+            // **단언이 뒤집혔다** — 판정 대기 표기를 걷는다.
+            Assert.IsTrue(UiLayout.MeetsMinButton(UiLayout.ApplyButtonHeight),
+                "적용 150 = 버튼 최소 150");
         }
 
         [Test]
@@ -201,7 +201,7 @@ namespace MBI.Tests
             Rect band = UiLayout.BandRect(UiLayout.Band.ActionBar, 1440f, 2560f);
 
             Assert.AreEqual(320f, apply.width, D);
-            Assert.AreEqual(128f, apply.height, D);
+            Assert.AreEqual(150f, apply.height, D);
             Assert.IsFalse(apply.Overlaps(exit));
             Assert.IsTrue(band.y <= apply.y && apply.yMax <= band.yMax + D, "액션바 안");
             Assert.IsTrue(band.y <= exit.y && exit.yMax <= band.yMax + D, "액션바 안");

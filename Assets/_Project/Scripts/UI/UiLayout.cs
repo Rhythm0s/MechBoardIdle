@@ -55,13 +55,13 @@ namespace MBI.UI
         //      y      0 ┌──────────────────────────┐
         //               │  전투             768    │  ← CombatInsetView 뷰포트 상단 30%
         //           768 ├──────────────────────────┤  ← 경고 띠 96 이 여기서 시작(12-2 · 겹쳐 뜬다)
-        //               │  보드            1352    │
-        //          2120 ├──────────────────────────┤
+        //               │  보드            1330    │
+        //          2098 ├──────────────────────────┤
         //               │  부유 띠(미니맵·모드) 200│
-        //          2320 ├──────────────────────────┤
+        //          2298 ├──────────────────────────┤
         //               │  변수 패널        112    │
-        //          2432 ├──────────────────────────┤
-        //               │  액션바           128    │  ← 적용 320×128 이 여기 앉는다
+        //          2410 ├──────────────────────────┤
+        //               │  액션바           150    │  ← 적용 320×150 이 여기 앉는다
         //          2560 └──────────────────────────┘
         //
         //  ⚠️ **다섯을 더하면 정확히 2560 이다.** 시험이 그것을 지킨다 —
@@ -70,8 +70,14 @@ namespace MBI.UI
         /// <summary>전투 자리 높이 (기준 캔버스). <see cref="CombatInsetView.HeightShare"/> 의 분자다.</summary>
         public const float CombatHeight = 768f;
 
-        /// <summary>보드 자리 높이 (기준 캔버스).</summary>
-        public const float BoardHeight = 1352f;
+        /// <summary>
+        /// 보드 자리 높이 (기준 캔버스). **1352 → 1330**(2026-09-11 설계 확정 (가)).
+        ///
+        /// 액션바가 128 에서 150 으로 커지면서 **22 를 보드에서 덜어 냈다** —
+        /// 다섯을 더해 2560 이 되어야 하므로 어딘가는 줄어야 하고, **보드가 가장 넓어
+        /// 줄어도 덜 아프다.** 구 1352 는 폐기 표기.
+        /// </summary>
+        public const float BoardHeight = 1330f;
 
         /// <summary>부유 띠 높이 — 미니맵·모드 버튼이 **보드 위에 떠 있지 않고** 여기 앉는다.</summary>
         public const float FloatBandHeight = 200f;
@@ -79,8 +85,14 @@ namespace MBI.UI
         /// <summary>변수 패널 높이 (기준 캔버스). **하단이다** — 우상단이 아니다.</summary>
         public const float VariablePanelHeight = 112f;
 
-        /// <summary>액션바 높이 (기준 캔버스).</summary>
-        public const float ActionBarHeight = 128f;
+        /// <summary>
+        /// 액션바 높이 (기준 캔버스). **128 → 150**(2026-09-11 설계 확정 (가)).
+        ///
+        /// ✅ **문서 안 어긋남이 닫혔다** — 구 128 은 버튼 최소 150 을 밑돌아
+        /// UI 아트 5-3 과 6-2 가 서로 안 맞았다(`260911_V01` 2-4 판정 요청).
+        /// **띠를 버튼 최소에 맞추는 쪽**으로 답이 왔다. 구 128 은 폐기 표기.
+        /// </summary>
+        public const float ActionBarHeight = 150f;
 
         /// <summary>띠 다섯. 위에서 아래 차례다.</summary>
         public enum Band { Combat, Board, FloatBand, VariablePanel, ActionBar }
@@ -181,10 +193,10 @@ namespace MBI.UI
         /// 「적용」 버튼 세로. <see cref="ActionBarHeight"/> 와 **같아야 한다**(시험이 지킨다) —
         /// 둘 다 레이어 2 의 수라 견주는 것이 맞다.
         ///
-        /// ⚠️ **문서 안 충돌 하나가 여기 남는다** — UI 아트 5-3 의 액션바 128 과
-        /// 6-2 의 버튼 최소 150 이 서로 안 맞는다. **판정 대기**(`260911_V01` 2-4).
+        /// ✅ **128 → 150**(2026-09-11 설계 확정). 이제 **버튼 최소 150 을 지킨다** —
+        /// 판정 대기 표기는 걷었다.
         /// </summary>
-        public const float ApplyButtonHeight = 128f;
+        public const float ApplyButtonHeight = 150f;
 
         /// <summary>
         /// 버튼의 **최소 변** (기준 캔버스 · UI 문서 「1440 기준 150px」).
