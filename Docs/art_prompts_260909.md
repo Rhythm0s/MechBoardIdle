@@ -328,6 +328,33 @@ the SAME heavy tracked tank as in its other views, now seen from directly behind
 
 ---
 
+## 13. `boss_Move` 4차 — ✅ **사용자 육안 통과 · 설치** (남 `b1885312` · 북 `5a80e85f` · 각 6 생성)
+
+**왜 다시 뽑았나** — 「시작 칸과 끝 칸이 안 이어진다」(사용자 · 2026-09-11). 순환 재생에서만 생기는
+**5칸 → 0칸** 이음새가 벌 안 최대였다(남 12.0% · 북 13.0%). **핑퐁으로 덮지 않고 프레임으로 고쳤다.**
+
+| 항목 | 값 |
+|---|---|
+| 도구·인자 | 11·12번과 같다 (`v3` · `frame_count=6` · `keep_first_frame=false`) |
+| **끝 프레임** | **`end_frame_url` = 그 방향의 회전본 URL** — 시작 프레임(기본값)과 같은 그림이라 **시작=끝**이 정확히 맞는다 |
+
+**`end_frame_url` 을 쓴 이유 둘** — ① **손 편집 0.** 끝 자세를 만들지 않고 시작 그림을 그대로 되쓴다
+② **base64 잘림 우회.** 인라인은 **7,332자에서도 끝 4자가 잘리고 4비트 팔레트는 디코딩이 안 된다**(3-24).
+
+**남면 문안** (북면은 `directly in front … toward the viewer` 를 `directly behind … away from the viewer` 로만 바꾼다)
+
+```
+the SAME heavy tracked tank as in its other views, seen from directly in front, driving forward at a slow crawl toward the viewer. Keep its identity exactly: the same hull outline, the same plating layout, the same number and placement of gun barrels, the same gunmetal steel with dark red accent panels. Its tracks roll and the road wheels turn, the hull rocks a little as it grinds along. The camera does not move: the machine is drawn at the same size in every frame, held square-on to the viewer, never turning to a three-quarter or isometric angle, never getting smaller or larger, and never changing its outline between frames. The motion is one full cycle of the tracks that ends exactly where it began, so the last frame runs straight back into the first.
+```
+
+**3차에서 더한 것 둘** — ① **방향구 정정** — 남면에 「뒤에서 본다」를 그대로 두면 그림이 뒤집힌다
+② **마지막 한 문장** — `The motion is one full cycle of the tracks that ends exactly where it began, so the last frame runs straight back into the first.` **끝 프레임만으로는 「닫힌 순환」이라는 뜻이 안 전해진다.**
+
+**결과** — wrap 화소 차 **12.0% → 0.4%**(남) · **13.0% → 2.5%**(북) · 이음새 최솟값 **0.956 · 0.939**.
+⚠️ 남면은 이웃 화소 차 평균이 **5.8% → 2.2%** 로 떨어졌다(움직임 축소 함정). **육안이 통과시켰다.**
+
+---
+
 ---
 
 ## 설계에 넘기는 것
