@@ -69,6 +69,9 @@ namespace MBI.Editor
                           + "작다고 반려가 아니라 「움직임이 줄었다」는 신호이고 판정은 육안이다");
             sb.AppendLine("- **wrap 겹침**은 `SilhouetteOverlap.Ratio(마지막, 첫)` 이다. 이음새 잣대는 **0.78 이상**"
                           + "(규칙 15 · 이웃 이음새와 같은 눈금)");
+            sb.AppendLine("- ⚠️ **wrap 열은 순환 재생 벌에만 낸다** — 대기는 왕복(마지막 다음은 마지막-1), "
+                          + "사망·태그인은 한 번만 재생해 **다음 칸이 없다.** 그 벌에 값을 내면 "
+                          + "**없는 결함**이 된다(사망 벌은 그대로 재면 43.8%가 찍힌다). `— 왕복`·`— 1회`로 가린다");
             sb.AppendLine("- 알파 문턱: 16 초과를 「있다」로 본다 · 캔버스 그대로만 잰다(자르거나 늘이지 않는다)");
             sb.AppendLine("- 계산: `MBI.Core.SilhouetteOverlap.TryBounds` 재사용");
             sb.AppendLine("- 도구 커밋은 **실행 시점의 HEAD**다. **잰 파일이 무엇인지는 아래 표의 md5가 말한다**");
@@ -163,18 +166,22 @@ namespace MBI.Editor
                     // 순환 재생은 **마지막 칸 다음에 첫 칸**이 온다. 이웃끼리 아무리 매끄러워도
                     // 그 한 자리가 벌어져 있으면 한 바퀴마다 그림이 튄다 — 보스 이동 3차가 그랬다.
                     string wrapDiff = "—", wrapOverlap = "—", neighborDiff = "—";
-                    bool pp = clipName.EndsWith("_Idle", StringComparison.Ordinal); // 왕복은 대기뿐(규칙 15 7-5)
+                    // ⚠️ **wrap 은 순환 재생에만 있는 자리다.**
+                    //   대기 = 왕복(마지막 다음은 마지막-1) · 사망·태그인 = 한 번만 재생(다음이 없다).
+                    //   **이동만 순환**이라 첫 칸으로 돌아온다(규칙 15 7-5 · `260911` 아트).
+                    //   안 가리면 사망 벌의 43.8% 같은 숫자가 **없는 결함**으로 읽힌다.
+                    string wrapWhy =
+                        clipName.EndsWith("_Idle", StringComparison.Ordinal) ? "— 왕복"
+                        : clipName.EndsWith("_Move", StringComparison.Ordinal) ? null
+                        : "— 1회";
                     if (masks.Count >= 2)
                     {
                         AlphaMask first = masks[0], last = masks[masks.Count - 1];
 
-                        // ⚠️ **왕복 재생은 wrap 이 이음새가 아니다.** 마지막 칸 다음은 첫 칸이 아니라
-                        // 마지막-1 칸이라 여기 숫자가 커도 화면에서는 튀지 않는다 — 값을 내면
-                        // 없는 결함을 만든다. 그래서 **가린다**(2026-09-11).
-                        if (pp)
+                        if (wrapWhy != null)
                         {
-                            wrapDiff = "— 왕복";
-                            wrapOverlap = "— 왕복";
+                            wrapDiff = wrapWhy;
+                            wrapOverlap = wrapWhy;
                         }
                         else
                         {
