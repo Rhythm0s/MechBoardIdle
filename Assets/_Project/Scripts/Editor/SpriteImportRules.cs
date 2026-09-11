@@ -40,6 +40,24 @@ namespace MBI.Editor
             TextureImporterSettings s = new TextureImporterSettings();
             importer.ReadTextureSettings(s);
             s.spriteAlignment = (int)SpriteAlignment.Center;
+
+            // ⚠️ **UI 그릇은 9-슬라이스 여백이 있어야 한다** (2026-09-11 · `260911_W02` 9장).
+            //
+            // 아트가 그림에 여백 16 을 그려 넣어도 **임포터가 0 이면 늘릴 때 통짜로 늘어난다** —
+            // 모서리가 뭉개지고 테두리가 굵어진다. 그 값을 **여기서 강제하는 이유**는 이 파일이
+            // 임포트 규격의 소스이기 때문이다(아트가 `.meta` 를 손으로 고치면 다음 재임포트에
+            // 지워진다 · 클래스 요약의 「파일만 넣게 만든다」가 그 뜻이다).
+            //
+            // ⚠️ **IMGUI 는 이 값을 안 본다** — `UiSkin` 은 `GUIStyle.border` 를 쓴다.
+            // 그래도 넣는 이유는 **자산이 스스로 제 여백을 말해야** 하기 때문이다:
+            // 생성기가 이 값을 읽어 `UiSkinAssets.border` 에 넣으므로, 그림이 바뀌면
+            // **코드 상수를 안 고쳐도 따라온다.**
+            if (ArtSpec.IsUiPlatePath(assetPath))
+            {
+                int b = ArtSpec.UiPlateBorder;
+                s.spriteBorder = new Vector4(b, b, b, b);
+            }
+
             importer.SetTextureSettings(s);
         }
 

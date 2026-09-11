@@ -37,13 +37,26 @@ namespace MBI.Editor
             so.buttonPressed = Load("ui_plate_button_pressed");
             so.buttonLocked = Load("ui_plate_button_locked");
             so.panel = Load("ui_plate_panel");
-            so.border = 16; // 9-슬라이스 원본 64 · 여백 16 (W02 9장)
+            // ⚠️ **여백을 그림에서 읽는다**(2026-09-11) — 상수로 박으면 그림이 바뀔 때
+            // 코드도 같이 고쳐야 하고, 안 고치면 **임포터와 껍데기가 서로 다른 여백**을 믿는다.
+            // `SpriteImportRules` 가 강제한 값이 그대로 돌아온다.
+            so.border = BorderOf("ui_plate_button", ArtSpec.UiPlateBorder);
 
             EditorUtility.SetDirty(so);
             AssetDatabase.SaveAssets();
 
             Debug.Log($"[MBI] UI 그릇 자산 — 기본 {Mark(so.buttonNormal)} · 눌림 {Mark(so.buttonPressed)}"
                       + $" · 잠김 {Mark(so.buttonLocked)} · 패널 {Mark(so.panel)} · 여백 {so.border}");
+        }
+
+        /// <summary>그림에 박힌 9-슬라이스 여백. 못 읽으면 규격 기본값.</summary>
+        private static int BorderOf(string name, int fallback)
+        {
+            var sp = AssetDatabase.LoadAssetAtPath<Sprite>($"{ArtDir}/{name}.png");
+            if (sp == null) return fallback;
+
+            int left = Mathf.RoundToInt(sp.border.x);
+            return left > 0 ? left : fallback;
         }
 
         private static Texture2D Load(string name) =>

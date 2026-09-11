@@ -83,6 +83,26 @@ namespace MBI.Data
             return UnityEngine.Mathf.Atan2(direction.y, direction.x) * UnityEngine.Mathf.Rad2Deg;
         }
 
+        /// <summary>
+        /// UI 그릇 9-슬라이스 여백(px) — **원본 64 에 16** (`260911_W02` 9장).
+        ///
+        /// ⚠️ **그림이 바뀌면 이 값도 같이 바뀐다.** 여백은 그림에 그려진 것이라
+        /// 코드가 정하는 값이 아니라 **그림을 받아 적는 값**이다.
+        /// </summary>
+        public const int UiPlateBorder = 16;
+
+        /// <summary>
+        /// UI 그릇 스프라이트인가 — **9-슬라이스 여백을 강제하는 자리**.
+        ///
+        /// 아이콘(`icon_*`)은 제외한다. 아이콘은 늘려 쓰지 않으므로 여백을 주면
+        /// **가운데만 늘어나 그림이 찌그러진다.**
+        /// </summary>
+        public static bool IsUiPlatePath(string assetPath)
+        {
+            if (string.IsNullOrEmpty(assetPath)) return false;
+            return assetPath.Contains("/UI/") && assetPath.Contains("ui_plate_");
+        }
+
         /// <summary>보드용 스프라이트인가(캔버스가 타일 규격의 배수여야 하는 폴더).</summary>
         public static bool IsBoardArtPath(string assetPath)
         {
