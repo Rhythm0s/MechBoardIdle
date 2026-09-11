@@ -124,5 +124,38 @@ namespace MBI.Tests
             Assert.Less(UiSkin.Fill.r, 0.2f, "바탕은 검정 계열");
             Assert.Less(UiSkin.Fill.a, 1f, "반투명 — 뒤 전투가 비친다");
         }
+
+        /// <summary>
+        /// **상태는 명도로 말한다** (2026-09-11 아트 요청 · 구 「주황 곱」 폐기).
+        ///
+        /// 그릇 그림이 이미 색을 갖고 있어 주황을 곱하면 **색조가 통째로 돌아간다** —
+        /// 금속이 주황 금속이 된다. 명도는 색조를 안 건드린다.
+        /// </summary>
+        [Test]
+        public void 눌림은_어두워지고_손올림은_밝아진다()
+        {
+            Assert.Less(UiSkin.PressedMul, 1f, "눌리면 어두워진다");
+            Assert.Greater(UiSkin.HoverMul, 1f, "손이 올라가면 밝아진다");
+
+            Color p = UiSkin.PressedTint, h = UiSkin.HoverTint;
+            Assert.Less(p.r + p.g + p.b, UiSkin.Text.r + UiSkin.Text.g + UiSkin.Text.b);
+            Assert.Greater(h.r + h.g + h.b, UiSkin.Text.r + UiSkin.Text.g + UiSkin.Text.b);
+        }
+
+        [Test]
+        public void 명도_곱은_색조를_안_돌린다()
+        {
+            // ⚠️ **이것이 주황 곱과 갈리는 자리다.** 주황을 곱하면 파랑 채널이 죽어
+            // 색조가 돈다 — 명도는 세 채널을 같은 비로 옮긴다.
+            var blue = new Color(0.2f, 0.4f, 0.8f, 1f);
+            Color b = UiSkin.Brighten(blue, 0.5f);
+
+            Assert.AreEqual(blue.r / blue.b, b.r / b.b, 0.0001f, "채널 비가 그대로다");
+            Assert.AreEqual(blue.a, b.a, 0.0001f, "알파는 안 건드린다");
+
+            // 1 을 넘겨도 안 터진다 — 흰색에서 멈춘다.
+            Color hot = UiSkin.Brighten(Color.white, 3f);
+            Assert.AreEqual(1f, hot.r, 0.0001f);
+        }
     }
 }

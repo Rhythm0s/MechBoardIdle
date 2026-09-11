@@ -32,8 +32,45 @@ namespace MBI.UI
         /// <summary>테두리 — 미색. 무채색 금속 위의 유일한 밝은 선이다.</summary>
         public static readonly Color Border = new Color(0.86f, 0.83f, 0.74f, 1f);
 
-        /// <summary>강조 — 주황. **고른 것·눌린 것**에만 쓴다(두 군데 넘게 쓰면 강조가 아니다).</summary>
+        /// <summary>
+        /// 강조 — 주황. ⚠️ **상태 표시에서는 물러났다**(2026-09-11 · 아트 요청).
+        ///
+        /// 눌림·고름을 **주황 곱**으로 말하던 자리를 <see cref="PressedTint"/>·<see cref="HoverTint"/>
+        /// 의 **명도 곱**으로 옮겼다. 그릇 그림이 이미 색을 갖고 있어서, 거기에 주황을 곱하면
+        /// **그림의 색조가 통째로 돌아간다** — 금속이 주황 금속이 된다.
+        /// 명도는 색조를 안 건드리고 **밝기만** 옮기므로 어떤 그림에도 얹힌다.
+        ///
+        /// 색 자체는 남긴다 — 경고·강조가 **색으로** 말해야 하는 자리가 따로 있다.
+        /// </summary>
         public static readonly Color Accent = new Color(0.95f, 0.55f, 0.18f, 1f);
+
+        // ───────────────── 상태 틴트 — **바꿀 자리는 여기 하나** ─────────────────
+        //
+        //  (2026-09-11 아트 요청 · 플랜 M-3). 눌림·손 올림을 **명도 곱**으로 말한다.
+        //  ⚠️ **값 둘 다 가정**이다 — 문서에 상태 밝기의 절이 없다(설계 역기입 자리).
+        //
+        //  ⚠️ **지금은 글자에만 걸린다.** 바탕은 아직 상태마다 **다른 텍스처**를 물리는
+        //  방식이고(코드 생성본은 그렇게 지어 두었다), 그림을 명도만 바꿔 쓰려면
+        //  ① 임포트 텍스처를 읽을 수 있게 하거나(메모리 두 배) ② 그릴 때 `GUI.color` 로
+        //  곱해야 한다 — 둘 다 호출부를 건드린다.
+        //  **c13 의 눌림·잠김이 오면 그 그림을 그대로 물리므로 곱할 일이 없어진다.**
+        //  안 오는 자리만 여기 값으로 메우게 되고, 그때 바꿀 곳이 이 둘뿐이다.
+
+        /// <summary>눌린 상태의 밝기 곱. ⚠️ **가정 0.78** — 어두워지는 쪽이 눌림이다.</summary>
+        public const float PressedMul = 0.78f;
+
+        /// <summary>손이 올라간 상태의 밝기 곱. ⚠️ **가정 1.12** — 밝아지는 쪽이 반응이다.</summary>
+        public const float HoverMul = 1.12f;
+
+        /// <summary>밝기만 옮긴다 — **색조·알파는 안 건드린다.**</summary>
+        public static Color Brighten(Color c, float mul) =>
+            new Color(Mathf.Clamp01(c.r * mul), Mathf.Clamp01(c.g * mul), Mathf.Clamp01(c.b * mul), c.a);
+
+        /// <summary>눌린 글자색.</summary>
+        public static Color PressedTint => Brighten(Text, PressedMul);
+
+        /// <summary>손이 올라간 글자색.</summary>
+        public static Color HoverTint => Brighten(Text, HoverMul);
 
         /// <summary>글자 — 미색보다 밝게. 테두리와 같은 색이면 글자가 테두리에 붙는다.</summary>
         public static readonly Color Text = new Color(0.95f, 0.94f, 0.90f, 1f);
@@ -134,14 +171,16 @@ namespace MBI.UI
             s.onActive.background = _active;
             s.onFocused.background = _active;
 
+            // ⚠️ **주황 곱 → 명도 곱**(2026-09-11 · 위 「상태 틴트」 절이 유일한 자리).
+            // 종전에는 눌림·고름을 주황으로 말했는데, 그릇 그림 위에서는 **색조가 돌아간다.**
             s.normal.textColor = Text;
-            s.hover.textColor = Text;
-            s.active.textColor = Accent;   // 눌린 순간은 글자도 주황 — 손가락이 가려도 보인다
+            s.hover.textColor = HoverTint;
+            s.active.textColor = PressedTint;   // 눌린 순간은 글자가 어두워진다 — 바탕과 같은 방향
             s.focused.textColor = Text;
-            s.onNormal.textColor = Accent;
-            s.onHover.textColor = Accent;
-            s.onActive.textColor = Accent;
-            s.onFocused.textColor = Accent;
+            s.onNormal.textColor = PressedTint;
+            s.onHover.textColor = PressedTint;
+            s.onActive.textColor = PressedTint;
+            s.onFocused.textColor = PressedTint;
 
             // 9-슬라이스 여백. **버튼이 커져도 테두리는 4px** — 통짜로 늘리면 모서리가 뭉개진다.
             s.border = new RectOffset(_border, _border, _border, _border);
@@ -183,7 +222,9 @@ namespace MBI.UI
             // 손이 올라간 것은 **밝기**로만 말한다 — 색을 바꾸면 「고른 것」과 헷갈린다.
             _hover = Make(Lighten(Fill, 0.06f), Border);
             // 눌린 것 = 안쪽이 어두워지고 테두리가 주황. 눌렸다는 것이 두 방향으로 보인다.
-            _active = Make(Darken(Fill, 0.35f), Accent);
+            // ⚠️ 코드 생성본도 **같은 방향**으로 맞춘다 — 눌리면 어두워진다.
+            // 테두리까지 주황으로 바꾸던 것을 걷었다(그림이 오면 톤이 갈린다).
+            _active = Make(Darken(Fill, 0.35f), Brighten(Border, PressedMul));
             _off = Make(Darken(Fill, 0.45f), Disabled);
             _plate = Make(UiPlate.Tint, Border);
         }
