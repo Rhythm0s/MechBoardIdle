@@ -196,7 +196,19 @@ namespace MBI.Combat
 
             float ratio = _entity.maxHp > 0f ? Mathf.Clamp01(_entity.hp / _entity.maxHp) : 0f;
             if (_hpFill != null)
+            {
+                // ⚠️ **왼쪽에 붙여 줄인다**(2026-09-11 사용자 확정 · 플랜 §71-16 ⑥).
+                //
+                // 스프라이트 피벗이 가운데라 크기만 줄이면 **양쪽에서 안으로** 오므라든다 —
+                // 화면에서는 막대가 가운데로 모이는 것처럼 보여 **어느 쪽이 줄어드는지**가
+                // 안 읽혔다. 체력은 **오른쪽에서 왼쪽으로** 준다.
+                //
+                // 피벗을 바꿀 수는 없으므로(`PlaceholderSprite.White()` 공용이다)
+                // **왼변이 제자리에 있도록 중심을 민다** — 줄어든 만큼의 절반이다.
                 _hpFill.localScale = new Vector3(_size * ratio, _size * 0.14f, 1f);
+                Vector3 lp = _hpFill.localPosition;
+                _hpFill.localPosition = new Vector3(-_size * (1f - ratio) * 0.5f, lp.y, lp.z);
+            }
         }
 
         /// <summary>
@@ -238,13 +250,16 @@ namespace MBI.Combat
             return false;
         }
 
-        /// <summary>움직인 방향을 넷 중 하나로 접는다. 우세 축이 이긴다.</summary>
-        private static UnitAnimDirection ToDirection(Vector2 delta)
-        {
-            if (Mathf.Abs(delta.x) >= Mathf.Abs(delta.y))
-                return delta.x >= 0f ? UnitAnimDirection.East : UnitAnimDirection.West;
-            return delta.y >= 0f ? UnitAnimDirection.North : UnitAnimDirection.South;
-        }
+        /// <summary>
+        /// 움직인 방향을 넷 중 하나로 접는다 — **마지막 축을 붙든다**
+        /// (2026-09-11 사용자 육안 · <see cref="DirectionHysteresis"/>).
+        ///
+        /// ⚠️ **구 규칙 「우세 축이 이긴다」는 폐기**다. 대각으로 갈 때 두 축이 거의 같아
+        /// 프레임마다 승자가 뒤집혔고, 그때마다 벌이 갈려 **동면과 북면이 번갈아 깜빡였다.**
+        /// 이제 새 축이 옛 축을 1.5배 넘게 이겨야 넘어간다.
+        /// </summary>
+        private static UnitAnimDirection ToDirection(Vector2 delta, UnitAnimDirection last) =>
+            DirectionHysteresis.Resolve(delta, last);
 
         // 애니메이션 상태 선택. 위치 변화로 이동을 판정한다 — 시뮬은 속도를 내주지 않는다.
         private void DriveAnimation(float dt)
@@ -267,7 +282,9 @@ namespace MBI.Combat
             float moved = delta.magnitude;
             if (moved > MoveEpsilonPerSecond * Mathf.Max(dt, 1e-4f))
             {
-                _lastDirection = ToDirection(delta);
+                // ⚠️ **자동 이동에도 같이 걸린다** — 떨림은 입력이 아니라 위치 변화를
+                // 방향으로 접는 이 자리에서 나므로, 손으로 몰든 시뮬이 몰든 같은 곳이다.
+                _lastDirection = ToDirection(delta, _lastDirection);
                 PlayState(UnitAnimState.Move, _lastDirection);
             }
             else PlayState(UnitAnimState.Idle, _lastDirection);
