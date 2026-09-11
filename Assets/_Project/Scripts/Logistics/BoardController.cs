@@ -65,6 +65,9 @@ namespace MBI.Logistics
         private const float PaletteThumbPad = 4f;
 
         private int _selectedNode; // 팔레트에서 선택된 노드 인덱스
+
+        /// <summary>팔레트 가로 스크롤 자리. 열한 칸이 기준 캔버스 1440 을 넘어선다(2026-09-11).</summary>
+        private Vector2 _paletteScroll;
         // 버튼 자리는 MBI.UI.UiBlockers가 모은다 — 다른 어셈블리가 그린 패널까지 함께 막기 위해서다.
 
         /// <summary>배치 상태 격자(§5-5 출력 집계용). Awake 후 유효.</summary>
@@ -1529,7 +1532,7 @@ namespace MBI.Logistics
             // (2026-09-10 · 실측: 오프라인 대화상자가 「게임 시작」 버튼을 덮었다).
             if (MainMenuGate.IsOpen) return;
             if (!GameLayerController.BoardViewActive) return;
-            KoreanFont.Apply(); // WebGL엔 시스템 폰트 폴백이 없다
+            UiSkin.Apply(); // 껍데기 + 한글 폰트 — WebGL엔 시스템 폰트 폴백이 없다
 
             DrawSupplyWarningBand(); // 0차 — 다른 표시보다 먼저 그린다(UI 문서 12-4)
             DrawTutorialGhost(); // 라벨보다 먼저 — 고스트는 배경이지 글자가 아니다
@@ -1542,32 +1545,53 @@ namespace MBI.Logistics
 
             if (palette == null || palette.Count == 0) return;
 
-            // 글자를 오른쪽으로 민다 — 왼쪽 안쪽은 노드 그림이 쓴다(`DrawPaletteThumb`).
-            var style = new GUIStyle(GUI.skin.button) { fontSize = 15 };
-            const float w = 130f, h = 36f, pad = 6f;
-            style.padding = new RectOffset(
-                Mathf.CeilToInt(h - PaletteThumbPad), style.padding.right,
-                style.padding.top, style.padding.bottom);
-            float x = Screen.width - w - 12f;
-            // ⚠️ 변수 패널(우상단 12..262)과 겹치면 안 된다 — 실제로 겹쳐서 「노드 팔레트」 글자가
-            // 패널 위에 얹혀 있었다. 그 아래에서 시작한다.
-            float y0 = 300f;
+            // ────────────────────────────────────────────────────────────────
+            //  노드 팔레트 — **보드 위 세로 줄에서 부유 띠 가로 줄로** 옮겼다
+            //  (2026-09-11 · 플랜 §68-4 (A) · §69 2번).
+            //
+            //  종전 자리는 `x = Screen.width - 142`, `y0 = 300`, 버튼 `130×36` 의 **날 픽셀**이었다.
+            //  문제가 셋이었다 —
+            //   ① 36px 는 문서 최소 150 의 4분의 1이다(리허설 1차 「눌러도 안 먹었다」).
+            //   ② 보드 위에 떠 있어 `UiPlate` 와 튜토리얼 DIM 이 **겹치는 유일한 자리**였다.
+            //   ③ 창이 작으면 아래가 잘려 「제거」와 조작 안내가 안 보였다(2026-09-09 실측).
+            //  부유 띠로 내보내면 셋이 **한꺼번에** 없어진다.
+            //
+            //  ⚠️ **가로로 넘치면 스크롤한다.** 열한 칸 × 150 = 1650 이라 기준 캔버스 1440 을
+            //  넘는다 — 줄여서 맞추면 ①로 돌아가므로 **크기를 지키고 스크롤을 준다.**
+            //  합체·태그 원형과 자리를 다투지 않는다(그 둘은 전투 화면에만 그려진다).
+            // ────────────────────────────────────────────────────────────────
+            float sc = UiLayout.Scale(Screen.height);
+            Rect band = UiLayout.PaletteRect(Screen.width, Screen.height);
+            UiBlockers.Add(band);
+            GUI.DrawTexture(band, UiSkin.PlateTexture);
+
+            float pad = 12f * sc;
+            float side = Mathf.Min(UiLayout.MinButton * sc, band.height - pad * 2f);
+            var style = new GUIStyle(GUI.skin.button)
+            {
+                fontSize = Mathf.Max(9, Mathf.RoundToInt(side * 0.13f)),
+                wordWrap = true,
+                alignment = TextAnchor.LowerCenter,
+            };
+            // 글자를 **아래로** 민다 — 위쪽은 노드 그림이 쓴다(`DrawPaletteThumb`).
+            style.padding = new RectOffset(2, 2, Mathf.RoundToInt(side * 0.56f), 2);
+
+            int slots = palette.Count + 2 + (modulePalette != null ? modulePalette.Count : 0) + 1;
+            float step = side + pad;
+            var view = new Rect(band.x + pad, band.y + pad,
+                band.width - pad * 2f, band.height - pad * 2f);
+            var content = new Rect(0f, 0f, slots * step, side);
 
             // 이동 모드에서는 팔레트를 흐리게 — 지금은 놓을 수 없다는 것을 버튼 상태로 알린다.
             GUI.enabled = _mode == BoardMode.Build;
 
-            // 팔레트도 인셋 위에 걸린다 — 제목부터 마지막 버튼까지 한 판으로 덮는다(§66-35 ②).
-            // 아래 요소·모듈·제거까지 이어지므로 넉넉히 잡는다.
-            float plateH = 26f + palette.Count * (h + pad) + (h + pad) * 5f + 40f;
-            UiPlate.Draw(new Rect(x, y0 - 26f, w + 20f, plateH));
+            _paletteScroll = GUI.BeginScrollView(view, _paletteScroll, content, true, false);
+            float bx = 0f;
 
-            GUI.Label(new Rect(x, y0 - 26f, w, 24f), "노드 팔레트", new GUIStyle(GUI.skin.label) { fontSize = 15 });
-            int i;
-            for (i = 0; i < palette.Count; i++)
+            for (int i = 0; i < palette.Count; i++)
             {
-                if (palette[i] == null) continue;
-                var rect = new Rect(x, y0 + i * (h + pad), w, h);
-                UiBlockers.Add(rect);
+                if (palette[i] == null) { bx += step; continue; }
+                var rect = new Rect(bx, 0f, side, side);
 
                 // ⚠️ **튜토리얼 동안에는 놓을 것 하나만 켠다**(2026-09-11 · 플랜 §68-5 ①).
                 //
@@ -1580,6 +1604,9 @@ namespace MBI.Logistics
                 bool wasEnabled = GUI.enabled;
                 GUI.enabled = wasEnabled && allowed;
 
+                // IMGUI 에 꺼진 상태 칸이 없어 잠긴 것은 **여기서 직접** 어둡게 깐다(UiSkin 주석).
+                if (!allowed) GUI.DrawTexture(rect, UiSkin.DisabledTexture);
+
                 bool sel = !_removeMode && i == _selectedNode;
                 if (GUI.Button(rect, (sel ? "● " : "") + palette[i].displayName, style))
                 {
@@ -1590,20 +1617,14 @@ namespace MBI.Logistics
                 }
                 DrawPaletteThumb(rect, palette[i]);
                 GUI.enabled = wasEnabled;
+                bx += step;
             }
 
             // 벨트 요소(§5-4 L3). 직선·코너는 드래그가 만들고, 이 둘만 탭으로 놓는다 —
             // 방향이 여러 개라 드래그 경로로는 표현되지 않는다.
-            float ey = y0 + i * (h + pad) + 10f;
-            GUI.Label(new Rect(x, ey - 22f, w + 20f, 22f), "벨트 요소",
-                new GUIStyle(GUI.skin.label) { fontSize = 14 });
-            ey += 2f;
-
             foreach (BeltElementKind e in new[] { BeltElementKind.Merger, BeltElementKind.Sorter })
             {
-                var eRect = new Rect(x, ey, w, h);
-                UiBlockers.Add(eRect);
-
+                var eRect = new Rect(bx, 0f, side, side);
                 bool on = !_removeMode && _elementMode == e;
 
                 // 강제 버튼(튜토리얼 기획서 2장) — 지금 놓아야 할 것을 빛나게 한다.
@@ -1622,54 +1643,48 @@ namespace MBI.Logistics
                     _removeMode = false;
                     _selectedModule = -1;
                 }
-                ey += h + pad;
+                bx += step;
             }
 
             // 모듈 2종 (2026-09-09 · MVP 문서 11장). **놓는 것이 아니라 붙이는 것**이라
             // 고른 뒤 이미 놓인 노드를 탭한다 — 빈 칸을 탭할 자리가 없다(범위 효과 폐기).
-            if (modulePalette != null && modulePalette.Count > 0)
+            //
+            // ⚠️ 종전의 「한 줄에 둘씩」은 세로 줄에서 아래가 잘리는 것을 막던 장치였다
+            // (2026-09-09). 가로 줄에서는 잘릴 아래가 없어 **같은 크기로 나란히** 둔다.
+            if (modulePalette != null)
             {
-                GUI.Label(new Rect(x, ey - 22f, w + 20f, 22f), "모듈",
-                    new GUIStyle(GUI.skin.label) { fontSize = 14 });
-                ey += 2f;
-
-                // ⚠️ **한 줄에 둘씩 놓는다.** 세로로 쌓으면 팔레트가 화면 아래로 밀려
-                // **제거 버튼과 조작 안내가 잘린다** — 800px 창에서 실측했다(2026-09-09).
-                // 지침 §7 ［09-02］「그려지고 있었으나 잘려 한 번도 안 보였다」와 같은 자리다.
-                var modStyle = new GUIStyle(GUI.skin.button) { fontSize = 13 };
-                float mw = (w - pad) * 0.5f;
                 for (int m = 0; m < modulePalette.Count; m++)
                 {
-                    if (modulePalette[m] == null) continue;
-                    var mRect = new Rect(x + (m % 2) * (mw + pad), ey + (m / 2) * (h + pad), mw, h);
-                    UiBlockers.Add(mRect);
-
+                    if (modulePalette[m] == null) { bx += step; continue; }
+                    var mRect = new Rect(bx, 0f, side, side);
                     bool on = !_removeMode && _selectedModule == m;
-                    if (GUI.Button(mRect, (on ? "●" : "") + modulePalette[m].displayName, modStyle))
+                    if (GUI.Button(mRect, (on ? "●" : "") + modulePalette[m].displayName, style))
                     {
                         _selectedModule = on ? -1 : m;
                         _removeMode = false;
                         _elementMode = null;
                     }
+                    bx += step;
                 }
-                ey += ((modulePalette.Count + 1) / 2) * (h + pad);
             }
 
             // 제거 토글.
-            var rmRect = new Rect(x, ey + 4f, w, h);
-            UiBlockers.Add(rmRect);
-            if (GUI.Button(rmRect, (_removeMode ? "● " : "") + "제거", style))
+            if (GUI.Button(new Rect(bx, 0f, side, side), (_removeMode ? "● " : "") + "제거", style))
             {
                 _removeMode = !_removeMode;
                 if (_removeMode) { _elementMode = null; _selectedModule = -1; }
             }
 
-            GUI.Label(new Rect(x, ey + h + 12f, w + 20f, 60f),
-                _removeMode ? "제거 모드\n탭=노드/벨트 삭제"
-                : _selectedModule >= 0 ? "모듈 모드\n탭=놓인 노드에 장착"
-                : "탭=노드 배치\n드래그=벨트");
-
+            GUI.EndScrollView();
             GUI.enabled = true;
+
+            // 조작 안내 — 띠 **바로 위**에 얹는다. 버튼 줄과 같은 칸을 쓰면 스크롤에
+            // 딸려 나가 「지금 무슨 모드인가」를 볼 수 없게 된다.
+            GUI.Label(new Rect(band.x + pad, band.y - 30f * sc, band.width, 30f * sc),
+                _removeMode ? "제거 모드 · 탭 = 노드/벨트 삭제"
+                : _selectedModule >= 0 ? "모듈 모드 · 탭 = 놓인 노드에 장착"
+                : "탭 = 노드 배치 · 드래그 = 벨트",
+                new GUIStyle(GUI.skin.label) { fontSize = Mathf.Max(9, Mathf.RoundToInt(24f * sc)) });
 
             DrawRecipePanel();
         }
@@ -1983,8 +1998,12 @@ namespace MBI.Logistics
             Sprite icon = art.NodeSprite(def.type);
             if (icon == null) return; // 그림이 없으면 글자만 — 색 사각으로 대신하지 않는다
 
-            float side = button.height - PaletteThumbPad * 2f;
-            var box = new Rect(button.x + PaletteThumbPad, button.y + PaletteThumbPad, side, side);
+            // ⚠️ **정사각 버튼에서는 위쪽 절반을 쓴다**(2026-09-11 · 팔레트 가로 개편).
+            // 종전처럼 왼쪽을 통째로 채우면 그림이 버튼을 다 덮어 **글자가 그림 뒤로 간다** —
+            // 세로 줄 시절에는 버튼이 납작해서(130×36) 왼쪽 정사각이 자연히 아이콘 칸이었다.
+            float side = button.height * 0.52f;
+            var box = new Rect(button.x + (button.width - side) * 0.5f,
+                button.y + PaletteThumbPad, side, side);
             GUI.DrawTextureWithTexCoords(box, icon.texture, SpriteUv(icon), true);
         }
 
@@ -2028,7 +2047,11 @@ namespace MBI.Logistics
         // 모드를 바꾸는 곳과 확인하는 곳이 같은 자리가 되고, 화면 요소도 하나 아낀다.
         private void DrawModeButton()
         {
-            var style = new GUIStyle(GUI.skin.button) { fontSize = 16 };
+            var style = new GUIStyle(GUI.skin.button)
+            {
+                fontSize = Mathf.Max(10, Mathf.RoundToInt(UiLayout.Px(UiLayout.RoundButtonDiameter) * 0.14f)),
+                wordWrap = true,
+            };
 
             // ⚠️ **왼쪽 위로 옮긴다.** 종전에는 화면 바닥(height-78)에 고정돼 있었는데,
             // 팔레트는 y 300에서 아래로 자라므로 창 높이에 따라 **중간에서 만난다** —
@@ -2036,9 +2059,12 @@ namespace MBI.Logistics
             // (2026-09-02 실측). 팔레트 아래에 붙여도 팔레트가 화면보다 길면 다시 겹친다.
             //
             // 화면 바닥과 화면 위를 각각 기준으로 삼는 두 요소는 언젠가 반드시 만난다.
-            // 그래서 같은 기준(왼쪽 위)을 쓰는 배율 줄 옆으로 보낸다.
-            var rect = new Rect(12f, 300f, 140f, 46f);
-            UiPlate.Draw(rect); // 인셋 전투 위라 바탕을 깐다(§66-35 ②)
+            //
+            // ⚠️ **이제 왼쪽 위도 아니다**(2026-09-11 · 플랜 §68-4 (A)). 문서 9-4 의
+            // **부유 띠**가 「미니맵·모드」의 자리이며, 거기로 내보내면 상단 인셋 전투 위에
+            // 깔던 `UiPlate` 도 함께 없어진다 — 판을 깔던 이유가 **자리가 틀렸기 때문**이었다.
+            // 전투 화면의 합체·태그 원형과 같은 칸을 쓰지만 **둘은 같은 화면에 안 뜬다.**
+            var rect = UiLayout.RoundButtonRect(1, Screen.width, Screen.height);
             UiBlockers.Add(rect);
 
             string label = _mode == BoardMode.Pan ? "이동 모드" : "조립 모드";
@@ -2127,9 +2153,17 @@ namespace MBI.Logistics
         {
             if (_pan == null || config == null) return;
 
-            const float mapW = 96f;
-            float mapH = mapW * config.rows / Mathf.Max(1, config.columns);
-            var box = new Rect(12f, Screen.height - mapH - 32f, mapW, mapH);
+            // ⚠️ **화면 바닥에서 부유 띠로 옮겼다**(2026-09-11 · 플랜 §68-4 (A) · 문서 9-4).
+            // 바닥 고정이라 액션바(조립 진입 막대)와 변수 패널 띠가 자리를 잡는 순간 그 밑에
+            // 깔린다 — 자리를 안 옮기면 막대 600×160 이 미니맵을 통째로 덮는다.
+            //
+            // ⚠️ **가로세로비를 지킨다.** 칸은 정사각이라 보드 형태가 왜곡되면 실루엣이 안 읽힌다.
+            Rect slot = UiLayout.RoundButtonRect(0, Screen.width, Screen.height);
+            float ratio = config.rows / Mathf.Max(1f, config.columns);
+            float mapH = Mathf.Min(slot.height, slot.width * ratio);
+            float mapW = mapH / Mathf.Max(0.001f, ratio);
+            var box = new Rect(slot.x + (slot.width - mapW) * 0.5f,
+                slot.y + (slot.height - mapH) * 0.5f, mapW, mapH);
             UiBlockers.Add(box);
 
             GUI.Box(box, GUIContent.none);

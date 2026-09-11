@@ -93,7 +93,7 @@ namespace MBI.UI
             // 메뉴의 「볼륨」이 아무것도 안 여는 버튼이 된다.
             GUI.depth = MenuDepth - 1;
 
-            KoreanFont.Apply();
+            UiSkin.Apply(); // 껍데기 + 한글 폰트 — WebGL엔 시스템 폰트 폴백이 없다
 
             // 버튼은 오른쪽 아래 — 바닥에서 잰다(위쪽은 두 번 다 걸렸다).
             float top = Screen.height - BottomInset;

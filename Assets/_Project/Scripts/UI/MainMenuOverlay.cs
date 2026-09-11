@@ -61,7 +61,7 @@ namespace MBI.UI
             // 메뉴 뒤로 들어가면 안 된다.
             GUI.depth = AudioOptionsPanel.MenuDepth;
 
-            KoreanFont.Apply();
+            UiSkin.Apply(); // 껍데기 + 한글 폰트 — WebGL엔 시스템 폰트 폴백이 없다
 
             // 화면을 통째로 덮는다. 자리를 내놓아야 아래 보드·전투가 같이 눌리지 않는다.
             var full = new Rect(0f, 0f, Screen.width, Screen.height);

@@ -46,7 +46,7 @@ namespace MBI.Idle
             OfflineRewardResult r = _idle.LastOfflineReward;
             if (r.creditedHours < minHoursToShow) return; // 방금 껐다 켠 것 — 알릴 것이 없다
 
-            KoreanFont.Apply(); // WebGL엔 시스템 폰트 폴백이 없다
+            UiSkin.Apply(); // 껍데기 + 한글 폰트 — WebGL엔 시스템 폰트 폴백이 없다
             EnsureStyles();
 
             // 높이 300 — 232로는 「확인」 버튼이 영역 밖으로 잘려 **창을 닫을 수가 없었다**

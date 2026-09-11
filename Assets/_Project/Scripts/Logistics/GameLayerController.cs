@@ -143,10 +143,17 @@ namespace MBI.Logistics
             // 메인 메뉴가 덮고 있으면 그리지 않는다 — IMGUI 는 뒤에 그리는 쪽이 위로 온다
             // (2026-09-10 · 실측: 오프라인 대화상자가 「게임 시작」 버튼을 덮었다).
             if (MainMenuGate.IsOpen) return;
-            MBI.UI.KoreanFont.Apply(); // WebGL엔 시스템 폰트 폴백이 없다
-            var style = new GUIStyle(GUI.skin.button) { fontSize = 18 };
-            const float w = 220f, h = 46f;
-            var rect = new Rect((Screen.width - w) * 0.5f, Screen.height - h - 14f, w, h);
+            MBI.UI.UiSkin.Apply(); // 껍데기 + 한글 폰트 — WebGL엔 시스템 폰트 폴백이 없다
+            // ⚠️ **날 픽셀 220×46 을 걷었다**(2026-09-11 · 플랜 §68-4 (A)).
+            // 문서는 조립 진입을 **막대 600×160**(기준 1440×2560)으로 정해 두었고,
+            // 자리는 **액션바 띠**(하단 128) 가운데다. 종전 값은 문서 어디에도 없었고
+            // 창이 커질수록 손가락에 비해 작아졌다 — 최소 150px 규정을 한참 밑돈다.
+            var rect = MBI.UI.UiLayout.EnterBoardRect(Screen.width, Screen.height);
+            // 글자는 버튼 높이를 따라간다 — 고정 18 이면 큰 버튼 안에서 점이 된다.
+            var style = new GUIStyle(GUI.skin.button)
+            {
+                fontSize = Mathf.Max(12, Mathf.RoundToInt(rect.height * 0.28f)),
+            };
 
             MBI.UI.UiBlockers.Add(rect); // 보드가 누르는 순간 판정한다 — UiBlockers 주석
             ButtonRect = rect;

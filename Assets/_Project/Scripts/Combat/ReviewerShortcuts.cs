@@ -59,7 +59,7 @@ namespace MBI.Combat
             // 조립 중에 스테이지를 갈아 끼울 이유도 없다.
             if (GameViewSignals.BoardViewActive) return;
 
-            KoreanFont.Apply();
+            UiSkin.Apply(); // 껍데기 + 한글 폰트 — WebGL엔 시스템 폰트 폴백이 없다
 
             var button = new GUIStyle(GUI.skin.button) { fontSize = 13 };
             const float w = 236f, h = 26f, pad = 4f;

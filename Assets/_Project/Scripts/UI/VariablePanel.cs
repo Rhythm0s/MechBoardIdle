@@ -13,11 +13,14 @@ namespace MBI.UI
     /// 갭 분해 3항의 합은 총갭과 정확히 같다(같은 롤링 창 — RollingWindow).
     /// 화면에서 합이 안 맞아 보이면 그건 표시 버그가 아니라 게시 경로 버그다.
     /// </summary>
+    /// <remarks>자리는 <see cref="UiLayout.Band.VariablePanel"/> — 하단 112(UI 문서 9-4).</remarks>
     public sealed class VariablePanel : MonoBehaviour
     {
-        [Tooltip("패널 폭(px).")]
+        // ⚠️ **폐기 — 자리는 이제 `UiLayout` 이 준다**(2026-09-11 · 플랜 §68-4 (A)).
+        // 씬이 값을 들고 있어 필드를 지우면 직렬화 경고가 나므로 **표기로만 남긴다.**
+        [Tooltip("폐기 — UiLayout.Band.VariablePanel 이 폭을 준다(2026-09-11).")]
         public float width = 300f;
-        [Tooltip("화면 우측·상단 여백(px).")]
+        [Tooltip("폐기 — 자리는 하단 띠다(2026-09-11).")]
         public float margin = 12f;
 
         private GUIStyle _label;
@@ -38,59 +41,71 @@ namespace MBI.UI
             // 메인 메뉴가 덮고 있으면 그리지 않는다 — IMGUI 는 뒤에 그리는 쪽이 위로 온다
             // (2026-09-10 · 실측: 오프라인 대화상자가 「게임 시작」 버튼을 덮었다).
             if (MainMenuGate.IsOpen) return;
-            KoreanFont.Apply(); // WebGL엔 시스템 폰트 폴백이 없다 — 스타일보다 먼저 물린다
-            EnsureStyles();
+            UiSkin.Apply(); // 껍데기 + 한글 폰트 — WebGL엔 시스템 폰트 폴백이 없다
 
             LogisticsResult r = LogisticsOutputBridge.Result;
-            var rect = new Rect(Screen.width - width - margin, margin, width, 250f);
+
+            // ⚠️ **우상단 300×250 에서 하단 띠로 옮겼다** (2026-09-11 · 플랜 §68-4 (A)).
+            //
+            // 문서 9-4 의 변수 패널은 **하단 112** 다(`260910_W04` 를 받아 플랜 §69 2번이
+            // 「변수 패널은 하단이다」로 이미 한 번 정정했다). 우상단에 있던 동안 이 패널은
+            // 노드 팔레트와 자리를 다투었고, 「높이가 250 고정이라 마지막 줄이 한 번도 안 보였다」
+            // (2026-09-02)는 그 다툼의 증상이었다.
+            //
+            // ⚠️ **세로 아홉 줄이 112 에 안 들어간다** — 문서 높이는 지키고 **세 칸으로 접었다.**
+            // 무엇을 접었는지가 판정거리이면 설계가 역기입한다(V01 통보).
+            Rect band = UiLayout.BandRect(UiLayout.Band.VariablePanel, Screen.width, Screen.height);
+            float s = UiLayout.Scale(Screen.height);
+
             // 이 패널 위 클릭은 보드에 닿지 않아야 한다 — 종전에는 자리를 안 내서
             // 패널을 눌러도 그 아래 칸에 노드가 놓였다(UiBlockers 주석).
-            UiBlockers.Add(rect);
+            UiBlockers.Add(band);
+            EnsureStyles(s);
 
-            GUILayout.BeginArea(rect, GUI.skin.box);
-            GUILayout.Label("물류 변수", _head);
+            GUI.DrawTexture(band, UiSkin.PlateTexture);
 
-            // ⚠️ **병목 경고가 맨 위다.** 종전에는 맨 아래였는데 패널 높이가 250 고정이라
-            // 마지막 줄이 영역 밖으로 밀려 **한 번도 화면에 뜬 적이 없었다**(2026-09-02 실측).
-            // 점멸 코드도 문구도 있는데 잘려 있었다 — 「그리는가」가 아니라 「보이는가」의 문제다.
-            //
-            // 높이를 늘리는 쪽은 못 쓴다. 패널은 y 12에서 시작하고 노드 팔레트 라벨이 y 274라,
-            // 250을 넘기면 그쪽과 겹친다(같은 날 겹침 넷을 고친 뒤라 더 만들지 않는다).
-            // 순서를 바꾸면 높이가 그대로다. 병목이 이 패널에서 가장 급한 줄이기도 하다.
+            float pad = 16f * s;
+            float colW = (band.width - pad * 4f) / 3f;
+            float rowH = (band.height - pad) / 3f;
+
+            // ── 1칸: 무엇이 막았나 + 예상/실제/갭 ──────────────────────────────
+            float x = pad;
+            // ⚠️ **병목 경고가 맨 위다.** 종전 세로 배치에서 맨 아래였다가 잘려
+            // 한 번도 뜬 적이 없었다(2026-09-02 실측) — 그 교훈을 자리로 옮긴다.
             string cause = CauseText(LogisticsOutputBridge.GlobalCause);
-            if (cause != null && Blink()) GUILayout.Label(cause, Warn(_label));
-
+            if (cause != null && Blink())
+                GUI.Label(new Rect(x, band.y + pad * 0.2f, colW, rowH), cause, Warn(_head));
+            GUI.Label(new Rect(x, band.y + pad * 0.2f + rowH, colW, rowH), "물류 변수", _head);
             // 「실제」는 **마운트에 닿은 것**이다(2026-09-05 · `260904_W04` 2-1 4번).
-            // 종전에는 계산값이라 벨트를 어떻게 깔든 노드 수만 같으면 같은 수가 떴다.
-            GUILayout.Label($"예상 {r.expected:F1}   실제 {r.actual:F1}   갭 {r.gap:F1}", _label);
-            GUILayout.Space(4f);
+            GUI.Label(new Rect(x, band.y + pad * 0.2f + rowH * 2f, colW, rowH),
+                $"예상 {r.expected:F1}  실제 {r.actual:F1}  갭 {r.gap:F1}", _label);
 
-            GUILayout.Label("갭 발생원", _head);
-            // ⚠️ **전력 줄의 축이 효율에서 사용률로 바뀌었다**(2026-09-06 확정 · UI 문서 3-3).
+            // ── 2칸: 전력 ──────────────────────────────────────────────────────
+            x += colW + pad;
+            // ⚠️ **전력 줄의 축은 효율이 아니라 사용률이다**(2026-09-06 확정 · UI 문서 3-3).
             // 효율은 min(1, 공급÷수요)라 모자라기 전까지 100%에 붙어 움직이지 않는다 —
-            // 「한 대 더 놓을 수 있나」에 답을 못 한다. 사용률(수요÷공급)은 상한이 없어
-            // 여유도 초과도 같은 눈금에서 읽힌다. 갭 숫자(gapPower)는 그대로 둔다.
+            // 사용률(수요÷공급)은 상한이 없어 여유도 초과도 같은 눈금에서 읽힌다.
             float supply = LogisticsOutputBridge.PowerSupply;
             float draw = LogisticsOutputBridge.PowerDraw;
-            GUILayout.Label($"전력  {r.gapPower:F1}   (사용률 {HudBars.UsageText(supply, draw)})", _label);
-            HudBars.Usage(HudBars.Row(width - 24f), supply, draw);
-            // ⚠️ **발열 줄은 폐기됐다**(2026-09-02 폐기 확정 · 2026-09-10 이행).
-            // 09-02 에 축이 없어진 값인데 패널에는 남아 **촬영 D구간에 그대로 찍혔다.**
-            // 값을 만드는 쪽(`gapHeat`·`heatThrottle`)은 안 건드린다 — 여기서 걷는 것은
-            // **화면에 적는 일**이고, 계산을 지우는 것은 별개 판정이다.
-            // 벨트는 다른 둘과 축이 다르다(2026-09-05). 전력·발열은 **식**으로 구한 감쇠이고,
+            GUI.Label(new Rect(x, band.y + pad * 0.2f, colW, rowH), "갭 발생원", _head);
+            GUI.Label(new Rect(x, band.y + pad * 0.2f + rowH, colW, rowH),
+                $"전력 {r.gapPower:F1}  (사용률 {HudBars.UsageText(supply, draw)})", _label);
+            HudBars.Usage(new Rect(x, band.y + rowH * 2.3f, colW, 14f * s), supply, draw);
+
+            // ── 3칸: 벨트 · 배율 · 일감률 ───────────────────────────────────────
+            x += colW + pad;
+            // 벨트는 다른 둘과 축이 다르다(2026-09-05). 전력은 **식**으로 구한 감쇠이고,
             // 벨트는 「만든 것 중 실제로 닿은 비율」을 **역산**한 값이다 — 정체·갈래·거리가
             // 전부 여기 섞여 들어온다. 그래서 「감쇠」가 아니라 「도달」로 적는다.
-            GUILayout.Label($"벨트  {r.gapBelt:F1}   (도달 {Pct(r.beltThrottle)})", _label);
-            GUILayout.Space(4f);
-
-            GUILayout.Label($"명목 배율 ×{r.multiple:F2}", _label);
-
+            //
+            // ⚠️ **발열 줄은 여기 없다** — 2026-09-02 폐기 확정 · 09-10 이행.
+            GUI.Label(new Rect(x, band.y + pad * 0.2f, colW, rowH),
+                $"벨트 {r.gapBelt:F1}  (도달 {Pct(r.beltThrottle)})", _label);
+            GUI.Label(new Rect(x, band.y + pad * 0.2f + rowH, colW, rowH),
+                $"명목 배율 ×{r.multiple:F2}", _label);
             // 일감률(260831_V07 승인분). **총합은 평균**이고, 어느 노드가 노는지는 보드가 그린다.
-            // 전력 수요가 이 값을 타므로 갭 발생원 「전력」과 같은 눈길에서 읽혀야 한다.
-            GUILayout.Label($"일감률 평균 {Pct(WorkloadAverage)}   (노는 노드는 전력 0)", _label);
-
-            GUILayout.EndArea();
+            GUI.Label(new Rect(x, band.y + pad * 0.2f + rowH * 2f, colW, rowH),
+                $"일감률 평균 {Pct(WorkloadAverage)}  (노는 노드는 전력 0)", _label);
         }
 
         /// <summary>
@@ -124,11 +139,16 @@ namespace MBI.UI
             return s;
         }
 
-        private void EnsureStyles()
+        /// <summary>
+        /// 글자 크기는 **창을 따라간다** — 13 고정이면 2560 창에서 점이 되고
+        /// 800 창에서는 띠 밖으로 넘친다(하단 112 는 기준 캔버스 값이다).
+        /// </summary>
+        private void EnsureStyles(float scale)
         {
-            if (_label != null) return;
-            _label = new GUIStyle(GUI.skin.label) { fontSize = 13 };
-            _head = new GUIStyle(GUI.skin.label) { fontSize = 13, fontStyle = FontStyle.Bold };
+            int size = Mathf.Max(9, Mathf.RoundToInt(26f * scale));
+            if (_label != null && _label.fontSize == size) return;
+            _label = new GUIStyle(GUI.skin.label) { fontSize = size };
+            _head = new GUIStyle(GUI.skin.label) { fontSize = size, fontStyle = FontStyle.Bold };
         }
     }
 }

@@ -1142,7 +1142,7 @@ namespace MBI.Combat
             // (2026-09-10 · 실측: 오프라인 대화상자가 「게임 시작」 버튼을 덮었다).
             if (MainMenuGate.IsOpen) return;
             if (!_ready) return;
-            KoreanFont.Apply(); // WebGL엔 시스템 폰트 폴백이 없다 — 안 물리면 한글이 통째로 사라진다
+            UiSkin.Apply(); // 껍데기 + 한글 폰트 — WebGL엔 시스템 폰트 폴백이 없다
 
             var style = new GUIStyle(GUI.skin.label) { fontSize = 16 };
             var big = new GUIStyle(GUI.skin.label) { fontSize = 34, fontStyle = FontStyle.Bold };
@@ -1271,17 +1271,28 @@ namespace MBI.Combat
         {
             if (_sim.Tag == null) return;
 
-            GUILayout.BeginArea(new Rect(12, 300, 560, 120));
-            GUILayout.BeginHorizontal();
+            // ⚠️ **날 픽셀 자리를 걷었다**(2026-09-11 · 플랜 §68-4 (A)).
+            // 문서는 이 둘을 **원형 200**(기준 캔버스)으로 정했고 자리는 **부유 띠 오른쪽**이다.
+            // 종전 `(12, 300, 560, 120)` 은 좌상단 HUD 바로 아래라 배율 라벨과 겹쳤고
+            // (`260902_W09` §5-3 이 그 자리를 이미 한 번 옮겼다) 34px 높이는 최소 150 을 밑돈다.
+            Rect tagRect = UiLayout.RoundButtonRect(0, Screen.width, Screen.height);
+            Rect mergeRect = UiLayout.RoundButtonRect(1, Screen.width, Screen.height);
+            var round = new GUIStyle(GUI.skin.button)
+            {
+                fontSize = Mathf.Max(10, Mathf.RoundToInt(tagRect.height * 0.15f)),
+                wordWrap = true, // 원형 안이라 한 줄로는 안 들어간다
+            };
+            UiBlockers.Add(tagRect);
+            UiBlockers.Add(mergeRect);
 
             // 태그 — 쿨다운 중이거나 합체로 잠겨 있으면 비활성. 누르면 시뮬이 활성 인덱스까지 맞춘다.
             GUI.enabled = _sim.Tag.Tag.CanTag;
-            if (GUILayout.Button(TagButtonLabel(), GUILayout.Width(210), GUILayout.Height(34)))
+            if (GUI.Button(tagRect, TagButtonLabel(), round))
                 _sim.TryManualTag();
 
             // 합체 — 게이지가 차야 눌린다. 스테이지당 1회라 쓰고 나면 영영 비활성이다.
             GUI.enabled = _sim.Merge != null && _sim.Merge.IsReady;
-            if (GUILayout.Button(MergeButtonLabel(), GUILayout.Width(210), GUILayout.Height(34)) && _sim.TryMerge())
+            if (GUI.Button(mergeRect, MergeButtonLabel(), round) && _sim.TryMerge())
             {
                 // 발동에 **성공했을 때만** 튼다. 실패한 버튼에 연출이 붙으면 안 된 일이 된 것처럼 보인다.
                 _cutscene.Play(_sim.LastMergeSnapshot, _sim.LastBurstDamage);
@@ -1293,8 +1304,6 @@ namespace MBI.Combat
             }
 
             GUI.enabled = true;
-            GUILayout.EndHorizontal();
-            GUILayout.EndArea();
         }
 
         private string TagButtonLabel()

@@ -130,7 +130,7 @@ namespace MBI.Combat
             // (2026-09-10 · 실측: 오프라인 대화상자가 「게임 시작」 버튼을 덮었다).
             if (MainMenuGate.IsOpen) return;
             if (_finished) return;
-            KoreanFont.Apply();
+            UiSkin.Apply(); // 껍데기 + 한글 폰트 — WebGL엔 시스템 폰트 폴백이 없다
 
             var style = new GUIStyle(GUI.skin.label) { fontSize = 16, fontStyle = FontStyle.Bold };
 
