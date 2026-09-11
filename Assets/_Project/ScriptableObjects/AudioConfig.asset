@@ -27,11 +27,11 @@ MonoBehaviour:
   musicBattle: {fileID: 8300000, guid: 58ba00a04e68cfe469bb8311f9c967e1, type: 3}
   musicBoss: {fileID: 8300000, guid: 8bab8546001b53f47b7ebf7992dd8ff3, type: 3}
   sfxClips:
-  - {fileID: 0}
-  - {fileID: 0}
-  - {fileID: 0}
-  - {fileID: 0}
-  - {fileID: 0}
-  - {fileID: 0}
-  - {fileID: 0}
-  - {fileID: 0}
+  - {fileID: 8300000, guid: 8ef2706af0f01234fb53866b159c52de, type: 3}
+  - {fileID: 8300000, guid: 1a70fcefb71639742b7004f3f620697e, type: 3}
+  - {fileID: 8300000, guid: aa57caf2a2c9caa488ebd36d9b9f99a4, type: 3}
+  - {fileID: 8300000, guid: 9c5c337fc88858b4ca5ca37b86770c20, type: 3}
+  - {fileID: 8300000, guid: d11fb657328f54549ae45354f8eaa27b, type: 3}
+  - {fileID: 8300000, guid: 391faa5ea53244e4c977c6453154a122, type: 3}
+  - {fileID: 8300000, guid: 30ea744e7f2e3f244aa2f1b28e5ecf05, type: 3}
+  - {fileID: 8300000, guid: b40288cf211d4514fab4a14f05241977, type: 3}
