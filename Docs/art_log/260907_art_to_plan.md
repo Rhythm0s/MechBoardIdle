@@ -724,6 +724,72 @@ A 3차와 같은 `FRAMING` 절 + 6-3 이 적어 둔 2차 처방 둘(`seen from a
 ---
 
 
+## O. 배선 둘 — 자산은 다 있는데 코드가 안 읽는다 (2026-09-11 · 문서·코드 몫)
+
+둘 다 **아트 소유 밖의 `.asset` 한 칸**이 비어서 생긴 것이다. 자산에는 결함이 없다.
+
+### O-1. 효과음 여덟이 안 들린다 — `AudioConfig.asset` 의 `sfxClips` 가 전부 비었다
+
+```
+Assets/_Project/ScriptableObjects/AudioConfig.asset
+
+sfxClips:
+- {fileID: 0}      ← 여덟 칸 전부
+  … (8줄)
+```
+
+같은 파일의 `musicBattle` · `musicBoss` 는 guid 가 박혀 있다 — **그래서 음악만 나고 효과음만 안 난다.**
+
+**에러가 안 뜨는 것도 설계대로다.** `SfxPlayer.BuildClipTable()` 이
+`if (clip == null) continue; // 아직 안 온 자산 — 조용히 건너뛴다` 로 되어 있다.
+「없는 소리를 잡음으로 때우지 않는다」는 좋은 판단인데, **덕분에 배선 누락이 3일간 안 보였다.**
+⚠️ 조용한 폴백은 **「아직 안 왔다」와 「왔는데 안 꽂혔다」를 같은 침묵으로 만든다.**
+자산이 디스크에 있는데 칸이 비었을 때만 한 번 경고하는 자리가 있으면 이런 것이 바로 잡힌다 — **설계 판정거리.**
+
+`SoundIds.All` 순서대로 꽂을 값은 이렇다. 형식은 같은 파일 `musicBattle` 줄과 같다 —
+`{fileID: 8300000, guid: <아래>, type: 3}`.
+
+| # | id | guid |
+|---|---|---|
+| 0 | `sfx_nodesnap` | `8ef2706af0f01234fb53866b159c52de` |
+| 1 | `sfx_beltconnect` | `1a70fcefb71639742b7004f3f620697e` |
+| 2 | `sfx_bottleneck` | `aa57caf2a2c9caa488ebd36d9b9f99a4` |
+| 3 | `sfx_fire_a` | `9c5c337fc88858b4ca5ca37b86770c20` |
+| 4 | `sfx_dronelaunch` | `d11fb657328f54549ae45354f8eaa27b` |
+| 5 | `sfx_hit` | `391faa5ea53244e4c977c6453154a122` |
+| 6 | `sfx_fusion` | `30ea744e7f2e3f244aa2f1b28e5ecf05` |
+| 7 | `sfx_burst` | `b40288cf211d4514fab4a14f05241977` |
+
+⚠️ **「효과음 일곱 자르기」 이월이 사흘 묵은 것도 이것 때문이다** — 길이를 판정하려면 들어야 하는데
+애초에 소리가 안 나고 있었다. **배선이 끝난 뒤에 청취를 요청한다.**
+
+### O-2. 그릇 칸 넷 중 하나만 찼다 — 지금 화면에서 버튼이 눌리면 톤이 갈린다
+
+```
+Assets/_Project/Resources/UiSkinAssets.asset
+
+buttonNormal:  guid 8e1b671a…   ← ui_plate_button.png (찼다)
+buttonPressed: {fileID: 0}
+buttonLocked:  {fileID: 0}
+panel:         {fileID: 0}
+```
+
+`UiSkin.EnsureTextures()` 는 **빈 칸을 코드 생성본으로 메운다.** 그래서 지금 화면은
+**기본만 그림이고 눌림·잠김·패널은 코드가 그린 납작한 판**이다 —
+버튼을 누르는 순간 구리 빗각이 사라지고 평평한 사각으로 바뀐다. **폴백이 제 일을 한 것이지 버그가 아니다.**
+
+⚠️ **설계가 알아야 할 것 하나 — 코드에는 「띠」 칸이 없다.**
+`UiSkinAssets` 의 칸은 넷이고 `panel` 하나가 **패널과 띠를 같이 맡는다**(`UiSkin.PlateTexture` →
+`BoardController` · `GameLayerController` · `VariablePanel`). 아트는 W02 9장을 읽고
+**패널과 띠를 별개 자산으로 뽑았는데**, 꽂을 자리는 하나다. **칸을 늘릴지 하나로 갈지는 설계 자리다.**
+
+⚠️ **눌림 그림이 정말 필요한지도 다시 봐야 한다.** `dbacc39` 로 틴트가 **명도 곱**이 되었고
+`UiSkin.PressedMul = 0.78` 이 이미 있다. 기본 그림에 0.78 을 곱하는 것으로 눌림이 서면
+**눌림 그림은 필요 없다** — 플랜이 「눌림·잠김은 W03 뒤」로 세운 보류가 이 질문이다.
+
+---
+
+
 ## 5. 플랜이 고칠 자리 — 이번에 실측으로 드러난 것 다섯
 
 > **처리됨 (2026-09-07 12:15 · 플랜 §22-3).** 아래 5-1~5-4 를 플랜이 **채택해 §20 을 개정했다.**
