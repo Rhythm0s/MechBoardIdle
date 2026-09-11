@@ -1,3 +1,5 @@
+using System.Collections.Generic;
+using System.IO;
 using MBI.Data;
 using NUnit.Framework;
 using UnityEditor;
@@ -19,8 +21,9 @@ namespace MBI.Tests
         /// 종전에는 <c>Bind</c> 에 그림 인자가 아예 없어 **적이 전부 색 사각**이었다.
         /// 승인·설치까지 끝난 벌이 폴더에 있는데 읽는 코드가 0건이었던 자리다.
         ///
-        /// ⚠️ **벌 개수는 안 잰다.** 방향과 상태가 아직 다 안 뽑혀 있고(보스는 남·북뿐),
+        /// ⚠️ **벌 개수를 규격으로 재지는 않는다.** 방향과 상태가 아직 다 안 뽑혀 있고,
         /// 없는 방향은 스틸이 그대로 남는 것이 규정이다. 여기서 재는 것은 **자리가 찼는가**다.
+        /// 폴더와 SO 가 어긋났는지는 <see cref="GeneratorWasRerunAfterInstall"/> 가 따로 본다.
         /// </summary>
         [Test]
         public void EveryEnemyGotItsArt()
@@ -32,6 +35,79 @@ namespace MBI.Tests
                 Assert.NotNull(e.sprite, $"{key} 스틸이 비었다 — 색 사각으로 떨어진다");
                 Assert.IsNotEmpty(e.animClips, $"{key} 벌이 비었다");
             }
+        }
+
+        /// <summary>
+        /// **설치했는데 생성기를 안 돌린 자리를 잡는다** (2026-09-11 신설).
+        ///
+        /// 아트가 벌 폴더를 새로 넣어도 `EnemyDefinition.animClips` 는 **생성기를 다시 돌려야**
+        /// 바뀐다. 그 사이에는 **폴더에 있는 그림이 화면에 안 나온다** — 승인·설치까지 끝난 벌이
+        /// 폴더에 있는데 읽는 코드가 0건이었던 09-10 의 자리와 **같은 뿌리**다.
+        ///
+        /// ⚠️ **자리 채움 시험은 이것을 못 본다.** `IsNotEmpty` 는 벌이 하나라도 있으면 통과한다.
+        /// 그래서 **폴더 수와 벌 수가 같은가**를 잰다 — 어긋나면 「생성기를 돌려라」가 답이다.
+        ///
+        /// ⚠️ **서면은 세지 않는다.** 좌우 대칭 기체는 동면을 `flipX` 로 뒤집어 쓰므로
+        /// 서면 폴더가 **없는 것이 규정**이고(`CombatEntityView.PlayState`), 생성기도 없는 것을
+        /// 안 만든다. 폴더가 없으니 양쪽 셈에서 똑같이 빠진다.
+        /// </summary>
+        [Test]
+        public void GeneratorWasRerunAfterInstall()
+        {
+            foreach (string key in new[] { "infantry", "artillery", "armor", "boss" })
+            {
+                EnemyDefinition e = Load(key);
+                Assert.NotNull(e, key);
+
+                List<string> folders = ClipFolders(ArtName(key));
+                Assert.AreEqual(folders.Count, e.animClips.Count,
+                    $"{key}: 폴더 {folders.Count}벌인데 SO 는 {e.animClips.Count}벌이다 — " +
+                    "설치 뒤 'MBI/Generate Combat Data' 를 다시 돌려야 화면에 나온다. " +
+                    "폴더: " + string.Join(", ", folders));
+            }
+        }
+
+        /// <summary>
+        /// **보스 서면 폴더는 없어야 한다** (2026-09-11 · 「서면은 코드 flipX 그대로」).
+        ///
+        /// 있으면 같은 그림이 두 벌이 되어 미러 규정이 죽고, 어느 쪽이 쓰이는지가
+        /// 벌 목록 차례로 정해진다 — `UnitAnimWiringTests` 가 로봇에 거는 것과 같은 잣대다.
+        /// </summary>
+        [Test]
+        public void BossWestIsMirrored_NotItsOwnFolder()
+        {
+            Assert.IsFalse(Directory.Exists($"{AnimRoot}/boss_Move/west"),
+                "보스 서면은 동면을 flipX 로 뒤집어 쓴다 — 폴더를 만들면 안 된다");
+        }
+
+        private const string AnimRoot = "Assets/_Project/Art/Anim";
+
+        /// <summary>적 키 → 아트 이름. 생성기의 `ArtNameFor` 와 **같은 표**여야 한다.</summary>
+        private static string ArtName(string key)
+        {
+            switch (key)
+            {
+                case "infantry": return "mob_infantry";
+                case "artillery": return "mob_cannon";
+                case "armor": return "mob_armor";
+                default: return "boss";
+            }
+        }
+
+        /// <summary>그림이 실제로 든 벌 폴더만 센다 — 빈 폴더는 생성기도 건너뛴다.</summary>
+        private static List<string> ClipFolders(string artName)
+        {
+            var found = new List<string>();
+            if (!Directory.Exists(AnimRoot)) return found;
+
+            foreach (string stateDir in Directory.GetDirectories(AnimRoot, artName + "_*"))
+            foreach (string dirDir in Directory.GetDirectories(stateDir))
+            {
+                if (Directory.GetFiles(dirDir, "frame_*.png").Length == 0) continue;
+                found.Add(Path.GetFileName(stateDir) + "/" + Path.GetFileName(dirDir));
+            }
+            found.Sort(System.StringComparer.Ordinal);
+            return found;
         }
 
         /// <summary>
