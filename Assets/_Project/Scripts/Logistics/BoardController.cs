@@ -349,13 +349,6 @@ namespace MBI.Logistics
             // 채우는 것이 벨트 요소가 됐다. `GetAt`은 노드만 보므로 그것만 쓰면
             // 병합기를 놓아도 영영 「안 채워짐」이고 스테이지 0이 끝나지 않는다.
             bool filled = _grid.GetAt(cell) != null || _grid.GetBeltAt(cell) != null;
-            TutorialSignals.GhostCellFilled = filled;
-
-            // ⚠️ **고스트 칸 밖은 어둡게**(2026-09-11 사용자 확정 · 튜토리얼 기획서 3장).
-            // 놓을 자리를 하나로 좁혀야 「무엇을 하라는 것인지」가 화면에서 선다.
-            // 채우면 막이 걷힌다 — 그것이 수업이 끝났다는 신호다.
-            RefreshTutorialDim(filled ? null : (Vector2Int?)cell);
-
             if (filled) return; // 놓았으면 고스트는 사라진다(3장 삭제 조건)
 
             Camera cam = boardCamera != null ? boardCamera : Camera.main;
@@ -886,6 +879,41 @@ namespace MBI.Logistics
         }
 
         /// <summary>
+        /// 튜토리얼 어둠막의 **수명을 여기서만** 본다 (2026-09-11 결함 수정 · 플랜 §71-16 ⑤).
+        ///
+        /// ⚠️ **종전에는 이것이 `DrawTutorialGhost` 안에 있었고, 그 메서드는 맨 위에서
+        /// `GhostCell == null` 이면 곧장 돌아갔다.** 그래서 **고스트가 사라지는 순간
+        /// 막을 걷는 코드에 도달하지 못했다** — 채우고 나면 DIM 이 영영 남았다.
+        /// 「채운 뒤 DIM 이 안 걷힌다」의 뿌리가 그 조기 반환이다.
+        ///
+        /// **수명은 그리기에 얹을 것이 아니다.** `OnGUI` 는 메뉴가 열려도, 전투 화면이어도
+        /// 안 불리는데, 막은 월드에 놓인 스프라이트라 **안 불리는 동안에도 남아 있다.**
+        /// 그래서 늘 도는 `Update` 로 옮긴다.
+        ///
+        /// ⚠️ `GhostCellFilled` 도 여기서 쓴다 — 그것을 정하는 것과 막을 걷는 것이
+        /// **같은 판단**이라 떨어져 있으면 또 어긋난다.
+        /// </summary>
+        private void UpdateTutorialDim()
+        {
+            if (_grid == null) return;
+
+            Vector2Int? target = TutorialSignals.GhostCell;
+            if (!target.HasValue)
+            {
+                RefreshTutorialDim(null); // 튜토리얼이 끝났거나 꺼졌다 — 막을 걷는다
+                return;
+            }
+
+            Vector2Int cell = target.Value;
+            // ⚠️ **노드만 보면 안 된다** — 채우는 것이 벨트 요소인 국면이 있다(2026-09-01).
+            bool filled = _grid.GetAt(cell) != null || _grid.GetBeltAt(cell) != null;
+            TutorialSignals.GhostCellFilled = filled;
+
+            // 채우면 막이 걷힌다 — 그것이 수업이 끝났다는 신호다.
+            RefreshTutorialDim(filled ? null : (Vector2Int?)cell);
+        }
+
+        /// <summary>
         /// 고스트 칸 **밖**을 덮는 막을 다시 짓는다 (2026-09-11 · 플랜 §68-5 ①).
         ///
         /// ⚠️ **한 장으로는 구멍을 못 낸다.** 이동 모드 흐림(<see cref="BuildDimOverlay"/>)은
@@ -1093,6 +1121,7 @@ namespace MBI.Logistics
         private void Update()
         {
             if (BoardDumpSignals.Requested) FulfilBoardDump();
+            UpdateTutorialDim();
 
             UpdateMountPortBlink();
 
@@ -1666,9 +1695,12 @@ namespace MBI.Logistics
                 // 고스트가 「여기」를 가리켜도 팔레트가 전부 켜져 있으면 **무엇을 놓으라는
                 // 것인지**가 안 선다 — 기획서 2장·8장의 「강제」가 그 뜻이다.
                 // 채우면 저절로 풀린다(고스트가 사라지면 이 조건도 거짓이 된다).
-                bool tutorialLock = TutorialSignals.GhostCell.HasValue
-                                    && !TutorialSignals.GhostCellFilled;
-                bool allowed = !tutorialLock || palette[i].type == NodeType.MunitionsBasic;
+                // ⚠️ **국면이 허용하는 것만 켠다**(2026-09-11 · 플랜 §71-16 ④).
+                // 종전에는 「고스트가 떠 있으면 기초 군수만」이었는데, 그 앞 두 국면
+                // (조립 진입 · 모드 바꾸기)에서는 팔레트가 **전부 켜져 있었다.**
+                bool allowed = palette[i].type == NodeType.MunitionsBasic
+                    ? TutorialGate.Allows(TutorialGate.Control.PaletteMunitions)
+                    : TutorialGate.Allows(TutorialGate.Control.PaletteOther);
                 bool wasEnabled = GUI.enabled;
                 GUI.enabled = wasEnabled && allowed;
 
@@ -1690,10 +1722,14 @@ namespace MBI.Logistics
 
             // 벨트 요소(§5-4 L3). 직선·코너는 드래그가 만들고, 이 둘만 탭으로 놓는다 —
             // 방향이 여러 개라 드래그 경로로는 표현되지 않는다.
+            bool elementAllowed = TutorialGate.Allows(TutorialGate.Control.BeltElement);
             foreach (BeltElementKind e in new[] { BeltElementKind.Merger, BeltElementKind.Sorter })
             {
                 var eRect = new Rect(bx, 0f, side, side);
                 bool on = !_removeMode && _elementMode == e;
+                bool wasE = GUI.enabled;
+                GUI.enabled = wasE && elementAllowed;
+                if (!elementAllowed) GUI.DrawTexture(eRect, UiSkin.DisabledTexture);
 
                 // 강제 버튼(튜토리얼 기획서 2장) — 지금 놓아야 할 것을 빛나게 한다.
                 // 고스트는 **자리**만 말하므로, 무엇을 놓을지 모르면 자리를 알아도 막힌다.
@@ -1711,6 +1747,7 @@ namespace MBI.Logistics
                     _removeMode = false;
                     _selectedModule = -1;
                 }
+                GUI.enabled = wasE;
                 bx += step;
             }
 
@@ -1721,27 +1758,39 @@ namespace MBI.Logistics
             // (2026-09-09). 가로 줄에서는 잘릴 아래가 없어 **같은 크기로 나란히** 둔다.
             if (modulePalette != null)
             {
+                bool moduleAllowed = TutorialGate.Allows(TutorialGate.Control.Module);
                 for (int m = 0; m < modulePalette.Count; m++)
                 {
                     if (modulePalette[m] == null) { bx += step; continue; }
                     var mRect = new Rect(bx, 0f, side, side);
                     bool on = !_removeMode && _selectedModule == m;
+                    bool wasM = GUI.enabled;
+                    GUI.enabled = wasM && moduleAllowed;
+                    if (!moduleAllowed) GUI.DrawTexture(mRect, UiSkin.DisabledTexture);
                     if (GUI.Button(mRect, (on ? "●" : "") + modulePalette[m].displayName, style))
                     {
                         _selectedModule = on ? -1 : m;
                         _removeMode = false;
                         _elementMode = null;
                     }
+                    GUI.enabled = wasM;
                     bx += step;
                 }
             }
 
-            // 제거 토글.
-            if (GUI.Button(new Rect(bx, 0f, side, side), (_removeMode ? "● " : "") + "제거", style))
+            // 제거 토글. ⚠️ 튜토리얼 동안에는 막는다 — 놓으라고 해 놓고 지울 수 있으면
+            // 「지금 할 일」이 둘이 된다.
+            var rmRect = new Rect(bx, 0f, side, side);
+            bool removeAllowed = TutorialGate.Allows(TutorialGate.Control.Remove);
+            bool wasR = GUI.enabled;
+            GUI.enabled = wasR && removeAllowed;
+            if (!removeAllowed) GUI.DrawTexture(rmRect, UiSkin.DisabledTexture);
+            if (GUI.Button(rmRect, (_removeMode ? "● " : "") + "제거", style))
             {
                 _removeMode = !_removeMode;
                 if (_removeMode) { _elementMode = null; _selectedModule = -1; }
             }
+            GUI.enabled = wasR;
 
             GUI.EndScrollView();
             GUI.enabled = true;
@@ -2136,6 +2185,12 @@ namespace MBI.Logistics
             var rect = UiLayout.FloatBandSlot(right: true, Screen.width, Screen.height);
             UiBlockers.Add(rect);
 
+            // ⚠️ **국면이 허용할 때만 눌린다**(2026-09-11 · 플랜 §71-16 ④).
+            bool modeAllowed = TutorialGate.Allows(TutorialGate.Control.ModeToggle);
+            bool wasMode = GUI.enabled;
+            GUI.enabled = wasMode && modeAllowed;
+            if (!modeAllowed) GUI.DrawTexture(rect, UiSkin.DisabledTexture);
+
             string label = _mode == BoardMode.Pan ? "이동 모드" : "조립 모드";
 
             // 강제 버튼(T-7) — **이동 모드일 때만** 빛난다. 바꾸고 나면 할 일이 끝났다.
@@ -2146,6 +2201,7 @@ namespace MBI.Logistics
             if (GUI.Button(rect, urge ? "조립 모드로 →" : label, style)) ToggleMode();
 
             GUI.color = prev;
+            GUI.enabled = wasMode;
         }
 
         // 미니맵 — 부유 요소 띠 좌측(UI 문서 2장). 실루엣 전체 + 현재 보고 있는 범위.

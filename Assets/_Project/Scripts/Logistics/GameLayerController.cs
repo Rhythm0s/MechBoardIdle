@@ -162,6 +162,15 @@ namespace MBI.Logistics
             };
 
             MBI.UI.UiBlockers.Add(rect); // 보드가 누르는 순간 판정한다 — UiBlockers 주석
+
+            // ⚠️ **국면이 허용할 때만 눌린다**(2026-09-11 · 플랜 §71-16 ④).
+            // 조립 모드를 고르라고 해 놓고 「전투로」가 눌리면 국면 밖으로 나가 버린다.
+            bool allowed = TutorialGate.Allows(_boardView
+                ? TutorialGate.Control.ExitBoard
+                : TutorialGate.Control.EnterBoard);
+            bool wasEnabled = GUI.enabled;
+            GUI.enabled = wasEnabled && allowed;
+            if (!allowed) GUI.DrawTexture(rect, MBI.UI.UiSkin.DisabledTexture);
             ButtonRect = rect;
             PointerOverButton = rect.Contains(Event.current.mousePosition);
 
@@ -181,6 +190,8 @@ namespace MBI.Logistics
             {
                 if (GUI.Button(rect, "▲ 전투로", style)) _boardView = false;
             }
+
+            GUI.enabled = wasEnabled;
         }
     }
 }
