@@ -199,6 +199,30 @@ namespace MBI.UI
         public const float ApplyButtonHeight = 150f;
 
         /// <summary>
+        /// **모드 막대** (2026-09-11 사용자 확정 · 플랜 §71-22 ②).
+        ///
+        /// **왜 띠에서 나왔는가.** 부유 띠 오른쪽 칸은 **좁은 창에서 너무 작아졌다** —
+        /// 615×1085 창(배율 0.42)에서 지름이 **75px** 이 되어 최소 150 의 절반에도 못 미쳤고,
+        /// 소리 버튼과 화면 오른쪽 아래를 함께 다투었다.
+        ///
+        /// **조립 진입 막대와 같은 문법**으로 바꾼다 — 600×150 막대에 문구
+        /// 「▼ 조립 모드로 / ▲ 이동 모드로」가 **상태 표시를 겸한다.** 자리는 **화면 가운데**,
+        /// **부유 띠 바로 위**(= 보드 뷰포트 아랫변)에 여백 <see cref="ModeBarGap"/> 을 두고 앉는다.
+        ///
+        /// ⚠️ **띠 안이 아니라 띠 위다.** 보드의 아랫변에 붙어야 「이 막대가 보드를 조작한다」가
+        /// 서고, 띠 안에 넣으면 미니맵·팔레트와 **같은 줄의 또 하나**가 된다.
+        ///
+        /// ⚠️ **항상 맨 위에 그린다** — 부유 띠 그릇이 이것을 덮은 것이 §71-22 ① 의 결함이었다.
+        /// </summary>
+        public const float ModeBarWidth = 600f;
+
+        /// <summary>모드 막대 세로. 조립 진입 막대(160)와 달리 **버튼 최소 150** 에 맞춘다.</summary>
+        public const float ModeBarHeight = 150f;
+
+        /// <summary>모드 막대와 부유 띠 사이 여백 (기준 캔버스).</summary>
+        public const float ModeBarGap = 16f;
+
+        /// <summary>
         /// 버튼의 **최소 변** (기준 캔버스 · UI 문서 「1440 기준 150px」).
         ///
         /// 손가락 하나가 닿는 최소다. 지금 코드의 버튼은 `130×36` **날 픽셀**이라 이 값을 한참
@@ -280,8 +304,24 @@ namespace MBI.UI
                 RoundButtonDiameter, RoundButtonDiameter, screenWidth, screenHeight);
 
         /// <summary>
-        /// 부유 띠의 **미니맵(왼쪽)·모드 버튼(오른쪽)** 자리 (2026-09-11 사용자 확정).
-        /// <paramref name="right"/> 가 참이면 모드 버튼이다.
+        /// 모드 막대 — **화면 가운데 · 부유 띠 바로 위** (2026-09-11 사용자 확정 · §71-22 ②).
+        ///
+        /// 아랫변이 부유 띠 윗변에서 <see cref="ModeBarGap"/> 만큼 떨어진다 —
+        /// 그 자리가 **보드 뷰포트의 아랫변**이다.
+        /// </summary>
+        public static Rect ModeBarRect(float screenWidth, float screenHeight)
+        {
+            float s = Scale(screenHeight);
+            float w = ModeBarWidth * s, h = ModeBarHeight * s;
+            float bandTop = DesignTop(Band.FloatBand) * s;
+            return new Rect((screenWidth - w) * 0.5f, bandTop - ModeBarGap * s - h, w, h);
+        }
+
+        /// <summary>
+        /// 부유 띠의 **미니맵 자리**(왼쪽) (2026-09-11 사용자 확정).
+        ///
+        /// ⚠️ **오른쪽은 비었다**(§71-22 ②) — 모드 버튼이 <see cref="ModeBarRect"/> 로 나갔다.
+        /// <paramref name="right"/> 는 오른쪽 여백 자리를 재는 데만 남긴다.
         ///
         /// ⚠️ **레이어 2 다** — 전투 화면의 원형 둘과 자리를 다투지 않는다(다른 화면이다).
         /// </summary>
@@ -309,9 +349,12 @@ namespace MBI.UI
         {
             Rect band = BandRect(Band.FloatBand, screenWidth, screenHeight);
             float s = Scale(screenHeight);
-            float gap = 16f * s;
+            float gap = 16f * s, margin = 24f * s;
             float left = FloatBandSlot(false, screenWidth, screenHeight).xMax + gap;
-            float right = FloatBandSlot(true, screenWidth, screenHeight).x - gap;
+
+            // ⚠️ **오른쪽 끝까지 쓴다**(2026-09-11 · §71-22 ②). 모드 버튼이 띠에서 나가면서
+            // 그 칸이 비었다 — 팔레트가 좁을 이유가 없어졌다.
+            float right = screenWidth - margin;
             return new Rect(left, band.y, Mathf.Max(0f, right - left), band.height);
         }
     }

@@ -53,17 +53,47 @@ namespace MBI.Data
             Of(RobotPart.ArmL), Of(RobotPart.LegL),
         };
 
-        /// <summary>경계 점선 불투명도 40% — 밑의 타일을 가리지 않는다(배치 규격).</summary>
+        /// <summary>
+        /// 경계 점선 불투명도 40% — 밑의 타일을 가리지 않는다(배치 규격).
+        /// **파츠끼리 맞닿은 안쪽 변**에 쓴다.
+        /// </summary>
         public const float LineAlpha = 0.40f;
 
         /// <summary>
-        /// 바닥 틴트 불투명도. ⚠️ **가정 0.22** — 바닥 그림 위에 얹는 것이라
-        /// 진하면 타일 무늬가 사라지고 옅으면 색이 안 읽힌다.
+        /// **실루엣 바깥 경계**의 불투명도. ⚠️ **가정 0.85** (2026-09-11 재육안 2).
+        ///
+        /// 안쪽 변과 같은 40% 로 두었더니 **파츠 덩어리의 테두리가 안 섰다** —
+        /// 바깥은 「여기까지가 로봇이다」를 말하는 선이라 안쪽보다 진해야 한다.
         /// </summary>
-        public const float FloorAlpha = 0.22f;
+        public const float OuterLineAlpha = 0.85f;
 
-        /// <summary>경계 점선 색.</summary>
+        /// <summary>바깥 경계선 굵기 배수. ⚠️ **가정 1.6** — 색만으로는 덜 서서 굵기도 올린다.</summary>
+        public const float OuterLineThickness = 1.6f;
+
+        /// <summary>
+        /// 바닥 틴트 불투명도. ⚠️ **가정 0.45** (2026-09-11 재육안 2 · 구 0.22 폐기).
+        ///
+        /// 0.22 는 **화면에서 거의 안 보였다** — 타일 무늬를 살리려다 색을 잃었다.
+        /// 0.45 는 색이 서면서도 무늬가 남는 자리다. 진하면 타일이 사라지고 옅으면 안 읽힌다.
+        /// </summary>
+        public const float FloorAlpha = 0.45f;
+
+        /// <summary>경계 점선 색 — 파츠끼리 맞닿은 **안쪽** 변.</summary>
         public static Color LineOf(RobotPart part) => WithAlpha(Of(part), LineAlpha);
+
+        /// <summary>
+        /// 실루엣 **바깥** 경계선 색 — 진하고 밝다.
+        /// 색을 흰 쪽으로 조금 당겨 **명도**도 함께 올린다(같은 색조로는 굵기만 는다).
+        /// </summary>
+        public static Color OuterLineOf(RobotPart part)
+        {
+            Color c = Of(part);
+            return new Color(
+                Mathf.Lerp(c.r, 1f, 0.25f),
+                Mathf.Lerp(c.g, 1f, 0.25f),
+                Mathf.Lerp(c.b, 1f, 0.25f),
+                OuterLineAlpha);
+        }
 
         /// <summary>
         /// 바닥 틴트 색 — **흰색에 섞어 낸다.** `SpriteRenderer.color` 는 그림에 곱해지므로

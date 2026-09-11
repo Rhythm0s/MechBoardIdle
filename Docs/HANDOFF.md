@@ -911,6 +911,12 @@ sorter_single_branch:
 item_invisible_on_belt:
   bug: 벨트와 아이템을 같은 FlowColor로 칠해 물건이 배경에 묻힘
   lesson: "같은 품목은 같은 색"이 옳은 원칙이었는데 그것이 물건을 지웠다
+board_element_drawn_in_screen_space:
+  bug: 보드 위에 있는 것을 OnGUI(화면 좌표)로 그리면 스크롤에서 떨어진다 (2026-09-11)
+  where: 튜토리얼 고스트 · 구역 이름표 — 매 프레임 투영해도 그리는 것은 화면 사각이다
+  lesson: 보드 위의 것은 보드와 같은 층(월드 스프라이트)에 둔다. 칸에 고정하면 스크롤·배율을 공짜로 따라간다
+  sibling: 같은 날 부유 띠 그릇을 나중에 그려 모드 버튼을 덮은 것도 그리기 차례 문제다
+
 webgl_click_not_reaching_unity:
   bug: 개발 빌드에서 자동화 클릭이 Unity 에 안 닿는다 (2026-09-11 실측)
   tried: 네이티브 클릭 / hover 뒤 클릭 / JS 포인터 다운·업 250ms — 셋 다 「게임 시작」 안 눌림

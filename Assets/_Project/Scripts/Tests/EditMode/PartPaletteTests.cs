@@ -68,11 +68,31 @@ namespace MBI.Tests
         }
 
         [Test]
-        public void 점선은_바닥보다_옅다()
+        public void 안쪽_점선은_옅고_바깥_경계는_진하다()
         {
-            // 배치 규격 「밑의 타일을 가리지 않는다」 — 선은 알파 40%.
+            // 안쪽: 배치 규격 「밑의 타일을 가리지 않는다」 — 알파 40%.
             Assert.AreEqual(0.40f, PartPalette.LineAlpha, 0.0001f);
             Assert.AreEqual(0.40f, PartPalette.LineOf(RobotPart.Head).a, 0.0001f);
+
+            // ⚠️ **바깥은 「여기까지가 로봇이다」를 말하는 선**이라 진해야 한다(2026-09-11 재육안 2).
+            Assert.Greater(PartPalette.OuterLineAlpha, PartPalette.LineAlpha);
+            Assert.AreEqual(PartPalette.OuterLineAlpha,
+                PartPalette.OuterLineOf(RobotPart.Head).a, 0.0001f);
+            Assert.Greater(PartPalette.OuterLineThickness, 1f, "굵기도 함께 올린다");
+
+            // 명도도 올라간다 — 같은 색조로는 굵기만 늘어 덩어리 테두리가 덜 선다.
+            Assert.Greater(PartPalette.OuterLineOf(RobotPart.LegL).g,
+                PartPalette.Of(RobotPart.LegL).g);
+        }
+
+        [Test]
+        public void 바닥_틴트가_화면에서_보일_만큼_진하다()
+        {
+            // ⚠️ **0.22 는 화면에서 거의 안 보였다**(2026-09-11 재육안 2) — 0.45 로 올렸다.
+            Assert.AreEqual(0.45f, PartPalette.FloorAlpha, 0.0001f);
+
+            // 그래도 흰 쪽에 남아 타일 무늬가 산다 — 원색을 그대로 곱하면 무늬가 사라진다.
+            Assert.Greater(PartPalette.FloorOf(RobotPart.Head).r, PartPalette.Of(RobotPart.Head).r);
         }
 
         [Test]

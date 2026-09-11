@@ -197,6 +197,10 @@ namespace MBI.Logistics
 
         /// <summary>지금 막이 비켜 준 칸들. 바뀔 때만 다시 짓는다.</summary>
         private readonly HashSet<Vector2Int> _dimExempt = new HashSet<Vector2Int>();
+
+        /// <summary>튜토리얼 고스트 — **월드 스프라이트**다(2026-09-11 · 스크롤을 따라간다).</summary>
+        private GameObject _ghostView;
+        private SpriteRenderer _ghostRenderer;
         private static readonly Color HintColor = new Color(0.98f, 0.72f, 0.25f, 0.92f);       // 병목 힌트 바탕(경고 톤)
 
         /// <summary>
@@ -339,38 +343,38 @@ namespace MBI.Logistics
         ///
         /// **채워졌는지도 여기서 게시한다** — 그 칸의 사실을 아는 것은 보드뿐이다.
         /// </summary>
-        private void DrawTutorialGhost()
+        private void RefreshTutorialGhost(Vector2Int? cell)
         {
-            Vector2Int? target = TutorialSignals.GhostCell;
-            if (target == null || _grid == null) return;
+            // ⚠️ **월드 스프라이트다 — 종전에는 `OnGUI` 가 화면 좌표로 그렸다**
+            // (2026-09-11 재육안 2 ③). 보드를 끌면 고스트가 **딸려 왔다**: 그리는 것이
+            // 화면 사각이라 스크롤 중 칸에서 떨어져 보였다. **이름표와 같은 뿌리**이며
+            // 「보드 위에 있는 것을 화면 좌표로 그렸다」가 그 뿌리다.
+            //
+            // 보드와 같은 층에 두면 칸에 고정되므로 **스크롤·배율을 공짜로 따라간다.**
+            // 층은 타일 위 · 품목 아래(`ZoneLineOrder`) — 물건이 지나가는 것을 안 가린다.
+            if (!cell.HasValue)
+            {
+                if (_ghostView != null) Destroy(_ghostView);
+                _ghostView = null;
+                _ghostRenderer = null;
+                return;
+            }
 
-            Vector2Int cell = target.Value;
-            // ⚠️ **노드만 보면 안 된다.** 비워 둔 칸이 병합기 자리로 바뀌면서(2026-09-01)
-            // 채우는 것이 벨트 요소가 됐다. `GetAt`은 노드만 보므로 그것만 쓰면
-            // 병합기를 놓아도 영영 「안 채워짐」이고 스테이지 0이 끝나지 않는다.
-            bool filled = _grid.GetAt(cell) != null || _grid.GetBeltAt(cell) != null;
-            if (filled) return; // 놓았으면 고스트는 사라진다(3장 삭제 조건)
+            if (_ghostView == null)
+            {
+                _ghostView = new GameObject("TutorialGhost");
+                _ghostView.transform.SetParent(transform, false);
+                _ghostRenderer = _ghostView.AddComponent<SpriteRenderer>();
+                _ghostRenderer.sprite = UnitSprite();
+                _ghostRenderer.sortingOrder = ZoneLineOrder;
+            }
 
-            Camera cam = boardCamera != null ? boardCamera : Camera.main;
-            if (cam == null) return;
+            _ghostView.transform.position = CellWorld(cell.Value);
+            _ghostView.transform.localScale = Vector3.one * _grid.CellSize;
 
-            Vector3 center = _grid.CellToWorld(cell);
-            Vector3 sp = cam.WorldToScreenPoint(center);
-            if (sp.z <= 0f) return;
-
-            // 셀 한 칸을 화면 크기로 환산한다 — 줌이 바뀌어도 칸에 들어맞게.
-            Vector3 edge = cam.WorldToScreenPoint(center + new Vector3(_grid.CellSize, 0f, 0f));
-            float size = Mathf.Abs(edge.x - sp.x);
-            if (size < 4f) return;
-
-            var rect = new Rect(sp.x - size * 0.5f, Screen.height - sp.y - size * 0.5f, size, size);
-
-            Color prev = GUI.color;
             // 깜빡인다 — 보드에 색이 많아 가만히 있으면 묻힌다.
             float pulse = 0.35f + 0.25f * Mathf.Abs(Mathf.Sin(Time.unscaledTime * 2.2f));
-            GUI.color = new Color(1f, 0.92f, 0.35f, pulse);
-            GUI.DrawTexture(rect, UnitSprite() != null ? UnitSprite().texture : Texture2D.whiteTexture);
-            GUI.color = prev;
+            _ghostRenderer.color = new Color(1f, 0.92f, 0.35f, pulse);
         }
 
         /// <summary>「노는 중」 글자색. 종류색·상태 밝기와 겹치지 않게 무채색에 가깝게 둔다.</summary>
@@ -670,12 +674,12 @@ namespace MBI.Logistics
                 // 두 번 그려져 그 자리만 진해지고 점선 위상이 어긋난다(PartLayout.BoundaryRuns 주석).
                 foreach (PartLayout.BoundaryRun r in PartLayout.BoundaryRuns())
                 {
-                    Color runColor = BoundaryColor(r);
+                    Color runColor = BoundaryColor(r, out bool outerRun);
                     float len = r.length * config.cellSize;
                     float ex = o.x + r.from.x * config.cellSize;
                     float ey = o.y + r.from.y * config.cellSize;
-                    if (r.horizontal) SpawnDashedEdge(root.transform, ex + len * 0.5f, ey, len, true, runColor);
-                    else              SpawnDashedEdge(root.transform, ex, ey + len * 0.5f, len, false, runColor);
+                    if (r.horizontal) SpawnDashedEdge(root.transform, ex + len * 0.5f, ey, len, true, runColor, outerRun);
+                    else              SpawnDashedEdge(root.transform, ex, ey + len * 0.5f, len, false, runColor, outerRun);
                 }
                 return;
             }
@@ -909,6 +913,7 @@ namespace MBI.Logistics
             if (!target.HasValue)
             {
                 RefreshTutorialDim(null); // 튜토리얼이 끝났거나 꺼졌다 — 막을 걷는다
+                RefreshTutorialGhost(null);
                 return;
             }
 
@@ -918,7 +923,10 @@ namespace MBI.Logistics
             TutorialSignals.GhostCellFilled = filled;
 
             // 채우면 막이 걷힌다 — 그것이 수업이 끝났다는 신호다.
+            // ⚠️ **고스트도 같은 판단으로 함께 움직인다** — 둘을 떨어뜨려 두었다가
+            // 막만 남던 것이 09-11 오전의 결함이었다(§71-16 ⑤).
             RefreshTutorialDim(filled ? null : (Vector2Int?)cell);
+            RefreshTutorialGhost(filled ? null : (Vector2Int?)cell);
         }
 
         /// <summary>
@@ -1043,10 +1051,13 @@ namespace MBI.Logistics
         /// 조각 길이가 달라져 경계가 어긋나 보인다.
         /// </summary>
         private void SpawnDashedEdge(Transform parent, float cx, float cy, float length, bool horizontal,
-            Color color)
+            Color color, bool outer)
         {
             float unit = config.cellSize / ZonePx;
-            float thick = Mathf.Max(ZoneLineThickPx * unit, 0.01f);
+            // ⚠️ **바깥 경계는 굵다**(2026-09-11 재육안 2 ②) — 「여기까지가 로봇이다」를
+            // 말하는 선이라 안쪽 변과 같은 굵기로는 덩어리의 테두리가 안 선다.
+            float thickPx = outer ? ZoneLineThickPx * PartPalette.OuterLineThickness : ZoneLineThickPx;
+            float thick = Mathf.Max(thickPx * unit, 0.01f);
             float period = (ZoneDashPx + ZoneGapPx) * unit;
             if (period <= 0f || length <= 0f) return;
 
@@ -1083,7 +1094,10 @@ namespace MBI.Logistics
                 SupplySignals.HasCombat, SupplySignals.MountTotal);
             bool blink = empty && HudMeters.BlinkOn(Time.unscaledTime);
 
-            var mountStyle = new GUIStyle(style) { alignment = TextAnchor.LowerCenter };
+            // ⚠️ **칸 안에 넣는다**(2026-09-11 재육안 2 · 구역 이름표와 같은 규격).
+            // 종전에는 `LowerCenter` 로 **칸 위 바깥**에 얹어 잘렸다 — 구역은 넓어 모서리에
+            // 붙여도 제 구역 안이지만 마운트는 **한 칸**이라 밖으로 나가면 갈 곳이 없다.
+            var mountStyle = new GUIStyle(style) { alignment = TextAnchor.UpperLeft };
             Color prev = GUI.color;
             GUI.color = blink ? MountEmptyColor : ZoneLabelColor;
 
@@ -1093,9 +1107,12 @@ namespace MBI.Logistics
 
             foreach (MountPort mp in PartLayout.MountPorts)
             {
-                // 칸 가운데 위 — 포트 그림 바로 위에 얹힌다.
-                Vector3 above = CellWorld(mp.cell) + new Vector3(0f, config.cellSize * 0.55f, 0f);
-                Vector3 sp = cam.WorldToScreenPoint(above);
+                // 칸의 **왼윗모서리 안쪽** — 구역 이름표와 같은 규격이다.
+                float half = config.cellSize * 0.5f;
+                float inset = ZoneLabelInsetPx * (config.cellSize / ZonePx);
+                Vector3 c = CellWorld(mp.cell);
+                Vector3 corner = new Vector3(c.x - half + inset, c.y + half - inset, 0f);
+                Vector3 sp = cam.WorldToScreenPoint(corner);
                 if (sp.z <= 0f) continue;
 
                 float y = Screen.height - sp.y;
@@ -1105,7 +1122,7 @@ namespace MBI.Logistics
                 // 안 보이는데 글자만 뜬다).
                 if (y < CombatInsetView.BottomPixels(Screen.height)) continue;
 
-                GUI.Label(new Rect(sp.x - boxW * 0.5f, y - boxH, boxW, boxH), text, mountStyle);
+                GUI.Label(new Rect(sp.x, y, boxW, boxH), text, mountStyle);
             }
 
             GUI.color = prev;
@@ -1122,8 +1139,9 @@ namespace MBI.Logistics
         /// ⚠️ **변 전체가 한 파츠에 닿을 때만** 그 색이다. 한 변이 여러 파츠를 지나면
         /// 중간에 색이 갈려 점선이 끊긴 것처럼 보이므로 미색으로 둔다.
         /// </summary>
-        private static Color BoundaryColor(PartLayout.BoundaryRun r)
+        private static Color BoundaryColor(PartLayout.BoundaryRun r, out bool outer)
         {
+            outer = false;
             RobotPart found = RobotPart.None;
 
             for (int i = 0; i < r.length; i++)
@@ -1140,15 +1158,19 @@ namespace MBI.Logistics
                 RobotPart pb = PartLayout.PartAt(b);
 
                 // 양쪽 다 파츠면 공유 변이다 — 미색.
-                if (pa != RobotPart.None && pb != RobotPart.None) return PartPalette.Neutral;
+                if (pa != RobotPart.None && pb != RobotPart.None) { outer = false; return PartPalette.Neutral; }
 
                 RobotPart inner = pa != RobotPart.None ? pa : pb;
                 if (inner == RobotPart.None) continue;      // 둘 다 실루엣 밖(있을 수 없지만 안전)
                 if (found == RobotPart.None) found = inner;
-                else if (found != inner) return PartPalette.Neutral; // 한 변이 여러 파츠를 지난다
+                else if (found != inner) { outer = false; return PartPalette.Neutral; } // 한 변이 여러 파츠를 지난다
             }
 
-            return found == RobotPart.None ? ZoneLineColor : PartPalette.LineOf(found);
+            if (found == RobotPart.None) return ZoneLineColor;
+
+            // 한쪽만 파츠인 변 = **실루엣 바깥**이다. 진하고 굵게.
+            outer = true;
+            return PartPalette.OuterLineOf(found);
         }
 
         private void SpawnQuad(Transform parent, float cx, float cy, float w, float h, Color col, int order)
@@ -1735,12 +1757,17 @@ namespace MBI.Logistics
             UiSkin.Apply(); // 껍데기 + 한글 폰트 — WebGL엔 시스템 폰트 폴백이 없다
 
             DrawSupplyWarningBand(); // 0차 — 다른 표시보다 먼저 그린다(UI 문서 12-4)
-            DrawTutorialGhost(); // 라벨보다 먼저 — 고스트는 배경이지 글자가 아니다
             DrawZoneLabels();    // 구역 이름표 — 칸 라벨보다 먼저(구역은 바탕이고 칸 내용이 위다)
             DrawCellLabels(); // 버튼보다 먼저 — 팔레트/모드 버튼이 라벨 위에 온다
             DrawBottleneckHint();
+
+            // ⚠️ **그릇을 먼저 깐다**(2026-09-11 재육안 2 ① 수정). 종전에는 이 판을
+            // **팔레트 절에서** 그렸는데 그 절이 `DrawMiniMap`·`DrawModeButton` 보다
+            // 뒤라, **판이 미니맵과 모드 버튼을 통째로 덮었다** — 모드 버튼이 「안 보인다」의
+            // 원인이 그것이다(IMGUI 는 뒤에 그리는 쪽이 위로 온다).
+            DrawFloatBandPlate();
+
             DrawMiniMap();
-            DrawModeButton();
             DrawZoom();
 
             if (palette == null || palette.Count == 0) return;
@@ -1777,10 +1804,7 @@ namespace MBI.Logistics
             // (조립 모드에서만 `Camera.rect` 를 조정하거나, 인셋처럼 두 번째 카메라를 둔다).
             // 그 카메라는 전투 화면도 쓰므로 **촬영 뒤에 손댄다** — 지금 바꾸면 전투
             // 프레이밍이 함께 움직인다. 촬영 전에는 판으로 충분하다.
-            Rect fullBand = UiLayout.BandRect(UiLayout.Band.FloatBand, Screen.width, Screen.height);
-            UiBlockers.Add(fullBand);
-            GUI.DrawTexture(fullBand, UiSkin.PlateTexture);
-
+            // (판 자체는 `DrawFloatBandPlate` 가 **이 절보다 먼저** 깐다.)
             Rect band = UiLayout.PaletteRect(Screen.width, Screen.height);
 
             float pad = 12f * sc;
@@ -1928,6 +1952,24 @@ namespace MBI.Logistics
                 new GUIStyle(GUI.skin.label) { fontSize = Mathf.Max(9, Mathf.RoundToInt(24f * sc)) });
 
             DrawRecipePanel();
+
+            // ⚠️ **모드 막대는 맨 뒤에 그린다 — 항상 맨 위다**(2026-09-11 사용자 확정).
+            // 이 화면에서 가장 자주 누르는 것이고, 무엇에도 덮이면 안 된다.
+            DrawModeButton();
+        }
+
+        /// <summary>
+        /// 부유 띠 그릇 — **띠 안의 어떤 것보다 먼저** (2026-09-11 재육안 2 ①).
+        ///
+        /// 판을 나중에 깔면 그 위에 그려야 할 것을 덮는다. 종전에 **모드 버튼이 화면에서
+        /// 사라진** 자리이며, 좁은 창일수록 티가 났다(615×1085 에서 모드 칸 지름이 75px 이라
+        /// 가려진 뒤에는 흔적도 안 남았다).
+        /// </summary>
+        private void DrawFloatBandPlate()
+        {
+            Rect band = UiLayout.BandRect(UiLayout.Band.FloatBand, Screen.width, Screen.height);
+            UiBlockers.Add(band);
+            GUI.DrawTexture(band, UiSkin.PlateTexture);
         }
 
         /// <summary>
@@ -2092,9 +2134,18 @@ namespace MBI.Logistics
                 // 이름표는 **안 그리는 것이 맞다.**
                 if (y + boxH < CombatInsetView.BottomPixels(Screen.height)) continue;
 
+                // ⚠️ **구역 밖으로 안 나간다**(2026-09-11 재육안 2 · 규격).
+                // 글자 상자가 구역보다 크면(좁은 파츠 · 큰 배율) 옆 구역 위로 넘어가
+                // **어느 구역의 이름인지**가 갈리지 않는다. 구역의 화면 사각 안으로 민다.
+                Vector3 farCorner = cam.WorldToScreenPoint(new Vector3(
+                    o.x + (p.origin.x + p.size.x) * config.cellSize - inset,
+                    o.y + p.origin.y * config.cellSize + inset, 0f));
+                float maxX = Mathf.Max(sp.x, farCorner.x - boxW);
+                float maxY = Mathf.Max(y, (Screen.height - farCorner.y) - boxH);
+
                 Color prev = GUI.color;
                 GUI.color = ZoneLabelColor; // 경계선과 같은 미색이되 70% — 글자는 더 진해야 읽힌다
-                GUI.Label(new Rect(sp.x, y, boxW, boxH), text, style);
+                GUI.Label(new Rect(Mathf.Min(sp.x, maxX), Mathf.Min(y, maxY), boxW, boxH), text, style);
                 GUI.color = prev;
             }
         }
@@ -2299,10 +2350,10 @@ namespace MBI.Logistics
         // 모드를 바꾸는 곳과 확인하는 곳이 같은 자리가 되고, 화면 요소도 하나 아낀다.
         private void DrawModeButton()
         {
+            var rect = UiLayout.ModeBarRect(Screen.width, Screen.height);
             var style = new GUIStyle(GUI.skin.button)
             {
-                fontSize = Mathf.Max(10, Mathf.RoundToInt(UiLayout.Px(UiLayout.RoundButtonDiameter) * 0.14f)),
-                wordWrap = true,
+                fontSize = Mathf.Max(12, Mathf.RoundToInt(rect.height * 0.30f)),
             };
 
             // ⚠️ **왼쪽 위로 옮긴다.** 종전에는 화면 바닥(height-78)에 고정돼 있었는데,
@@ -2315,9 +2366,12 @@ namespace MBI.Logistics
             // ⚠️ **이제 왼쪽 위도 아니다**(2026-09-11 · 플랜 §68-4 (A)). 문서 9-4 의
             // **부유 띠**가 「미니맵·모드」의 자리이며, 거기로 내보내면 상단 인셋 전투 위에
             // 깔던 `UiPlate` 도 함께 없어진다 — 판을 깔던 이유가 **자리가 틀렸기 때문**이었다.
-            // ⚠️ **모드 버튼은 부유 띠 오른쪽**이다(2026-09-11 사용자 확정 · 미니맵이 왼쪽).
-            // 전투 화면의 합체·태그 원형은 **레이어 1** 이라 애초에 다른 화면의 자리다.
-            var rect = UiLayout.FloatBandSlot(right: true, Screen.width, Screen.height);
+            // ⚠️ **띠에서 나와 막대가 됐다**(2026-09-11 사용자 확정 · 플랜 §71-22 ②).
+            //
+            // 부유 띠 오른쪽 칸은 **좁은 창에서 너무 작아졌다** — 615×1085(배율 0.42)에서
+            // 지름 **75px** 로 최소 150 의 절반에도 못 미쳤다. 이제 **화면 가운데 · 부유 띠
+            // 바로 위**에 600×150 막대로 앉는다. **조립 진입 막대와 같은 문법**이고
+            // 문구가 **상태 표시를 겸한다**(「▼ 조립 모드로」면 지금은 이동 모드다).
             UiBlockers.Add(rect);
 
             // ⚠️ **국면이 허용할 때만 눌린다**(2026-09-11 · 플랜 §71-16 ④).
@@ -2325,14 +2379,16 @@ namespace MBI.Logistics
             bool wasMode = GUI.enabled;
             GUI.enabled = wasMode && modeAllowed;
 
-            string label = _mode == BoardMode.Pan ? "이동 모드" : "조립 모드";
+            // ⚠️ **문구가 「무엇으로 바뀌는가」를 말한다** — 지금 모드를 적으면 버튼인지
+            // 표시인지가 안 갈린다. 조립 진입 막대(「▼ 조립 (물류 보드)」)와 같은 문법이다.
+            string label = _mode == BoardMode.Pan ? "▼ 조립 모드로" : "▲ 이동 모드로";
 
             // 강제 버튼(T-7) — **이동 모드일 때만** 빛난다. 바꾸고 나면 할 일이 끝났다.
             bool urge = TutorialSignals.HighlightBuildMode && _mode == BoardMode.Pan;
             Color prev = GUI.color;
             if (urge) GUI.color = new Color(1f, 0.92f, 0.45f);
 
-            if (GUI.Button(rect, urge ? "조립 모드로 →" : label, style)) ToggleMode();
+            if (GUI.Button(rect, label, style)) ToggleMode();
 
             GUI.color = prev;
             if (!modeAllowed) GUI.DrawTexture(rect, UiSkin.DisabledTexture);

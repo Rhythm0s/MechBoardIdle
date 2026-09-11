@@ -166,16 +166,53 @@ namespace MBI.Tests
         }
 
         [Test]
-        public void 부유_띠는_미니맵_좌_모드_우다()
+        public void 모드_막대는_부유_띠_바로_위_가운데다()
         {
-            Rect map = UiLayout.FloatBandSlot(right: false, 1440f, 2560f);
-            Rect mode = UiLayout.FloatBandSlot(right: true, 1440f, 2560f);
+            Rect bar = UiLayout.ModeBarRect(1440f, 2560f);
             Rect band = UiLayout.BandRect(UiLayout.Band.FloatBand, 1440f, 2560f);
 
-            Assert.Less(map.x, mode.x, "미니맵이 왼쪽 · 모드 버튼이 오른쪽");
-            Assert.IsFalse(map.Overlaps(mode));
-            Assert.IsTrue(band.y <= map.y && map.yMax <= band.yMax, "부유 띠 안");
-            Assert.IsTrue(UiLayout.MeetsMinButton(mode.height), "모드 버튼도 최소 150 을 지킨다");
+            Assert.AreEqual(600f, bar.width, D);
+            Assert.AreEqual(150f, bar.height, D);
+            Assert.AreEqual(720f, bar.center.x, D, "화면 가운데");
+            Assert.AreEqual(16f, band.y - bar.yMax, D, "띠 위 여백 16");
+            Assert.IsFalse(bar.Overlaps(band), "띠 안이 아니라 띠 위다");
+
+            // ⚠️ **보드 뷰포트 안에 든다** — 아랫변이 보드 띠의 아랫변이다.
+            Rect board = UiLayout.BandRect(UiLayout.Band.Board, 1440f, 2560f);
+            Assert.IsTrue(bar.yMax <= board.yMax + D, "보드 뷰포트를 안 넘는다");
+        }
+
+        [Test]
+        public void 모드_막대는_좁은_창에서도_최소를_지킨다()
+        {
+            // ⚠️ **이것이 §71-22 ① 의 재발 방지다.** 615×1085(배율 0.42)에서 종전 원형 칸은
+            // 지름 75px 로 최소 150 의 절반에도 못 미쳤다. 막대는 세로 비율 환산 그대로여도
+            // **화면 가로의 절반 가까이**를 차지한다.
+            Rect bar = UiLayout.ModeBarRect(615f, 1085f);
+            Assert.Greater(bar.width, 615f * 0.35f, "좁은 창에서도 눈에 띈다");
+            Assert.Greater(bar.height, 0f);
+            Assert.AreEqual(615f * 0.5f, bar.center.x, 0.5f, "가운데는 창 폭의 절반이다");
+            Assert.IsTrue(bar.xMin >= 0f && bar.xMax <= 615f, "화면 밖으로 안 나간다");
+        }
+
+        [Test]
+        public void 팔레트는_띠_오른쪽_끝까지_쓴다()
+        {
+            // 모드 버튼이 띠에서 나가면서 그 칸이 비었다 — 팔레트가 좁을 이유가 없다.
+            Rect pal = UiLayout.PaletteRect(1440f, 2560f);
+            Assert.Greater(pal.xMax, 1440f - 40f, "오른쪽 여백까지 쓴다");
+        }
+
+        [Test]
+        public void 부유_띠_왼쪽은_미니맵이다()
+        {
+            Rect map = UiLayout.FloatBandSlot(right: false, 1440f, 2560f);
+            Rect band = UiLayout.BandRect(UiLayout.Band.FloatBand, 1440f, 2560f);
+
+            Assert.IsTrue(band.y <= map.y && map.yMax <= band.yMax, "미니맵은 부유 띠 안");
+            // ⚠️ **오른쪽 칸은 비었다**(2026-09-11 · §71-22 ②) — 모드 버튼이 막대로 나갔다.
+            Assert.IsFalse(map.Overlaps(UiLayout.ModeBarRect(1440f, 2560f)),
+                "미니맵과 모드 막대가 겹치면 안 된다");
         }
 
         [Test]
@@ -185,10 +222,10 @@ namespace MBI.Tests
             // 가정이 아니라 규칙이다 — 겹치면 눌리는 쪽이 그리는 차례로 정해진다.
             Rect pal = UiLayout.PaletteRect(1440f, 2560f);
             Rect map = UiLayout.FloatBandSlot(right: false, 1440f, 2560f);
-            Rect mode = UiLayout.FloatBandSlot(right: true, 1440f, 2560f);
 
             Assert.IsFalse(pal.Overlaps(map), "팔레트와 미니맵이 겹치면 안 된다");
-            Assert.IsFalse(pal.Overlaps(mode), "팔레트와 모드 버튼이 겹치면 안 된다");
+            Assert.IsFalse(pal.Overlaps(UiLayout.ModeBarRect(1440f, 2560f)),
+                "팔레트와 모드 막대가 겹치면 안 된다");
             Assert.Greater(pal.width, 0f, "기준 창에서는 자리가 남는다");
         }
 
