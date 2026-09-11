@@ -99,16 +99,25 @@ namespace MBI.Tests
             Assert.AreEqual(start, next);
         }
 
+        /// <summary>
+        /// **멀리 있는 적도 쫓아간다** — 아레나 경계가 없다
+        /// (2026-09-11 사용자 확정 · 플랜 §71-28 1 · 구 `StaysInsideArena` 폐기).
+        ///
+        /// 구 시험은 반경 6 을 넘지 않는 것을 단언했다. 그 원은 **이동 클램프의 그림**이었고,
+        /// 전장이 **로봇을 따라다니는 판**이 되면서 근거가 사라졌다 —
+        /// 이제 경계 밖으로 나가는 것이 **정상**이고, 그것을 막으면 적을 영영 못 잡는다.
+        /// </summary>
         [Test]
-        public void StaysInsideArena()
+        public void ChasesEnemyBeyondTheOldArena()
         {
-            var enemies = new List<CombatEntity> { Enemy(20f, 0f) }; // 아레나 밖 표적
+            var enemies = new List<CombatEntity> { Enemy(20f, 0f) };
             Vector2 pos = new Vector2(5.9f, 0f);
 
             for (int i = 0; i < 50; i++)
                 pos = AutoPilotPolicy.NextPosition(Ctx(pos, enemies));
 
-            Assert.LessOrEqual(pos.magnitude, 6f + D, "아레나를 벗어나지 않는다");
+            Assert.Greater(pos.magnitude, 6f + D, "구 아레나 반경을 넘어 쫓아간다");
+            Assert.LessOrEqual(pos.x, 20f + D, "표적을 지나치지는 않는다");
         }
 
         [Test]

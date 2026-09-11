@@ -1,6 +1,7 @@
 using MBI.UI;
 using System.Collections.Generic;
 using MBI.Core;
+using MBI.Core.Combat;
 using MBI.Core.Anim;
 using MBI.Core.Audio;
 using MBI.Data;
@@ -152,7 +153,6 @@ namespace MBI.Combat
                 return;
             }
             BuildBackground(); // 바닥 그림 — 원반보다 아래(-40). 스테이지가 바뀌면 다시 깐다.
-            BuildArena(); // 이동 가능 범위 경계 — 상수라 최초 1회만. 규정 자리는 UI 문서다(아래).
 
             // ⚠️ **메인 메뉴가 떠 있으면 여기서 시작하지 않는다**(2026-09-10 · 플랜 §66-10).
             // 깔아 두는 것(배경·경계)은 미리 해 둔다 — 메뉴 뒤에 보이는 화면이기 때문이다.
@@ -303,30 +303,35 @@ namespace MBI.Combat
         }
 
         /// <summary>
-        /// 이동 가능 아레나 경계 시각화: 반경 <c>arenaRadiusTbd</c> 원반 + 테두리 링. 최초 1회.
+        /// ⚠️ **아레나 원반은 폐기됐다** (2026-09-11 사용자 확정 · 플랜 §71-28 1).
         ///
-        /// ⚠️ **규정 자리는 UI 문서다** (2026-09-10 · `260910_W02` 5장). 종전 주석의 `§C-1` 은
-        /// 어느 문서의 절인지 짚어 주지 않아 **다음에 여는 사람이 원천을 못 찾는다.**
-        /// 이동 한계 · 스폰 링 · 자동 조종 한계 · 태그 스킬 범위가 **모두 화면 위의 경계**라
-        /// UI 문서가 든다.
+        /// 반경 `arenaRadiusTbd` 의 청록 원반 + 테두리 링을 바닥에 깔던 자리다.
+        /// 그 원은 **이동 클램프의 그림**이었고, 클램프가 없어지면서 **가리킬 것이 사라졌다** —
+        /// 경계가 없는데 경계선만 남으면 화면이 거짓말을 한다.
         ///
-        /// ⚠️ **값은 아직 미확정이다** — 사용자가 「일단 안 건드린다」로 정했고
-        /// <c>arenaRadiusTbd</c> 라는 이름 그대로다. **소관만 옮기고 값이 비었다는 것을 함께 적는다** —
-        /// 소관만 옮기면 다음 사람이 「UI 문서에 있겠지」로 읽는다.
-        /// 육안 판정은 **리허설 2차**에서 한다.
+        /// 전장은 이제 **로봇을 따라다니는 판**이고, 적은 <see cref="SpawnRingRule"/> 이 내는
+        /// **화면 밖 링**에서 걸어 들어온다. 그 링은 **안 그린다** — 보이면 안 되는 자리다.
         /// </summary>
-        private void BuildArena()
+        private void SetSpawnRingFromCamera()
         {
-            var go = new GameObject("ArenaBounds");
-            go.transform.SetParent(transform, false);
-            go.transform.position = Vector3.zero;
-            float d = tuning.arenaRadiusTbd * 2f;
-            go.transform.localScale = new Vector3(d, d, 1f);
-            var sr = go.AddComponent<SpriteRenderer>();
-            sr.sprite = CircleSprite();          // 텍스처가 옅은 채움 + 밝은 테두리 링을 함께 담음
-            sr.color = new Color(0.35f, 0.75f, 1f); // 청록 톤(알파는 텍스처)
-            sr.sortingOrder = SortingLayers.Background; // 아레나 바닥
+            if (_sim == null) return;
+
+            // ⚠️ **시뮬은 카메라가 없다** — 밖에서 재서 넣는다(`SetVisibleBounds` 와 같은 자리).
+            // 값이 `260911_W03` 으로 오면 그것을 쓰고, 그 전에는 **화면 대각선 반 + 한 칸**을
+            // 가정으로 쓴다(`SpawnRingRule.RadiusFromView`).
+            float fromSo = tuning != null ? tuning.spawnRingRadiusTbd : 0f;
+            if (fromSo > 0f) { _sim.SetSpawnRing(fromSo); return; }
+
+            Camera cam = Camera.main;
+            if (cam == null || !cam.orthographic) return;
+
+            float h = cam.orthographicSize * 2f;
+            float w = h * cam.aspect;
+            _sim.SetSpawnRing(SpawnRingRule.RadiusFromView(w, h, SpawnRingMarginCells));
         }
+
+        /// <summary>링이 화면 밖으로 나가는 여유 — **한 칸**(아트 규격 PPU 192 = 1 월드 유닛).</summary>
+        private const float SpawnRingMarginCells = 1f;
 
         /// <summary>시뮬·뷰 구성(최초 및 재시작 공용).</summary>
         // ---- 창고 승계 (260902_W08 §1) ----
@@ -853,6 +858,9 @@ namespace MBI.Combat
             // 그것은 **스폰 링(화면 바깥)**이라 「화면 안」을 대신할 수 없다.
             PushVisibleBounds();
 
+            // 스폰 링도 같은 이유로 밖에서 넣는다 — **화면 밖 가장자리**다(§71-28 2).
+            SetSpawnRingFromCamera();
+
             // 바닥 — 스테이지나 창이 바뀌었으면 다시 깔고, 아니면 밀기만 한다.
             if (BackgroundNeedsRebuild()) BuildBackground();
             UpdateBackgroundOffset();
@@ -862,6 +870,12 @@ namespace MBI.Combat
             _sim.SetTagSkillDelay(tuning != null ? tuning.animTagInSeconds : 0.75f);
 
             _sim.Tick(Time.deltaTime);
+
+            // ⚠️ **못 닿는 적을 로봇 쪽 링으로 되돌린다**(§71-28 2). 이동 클램프를 걷어 내면
+            // 로봇이 반대로 달릴 때 **영영 못 닿는 적**이 생기고, 그 적은 살아 있어
+            // 스테이지가 안 끝나는데 화면에도 없다 — **왜 안 끝나는지가 안 보인다.**
+            // 지우지 않고 되돌리므로 **개체 수는 안 변한다.**
+            _sim.RespawnUnreachable();
 
             // 교대했으면 뷰를 새 로봇에 다시 묶는다 — 안 하면 B가 싸우는데 A가 서 있다.
             if (_sim.ActiveRobotIndex != _viewedRobotIndex || IsMerged != _viewedMerged)

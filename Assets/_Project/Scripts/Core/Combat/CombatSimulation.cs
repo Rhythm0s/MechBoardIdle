@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using MBI.Core.Combat;
 using MBI.Data;
 using UnityEngine;
 
@@ -146,6 +147,48 @@ namespace MBI.Core
         private Rect? _visibleBounds;
 
         /// <summary>
+        /// 스폰 링 반경을 넣는다 — 러너가 **카메라에서 재서** 준다(2026-09-11 · §71-28 2).
+        ///
+        /// ⚠️ **0 이하는 무시한다** — 카메라를 아직 못 잰 프레임에 0 이 들어오면
+        /// 적이 **로봇 위에 겹쳐 스폰된다.**
+        /// </summary>
+        public void SetSpawnRing(float radius)
+        {
+            if (radius > 0f) _spawnRingRadius = radius;
+        }
+
+        /// <summary>
+        /// **너무 멀어진 적을 로봇 쪽 링으로 되돌린다** (2026-09-11 · §71-28 2).
+        ///
+        /// ⚠️ **지우지 않는다 — 개체 수가 안 변한다.** 지우면 난이도가 조용히 낮아진다.
+        /// HP 도 유지한다(가정) — 때려 놓은 것이 되살아나면 플레이어가 한 일이 사라진다.
+        ///
+        /// 되돌린 개수를 낸다(진단·시험용).
+        /// </summary>
+        public int RespawnUnreachable(float seconds = OffscreenRespawnRule.UnreachableSeconds)
+        {
+            Vector2 robot = RobotPosition;
+            int moved = 0;
+
+            for (int i = 0; i < _enemies.Count; i++)
+            {
+                CombatEntity e = _enemies[i];
+                if (e == null || e.hp <= 0f) continue;
+
+                float d = (e.position - robot).magnitude;
+                if (!OffscreenRespawnRule.NeedsRespawn(d, e.moveSpeed, seconds)) continue;
+
+                // ⚠️ **제 방향을 지킨다** — 링 위 아무 자리로 옮기면 화면에서 순간이동으로
+                // 읽힌다. 로봇에서 그 적을 향한 방향 그대로 당겨 온다.
+                Vector2 dir = d > 1e-4f ? (e.position - robot) / d : Vector2.right;
+                e.position = robot + dir * _spawnRingRadius;
+                moved++;
+            }
+
+            return moved;
+        }
+
+        /// <summary>
         /// 화면 안의 범위를 넣는다 — 러너가 **카메라에서 재서** 준다(상수로 짓지 않는다).
         /// 창 크기·비율이 바뀌면 다시 넣어야 하므로 러너가 틱마다 갱신한다.
         /// </summary>
@@ -195,10 +238,19 @@ namespace MBI.Core
         /// <summary>이번 틱에 드론이 충전량을 다 쓰고 사라진 자리들 — `vfx_droneexpire`.</summary>
         public IReadOnlyList<Vector2> DroneExpiriesThisTick => _droneExpiries;
         private readonly List<EnemySpawn> _spawnQueue;
-        private readonly Vector2[] _spawnPositions;
+
         private readonly List<ShotEvent> _shots = new List<ShotEvent>();
 
-        private readonly float _arenaRadius;
+        /// <summary>
+        /// 적이 나타나는 **링 반경** — 로봇 기준이다(2026-09-11 · §71-28 2).
+        ///
+        /// ⚠️ **구 이름 `_arenaRadius` 폐기.** 이동 경계이자 스폰 링이던 값인데,
+        /// 클램프가 없어지면서 **스폰 링 하나**만 남았다. 이름이 둘을 겸하면
+        /// 「화면 안」을 이것으로 대신하는 실수가 다시 난다(140행 주석과 같은 자리).
+        ///
+        /// ⚠️ **읽기 전용이 아니다** — 창 크기가 바뀌면 러너가 다시 넣는다.
+        /// </summary>
+        private float _spawnRingRadius;
         private readonly float _challengeTime;
         private readonly float _spawnCadence;
 
@@ -526,6 +578,12 @@ namespace MBI.Core
         public CombatResult Result { get; private set; } = CombatResult.InProgress;
         public float Elapsed { get; private set; }
         public CombatEntity Robot => Act.body;
+
+        /// <summary>
+        /// 로봇의 지금 자리 — **링과 재스폰이 기준으로 삼는 점**(2026-09-11 · §71-28).
+        /// 몸이 없으면 원점이다(태그 전환 사이 한 프레임 같은 자리).
+        /// </summary>
+        public Vector2 RobotPosition => Robot != null ? Robot.position : Vector2.zero;
         public IReadOnlyList<CombatEntity> Enemies => _enemies;
         public IReadOnlyList<ShotEvent> ShotsThisTick => _shots;
         public int TotalEnemies => _spawnQueue.Count;
@@ -572,7 +630,9 @@ namespace MBI.Core
                 {
                     faction = Faction.Enemy,
                     label = s.label,
-                    position = FarmSpawnRule.RingPosition(i, batch.Count, _arenaRadius),
+                    // ⚠️ **로봇 기준이다**(2026-09-11) — 원점 기준이면 로봇이 움직인 만큼
+                    // 적이 **화면 안에서 튀어나온다.**
+                    position = SpawnRingRule.Position(RobotPosition, i, batch.Count, _spawnRingRadius),
                     hp = s.hp,
                     maxHp = s.hp,
                     def = s.def,
@@ -607,7 +667,7 @@ namespace MBI.Core
         private CombatSimulation(RobotSetup[] setups, MountLoad[] mounts,
             IReadOnlyList<EnemySpawn> spawns, float arenaRadius, float challengeTime, float spawnCadence)
         {
-            _arenaRadius = arenaRadius;
+            _spawnRingRadius = arenaRadius;
             _challengeTime = challengeTime;
             _spawnCadence = spawnCadence;
 
@@ -645,7 +705,9 @@ namespace MBI.Core
             }
 
             _spawnQueue = new List<EnemySpawn>(spawns ?? new List<EnemySpawn>());
-            _spawnPositions = BuildSpawnPositions(_spawnQueue.Count, arenaRadius);
+            // ⚠️ **자리를 미리 굳히지 않는다**(2026-09-11 · §71-28 2). 종전에는 생성자에서
+            // 원점 기준 절대 좌표를 다 만들어 두었는데, 링이 **로봇을 따라다니게** 되면서
+            // 스폰 시점의 로봇 자리를 알아야 한다. 방향만 규칙이 내고 자리는 그때 만든다.
 
             // ⚠️ **여기서 재고를 만들지 않는다**(260902_W08 §1). 창고는 러너가 들고 있고
             // 시뮬은 빌려 쓸 뿐이다 — 스테이지 전환이 재고에 손대지 않는 것이 그 뜻이다.
@@ -770,17 +832,6 @@ namespace MBI.Core
         }
 
         /// <summary>경계 원주에 균등 각도로 배치(결정론적, 난수 0).</summary>
-        private static Vector2[] BuildSpawnPositions(int count, float radius)
-        {
-            var pos = new Vector2[count];
-            for (int i = 0; i < count; i++)
-            {
-                float angle = count > 0 ? (2f * Mathf.PI * i) / count : 0f;
-                pos[i] = new Vector2(Mathf.Cos(angle), Mathf.Sin(angle)) * radius;
-            }
-            return pos;
-        }
-
         public void Tick(float dt)
         {
             if (Result != CombatResult.InProgress || dt <= 0f) return;
@@ -913,7 +964,8 @@ namespace MBI.Core
                 {
                     faction = Faction.Enemy,
                     label = s.label,
-                    position = _spawnPositions[_spawnedCount],
+                    position = SpawnRingRule.Position(
+                        RobotPosition, _spawnedCount, _spawnQueue.Count, _spawnRingRadius),
                     hp = s.hp,
                     maxHp = s.hp,
                     def = s.def,

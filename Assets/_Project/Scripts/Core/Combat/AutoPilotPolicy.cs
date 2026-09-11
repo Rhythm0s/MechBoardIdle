@@ -8,6 +8,15 @@ namespace MBI.Core
     {
         public Vector2 robotPos;
         public IReadOnlyList<CombatEntity> enemies;
+        /// <summary>
+        /// ⚠️ **폐기 — 아무도 안 본다**(2026-09-11 사용자 확정 · §71-28 1).
+        ///
+        /// 이동 가능 반경이었다. 전장이 **로봇을 따라다니는 판**이 되면서 경계가 없어졌고,
+        /// 링은 이제 <see cref="SpawnRingRule"/> 이 **로봇 기준**으로 낸다.
+        ///
+        /// **자리는 남긴다** — 부르는 시험이 스물이고, 값을 안 보는 것이 곧 규칙이라
+        /// 지우는 것보다 **안 보는 것을 적어 두는 편**이 낫다.
+        /// </summary>
         public float arenaRadius;
         public float attackRange;  // 이 거리 안이면 제자리 사격
         public float moveSpeed;    // 유닛/초 (TBD)
@@ -58,10 +67,13 @@ namespace MBI.Core
             // 사거리 밖 → 최근접 적을 향해 4방향으로 접근.
             Vector2 next = GridMovement.Step(ctx.robotPos, nearest.position, step);
 
-            // 아레나 밖으로는 나가지 않는다. 적이 아레나 안에 있어 보통은 걸리지 않지만,
-            // 걸리면 그 걸음을 버린다 — 접선으로 미끄러지면 그것이 곧 이동 판단이 된다.
-            if (ctx.arenaRadius > 0f && next.magnitude > ctx.arenaRadius) return ctx.robotPos;
-
+            // ⚠️ **아레나 클램프를 걷었다**(2026-09-11 사용자 확정 · 플랜 §71-28 1).
+            //
+            // 종전에는 `magnitude > arenaRadius` 면 그 걸음을 버렸다 — **월드 원점 기준
+            // 반경 6** 의 원 안에 로봇을 가둔 것이다. 전장이 아레나가 아니라 **로봇을
+            // 따라다니는 판**이 되면서 그 원의 근거가 사라졌다.
+            //
+            // 나가지 못하게 하던 이유(접선 미끄러짐)는 **경계가 있을 때만** 생기는 문제다.
             return next;
         }
 

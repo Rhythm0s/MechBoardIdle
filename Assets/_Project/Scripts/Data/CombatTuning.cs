@@ -35,8 +35,11 @@ namespace MBI.Data
         [Header("스폰 / 아레나 (⚠️ TBD)")]
         [Tooltip("TBD — 스폰 간격(초). 0이면 시작 시 전원 스폰(웨이브 없음).")]
         public float spawnCadenceTbd = 0.35f;
-        [Tooltip("TBD — 아레나 반경(유닛). 적은 이 반경 경계에서 스폰되어 중앙 로봇으로 접근.")]
+        [Tooltip("⚠️ 폐기 — 이동 경계가 없어졌다(2026-09-11). 스폰 링은 spawnRingRadiusTbd 가 든다.")]
         public float arenaRadiusTbd = 6f;
+
+        [Tooltip("TBD — 스폰 링 반경(유닛). 0 이면 카메라에서 잰다(화면 대각선 반 + 한 칸 가정). 값은 260911_W03.")]
+        public float spawnRingRadiusTbd = 0f;
 
         [Header("자동 전투 (⚠️ TBD — 밸런스 아님, 연출·조작감)")]
         // autoPilotDesiredGapTbd 삭제(260829_V03 승인) — 2026-08-26 카이팅 폐기로
