@@ -1,3 +1,4 @@
+using MBI.Data;
 using UnityEngine;
 
 namespace MBI.UI
@@ -40,8 +41,19 @@ namespace MBI.UI
         /// <summary>꺼진 것 — 색을 빼는 것이 아니라 **어둡게** 한다. 회색으로 빼면 바탕에 묻힌다.</summary>
         public static readonly Color Disabled = new Color(0.55f, 0.54f, 0.51f, 1f);
 
-        /// <summary>테두리 두께(px). **버튼 크기와 무관하게 고정**이다 — 9-슬라이스가 그것을 지킨다.</summary>
+        /// <summary>
+        /// 코드 생성본의 테두리 두께(px). **버튼 크기와 무관하게 고정**이다 — 9-슬라이스가 지킨다.
+        ///
+        /// ⚠️ **그림 자산은 다른 값을 쓴다** — 원본 64 에 여백 16(`260911_W02` 9장).
+        /// 그래서 여백은 상수 하나가 아니라 <see cref="ActiveBorder"/> 가 낸다.
+        /// </summary>
         public const int BorderPx = 4;
+
+        /// <summary>지금 쓰는 9-슬라이스 여백 — 그림이 있으면 그림 값, 없으면 코드 생성본 값.</summary>
+        public static int ActiveBorder { get { EnsureTextures(); return _border; } }
+
+        /// <summary>그림 자산으로 서 있는가(시험·진단용). 거짓이면 코드 생성본이다.</summary>
+        public static bool UsingArt { get { EnsureTextures(); return _usingArt; } }
 
         /// <summary>텍스처 한 변. 9-슬라이스라 실제 크기는 아무래도 좋다 — 테두리 4 + 가운데 4 + 4.</summary>
         private const int TexSize = 12;
@@ -50,6 +62,8 @@ namespace MBI.UI
 
         private static GUISkin _skin;
         private static Texture2D _normal, _hover, _active, _off, _plate;
+        private static int _border = BorderPx;
+        private static bool _usingArt;
 
         /// <summary>
         /// 이번 OnGUI 에 껍데기와 한글 폰트를 물린다. **각 `OnGUI` 맨 앞에서** 부른다.
@@ -130,7 +144,7 @@ namespace MBI.UI
             s.onFocused.textColor = Accent;
 
             // 9-슬라이스 여백. **버튼이 커져도 테두리는 4px** — 통짜로 늘리면 모서리가 뭉개진다.
-            s.border = new RectOffset(BorderPx, BorderPx, BorderPx, BorderPx);
+            s.border = new RectOffset(_border, _border, _border, _border);
 
             // ⚠️ **꺼진 상태는 `GUIStyle` 칸이 따로 없다** — IMGUI 는 `GUI.enabled = false` 일 때
             // `normal` 을 그대로 쓰고 `GUI.color` 만 흐린다. 그래서 잠긴 버튼을 색으로 말하려면
@@ -143,6 +157,28 @@ namespace MBI.UI
         {
             if (_normal != null) return;
 
+            // ⚠️ **그림이 있으면 그림이 이긴다 — 없으면 코드 생성본으로 떨어진다.**
+            // 「자산이 오면 갈아끼운다」가 말이 되려면 **안 온 상태에서도 화면이 서야** 한다.
+            // 여기 한 자리가 그 갈림길이고, 호출부는 어느 쪽인지 모른다(`260911_W02` 9장).
+            var art = Resources.Load<UiSkinAssets>(UiSkinAssets.ResourcePath);
+            if (art != null && art.HasAny)
+            {
+                _usingArt = true;
+                _border = Mathf.Max(1, art.border);
+
+                _normal = art.buttonNormal;
+                // ⚠️ **없는 것은 코드 생성본으로 메운다** — 기본 그림을 눌림에 돌려 쓰면
+                // **눌러도 안 바뀌는 버튼**이 된다(상태가 화면에서 사라진다).
+                _hover = art.buttonNormal != null ? art.buttonNormal : Make(Lighten(Fill, 0.06f), Border);
+                _active = art.buttonPressed != null ? art.buttonPressed : Make(Darken(Fill, 0.35f), Accent);
+                _off = art.buttonLocked != null ? art.buttonLocked : Make(Darken(Fill, 0.45f), Disabled);
+                _plate = art.panel != null ? art.panel : Make(UiPlate.Tint, Border);
+
+                if (_normal != null) return;
+            }
+
+            _usingArt = false;
+            _border = BorderPx;
             _normal = Make(Fill, Border);
             // 손이 올라간 것은 **밝기**로만 말한다 — 색을 바꾸면 「고른 것」과 헷갈린다.
             _hover = Make(Lighten(Fill, 0.06f), Border);

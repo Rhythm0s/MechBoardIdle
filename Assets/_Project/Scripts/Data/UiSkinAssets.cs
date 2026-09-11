@@ -1,0 +1,43 @@
+using UnityEngine;
+
+namespace MBI.Data
+{
+    /// <summary>
+    /// UI 그릇 자산 — **껍데기가 그림을 찾는 한 자리** (2026-09-11 · `260911_W02` 9장).
+    ///
+    /// **왜 SO 인가.** `MBI.UI.UiSkin` 은 `MonoBehaviour` 가 아니라 정적 클래스라
+    /// 인스펙터로 그림을 받을 수가 없다. 그리고 `Art/UI/` 는 `Resources` 밖이라
+    /// 런타임에서 경로로 못 읽는다 — **이 SO 가 그 사이를 잇는다.**
+    /// (`KoreanFont` 가 폰트를 `Resources` 에서 읽는 것과 같은 꼴이다.)
+    ///
+    /// ⚠️ **없으면 코드 생성 텍스처로 떨어진다.** 자산이 아직 안 온 상태에서도 화면이
+    /// 서야 하고, 그래야 「자산이 오면 갈아끼운다」가 말이 된다.
+    ///
+    /// ⚠️ **여백은 그림이 정한다.** 9-슬라이스 원본 64 에 여백 16 이므로(W02 9장)
+    /// 코드 생성본의 4 와 다르다 — 그림을 바꾸면 <see cref="border"/> 도 같이 바뀐다.
+    /// </summary>
+    public sealed class UiSkinAssets : ScriptableObject
+    {
+        [Tooltip("버튼 기본. 9-슬라이스 원본 64 · 여백 16.")]
+        public Texture2D buttonNormal;
+
+        [Tooltip("버튼 눌림. 없으면 기본을 어둡게 쓰지 않고 코드 생성본으로 떨어진다.")]
+        public Texture2D buttonPressed;
+
+        [Tooltip("버튼 잠김.")]
+        public Texture2D buttonLocked;
+
+        [Tooltip("패널·띠 바탕.")]
+        public Texture2D panel;
+
+        [Tooltip("9-슬라이스 여백(px). 원본 64 에 16 (260911_W02 9장).")]
+        public int border = 16;
+
+        /// <summary>`Resources` 기준 경로 — 이름 하나를 둘이 쓰므로 여기 둔다.</summary>
+        public const string ResourcePath = "UiSkinAssets";
+
+        /// <summary>쓸 만한 그림이 하나라도 있는가. 없으면 껍데기는 코드 생성본을 쓴다.</summary>
+        public bool HasAny => buttonNormal != null || buttonPressed != null
+                              || buttonLocked != null || panel != null;
+    }
+}

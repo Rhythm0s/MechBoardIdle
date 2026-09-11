@@ -45,6 +45,17 @@ namespace MBI.Tests
             // 각진 것이 톤이다 — 보간하면 늘어날 때 테두리가 번져 둥글어 보인다.
             Assert.AreEqual(FilterMode.Point, t.filterMode, "점 보간");
 
+            // ⚠️ **그림 자산은 화소를 못 읽는다**(2026-09-11 · c10 설치 뒤).
+            // 임포트한 텍스처는 `Read/Write` 를 켜야 `GetPixel` 이 되는데, 그것은 **시험만을
+            // 위해 메모리를 두 배로 쓰는 일**이다 — 런타임은 GPU 로만 쓴다.
+            // 그림일 때는 **약속**(여백이 0보다 크다 · 여백 둘이 한 변보다 작다)만 본다.
+            if (UiSkin.UsingArt)
+            {
+                Assert.Greater(UiSkin.ActiveBorder, 0, "9-슬라이스 여백이 있어야 늘어난다");
+                Assert.Less(UiSkin.ActiveBorder * 2, t.width, "여백 둘이 한 변을 넘으면 가운데가 없다");
+                return;
+            }
+
             // 네 귀퉁이는 테두리색, 한가운데는 바탕색. 9-슬라이스가 이 배치를 전제한다.
             Same(UiSkin.Border, t.GetPixel(0, 0), "왼아래 귀퉁이");
             Same(UiSkin.Border, t.GetPixel(t.width - 1, t.height - 1), "오른위 귀퉁이");
@@ -55,13 +66,32 @@ namespace MBI.Tests
             Same(UiSkin.Fill, t.GetPixel(UiSkin.BorderPx, t.height / 2), "그 한 칸 안");
         }
 
+        /// <summary>
+        /// **그림이 오면 그림이 이기고, 없으면 코드 생성본으로 떨어진다**
+        /// (2026-09-11 · `260911_W02` 9장 자산 절).
+        ///
+        /// 「자산이 오면 갈아끼운다」가 말이 되려면 **안 온 상태에서도 화면이 서야** 한다.
+        /// 어느 쪽이든 **호출부는 모른다** — 그것이 텍스처 소스를 한 곳에 둔 이유다.
+        /// </summary>
+        [Test]
+        public void 그림이_없어도_껍데기는_선다()
+        {
+            Assert.IsTrue(UiSkin.TexturesReady, "어느 쪽이든 넷 다 채워진다");
+            Assert.IsNotNull(UiSkin.PlateTexture);
+            Assert.IsNotNull(UiSkin.DisabledTexture);
+
+            // ⚠️ **눌림이 기본과 같으면 안 된다** — 같으면 눌러도 안 바뀌는 버튼이 되어
+            // 상태가 화면에서 사라진다. 그림이 아직 하나뿐이라 나머지는 코드 생성본이 메운다.
+            Assert.AreNotSame(UiSkin.NormalTexture, UiSkin.DisabledTexture);
+        }
+
         [Test]
         public void 텍스처가_9슬라이스보다_크다()
         {
             // 테두리 둘 + 늘어날 가운데가 있어야 한다. 같거나 작으면 가운데가 없어
             // 늘렸을 때 테두리끼리 맞물려 **통짜 사각**이 된다.
             Texture2D t = UiSkin.NormalTexture;
-            Assert.Greater(t.width, UiSkin.BorderPx * 2, "가운데가 남아야 늘어난다");
+            Assert.Greater(t.width, UiSkin.ActiveBorder * 2, "가운데가 남아야 늘어난다");
             Assert.AreEqual(t.width, t.height, "정사각이라 가로세로 어느 쪽으로도 늘어난다");
         }
 
@@ -69,6 +99,10 @@ namespace MBI.Tests
         public void 판은_UiPlate_와_같은_계열이다()
         {
             // 판 색이 갈리면 같은 화면에 어두운 회색 두 가지가 생긴다.
+            // ⚠️ 패널 그림이 오면 색은 그림이 정한다 — 그때는 볼 것이 없어진다.
+            if (UiSkin.UsingArt && UiSkin.PlateTexture != null
+                && !UiSkin.PlateTexture.isReadable) Assert.Pass("패널이 그림이다 — 색은 그림이 정한다");
+
             Same(UiPlate.Tint, UiSkin.PlateTexture.GetPixel(6, 6), "판 가운데");
         }
 
