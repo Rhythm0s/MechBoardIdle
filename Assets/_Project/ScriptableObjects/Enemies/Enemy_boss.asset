@@ -57,6 +57,19 @@ MonoBehaviour:
     pingPong: 0
     dwellCells: 
     cellOrder: 
+  - state: 1
+    direction: 2
+    frames:
+    - {fileID: 21300000, guid: a5fe07db148418c44bfc5b14e5224baf, type: 3}
+    - {fileID: 21300000, guid: ee03f3c889685f84095d582657aa70c4, type: 3}
+    - {fileID: 21300000, guid: 881a881a0b2a937408af47a93e7202d6, type: 3}
+    - {fileID: 21300000, guid: f652cd8c8c4ed6b4e8602f95844446bb, type: 3}
+    - {fileID: 21300000, guid: b9a8c11060dd40e4db6f8a4fe22ecc52, type: 3}
+    - {fileID: 21300000, guid: a8c7b8243f0302d428acd242ed3644b2, type: 3}
+    targetSeconds: 1
+    pingPong: 0
+    dwellCells: 
+    cellOrder: 
   - state: 2
     direction: 0
     frames:
