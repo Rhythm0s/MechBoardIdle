@@ -177,9 +177,12 @@ namespace MBI.Tests
                     g.TryPlaceBelt(run.cell, run.inFace, run.outFace, FlowKind.None, out _);
             }
 
+            // ⚠️ **채우는 것이 노드에서 벨트로 바뀌었다**(2026-09-11 설계 확정 (가)).
             if (fillEmptySlot)
-                g.TryPlace(StartingBoard.FillsEmptySlot.cell,
-                    Node(StartingBoard.FillsEmptySlot.nodeId), out _);
+            {
+                StartingBoard.Run f = StartingBoard.FillsEmptySlot;
+                g.TryPlaceBelt(f.cell, f.inFace, f.outFace, FlowKind.None, out _);
+            }
 
             BeltAutoOrient.Resolve(g);
             BeltFlow.Resolve(g);
@@ -223,7 +226,9 @@ namespace MBI.Tests
             // ⚠️ **네 줄이 되면서 「놓기 전 0」이 깨졌다**(2026-09-11). 빈 칸이 군수 한 대라
             // 나머지 세 줄이 그대로 흐른다 — 튜토리얼 기획서 4-2 의 종료 조건과 어긋나
             // `260911_V01` 판정 요청으로 올렸다(권고 = 빈 칸을 합류 뒤 운반로 벨트 한 칸으로).
-            Assert.Greater(empty, 0f, "⚠️ 지금은 0 이 아니다 — 세 줄이 남아 흐른다(판정 대기)");
+            // ✅ **규격으로 되돌렸다**(2026-09-11 설계 확정 (가)) — 빈 칸이 합류 뒤
+            // 외길로 옮겨 오면서 도착이 실제로 0 이 된다.
+            Assert.AreEqual(0f, empty, 0.0001f, "⚠️ 지금은 0 이 아니다 — 세 줄이 남아 흐른다(판정 대기)");
             Assert.Greater(filled, 0f, "채우면 닿는다 — 배치가 출력을 만든다");
         }
 

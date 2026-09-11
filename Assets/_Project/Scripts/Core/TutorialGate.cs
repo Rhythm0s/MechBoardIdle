@@ -25,7 +25,12 @@ namespace MBI.Core
             EnterBoard,
             /// <summary>조립 모드로 바꿔야 한다(기본이 이동 모드다).</summary>
             BuildMode,
-            /// <summary>고스트 칸에 기초 군수를 놓아야 한다.</summary>
+            /// <summary>
+            /// 고스트 칸을 채워야 한다. **이름은 `PlaceNode` 지만 지금 놓는 것은 벨트다**
+            /// (2026-09-11 설계 확정 (가)) — 국면의 뜻은 「고스트 칸을 채운다」이고
+            /// 무엇을 놓는가는 시작 보드가 정한다. 이름을 바꾸면 부르는 자리가 전부 흔들려
+            /// **폐기 표기로 남긴다.**
+            /// </summary>
             PlaceNode,
         }
 
@@ -93,10 +98,16 @@ namespace MBI.Core
                     return control == Control.ModeToggle;
 
                 case Phase.PlaceNode:
-                    // ⚠️ **모드 버튼을 막는다.** 이 국면은 이미 조립 모드라는 뜻이고,
-                    // 여기서 이동 모드로 돌아가면 보드를 눌러도 안 놓여 다시 막힌다.
-                    return control == Control.PaletteMunitions || control == Control.MiniMap
-                           || control == Control.Zoom;
+                    // ⚠️ **팔레트를 전부 막는다**(2026-09-11 설계 확정 (가)).
+                    //
+                    // 놓을 것이 **노드가 아니라 벨트**가 됐다. 직선 벨트는 팔레트에 버튼이
+                    // 없고 **드래그가 만든다** — 그래서 강제가 「팔레트 하나만 켜기」에서
+                    // **「보드만 열기」**로 바뀐다. 기초 군수를 켜 두면 **엉뚱한 것을 놓으라고
+                    // 가리키는 셈**이다.
+                    //
+                    // ⚠️ 모드 버튼은 여전히 막는다 — 이동 모드로 돌아가면 드래그가 화면
+                    // 이동이 되어 벨트가 안 깔린다.
+                    return control == Control.MiniMap || control == Control.Zoom;
 
                 default:
                     return true;

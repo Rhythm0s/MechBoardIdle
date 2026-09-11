@@ -102,13 +102,17 @@ namespace MBI.Tests
         }
 
         [Test]
-        public void 놓기_국면은_기초_군수와_보드만_켠다()
+        public void 놓기_국면은_보드만_켠다()
         {
-            TutorialSignals.GhostCell = new Vector2Int(7, 8);
+            TutorialSignals.GhostCell = new Vector2Int(6, 5);
             TutorialSignals.BoardInBuildMode = true;
 
-            Assert.IsTrue(TutorialGate.Allows(TutorialGate.Control.PaletteMunitions));
-            Assert.IsTrue(TutorialGate.AllowsBoardTap);
+            // ⚠️ **팔레트를 전부 막는다**(2026-09-11 설계 확정 (가)). 놓을 것이 노드가
+            // 아니라 **벨트**이고 직선 벨트는 팔레트에 버튼이 없다 — 드래그가 만든다.
+            // 기초 군수를 켜 두면 **엉뚱한 것을 놓으라고 가리키는 셈**이다.
+            Assert.IsFalse(TutorialGate.Allows(TutorialGate.Control.PaletteMunitions),
+                "이제 놓을 것은 벨트다");
+            Assert.IsTrue(TutorialGate.AllowsBoardTap, "보드는 열려 있어야 드래그로 깐다");
             Assert.IsFalse(TutorialGate.Allows(TutorialGate.Control.PaletteOther));
             Assert.IsFalse(TutorialGate.Allows(TutorialGate.Control.BeltElement));
             Assert.IsFalse(TutorialGate.Allows(TutorialGate.Control.Remove),

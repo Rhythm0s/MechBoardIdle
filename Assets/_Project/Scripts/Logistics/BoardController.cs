@@ -562,24 +562,20 @@ namespace MBI.Logistics
 
         // 시작 배치를 깐다. 배치 경로는 플레이어 조작과 동일(TryPlace + 마커) — 별도 경로를 만들지 않는다.
         /// <summary>
-        /// 비워 둔 칸을 채우는 **기초 군수 노드**를 놓는다 (2026-09-05 · `260904_W03` 1-1).
+        /// 비워 둔 칸을 채우는 **운반로 벨트 한 칸**을 놓는다
+        /// (2026-09-11 설계 확정 (가) · 구 「기초 군수 노드」 폐기 · 그 앞은 병합기였다).
         ///
-        /// 종전에는 병합기였다. 시작 보드가 표준탄 단일 라인으로 바뀌면서 합칠 갈래가
-        /// 없어졌고, 빈 칸은 **부품을 탄으로 바꿀 노드**의 자리가 됐다.
+        /// 세 판 모두 같은 이유로 바뀌었다 — **놓기 전에 0 이 되는 자리**를 찾아온 것이다.
+        /// 병합기는 합칠 갈래가 없어졌고, 기초 군수는 나머지 세 줄이 흘러 0 이 안 됐다.
+        /// 합류 뒤 외길의 벨트 한 칸이 그 조건을 만족한다.
         /// </summary>
         private void PlaceTutorialFill()
         {
-            StartingBoard.Slot slot = StartingBoard.FillsEmptySlot;
-            if (_grid.HasBelt(slot.cell) || _grid.IsOccupied(slot.cell)) return;
+            StartingBoard.Run run = StartingBoard.FillsEmptySlot;
+            if (_grid.HasBelt(run.cell) || _grid.IsOccupied(run.cell)) return;
 
-            NodeDefinition def = FindStartingNode(slot.nodeId);
-            if (def == null) return;
-
-            if (_grid.TryPlace(slot.cell, def, out NodeInstance placed))
-            {
-                placed.AmmoKind = slot.ammo;
-                SpawnNodeMarker(slot.cell);
-            }
+            if (_grid.TryPlaceBelt(run.cell, run.inFace, run.outFace, FlowKind.None, out _))
+                SpawnBeltMarker(run.cell, run.outFace);
         }
 
         // 시작 배치가 쓰는 노드 자산을 인스펙터 목록에서 찾는다. 시작 보드는 id로만 적고

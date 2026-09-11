@@ -226,23 +226,22 @@ namespace MBI.EditorTools
 
             sb.AppendLine("  주의: 제약 4(약 8초)와 5(S1 을 여유 있게)에 닿는지는 설계가 판정한다.");
 
-            // ── 빈 칸을 어디로 둘 것인가 (2026-09-11 · V01 판정 요청 재료)
+            // ── 「놓기 전 0」이 서는가 (2026-09-11 설계 확정 (가) · `260911_W02`)
             //
-            // 튜토리얼 기획서 4-2 는 「놓기 전 0」을 종료 조건으로 삼는다. 그런데 네 줄이
-            // 되면서 **군수 한 대를 비워도 나머지 셋이 흐른다** — 수업이 안 선다.
-            // 대안은 **합류 뒤 운반로 벨트 한 칸**을 비우는 것이다. 둘을 나란히 잰다.
+            // ⚠️ **비교 표는 걷었다.** 두 자리를 나란히 재던 것은 **판정 재료**였고
+            // (가)로 확정됐다 — 이제 같은 표를 내면 **뒤집혀 읽힌다.** 빈 칸이 이미
+            // 운반로 벨트 칸이라 「(가) 채우기 전」이 기본 판의 값이 되어 버린다.
+            //
+            // 남길 것은 **규격이 서는가** 하나다: 놓기 전 0 · 놓은 뒤 흐른다.
             const float W = 60f;
-            int nodeGap = Arrivals(BuildStartingBoard(false), W, out _);
-            int beltGap = Arrivals(BuildStartingBoardMissingBelt(new Vector2Int(6, 5)), W, out _);
+            int before = Arrivals(BuildStartingBoard(false), W, out _);
             int whole = Arrivals(BuildStartingBoard(true), W, out _);
 
             sb.AppendLine();
-            sb.AppendLine("  빈 칸 자리 비교 — 60초 도착 개수");
-            // ⚠️ **설계 글자를 쓴다** — (가) = 운반로 벨트 · (나) = 문안 30→40 · (다) = 한 줄.
-            // 구현이 먼저 붙인 (가)/(나)는 **뒤집혀 있었다**(2026-09-11 사용자 정정).
-            sb.AppendLine($"  (가) 합류 뒤 운반로 벨트 한 칸 | 채우기 전 {beltGap} | 채운 뒤 {whole}");
-            sb.AppendLine($"  현행  군수 한 대를 비운다      | 채우기 전 {nodeGap} | 채운 뒤 {whole}");
-            sb.AppendLine("  주의: 「놓기 전 0」이 서는 쪽이 튜토리얼 종료 조건과 맞는다 — 판정은 설계.");
+            sb.AppendLine("  「놓기 전 0」 — 튜토리얼 기획서 4-2 종료 조건");
+            sb.AppendLine($"  빈 칸(합류 뒤 운반로 벨트 한 칸) | 채우기 전 {before} | 채운 뒤 {whole}");
+            if (before != 0)
+                sb.AppendLine("  ⚠️ **채우기 전이 0 이 아니다 — 규격이 깨졌다.**");
         }
 
         /// <summary><c>MountDeliveryTests.BuildStartingBoard</c> 와 같은 구성.</summary>
@@ -259,9 +258,8 @@ namespace MBI.EditorTools
             foreach (StartingBoard.Run run in StartingBoard.Belts)
                 PlaceRun(g, run);
 
-            if (fillEmptySlot)
-                g.TryPlace(StartingBoard.FillsEmptySlot.cell,
-                    Node(StartingBoard.FillsEmptySlot.nodeId), out _);
+            // ⚠️ **채우는 것이 노드에서 벨트로 바뀌었다**(2026-09-11 설계 확정 (가)).
+            if (fillEmptySlot) PlaceRun(g, StartingBoard.FillsEmptySlot);
 
             // ⚠️ **이 둘이 빠지면 아무것도 안 흐른다.** 놓는 것과 이어지는 것은 다른 단계다.
             BeltAutoOrient.Resolve(g);
@@ -350,8 +348,7 @@ namespace MBI.EditorTools
 
             foreach (StartingBoard.Slot slot in StartingBoard.Nodes)
                 g.TryPlace(slot.cell, Node(slot.nodeId), out _);
-            g.TryPlace(StartingBoard.FillsEmptySlot.cell,
-                Node(StartingBoard.FillsEmptySlot.nodeId), out _);   // 군수는 다 놓는다
+            PlaceRun(g, StartingBoard.FillsEmptySlot);   // 운반로를 다 잇는다
 
             foreach (StartingBoard.Run run in StartingBoard.Belts)
             {
