@@ -61,6 +61,14 @@ namespace MBI.Editor
             sb.AppendLine("- **가로 열 셋** — 첫 칸 폭 · 벌 안 최소 폭 · 최대 폭(알파 bbox). 주저앉음의 잣대 둘째가 "
                           + "「세로가 줄 때 가로가 따라 줄지 않을 것」이라 **가로가 어느 쪽으로 갔는지**를 봐야 한다(`260908_W01` 2-3 · 3-2). "
                           + "**마지막 칸 열을 함께 낸다** — 주저앉음은 끝난 자세가 결과이고, 중간 칸의 최소는 지나가는 값일 수 있다");
+            sb.AppendLine("- ✅ **이음새 열 셋 신설**(2026-09-11 · `boss_Move` 4차 설치 뒤). "
+                          + "**wrap = 마지막 칸 → 첫 칸**이며 순환 재생에서 **실제로 이어 붙는 자리**다 — "
+                          + "여기가 안 닫히면 한 바퀴마다 그림이 튄다(`daef09e` · `83a34df`)");
+            sb.AppendLine("- **화소 차 = 두 실루엣이 다른 화소 수 ÷ 두 실루엣의 합집합.** 0%면 같은 자세, "
+                          + "클수록 벌어진 것이다. **이웃 평균**은 참고값이라 **하한이 아니다** — "
+                          + "작다고 반려가 아니라 「움직임이 줄었다」는 신호이고 판정은 육안이다");
+            sb.AppendLine("- **wrap 겹침**은 `SilhouetteOverlap.Ratio(마지막, 첫)` 이다. 이음새 잣대는 **0.78 이상**"
+                          + "(규칙 15 · 이웃 이음새와 같은 눈금)");
             sb.AppendLine("- 알파 문턱: 16 초과를 「있다」로 본다 · 캔버스 그대로만 잰다(자르거나 늘이지 않는다)");
             sb.AppendLine("- 계산: `MBI.Core.SilhouetteOverlap.TryBounds` 재사용");
             sb.AppendLine("- 도구 커밋은 **실행 시점의 HEAD**다. **잰 파일이 무엇인지는 아래 표의 md5가 말한다**");
@@ -75,8 +83,8 @@ namespace MBI.Editor
 
             sb.AppendLine("- 칸 열 셋은 `MBI.Core.Anim.AnimSchedule`이 낸다 — 한 칸 1/16초 · 목표 초는 `CombatTuning`(`260907_W01` 4-5)");
             sb.AppendLine();
-            sb.AppendLine("| 벌 | 그림 | 캔버스 | **실루엣 높이(첫 칸)** | 실루엣 높이(평균) | 여백 T/B(최소) | 세로 변화 px | **세로 %(첫 칸)** | 세로 %(평균) | **가로(첫 칸)** | **가로(마지막 칸)** | 가로 최소 | 가로 최대 | 잴 수 있나 | 기본 칸 | 필요 칸 | 실제 초 | 첫 프레임 md5 |");
-            sb.AppendLine("|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|");
+            sb.AppendLine("| 벌 | 그림 | 캔버스 | **실루엣 높이(첫 칸)** | 실루엣 높이(평균) | 여백 T/B(최소) | 세로 변화 px | **세로 %(첫 칸)** | 세로 %(평균) | **가로(첫 칸)** | **가로(마지막 칸)** | 가로 최소 | 가로 최대 | **wrap 화소 차** | **wrap 겹침** | 이웃 화소 차(평균) | 잴 수 있나 | 기본 칸 | 필요 칸 | 실제 초 | 첫 프레임 md5 |");
+            sb.AppendLine("|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|");
 
             var warnings = new List<string>();
             var dirs = new List<string>(Directory.GetDirectories(root));
@@ -101,6 +109,9 @@ namespace MBI.Editor
                     double firstH = 0;
                     // 가로 — 첫 칸 폭과 벌 안 최소·최대 폭(`260908_W01` 3-2).
                     int firstW = 0, lastW = 0, widthMin = int.MaxValue, widthMax = int.MinValue;
+                    // ⚠️ **마스크를 들고 있어야 이음새를 잰다.** 한 장씩 읽고 버리면 마지막 칸과
+                    // 첫 칸을 같은 순간에 볼 수가 없다 — wrap 열이 신설되며 생긴 요구다.
+                    var masks = new List<AlphaMask>(files.Length);
                     int counted = 0, canvasW = 0, canvasH = 0;
                     int marginTopMin = int.MaxValue, marginBottomMin = int.MaxValue;
                     bool clipped = false;
@@ -108,6 +119,7 @@ namespace MBI.Editor
                     foreach (string f in files)
                     {
                         if (!TryLoad(f, out AlphaMask m)) continue;
+                        masks.Add(m);
                         canvasW = m.width;
                         canvasH = m.height;
                         if (!SilhouetteOverlap.TryBounds(m, out int minX, out int maxX, out int minY, out int maxY)) continue;
@@ -147,6 +159,35 @@ namespace MBI.Editor
                         ? (100.0 * ampPx / firstH).ToString("0.0", CultureInfo.InvariantCulture) + "%"
                         : "—";
 
+                    // ── 이음새 셋 (2026-09-11 신설) ─────────────────────────────
+                    // 순환 재생은 **마지막 칸 다음에 첫 칸**이 온다. 이웃끼리 아무리 매끄러워도
+                    // 그 한 자리가 벌어져 있으면 한 바퀴마다 그림이 튄다 — 보스 이동 3차가 그랬다.
+                    string wrapDiff = "—", wrapOverlap = "—", neighborDiff = "—";
+                    bool pp = clipName.EndsWith("_Idle", StringComparison.Ordinal); // 왕복은 대기뿐(규칙 15 7-5)
+                    if (masks.Count >= 2)
+                    {
+                        AlphaMask first = masks[0], last = masks[masks.Count - 1];
+
+                        // ⚠️ **왕복 재생은 wrap 이 이음새가 아니다.** 마지막 칸 다음은 첫 칸이 아니라
+                        // 마지막-1 칸이라 여기 숫자가 커도 화면에서는 튀지 않는다 — 값을 내면
+                        // 없는 결함을 만든다. 그래서 **가린다**(2026-09-11).
+                        if (pp)
+                        {
+                            wrapDiff = "— 왕복";
+                            wrapOverlap = "— 왕복";
+                        }
+                        else
+                        {
+                            wrapDiff = Pct(MaskDiff(last, first));
+                            wrapOverlap = SilhouetteOverlap.Ratio(last, first)
+                                .ToString("0.000", CultureInfo.InvariantCulture);
+                        }
+
+                        double sum = 0;
+                        for (int k = 1; k < masks.Count; k++) sum += MaskDiff(masks[k - 1], masks[k]);
+                        neighborDiff = Pct(sum / (masks.Count - 1));
+                    }
+
                     string measurable = clipped ? "**아니다 — 잘림**" : "예";
 
                     string label = clipName + "/" + Path.GetFileName(dirDir);
@@ -169,6 +210,7 @@ namespace MBI.Editor
                         + " | " + marginTopMin + " / " + marginBottomMin
                         + " | " + ampPx + " | **" + ampPctFirst + "** | " + ampPct
                         + " | " + firstW + " | **" + lastW + "** | " + widthMin + " | " + widthMax
+                        + " | **" + wrapDiff + "** | **" + wrapOverlap + "** | " + neighborDiff
                         + " | " + measurable
                         + " | " + sch.BaseCells + " | " + sch.NeededCells
                         + " | " + sch.ActualSeconds.ToString("0.00", CultureInfo.InvariantCulture)
@@ -177,7 +219,7 @@ namespace MBI.Editor
                 }
             }
 
-            if (rows == 0) sb.AppendLine("| — | — | — | — | — | — | — | — | — | — | — | — | — | — | — | — | — | — |");
+            if (rows == 0) sb.AppendLine("| — | — | — | — | — | — | — | — | — | — | — | — | — | — | — | — | — | — | — | — | — |");
             sb.AppendLine();
             sb.AppendLine("**" + rows + "벌.** 대기 진폭 규격은 256 이상에서 실루엣 높이의 **4~6%**다 (캐릭터 아트 요청 문서(15)「동작의 크기」).");
             sb.AppendLine();
@@ -335,6 +377,35 @@ namespace MBI.Editor
             }
             catch { return "알 수 없음"; }
         }
+
+        /// <summary>
+        /// 두 실루엣이 얼마나 다른가 — **다른 화소 수 ÷ 합집합** (2026-09-11 신설).
+        ///
+        /// 캔버스 전체로 나누지 않는다. 여백이 넓은 자산에서는 분모가 커져 **어떤 움직임도
+        /// 0%에 가까워지기** 때문이다 — 같은 그림을 512 캔버스에 놓느냐 128 에 놓느냐로
+        /// 숫자가 달라지면 벌끼리 견줄 수가 없다.
+        ///
+        /// ⚠️ **이것은 하한이 아니라 참고값이다.** 작다는 것은 「덜 움직였다」이고,
+        /// 얼마나 움직여야 하는지는 규격이 없다(판정은 육안 · `260911` 아트 로그 3-27).
+        /// </summary>
+        private static double MaskDiff(AlphaMask a, AlphaMask b)
+        {
+            if (a.width != b.width || a.height != b.height) return double.NaN;
+
+            long diff = 0, union = 0;
+            for (int y = 0; y < a.height; y++)
+            for (int x = 0; x < a.width; x++)
+            {
+                bool pa = a[x, y], pb = b[x, y];
+                if (pa || pb) union++;
+                if (pa != pb) diff++;
+            }
+            return union == 0 ? 0.0 : (double)diff / union;
+        }
+
+        private static string Pct(double ratio) =>
+            double.IsNaN(ratio) ? "—"
+                : (100.0 * ratio).ToString("0.0", CultureInfo.InvariantCulture) + "%";
 
         /// <summary>PNG를 임포트 설정과 무관하게 읽는다 — <c>OverlapReport</c>와 같은 이유다.</summary>
         private static bool TryLoad(string path, out AlphaMask mask)
