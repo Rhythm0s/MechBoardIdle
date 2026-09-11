@@ -1771,9 +1771,12 @@ namespace MBI.Logistics
             // 구역(y 0~3)이다. 그림 출처는 `Art/Backgrounds/bg_board.png`(바닥 타일)와
             // 그 위의 파츠 색·셀선이다.
             //
-            // ⚠️ **띠가 보드를 덮는 구조 자체는 그대로다** — 보드 뷰포트를 보드 띠
-            // (768~2098)로 자르는 것이 구조적으로 옳지만, 그 카메라는 전투 화면도 쓰므로
-            // 지금 건드리지 않는다. **설계 판정거리로 올린다.**
+            // ⚠️ **판은 임시 가림이다 — 구조 정리가 남아 있다.**
+            // UI 문서 9-4 가 보드 뷰포트를 **768~2098** 로 이미 정해 두었으므로 카메라를
+            // 그 띠로 자르는 것이 옳고, **이것은 판정거리가 아니라 구현 재량**이다
+            // (조립 모드에서만 `Camera.rect` 를 조정하거나, 인셋처럼 두 번째 카메라를 둔다).
+            // 그 카메라는 전투 화면도 쓰므로 **촬영 뒤에 손댄다** — 지금 바꾸면 전투
+            // 프레이밍이 함께 움직인다. 촬영 전에는 판으로 충분하다.
             Rect fullBand = UiLayout.BandRect(UiLayout.Band.FloatBand, Screen.width, Screen.height);
             UiBlockers.Add(fullBand);
             GUI.DrawTexture(fullBand, UiSkin.PlateTexture);
