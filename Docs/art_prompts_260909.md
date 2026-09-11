@@ -377,3 +377,75 @@ the SAME heavy tracked tank as in its other views, seen from its right side, dri
 - **10-5 의 `mod_m` `{SHAPE}` 를 3번 문안으로 갈아 끼운다.** 2번은 「도구가 X 로 읽는다」를 근거와 함께 폐기 표기.
 - **`mod_r` 문안은 그대로 두어도 된다** — 1차에서 통과했다.
 - 규칙 9 장치를 노드·품목 문안에도 넓힐지는 설계 판정이다. **아트는 걸린 자리와 통한 문안만 낸다.**
+
+---
+
+## 17. 전투 바닥 `bg_combat` 1차 넷 — `create_image_pro` · 256×256 · 후보 1장씩 (2026-09-11)
+
+캔버스가 170 을 넘으면 도구가 **후보를 1장만** 낸다. 그래서 결을 달리한 문안 넷을 따로 걸었다.
+넷 다 **규칙 14「면의 결」**로 적었고 **물건 이름을 한 번도 쓰지 않았다.**
+공통 골격은 넷이 같다 — 「캔버스를 채우는 것 → 면의 결 → 이어 깔기 → 색 → 그리기 방식」.
+
+| 후보 | job | 결 | 결과 |
+|---|---|---|---|
+| `a_soil` | `20788eff-94fc-42e5-ae03-f1294139bad3` | 고른 흙 알갱이 | 휘도 18.3% · 이음매 통과 |
+| `b_sand` | `f85f349e-bee2-4c77-9094-8d33d5599c38` | 바람결 줄 | 휘도 20.7% · 이음매 통과 |
+| `c_crack` | `99895818-80e2-46a0-8bfb-902860d81bcb` | 마른 갈라짐 | 휘도 32.7% — **30% 초과 탈락** |
+| **`d_grit`** | `22c4cd3f-f78a-4099-a33e-005a7e113561` | 흙·모래 섞인 거친 얼룩 | 휘도 28.2% · **사용자 확정** |
+
+### 17-1. `d_grit` 전문 (채택)
+
+```
+A flat pixel art ground texture seen from straight above, filling the entire canvas edge to edge.
+
+WHAT FILLS THE CANVAS: every pixel of the canvas is coarse gritty ground where sand and earth are mixed together. The whole square is one continuous ground surface with nothing standing on it and nothing lying on it — the surface itself is the entire subject.
+
+THE GRAIN OF THE SURFACE: a rough mottled grain of loose grit, small irregular patches where the sand is a shade paler sitting against patches where the earth is a shade deeper, the patches soft edged and scattered evenly over the whole square so no patch is large enough to read as an object.
+
+TILING: the mottling runs straight off all four edges and continues on the opposite side, so a copy of this square laid beside it shows no visible join.
+
+COLOR: low saturation brown, ochre and dull tan only, all of it dark — the surface is a dim unlit floor, never bright. No orange, no red, no green, no blue.
+
+RENDERING: flat crisp pixel shapes, four value steps at most, all four steps close together in brightness, no outlines, no glow, no gradient, no lighting direction.
+```
+
+### 17-2. 보스 바닥 `bg_combat_boss` — `d_grit` 을 참조로 (job `1c354788-bc41-40da-8957-42b26f8d2d0d`)
+
+참조는 **base64 가 아니라 URL** 로 넘겼다(256 짜리는 인라인 한도를 넘는다) —
+`https://api.pixellab.ai/mcp/images/22c4cd3f-…/download`.
+문안은 17-1 과 같고 한 문단만 갈아 끼웠다.
+
+```
+HOW IT DIFFERS FROM THE REFERENCE: the whole surface sits in deep shade. Every value is pulled markedly darker than the reference while keeping the same hues, and the gap between the palest and the deepest grit is narrower, so the ground reads as the same floor seen under a much dimmer light.
+```
+
+---
+
+## 18. UI 그릇 — 버튼 눌림 1차가 전량 X 였던 이유와 고친 문안 (2026-09-11)
+
+**1차(job `06a0d03e-7eba-4100-bb8b-f52a49f5d70c`) 는 16장 전량이 칸 안에 물건을 그렸다** —
+검·방패·물약·열쇠. 가운데 평탄도 0.350~0.852 로 한 장도 비어 있지 않았다.
+문안에 이 문장이 있었는데도 그랬다:
+
+> Its middle must stay completely empty because text is drawn on top later.
+
+**금지형이라 안 먹는다** — `mod_m` 이 X 로 나온 것과 같은 뿌리다(**규칙 9**).
+2차(job `330ec01d-fc79-4442-8b12-81e04a6fb419`)에서 **자리를 차지하는 것**으로 바꿔 적었다:
+
+```
+THE MIDDLE OF THE CANVAS: the entire middle square of the canvas, everything inside the outer 16 pixels, is ONE SINGLE FLAT COLOUR — a dark desaturated grey, the identical colour repeated in every single pixel of that square. There is no object, no item, no weapon, no bottle, no key, no symbol, no letter, no rivet, no screw, no shading and no texture anywhere in that square. It is bare empty surface, one step darker than the reference plate's middle.
+```
+
+### 18-1. 변 조각 문안 — 통하지 않았다
+
+버튼 기본 2차(job `3208795f-d902-48dd-b0ec-86e89c64f3c4`)에서 변 평탄을 문안으로 밀어붙였다:
+
+```
+THE FOUR EDGE STRIPS — this is the most important part: the top strip, the bottom strip, the left strip and the right strip, the parts between the corners, are made of PERFECTLY STRAIGHT UNBROKEN LINES. Every line runs the full length of its strip at exactly one constant colour from end to end. The bright bevel line in particular is one single continuous colour along its whole run — it never brightens, never dulls, never breaks, never changes colour partway, and carries no speckle, no dither, no highlight spot and no pattern of any kind.
+```
+
+**이 길은 쓰지 않았다.** 사용자가 09-11 에 「9-슬라이스가 적용되도록 c13 을 수정할 것 · 유사하기만 하면 됨」이라
+정해, **생성 대신 결정적 수리**로 갔다(`fix_nineslice.py` · 로그 3-29 · 매니페스트 「그릇 자산」).
+문안을 남겨 두는 이유는 하나다 — **변 평탄은 문안으로 밀 자리가 아니라 공정으로 둘 자리**라는 것이
+`art_to_plan` M-1-2 의 근거이기 때문이다.
+
