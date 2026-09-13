@@ -33,9 +33,23 @@ def measure(path):
                 seam_lr=coldiff(W-1,0), nb_lr=nb_c,
                 seam_tb=rowdiff(H-1,0), nb_tb=nb_r)
 
+
+def band(r):
+    """이음매 배율 띠 (아트 제안 · M-1-4). 이웃 화소차를 1.00 으로 놓은 비율.
+       <=1.0  이어짐      — 이음매가 자연 잡음보다 조용하다
+       <=1.5  안 보임      — 잡음 폭 안에 있다
+       <=3.0  보일 수 있음 — 자리에 따라 줄이 읽힌다
+       > 3.0  깨짐        — 타일이 안 이어진다 (구판 bg_combat 이 11.7배였다)"""
+    if r <= 1.0: return '이어짐'
+    if r <= 1.5: return '안보임'
+    if r <= 3.0: return '보일수있음'
+    return '깨짐'
+
 if __name__ == '__main__':
     for p in sys.argv[1:]:
         m = measure(p)
-        print('%-24s lum %5.1f (%4.1f%%)  sat99 %.2f  orange %4.1f%%  seam LR %5.2f (nb %4.2f)  TB %5.2f (nb %4.2f)'
+        rl = m['seam_lr']/m['nb_lr'] if m['nb_lr'] else float('inf')
+        rt = m['seam_tb']/m['nb_tb'] if m['nb_tb'] else float('inf')
+        print('%-24s lum %5.1f (%4.1f%%)  sat99 %.2f  orange %4.1f%%  seam LR %5.2f/%4.2f = %5.2f배 %s  TB %5.2f/%4.2f = %5.2f배 %s'
               % (os.path.basename(p), m['lum'], m['lumpct'], m['sat99'], m['orange'],
-                 m['seam_lr'], m['nb_lr'], m['seam_tb'], m['nb_tb']))
+                 m['seam_lr'], m['nb_lr'], rl, band(rl), m['seam_tb'], m['nb_tb'], rt, band(rt)))
