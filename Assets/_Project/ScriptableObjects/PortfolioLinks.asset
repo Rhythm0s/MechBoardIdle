@@ -14,5 +14,5 @@ MonoBehaviour:
   m_EditorClassIdentifier: MBI.Data::MBI.Data.PortfolioLinks
   notice: "\uD3EC\uD2B8\uD3F4\uB9AC\uC624\uC6A9 \uB370\uBAA8"
   version: 
-  documentUrl: 
+  documentUrl: "https://drive.google.com/drive/folders/16kXsh_QSvACDau-MG8lS64jsf1w-rKa2?usp=drive_link"
   notionUrl: 
