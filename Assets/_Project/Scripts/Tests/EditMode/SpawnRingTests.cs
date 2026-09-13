@@ -114,17 +114,79 @@ namespace MBI.Tests
 
             // 20초에 0.1 속도면 2 밖에 못 간다 — 저 멀리 두면 못 닿는다.
             sim.Enemies[0].position = new Vector2(500f, 0f);
-            float hpBefore = sim.Enemies[0].hp;
+
+            // 때려 놓은 상태를 만든다 — 리셋이 실제로 도는지 보려면 깎여 있어야 한다.
+            sim.Enemies[0].hp = 30f;
 
             int moved = sim.RespawnUnreachable();
 
             Assert.AreEqual(1, moved, "하나를 되돌렸다");
             Assert.AreEqual(before, sim.Remaining, "개체 수가 안 변한다 — 지우지 않는다");
-            Assert.AreEqual(hpBefore, sim.Enemies[0].hp, D,
-                "HP 를 유지한다(가정) — 때려 놓은 것이 되살아나면 플레이어가 한 일이 사라진다");
 
             float d = (sim.Enemies[0].position - sim.RobotPosition).magnitude;
             Assert.Less(d, 500f, "로봇 쪽으로 당겨 왔다");
+        }
+
+        /// <summary>
+        /// **HP 는 리셋한다** (2026-09-14 · `260911_W03` 1-1 설계 확정).
+        ///
+        /// 09-11 에는 반대로 **유지**를 단언했다 — 「때려 놓은 것이 되살아나면 플레이어가 한 일이
+        /// 사라진다」가 근거였다. 설계가 뒤집은 근거는 **같은 개체라는 보장이 없다**는 것이다:
+        /// 로봇 기준으로 멀어져 되돌아온 것은 화면 밖에서 새로 걸어 들어오는 것과 구분되지 않는다.
+        ///
+        /// ⚠️ **리셋은 지우는 것이 아니다** — 개체 수 불변은 그대로 선다.
+        /// </summary>
+        [Test]
+        public void 되돌리면_HP_가_리셋된다()
+        {
+            var spawns = new List<EnemySpawn>
+            {
+                new EnemySpawn { label = "느림", hp = 100f, def = 0f, atk = 0f,
+                    moveSpeed = 0.1f, attackRange = 0.5f, attackInterval = 1f },
+            };
+            var sim = new CombatSimulation(RobotFixture(), spawns,
+                arenaRadius: 5f, challengeTime: 999f, spawnCadence: 0f);
+
+            sim.Tick(0.02f);
+            sim.Enemies[0].hp = 30f;
+            sim.Enemies[0].position = new Vector2(500f, 0f);
+
+            Assert.AreEqual(1, sim.RespawnUnreachable());
+
+            Assert.AreEqual(100f, sim.Enemies[0].hp, D, "만피로 돌아온다");
+            Assert.AreEqual(sim.Enemies[0].maxHp, sim.Enemies[0].hp, D);
+            Assert.AreEqual(1, sim.Remaining, "리셋은 지우는 것이 아니다");
+        }
+
+        /// <summary>
+        /// **기준은 로봇이다** (W03 1-1). 스폰 지점 기준으로 두면 **쫓아오는 적이 사라진다** —
+        /// 로봇이 계속 움직이면 스폰 지점과의 거리가 저절로 벌어지기 때문이다.
+        /// </summary>
+        [Test]
+        public void 되돌리는_기준은_로봇이다()
+        {
+            var spawns = new List<EnemySpawn>
+            {
+                new EnemySpawn { label = "느림", hp = 100f, def = 0f, atk = 0f,
+                    moveSpeed = 0.1f, attackRange = 0.5f, attackInterval = 1f },
+            };
+            var sim = new CombatSimulation(RobotFixture(), spawns,
+                arenaRadius: 5f, challengeTime: 999f, spawnCadence: 0f);
+
+            sim.Tick(0.02f);
+
+            // 로봇을 원점에서 멀리 옮긴다 — 스폰 지점 기준이면 여기서 갈린다.
+            sim.Robot.position = new Vector2(200f, 0f);
+            sim.Enemies[0].position = new Vector2(-300f, 0f);
+
+            Assert.AreEqual(1, sim.RespawnUnreachable());
+
+            float toRobot = (sim.Enemies[0].position - sim.RobotPosition).magnitude;
+            Assert.AreEqual(sim.SpawnRingRadius, toRobot, 0.01f,
+                "로봇에서 링 반경만큼 떨어진 자리로 온다");
+
+            // ⚠️ 원점 기준이면 여기가 선다 — 그래서 원점과의 거리로는 안 잰다.
+            Assert.Greater(sim.Enemies[0].position.magnitude, 0f);
         }
 
         [Test]

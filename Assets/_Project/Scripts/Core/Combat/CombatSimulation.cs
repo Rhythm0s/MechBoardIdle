@@ -183,6 +183,9 @@ namespace MBI.Core
         ///
         /// 되돌린 개수를 낸다(진단·시험용).
         /// </summary>
+        /// <summary>지금 쓰는 스폰 링 반경. 러너가 카메라에서 재서 넣는다(시험·진단용).</summary>
+        public float SpawnRingRadius => _spawnRingRadius;
+
         public int RespawnUnreachable(float seconds = OffscreenRespawnRule.UnreachableSeconds)
         {
             Vector2 robot = RobotPosition;
@@ -200,6 +203,15 @@ namespace MBI.Core
                 // 읽힌다. 로봇에서 그 적을 향한 방향 그대로 당겨 온다.
                 Vector2 dir = d > 1e-4f ? (e.position - robot) / d : Vector2.right;
                 e.position = robot + dir * _spawnRingRadius;
+
+                // ⚠️ **HP 를 리셋한다**(2026-09-14 · `260911_W03` 1-1 설계 확정).
+                // 09-11 에는 「때려 놓은 것이 사라지면 플레이어가 한 일이 사라진다」를 들어
+                // **HP 유지**로 두었는데, 설계가 뒤집었다 — 근거는 **같은 개체라는 보장이 없다**는 것이다.
+                // 로봇 기준으로 멀어져 되돌아온 것은 화면 밖에서 새로 걸어 들어오는 것과
+                // 구분되지 않으므로, 반피짜리가 영문 없이 서 있는 편이 더 이상하다.
+                //
+                // ⚠️ **개체 수는 그대로다** — 리셋은 지우는 것이 아니다. 통과 조건은 09-11 그대로다.
+                e.hp = e.maxHp;
                 moved++;
             }
 
