@@ -449,3 +449,67 @@ THE FOUR EDGE STRIPS — this is the most important part: the top strip, the bot
 문안을 남겨 두는 이유는 하나다 — **변 평탄은 문안으로 밀 자리가 아니라 공정으로 둘 자리**라는 것이
 `art_to_plan` M-1-2 의 근거이기 때문이다.
 
+---
+
+## 19. 보드 타일 흐름 축 여백 0 — `create_image_pro` · 192×192 · 후보 1장씩 (2026-09-14 · 플랜 §71-40)
+
+공통 골격 — 「무엇인가 → **참조와 어떻게 달라야 하는가** → 안 닿는 두 변 → 색 → 그리기 방식」.
+가운데 절이 이 벌의 핵심이다: **바뀌는 것은 여백 하나뿐**이고 나머지는 전부 참조를 베낀다.
+
+| 자산 | job | 결과 |
+|---|---|---|
+| **`belt_straight`** | `991b7ff4-38f7-49fd-8f3a-715299cfde99` | ✅ **사용자 합격** · 여백 46 46 1 2 |
+| `belt_corner` 1차 | `a766d198-19c6-461a-88fb-d15ad3d57a9e` | ❌ 네 변 전부 0 · 바깥까지 판을 깔았다 |
+| `belt_corner` 2차 | `e97b90ae-3787-46b0-a48c-a8d3b193132f` | ⏳ 바깥은 투명해졌으나 **어느 변도 안 닿는다**(14 53 47 14) |
+| `merger` 1차 | `bb0758db-0b4c-49c6-8e7b-119720be9856` | ❌ **반려** — 여백은 맞았으나(0 0 6 6) 깔때기 꼴을 **네모난 칸**으로 바꾼다 |
+| `merger` 2차 | `5fbab399-578a-4773-905d-d8153f6c82a8` | ⏳ 네모난 칸 |
+
+### 19-1. `belt_straight` 전문 (합격)
+
+```
+A pixel art conveyor belt tile seen from straight above, alone on a transparent background, redrawn from the reference image in the same style and the same palette.
+
+WHAT IT IS: one square tile of straight conveyor belt running from the TOP edge of the canvas to the BOTTOM edge, exactly as in the reference — the same steel frame, the same rollers, the same rivets, the same thin warm line running down the middle.
+
+HOW IT MUST DIFFER FROM THE REFERENCE — this is the whole point of the redraw: the belt runs OFF the top edge and OFF the bottom edge. The topmost row of pixels in the canvas is belt, and the bottommost row of pixels is belt, with no transparent gap and no end cap at either end. Whatever the belt looks like at the very top row is exactly what it looks like at the very bottom row, so that stacking this tile above a copy of itself shows one continuous belt with no join.
+
+THE LEFT AND RIGHT of the canvas stay as in the reference: a wide band of empty transparent background down each side, with the belt occupying only the middle of the tile.
+
+THE PATTERN ALONG THE BELT may repeat as often as it likes — rollers and cross bars can recur at an even spacing — as long as the pattern lines up where the top and bottom edges meet.
+
+COLOR: copy the reference image's palette exactly — cool grey steel, dark blue-grey shadow, pale highlight, one warm line. Same hues, nothing new.
+
+RENDERING: flat crisp pixel shapes, no anti-aliasing, no glow, no gradient.
+```
+
+### 19-2. `belt_corner` 2차에서 바꾼 절 — **규칙 9**
+
+1차가 바깥 구석까지 판을 깐 것은 「바깥은 투명」을 **안 적었기** 때문이다. 2차는 자리를 차지하는 것을 적었다.
+
+```
+WHAT OCCUPIES THE REST OF THE CANVAS — read this as a rule about emptiness: the whole UPPER-RIGHT region of the canvas, the area outside the bend, is EMPTY TRANSPARENT BACKGROUND. The topmost row of pixels is empty transparent background all the way across except where the belt has not reached it, and the rightmost column of pixels is empty transparent background all the way down. Nothing is drawn out there — no floor, no plating, no frame, no shadow.
+```
+
+⚠️ **이 절은 반쯤만 통했다** — 바깥은 비웠으나 **닿아야 할 두 변까지 같이 비웠다**(L14 B14).
+「비어 있는 곳」과 「닿는 곳」을 한 문단에 같이 적으면 도구가 둘을 구분하지 못한다는 것이 이 벌의 교훈이다.
+
+## 20. 마운트 둘 — 192 · 탑뷰 (2026-09-14 · 플랜 §71-41)
+
+| 자산 | job | 결과 |
+|---|---|---|
+| `mount_gun_a` 1차 | `23f674c8-0055-4e68-a379-39a1c416207e` | ❌ **반려** — 「로봇 A 의 팔과 같은 느낌이 아니다」 |
+| `mount_gun_a` 2차 | `e4ba6090-0807-483f-82dc-fe58daff35d9` | ⏳ 로봇 A 의 **주황 라이플 그대로** |
+| `mount_dronebay_b` 1차 | `7a77a94f-391c-402c-81f4-cb6a27bb3b08` | ⏳ 여백 L0 R18 · 판정 대기 |
+
+### 20-1. 1차가 반려된 이유 — 아트의 문안 오류
+
+1차 문안은 색을 이렇게 적었다:
+
+```
+COLOR: the cool grey machine steel, dark blue-grey shadow and pale highlight of the reference image, with one thin warm accent line along the barrel. No new hues.
+```
+
+**「보드 계열색」을 강철 회색으로만 읽고 주황을 가는 선 하나로 줄인 것이 잘못이다.**
+로봇 A 의 라이플은 **주황 몸통 + 회색 총열**이고 주황이 면적의 절반을 차지한다.
+2차는 그 점을 문단 제목으로 올렸다: `THE ORANGE IS THE POINT`.
+
