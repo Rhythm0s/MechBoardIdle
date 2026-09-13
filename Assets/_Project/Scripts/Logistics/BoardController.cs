@@ -478,6 +478,33 @@ namespace MBI.Logistics
         /// <summary>상태 표식의 한 변 = 칸의 몇 할인가. ⚠️ **가정 0.3** — 규격 문서에 절이 없다.</summary>
         private const float StatusIconCellFraction = 0.3f;
 
+        // ── 마운트 표시 (2026-09-14 · 플랜 §71-41) ──────────────────────────────
+        //
+        // ⚠️ **값은 전부 가정이다** — UI 문서 12-4 에 칸 크기·간격 절이 없다(설계 역기입 자리).
+
+        /// <summary>그림이 없을 때 세우는 색 사각이 칸의 몇 할인가. ⚠️ 가정.</summary>
+        private const float MountBodyFallbackFill = 0.8f;
+
+        /// <summary>폴백 사각 색 — 보드 계열의 짙은 무채색. 노드색과 겹치지 않는다.</summary>
+        private static readonly Color MountFallbackColor = new Color(0.38f, 0.40f, 0.43f, 0.95f);
+
+        /// <summary>적재 그리드 한 칸의 한 변이 보드 칸의 몇 할인가. ⚠️ 가정.</summary>
+        private const float MountSlotCellFraction = 0.22f;
+
+        /// <summary>그리드 칸 사이 틈이 칸 한 변의 몇 할인가. ⚠️ 가정.</summary>
+        private const float MountSlotGapFraction = 0.18f;
+
+        /// <summary>그리드를 마운트 본체 위 얼마에 띄우는가(보드 칸 기준). ⚠️ 가정.</summary>
+        private const float MountGridLiftCells = 0.62f;
+
+        /// <summary>빈 슬롯 칸 바탕 — 테두리만 남기고 속을 비운다.</summary>
+        private static readonly Color MountSlotEmptyColor = new Color(0.10f, 0.11f, 0.13f, 0.85f);
+
+        private readonly List<SpriteRenderer> _mountBodyViews = new List<SpriteRenderer>();
+        private readonly List<Vector2Int> _mountBodyCells = new List<Vector2Int>();
+        private readonly List<MountOwner> _mountBodyOwners = new List<MountOwner>();
+        private readonly List<bool> _mountBodyHasArt = new List<bool>();
+
         private static bool IsIdle(Vector2Int cell)
         {
             var perNode = LogisticsOutputBridge.Workload.perNode;
@@ -553,8 +580,11 @@ namespace MBI.Logistics
                 config.usePartLayout ? PartLayout.BuildMask() : null);
 
             _baseWorldPosition = transform.position;
+            // ⚠️ **가로로 한 칸씩 여유를 준다**(2026-09-14 · §71-41). 마운트 본체가
+            // **실루엣 바깥**의 가상 칸에 서므로, 격자 폭 그대로 조이면 **마운트가
+            // 스크롤 끝에서 화면 밖으로 잘린다.** 좌우 각 한 칸이라 폭에 두 칸을 더한다.
             _pan = new BoardPan(
-                new Vector2(config.columns * config.cellSize, config.rows * config.cellSize),
+                new Vector2((config.columns + 2) * config.cellSize, config.rows * config.cellSize),
                 new Vector2(viewSizeCells.x * config.cellSize, viewSizeCells.y * config.cellSize));
 
             BuildGridVisual(); // §C-4 설치 가능 그리드 영역 표시(런타임).
@@ -697,6 +727,7 @@ namespace MBI.Logistics
 
             BuildBoardBackground(root.transform);
             BuildMountPorts(root.transform);
+            BuildMountBodies(root.transform);
         }
 
         /// <summary>
@@ -791,17 +822,84 @@ namespace MBI.Logistics
         /// </summary>
         private void UpdateMountPortBlink()
         {
-            if (_mountPortViews.Count == 0) return;
-
-            bool empty = SupplyStopRules.MountIsEmpty(
-                SupplySignals.HasCombat, SupplySignals.MountTotal);
-            bool on = empty && HudMeters.BlinkOn(Time.unscaledTime);
-
+            // ⚠️ **점멸을 포트 마커에서 마운트 본체로 옮겼다**(2026-09-14 · §71-41 · UI 문서 12-1).
+            // 종전에 마커에 걸려 있던 것은 **마운트 칸이 화면에 없었기 때문**이며,
+            // 코드에도 「자산이 오면 옮길 자리」로 적혀 있었다. 이제 본체와 그리드가 있다.
+            //
+            // ⚠️ **포트 마커는 결합부로 남는다** — 흰색 고정이다. 결합부까지 같이 깜빡이면
+            // 「탄약이 없다」와 「이 자리가 마운트다」가 한 신호로 뭉개진다.
             for (int i = 0; i < _mountPortViews.Count; i++)
+                if (_mountPortViews[i] != null) _mountPortViews[i].color = Color.white;
+
+            if (_mountBodyViews.Count == 0) return;
+
+            bool on = MountBlinkOn;
+            for (int i = 0; i < _mountBodyViews.Count; i++)
             {
-                SpriteRenderer sr = _mountPortViews[i];
+                SpriteRenderer sr = _mountBodyViews[i];
                 if (sr == null) continue;
-                sr.color = on ? MountEmptyColor : Color.white;
+
+                // 그림이 없어 색 사각으로 선 것은 **제 색**으로 돌아간다 — 흰색으로 되돌리면
+                // 폴백 사각이 흰 덩어리가 되어 노드와 구분되지 않는다.
+                Color rest = _mountBodyHasArt[i] ? Color.white : MountFallbackColor;
+                sr.color = on ? MountEmptyColor : rest;
+            }
+        }
+
+        /// <summary>
+        /// 지금 점멸 중인가 — **그림·그리드·이름표가 같은 박자를 쓴다**(§71-41).
+        /// 세 곳에서 따로 재면 서로 다른 박자로 깜빡인다.
+        /// </summary>
+        private static bool MountBlinkOn =>
+            MountDisplay.Blinks(SupplySignals.HasCombat, SupplySignals.MountTotal)
+            && HudMeters.BlinkOn(Time.unscaledTime);
+
+        /// <summary>
+        /// 마운트 **본체**를 그린다 (2026-09-14 신설 · 플랜 §71-41).
+        ///
+        /// ⚠️ **실루엣 바깥의 가상 칸**에 선다 — 마운트는 보드 없는 소비 파츠다(조립 6장).
+        /// 격자 칸에 넣으면 **노드를 놓을 수 있는 자리**가 되어 버린다.
+        ///
+        /// ⚠️ **그림이 없어도 그린다** — 포트 마커와 반대다. 결합부는 없어도 격자가 말이 되지만,
+        /// 본체가 없으면 그 위의 **적재 그리드가 허공에 뜬다.** 그래서 색 사각으로 폴백한다.
+        /// </summary>
+        private void BuildMountBodies(Transform parent)
+        {
+            _mountBodyViews.Clear();
+            _mountBodyCells.Clear();
+            _mountBodyOwners.Clear();
+            _mountBodyHasArt.Clear();
+
+            foreach (MountPort mp in PartLayout.MountPorts)
+            {
+                Vector2Int cell = MountDisplay.VirtualCell(mp.cell, mp.face);
+                Sprite body = art != null ? art.MountBody(mp.owner) : null;
+
+                var go = new GameObject($"MountBody_{mp.owner}_{mp.face}");
+                go.transform.SetParent(parent, false);
+                go.transform.position = CellWorld(cell);
+
+                var sr = go.AddComponent<SpriteRenderer>();
+                if (body != null)
+                {
+                    sr.sprite = body;
+                    go.transform.localScale = Vector3.one * FitScale(body, _grid.CellSize);
+                    sr.color = Color.white;
+                }
+                else
+                {
+                    // 폴백 — 한 칸을 채우는 색 사각. 「여기에 마운트가 온다」만 말한다.
+                    sr.sprite = UnitSprite();
+                    go.transform.localScale = Vector3.one * _grid.CellSize * MountBodyFallbackFill;
+                    sr.color = MountFallbackColor;
+                }
+
+                sr.sortingOrder = MarkerOrder - 1;
+
+                _mountBodyViews.Add(sr);
+                _mountBodyCells.Add(cell);
+                _mountBodyOwners.Add(mp.owner);
+                _mountBodyHasArt.Add(body != null);
             }
         }
 
@@ -1141,48 +1239,143 @@ namespace MBI.Logistics
             }
         }
 
+        /// <summary>
+        /// \ub9c8\uc6b4\ud2b8 \uc774\ub984\ud45c \u2014 **\uadf8\ub9bc \uc544\ub798**\uc5d0 \ubb34\uc5c7\uc744 \uc2e3\ub294 \ub9c8\uc6b4\ud2b8\uc778\uc9c0 \uc801\ub294\ub2e4 (2026-09-14 \u00b7 \u00a771-41).
+        ///
+        /// \u26a0\ufe0f **09-11 \uc758 \u300c\uce78 \uc548\uc5d0 \ub123\ub294\ub2e4\u300d\uc640 \uc5b4\uae0b\ub098\uc9c0 \uc54a\ub294\ub2e4.** \uadf8\ub54c \ubc16\uc73c\ub85c \ub098\uac00 \uc798\ub9b0 \uac83\uc740
+        /// **\uaca9\uc790 \ud55c \uce78** \uc704\uc758 \uc774\ub984\ud45c\uc600\ub2e4. \ub9c8\uc6b4\ud2b8 \ubcf8\uccb4\ub294 **\uc2e4\ub8e8\uc5d3 \ubc14\uae65**\uc5d0 \uc11c\ubbc0\ub85c \uadf8 \uc544\ub798\uac00
+        /// \ube44\uc5b4 \uc788\uace0, \uac70\uae30\uac00 \uaddc\uaca9\uc774 \uc815\ud55c \uc790\ub9ac\ub2e4(\uac00\uc6b4\ub370 \uc815\ub82c).
+        /// </summary>
         private void DrawMountLabels(Camera cam, Vector2 o, GUIStyle style, float fontScale)
         {
-            if (_mountPortViews.Count == 0) return;
+            if (_mountBodyViews.Count == 0) return;
 
-            // ⚠️ **점멸은 포트 그림과 같은 판정이다**(`UpdateMountPortBlink`). 두 번 재면
-            // 글자와 그림이 서로 다른 박자로 깜빡인다.
-            bool empty = SupplyStopRules.MountIsEmpty(
-                SupplySignals.HasCombat, SupplySignals.MountTotal);
-            bool blink = empty && HudMeters.BlinkOn(Time.unscaledTime);
-
-            // ⚠️ **칸 안에 넣는다**(2026-09-11 재육안 2 · 구역 이름표와 같은 규격).
-            // 종전에는 `LowerCenter` 로 **칸 위 바깥**에 얹어 잘렸다 — 구역은 넓어 모서리에
-            // 붙여도 제 구역 안이지만 마운트는 **한 칸**이라 밖으로 나가면 갈 곳이 없다.
-            var mountStyle = new GUIStyle(style) { alignment = TextAnchor.UpperLeft };
+            // \u26a0\ufe0f **\uc810\uba78\uc740 \uadf8\ub9bc\u00b7\uadf8\ub9ac\ub4dc\uc640 \uac19\uc740 \ud310\uc815\uc774\ub2e4**(`MountBlinkOn`). \ub450 \ubc88 \uc7ac\uba74
+            // \uae00\uc790\uc640 \uadf8\ub9bc\uc774 \uc11c\ub85c \ub2e4\ub978 \ubc15\uc790\ub85c \uae5c\ube61\uc778\ub2e4.
+            bool blink = MountBlinkOn;
+            var mountStyle = new GUIStyle(style) { alignment = TextAnchor.UpperCenter };
             Color prev = GUI.color;
             GUI.color = blink ? MountEmptyColor : ZoneLabelColor;
 
-            const string text = "마운트";
-            float boxW = mountStyle.CalcSize(new GUIContent(text)).x;
             float boxH = mountStyle.fontSize + 6f * fontScale;
 
-            foreach (MountPort mp in PartLayout.MountPorts)
+            for (int i = 0; i < _mountBodyCells.Count; i++)
             {
-                // 칸의 **왼윗모서리 안쪽** — 구역 이름표와 같은 규격이다.
+                // \u26a0\ufe0f **\ub85c\ubd07\ub9c8\ub2e4 \ub2e4\ub978 \uac83\uc744 \uc2e3\ub294\ub2e4** \u2014 \u300c\ub9c8\uc6b4\ud2b8\u300d \ud55c \ub0b1\ub9d0\ub85c\ub294 A \uc758 \ud0c4\uc57d\uacfc
+                // B \uc758 \ub4dc\ub860\uc774 \uac19\uc740 \uac83\uc73c\ub85c \uc77d\ud78c\ub2e4.
+                string text = _mountBodyOwners[i] == MountOwner.RobotB
+                    ? "\ub9c8\uc6b4\ud2b8 \u00b7 \ub4dc\ub860 \uc801\uc7ac" : "\ub9c8\uc6b4\ud2b8 \u00b7 \ud0c4\uc57d \uc801\uc7ac";
+                float boxW = mountStyle.CalcSize(new GUIContent(text)).x;
+
                 float half = config.cellSize * 0.5f;
-                float inset = ZoneLabelInsetPx * (config.cellSize / ZonePx);
-                Vector3 c = CellWorld(mp.cell);
-                Vector3 corner = new Vector3(c.x - half + inset, c.y + half - inset, 0f);
-                Vector3 sp = cam.WorldToScreenPoint(corner);
+                Vector3 c = CellWorld(_mountBodyCells[i]);
+                Vector3 under = new Vector3(c.x, c.y - half, 0f);
+                Vector3 sp = cam.WorldToScreenPoint(under);
                 if (sp.z <= 0f) continue;
 
                 float y = Screen.height - sp.y;
-                if (sp.x < -boxW || sp.x > Screen.width + boxW || y < -boxH || y > Screen.height + boxH) continue;
+                float x = sp.x - boxW * 0.5f;
+                if (x < -boxW || x > Screen.width || y < -boxH || y > Screen.height + boxH) continue;
 
-                // ⚠️ **인셋 전투 자리에는 안 그린다** — 구역 이름표와 같은 이유다(보드는
-                // 안 보이는데 글자만 뜬다).
+                // \u26a0\ufe0f **\uc778\uc14b \uc804\ud22c \uc790\ub9ac\uc5d0\ub294 \uc548 \uadf8\ub9b0\ub2e4** \u2014 \uad6c\uc5ed \uc774\ub984\ud45c\uc640 \uac19\uc740 \uc774\uc720\ub2e4(\ubcf4\ub4dc\ub294
+                // \uc548 \ubcf4\uc774\ub294\ub370 \uae00\uc790\ub9cc \ub73c\ub2e4).
                 if (y < CombatInsetView.BottomPixels(Screen.height)) continue;
 
-                GUI.Label(new Rect(sp.x, y, boxW, boxH), text, mountStyle);
+                GUI.Label(new Rect(x, y, boxW, boxH), text, mountStyle);
             }
 
             GUI.color = prev;
+        }
+
+        /// <summary>
+        /// **\uc801\uc7ac \uadf8\ub9ac\ub4dc** \u2014 \ub9c8\uc6b4\ud2b8\uac00 \ubb34\uc5c7\uc744 \uc5bc\ub9c8\ub098 \ub4e4\uace0 \uc788\ub294\uc9c0 (2026-09-14 \uc2e0\uc124 \u00b7 UI \ubb38\uc11c 12-4).
+        ///
+        /// **\uc65c \ucf54\ub4dc \ub4dc\ub85c\uc789\uc778\uac00.** \uce78 \uc218(A 4 \u00b7 B 8)\uc640 \ucc44\uc6c0\uc774 **\uc7ac\uace0\uc5d0 \ub530\ub77c \ub9e4 \ud504\ub808\uc784 \ubc14\ub01c\ub2e4** \u2014
+        /// \uadf8\ub9bc\uc73c\ub85c\ub294 \ubabb \uadf8\ub9b0\ub2e4. \uc544\ud2b8\uac00 \ub9e1\ub294 \uac83\uc740 \ub9c8\uc6b4\ud2b8 **\ubcf8\uccb4**\uae4c\uc9c0\ub2e4(\u00a771-41).
+        ///
+        /// \u26a0\ufe0f **\ub9e4 \ud504\ub808\uc784 \ud654\uba74 \uc88c\ud45c\ub97c \ub2e4\uc2dc \uc7ac\ub2e4** \u2014 \ubcf4\ub4dc \uc704\uc5d0 \uadf8\ub9ac\ub294 \uac83\uc744 \ud55c \ubc88 \uc7ac \uc88c\ud45c\ub85c
+        /// \uadf8\ub9ac\uba74 **\uc2a4\ud06c\ub864\uc5d0\uc11c \ub5a8\uc5b4\uc9c4\ub2e4**(`Docs/HANDOFF.md` \ud568\uc815).
+        ///
+        /// \u26a0\ufe0f **B \uc758 \uadf8\ub9ac\ub4dc\ub294 \ub450 \uc790\ub9ac\uc5d0 \uac19\uc740 \uac83\uc774 \ub73c\ub2e4.** \uc5b4\uae68\uac00 \ub458\uc774\uace0 \ub9c8\uc6b4\ud2b8\ub294 \ud558\ub098\uc774\uae30
+        /// \ub54c\ubb38\uc774\ub2e4 \u2014 \ub450 \ubaab\uc744 \ub098\ub220 \uadf8\ub9ac\uba74 **\uc5c6\ub294 \ubd84\ubc30\ub97c \uc9c0\uc5b4\ub0b4\ub294** \uac83\uc774 \ub41c\ub2e4.
+        ///
+        /// \u26a0\ufe0f **\uc9c0\uae08 \ub098\uc120 \ub85c\ubd07\uc758 \uc2ac\ub86f\ub9cc \uac12\uc774 \uc788\ub2e4**(`SupplySignals` \uac00 \uadf8\uac83\ub9cc \ub098\ub978\ub2e4).
+        /// \ub300\uae30 \uc911\uc778 \ub85c\ubd07\uc758 \uadf8\ub9ac\ub4dc\ub294 **\ube48 \uce78\uc73c\ub85c** \uc120\ub2e4 \u2014 0 \uc73c\ub85c \uadf8\ub9ac\ub294 \uac83\uc774 \uc544\ub2c8\ub77c
+        /// \u300c\uac12\uc774 \uc5c6\ub2e4\u300d\ub97c \uadf8\ub300\ub85c \ub450\ub294 \uac83\uc774\ub2e4.
+        /// </summary>
+        private void DrawMountGrids(Camera cam)
+        {
+            if (_mountBodyCells.Count == 0) return;
+
+            bool blink = MountBlinkOn;
+            float cell = config.cellSize;
+
+            for (int i = 0; i < _mountBodyCells.Count; i++)
+            {
+                MountOwner owner = _mountBodyOwners[i];
+                int slots = MountDisplay.SlotsOf(owner);
+                int cols = MountDisplay.ColumnsOf(owner);
+                int rows = MountDisplay.RowsOf(owner);
+                bool mine = owner == SupplySignals.ActiveOwner;
+
+                float slotWorld = cell * MountSlotCellFraction;
+                float gapWorld = slotWorld * MountSlotGapFraction;
+                float gridW = cols * slotWorld + (cols - 1) * gapWorld;
+                float gridH = rows * slotWorld + (rows - 1) * gapWorld;
+
+                // \ubcf8\uccb4 **\uc704**\uc5d0 \ub744\uc6b4\ub2e4. \uc67c\ucabd \uc704 \ubaa8\uc11c\ub9ac\ub97c \uc6d4\ub4dc\uc5d0\uc11c \uc7a1\uace0 \ud654\uba74\uc73c\ub85c \uc62e\uae34\ub2e4.
+                Vector3 c = CellWorld(_mountBodyCells[i]);
+                var topLeft = new Vector3(
+                    c.x - gridW * 0.5f,
+                    c.y + cell * MountGridLiftCells + gridH,
+                    0f);
+
+                Vector3 sp = cam.WorldToScreenPoint(topLeft);
+                if (sp.z <= 0f) continue;
+
+                // \uc6d4\ub4dc \uae38\uc774\ub97c \ud654\uba74\uc73c\ub85c \uc62e\uaca8 \uc7ac\ub2e4 \u2014 \uc90c\u00b7\ubc30\uc728\uc744 \uacf5\uc9dc\ub85c \ub530\ub77c\uac04\ub2e4.
+                Vector3 edge = cam.WorldToScreenPoint(topLeft + new Vector3(slotWorld, 0f, 0f));
+                float slotPx = Mathf.Abs(edge.x - sp.x);
+                if (slotPx < 3f) continue;   // \ub108\ubb34 \uc791\uc73c\uba74 \uc810\uc774\ub77c \ub73b\uc774 \uc548 \uc120\ub2e4
+
+                float gapPx = slotPx * MountSlotGapFraction;
+                float originX = sp.x;
+                float originY = Screen.height - sp.y;
+
+                if (originY < CombatInsetView.BottomPixels(Screen.height) - slotPx) continue;
+
+                for (int slot = 0; slot < slots; slot++)
+                {
+                    int col = slot % cols;
+                    int row = slot / cols;
+                    var r = new Rect(
+                        originX + col * (slotPx + gapPx),
+                        originY + row * (slotPx + gapPx),
+                        slotPx, slotPx);
+
+                    // \ube48 \uce78 \ubc14\ud0d5 \u2014 \uce78\uc774 **\uba87 \uac1c\uc778\uc9c0**\ub294 \ube44\uc5b4 \uc788\uc5b4\ub3c4 \ubcf4\uc5ec\uc57c \ud55c\ub2e4.
+                    GUI.DrawTexture(r, Texture2D.whiteTexture, ScaleMode.StretchToFill, true,
+                        0f, blink ? MountEmptyColor : MountSlotEmptyColor, 0f, 0f);
+
+                    if (!mine) continue;
+                    if (slot >= SupplySignals.MountSlotCount) continue;
+
+                    MountItem item = SupplySignals.MountSlotItem[slot];
+                    if (item == MountItem.None) continue;
+
+                    float ratio = MountDisplay.FillRatio(
+                        SupplySignals.MountSlotAmount[slot], SupplySignals.MountStackLimit);
+                    if (ratio <= 0f) continue;
+
+                    // \u26a0\ufe0f **\uc544\ub798\uc5d0\uc11c \uc704\ub85c \ucc2c\ub2e4.** \uc704\uc5d0\uc11c \ub0b4\ub824\uc624\uba74 \u300c\uc904\uc5b4\ub4dc\ub294 \uac83\u300d\uc73c\ub85c \uc77d\ud790\ub2e4.
+                    float fillH = slotPx * ratio;
+                    var fill = new Rect(r.x, r.y + (slotPx - fillH), slotPx, fillH);
+
+                    // \uc0c9\uc740 **\ubca8\ud2b8\uc640 \uac19\uc740 \ud45c**\uc5d0\uc11c \uc628\ub2e4 \u2014 \uac19\uc740 \ud0c4\uc774 \ub450 \uacf3\uc5d0\uc11c \ub2e4\ub978 \uc0c9\uc774\uba74 \uc548 \ub41c\ub2e4.
+                    GUI.DrawTexture(fill, Texture2D.whiteTexture, ScaleMode.StretchToFill, true,
+                        0f, ItemColor(MountDisplay.FlowOf(item)), 0f, 0f);
+                }
+            }
         }
 
         /// <summary>
@@ -2162,6 +2355,7 @@ namespace MBI.Logistics
             // 글자만 미색으로 남으면 **경고가 반쪽**이 된다. 같은 판정을 두 번 하지 않고
             // `UpdateMountPortBlink` 와 같은 규칙을 읽는다.
             DrawMountLabels(cam, o, style, fontScale);
+            DrawMountGrids(cam);
             DrawStatusIcons(cam);
 
             foreach (PartRect p in PartLayout.Parts)

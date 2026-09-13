@@ -723,6 +723,21 @@ namespace MBI.Combat
             SupplySignals.StorageStock = _sim.AmmoStock;
             SupplySignals.ActiveOwner =
                 _sim.ActiveRobotIndex == 1 ? MountOwner.RobotB : MountOwner.RobotA;
+
+            // ⚠️ **슬롯 상태도 함께 넘긴다**(2026-09-14 · §71-41 · UI 문서 12-4).
+            // 합만 넘기면 조립 화면은 「얼마나 찼나」까지만 말할 수 있고
+            // **무엇이 몇 칸에 있나**는 못 그린다.
+            int slots = mount != null ? mount.SlotCount : 0;
+            SupplySignals.EnsureSlots(slots);
+            for (int i = 0; i < slots; i++)
+            {
+                SupplySignals.MountSlotItem[i] = mount.ItemAt(i);
+                SupplySignals.MountSlotAmount[i] = mount.AmountAt(i);
+            }
+
+            // 분모는 **품목과 무관하게 같다**(표준 스택 10) — `StandardStacks` 가 그렇게 짓는다.
+            SupplySignals.MountStackLimit =
+                mount != null ? mount.StackLimitOf(MountItem.Standard) : 0f;
         }
 
         /// <summary>한 번 그려지고 사라지는 이펙트 한 장. 반복 없음(연출 2장 「공통 생성 규칙」).</summary>

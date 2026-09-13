@@ -51,8 +51,23 @@ namespace MBI.Data
         public Sprite portInput;
         public Sprite portOutput;
         public Sprite portPower;
-        [Tooltip("마운트 포트 — 보드의 산출이 전투로 넘어가는 자리.")]
+        [Tooltip("마운트 포트 — 보드의 산출이 전투로 넘어가는 자리. **결합부**이며 마운트 본체가 아니다.")]
         public Sprite mountPort;
+
+        [Header("마운트 본체 (2026-09-14 · 플랜 §71-41 · 실루엣 바깥에 선다)")]
+        [Tooltip("로봇 A — 팔 총열 마운트. 192×192. 없으면 색 사각 폴백.")]
+        public Sprite mountGunA;
+        [Tooltip("로봇 B — 어깨 드론 베이. 192×192. 없으면 색 사각 폴백.")]
+        public Sprite mountDronebayB;
+
+        /// <summary>
+        /// 그 로봇의 마운트 본체 그림. 없으면 <c>null</c> — 부르는 쪽이 **색 사각으로 폴백한다**.
+        ///
+        /// ⚠️ 포트 마커와 달리 **폴백을 둔다.** 결합부는 없어도 격자가 말이 되지만,
+        /// 마운트 본체가 없으면 **적재 그리드가 허공에 뜬다** — 무엇에 딸린 표시인지가 사라진다.
+        /// </summary>
+        public Sprite MountBody(MountOwner owner) =>
+            owner == MountOwner.RobotB ? mountDronebayB : mountGunA;
 
         [Header("모듈 기호 (2026-09-09 · 260909_W01 5장)")]
         [Tooltip("생산량 모듈 — 바깥으로 벌어지는 겹꺾쇠 둘. 64 × 64.")]

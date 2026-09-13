@@ -25,6 +25,41 @@ namespace MBI.Core
         /// <summary>저장 노드(창고)의 탄약 총 재고. 조립 화면이 보는 층이다(UI 문서 12-1).</summary>
         public static float StorageStock;
 
+        // ── 마운트 슬롯 상태 (2026-09-14 신설 · 플랜 §71-41 · UI 문서 12-4 적재 그리드) ──
+        //
+        // **왜 합만으로는 부족한가.** `MountTotal` 하나로는 「얼마나 찼나」만 말할 수 있고
+        // **무엇이 몇 칸에 들어 있나**는 못 말한다. 12-4 의 적재 그리드는 칸마다 탄종색으로
+        // 그려야 하므로 슬롯 단위가 필요하다.
+        //
+        // ⚠️ **배열을 매 틱 새로 만들지 않는다** — 전투가 도는 내내 프레임마다 할당하면
+        // 쓰레기가 쌓인다. 길이가 달라질 때만 다시 잡고 그 뒤에는 덮어 쓴다.
+        //
+        // ⚠️ **지금 나선 로봇 것만이다** — `ActiveOwner` 와 같은 이유다. 대기 중인 로봇의
+        // 마운트를 함께 실으면 **안 싸우는 쪽 적재가 화면에 섞인다.**
+
+        /// <summary>지금 나선 로봇의 슬롯 수(A 4 · B 8). 0이면 슬롯 상태가 없다.</summary>
+        public static int MountSlotCount;
+
+        /// <summary>슬롯마다 무엇이 들었는가. 길이는 <see cref="MountSlotCount"/> 이상이다.</summary>
+        public static MBI.Data.MountItem[] MountSlotItem = System.Array.Empty<MBI.Data.MountItem>();
+
+        /// <summary>슬롯마다 얼마나 들었는가.</summary>
+        public static float[] MountSlotAmount = System.Array.Empty<float>();
+
+        /// <summary>스택 상한(확정 10 · `260901_V03`). 채움 비율의 **분모**다. 0이면 못 나눈다.</summary>
+        public static float MountStackLimit;
+
+        /// <summary>슬롯 배열을 길이에 맞춰 잡는다. 길이가 같으면 아무것도 안 한다.</summary>
+        public static void EnsureSlots(int count)
+        {
+            if (count < 0) count = 0;
+            MountSlotCount = count;
+            if (MountSlotItem.Length >= count && MountSlotAmount.Length >= count) return;
+
+            MountSlotItem = new MBI.Data.MountItem[count];
+            MountSlotAmount = new float[count];
+        }
+
         /// <summary>
         /// **지금 전투에 나와 있는 로봇** (2026-09-10 사용자 확정 · 리허설 1차 ⑦).
         ///
@@ -39,6 +74,8 @@ namespace MBI.Core
             HasCombat = false;
             MountTotal = 0f;
             StorageStock = 0f;
+            MountSlotCount = 0;
+            MountStackLimit = 0f;
             ActiveOwner = MBI.Data.MountOwner.RobotA;
         }
     }

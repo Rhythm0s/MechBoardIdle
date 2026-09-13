@@ -95,6 +95,11 @@ namespace MBI.Editor
             art.portPower = LoadBoard("port_power");
             art.mountPort = LoadBoard("mount_port");
 
+            // ⚠️ **마운트 본체 둘**(2026-09-14 · §71-41). 안 오면 null 이고 보드가 색 사각으로 그린다 —
+            // 그림이 없다고 적재 그리드를 안 그리지는 않는다(그러면 촬영에 아무것도 안 나온다).
+            art.mountGunA = LoadBoard("mount_gun_a");
+            art.mountDronebayB = LoadBoard("mount_dronebay_b");
+
             art.items.Clear();
             AddItem(art, FlowKind.CoreEnergy, "core_energy");
             AddItem(art, FlowKind.BasicParts, "basic_parts");
