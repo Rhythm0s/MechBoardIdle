@@ -96,13 +96,18 @@ namespace MBI.Tests
         }
 
         /// <summary>
-        /// 자산 자리가 있고 **주소는 아직 비어 있다**(사용자가 준다).
+        /// 자산 자리와 **주소 둘의 상태** (2026-09-14 갱신).
         ///
-        /// ⚠️ **이 시험은 주소가 채워지면 빨개진다.** 그것이 목적이다 — 값이 들어온 날
-        /// 여기서 멈춰 「이제 버튼이 산다」는 것을 확인하고 이 시험을 고친다.
+        /// ⚠️ **이 시험은 09-14 에 한 번 빨개졌고, 그것이 목적이었다.** 종전 이름은
+        /// `TheAssetExists_AndItsUrlsAreStillEmpty` 였고 「주소가 채워지면 빨개진다」고
+        /// 적혀 있었다. 문서 주소가 들어온 날 여기서 멈췄고, 멈춘 자리에서 **버튼이 산 것**을
+        /// 확인한 뒤 이 시험을 고쳤다.
+        ///
+        /// ⚠️ **노션 주소는 아직 비어 있다** — 그날이 오면 여기가 **다시** 빨개진다.
+        /// 그때도 값을 지어 넣지 말고 버튼이 사는 것을 보고 고친다.
         /// </summary>
         [Test]
-        public void TheAssetExists_AndItsUrlsAreStillEmpty()
+        public void TheAssetExists_AndOnlyTheNotionUrlIsStillEmpty()
         {
             var links = AssetDatabase.LoadAssetAtPath<PortfolioLinks>(
                 "Assets/_Project/ScriptableObjects/PortfolioLinks.asset");
@@ -110,7 +115,10 @@ namespace MBI.Tests
             Assert.NotNull(links, "자산 자리 — 먼저 'MBI/Generate Combat Data' 실행");
             Assert.IsFalse(string.IsNullOrWhiteSpace(links.notice), "문구는 자리표시라도 있어야 한다");
 
-            Assert.IsFalse(links.HasDocument, "포트폴리오 문서 주소는 아직 미기재다");
+            // ✅ 사용자가 2026-09-14 에 줬다. 버튼이 산다.
+            Assert.IsTrue(links.HasDocument, "포트폴리오 문서 주소가 들어와 있어야 한다");
+
+            // ⚠️ 아직 없다 — 「(준비 중)」 비활성으로 남는다. 자리표시를 지어 넣지 않는다.
             Assert.IsFalse(links.HasNotion, "노션 주소는 아직 미기재다");
         }
 
