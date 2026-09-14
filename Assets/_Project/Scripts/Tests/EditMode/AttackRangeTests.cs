@@ -24,6 +24,10 @@ namespace MBI.Tests
 
         private const float Dt = 0.05f;
 
+        /// <summary>스폰 띠 — 사용자 확정 4~14(가정). 사거리 9.2 를 **가운데서 가른다**.</summary>
+        private const float BandMin = 4f;
+        private const float BandMax = 14f;
+
         /// <summary>S1 구성 — 밸런스 제안표(§72-14): 보병 120 × HP30 · def 0.</summary>
         private static List<EnemySpawn> S1Infantry()
         {
@@ -54,6 +58,9 @@ namespace MBI.Tests
         {
             var sim = new CombatSimulation(Robot(attackRange), S1Infantry(),
                 arenaRadius: 6f, challengeTime: 100f, spawnCadence: 0.8f);
+            // ⚠️ **런타임과 같은 띠를 넣는다**(§72-40). 안 넣으면 생성자 기본값
+            // `arenaRadius` 한 점이 되어 **게임과 다른 판을 재게 된다.**
+            sim.SetSpawnBand(BandMin, BandMax);
             sim.AmmoSupplyRate = 4f;   // 시작 보드 정상상태 4발/초
             return sim;
         }
@@ -115,39 +122,76 @@ namespace MBI.Tests
         }
 
         /// <summary>
-        /// ⚠️⚠️ **사거리를 줄여도 로봇은 여전히 안 걷는다 — 뿌리가 사거리가 아니었다.**
+        /// <summary>
+        /// **띠가 사거리를 가른다** — 안쪽에 난 적은 제자리 사격, 바깥에 난 적에는 걸어간다
+        /// (2026-09-15 사용자 확정 · 4 ~ 14 · 사거리 9.2).
         ///
-        /// 적은 **로봇을 중심으로 반경 `arenaRadius`(=6) 의 링 위**에 스폰된다
-        /// (`CombatSimulation._spawnRingRadius = arenaRadius` · `SpawnRingRule`).
-        /// 6 은 가정값 9.2 보다 **작으므로 스폰되는 순간 이미 사거리 안**이고,
-        /// 「사거리 밖 → 이동」은 여전히 한 번도 안 걸린다.
-        ///
-        /// 실측도 같다 — S1 클리어가 **사거리 9.2 와 구 100 에서 똑같이 95.9초**다.
-        ///
-        /// **걷게 하려면 사거리 &lt; 스폰 링이어야 한다.** 스폰 링 반경은 **아직 미수신 값**이라
-        /// (설계 판정 대기) 여기서 정하지 않는다. 이 시험은 그 자리를 **못 박아 두는 것**이다 —
-        /// 링이 커지거나 사거리가 6 밑으로 내려가면 이 시험이 빨개지고, 그때가 답이 온 때다.
+        /// ⚠️ 반경 하나였을 때는 **모든 적이 같은 거리**에서 나서 둘 중 하나만 일어났다.
         /// </summary>
         [Test]
-        public void SpawnRingIsInsideTheRange_SoTheRobotStillNeverWalks()
+        public void TheBandStraddlesTheRange()
         {
-            const float SpawnRing = 6f;   // = arenaRadiusTbd
-            Assert.Less(SpawnRing, Range, "링이 사거리 안이다 — 스폰하자마자 사거리 안");
-
-            var enemies = new List<CombatEntity>
-            {
-                new CombatEntity { position = new Vector2(SpawnRing, 0f), hp = 30f, maxHp = 30f },
-            };
+            Assert.Less(BandMin, Range, "띠 안쪽은 사거리 안 — 제자리 사격");
+            Assert.Greater(BandMax, Range, "띠 바깥은 사거리 밖 — 걸어간다");
 
             var ctx = new AutoPilotContext
             {
-                robotPos = Vector2.zero, enemies = enemies,
-                arenaRadius = SpawnRing, attackRange = Range,
+                robotPos = Vector2.zero, arenaRadius = 6f, attackRange = Range,
                 moveSpeed = 4.5f, dt = Dt,
+                enemies = new List<CombatEntity>
+                {
+                    new CombatEntity { position = new Vector2(BandMin, 0f), hp = 30f, maxHp = 30f },
+                },
             };
+            Assert.AreEqual(Vector2.zero, AutoPilotPolicy.NextPosition(ctx), "안쪽 → 제자리");
 
-            Assert.AreEqual(Vector2.zero, AutoPilotPolicy.NextPosition(ctx),
-                "링 위에 스폰된 적은 이미 사거리 안이라 로봇이 안 걷는다");
+            ctx.enemies = new List<CombatEntity>
+            {
+                new CombatEntity { position = new Vector2(BandMax, 0f), hp = 30f, maxHp = 30f },
+            };
+            Assert.Greater(AutoPilotPolicy.NextPosition(ctx).x, 0f, "바깥 → 다가간다");
+        }
+
+        /// <summary>
+        /// **S1 을 돌리면 로봇이 실제로 걷는 틱이 있는가** — 사용자 요청(§72-40).
+        ///
+        /// 규칙이 서 있다는 것과 **판에서 일어난다**는 것은 다르다. 사거리를 줄이고도
+        /// 로봇이 한 걸음도 안 걸었던 것이(§72-38) 그 차이였다.
+        /// </summary>
+        [Test]
+        public void S1_TheRobotActuallyWalks()
+        {
+            CombatSimulation sim = Sim(Range);
+
+            Vector2 last = sim.RobotPosition;
+            int movedTicks = 0;
+            float t = 0f;
+
+            while (t < 100f && sim.Result == CombatResult.InProgress)
+            {
+                sim.Tick(Dt);
+                t += Dt;
+                if ((sim.RobotPosition - last).sqrMagnitude > 1e-6f) movedTicks++;
+                last = sim.RobotPosition;
+            }
+
+            TestContext.WriteLine($"S1 — 걸은 틱 {movedTicks} / 총 {(int)(t / Dt)} · {t:F1}초 {sim.Result}");
+
+            // ⚠️⚠️ **실측: 0 이다 — 띠를 넣어도 로봇은 안 걷는다.**
+            //
+            // 자동 조종은 **최근접 적**을 본다(`AutoPilotPolicy.NextPosition`). S1 은 적이 120 기라
+            // 띠(4~14) 어딘가에 **거의 항상 사거리 9.2 안쪽인 적이 하나는 있다** —
+            // 그러면 「사거리 안 → 제자리 사격」이 걸려 한 걸음도 안 뗀다.
+            //
+            // ⇒ **뿌리는 링도 띠도 아니라 「최근접」 + 적 수**다. 걷게 하려면 셋 중 하나다:
+            //    ① 사거리를 띠 안쪽(4) 밑으로 · ② 표적 규칙을 최근접이 아닌 것으로
+            //    · ③ 그대로 둔다(제자리 사격이 이 설계의 귀결이다).
+            //
+            // **이 단언은 지금 사실을 못 박는 것**이다 — 위 셋 중 하나가 정해져 로봇이 걷기
+            // 시작하면 여기가 빨개지고, 그때가 규칙이 바뀐 때다. 기대를 단언해 초록으로
+            // 만들어 두면 **안 걷는다는 사실이 문서에서 사라진다.**
+            Assert.AreEqual(0, movedTicks,
+                "적이 많으면 최근접이 늘 사거리 안이라 안 걷는다 — 규칙이 바뀌면 이 줄이 빨개진다");
         }
 
         /// <summary>사거리 안이면 제자리에서 쏜다 — 다가가지 않는다(카이팅 없음).</summary>

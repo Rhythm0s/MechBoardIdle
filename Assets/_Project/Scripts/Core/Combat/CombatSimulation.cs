@@ -172,8 +172,51 @@ namespace MBI.Core
         /// </summary>
         public void SetSpawnRing(float radius)
         {
-            if (radius > 0f) _spawnRingRadius = radius;
+            if (radius > 0f) SetSpawnBand(radius, radius);
         }
+
+        /// <summary>
+        /// **스폰 띠** — 적은 로봇 중심 <paramref name="min"/>~<paramref name="max"/> 사이
+        /// 아무 거리에나 난다 (2026-09-15 사용자 확정 · §72-40).
+        ///
+        /// ⚠️ **왜 띠인가.** 반경 하나였을 때는 **모든 적이 같은 거리에서** 났고,
+        /// 그 거리가 사거리보다 짧으면 로봇이 **한 걸음도 안 걸었다**(§72-38 실측 —
+        /// 사거리를 9.2 로 줄여도 S1 클리어가 95.9초로 **똑같았다**). 띠로 두면
+        /// 가까이 난 것은 제자리에서 쏘고 **멀리 난 것에는 걸어간다.**
+        ///
+        /// ⚠️ **min &gt; max 면 뒤집어 받는다** — 값이 아직 미정이라 잘못 들어올 수 있고,
+        /// 뒤집힌 채로 두면 `Random.Range` 가 조용히 이상한 거리를 낸다.
+        ///
+        /// ⚠️ **0 이하는 무시한다** — 카메라를 아직 못 잰 프레임에 0 이 들어오면
+        /// 적이 **로봇 위에 겹쳐 스폰된다.**
+        /// </summary>
+        public void SetSpawnBand(float min, float max)
+        {
+            if (min <= 0f || max <= 0f) return;
+            if (min > max) { float t = min; min = max; max = t; }
+            _spawnRingMin = min;
+            _spawnRingMax = max;
+        }
+
+        /// <summary>
+        /// 이번 스폰의 거리 — 띠 안에서 **결정론적으로** 고른다.
+        ///
+        /// ⚠️ **`UnityEngine.Random` 을 안 쓴다.** 시뮬은 결정론이라야 하네스·시험이 같은 값을
+        /// 두 번 낸다(`AutoPilotPolicy` 주석 「난수 0」과 같은 이유). 스폰 차례를 씨앗으로 쓴다.
+        ///
+        /// 띠가 한 점이면(min == max) 종전과 같은 링이다 — **값이 오기 전까지 거동이 안 바뀐다.**
+        /// </summary>
+        private float SpawnDistance(int index)
+        {
+            if (_spawnRingMax <= _spawnRingMin) return _spawnRingMin;
+
+            // 황금비 계단 — 이웃한 차례가 몰리지 않게 띠를 고르게 훑는다.
+            float t = (index * 0.6180339887f) % 1f;
+            return Mathf.Lerp(_spawnRingMin, _spawnRingMax, t);
+        }
+
+        /// <summary>디스폰(되돌림)이 기준으로 삼는 거리 — **띠의 바깥**이다.</summary>
+        public float SpawnRingMax => _spawnRingMax;
 
         /// <summary>
         /// **너무 멀어진 적을 로봇 쪽 링으로 되돌린다** (2026-09-11 · §71-28 2).
@@ -183,8 +226,8 @@ namespace MBI.Core
         ///
         /// 되돌린 개수를 낸다(진단·시험용).
         /// </summary>
-        /// <summary>지금 쓰는 스폰 링 반경. 러너가 카메라에서 재서 넣는다(시험·진단용).</summary>
-        public float SpawnRingRadius => _spawnRingRadius;
+        /// <summary>지금 쓰는 스폰 띠의 **안쪽**. 러너가 카메라에서 재서 넣는다(시험·진단용).</summary>
+        public float SpawnRingRadius => _spawnRingMin;
 
         public int RespawnUnreachable(float seconds = OffscreenRespawnRule.UnreachableSeconds)
         {
@@ -202,7 +245,9 @@ namespace MBI.Core
                 // ⚠️ **제 방향을 지킨다** — 링 위 아무 자리로 옮기면 화면에서 순간이동으로
                 // 읽힌다. 로봇에서 그 적을 향한 방향 그대로 당겨 온다.
                 Vector2 dir = d > 1e-4f ? (e.position - robot) / d : Vector2.right;
-                e.position = robot + dir * _spawnRingRadius;
+                // ⚠️ **되돌리는 자리는 띠의 바깥**이다(§72-40) — 안쪽으로 당겨 오면
+                // 멀어져 되돌아온 적이 **가장 가까운 적**이 되어 표적이 뒤바뀐다.
+                e.position = robot + dir * _spawnRingMax;
 
                 // ⚠️ **HP 를 리셋한다**(2026-09-14 · `260911_W03` 1-1 설계 확정).
                 // 09-11 에는 「때려 놓은 것이 사라지면 플레이어가 한 일이 사라진다」를 들어
@@ -280,7 +325,8 @@ namespace MBI.Core
         ///
         /// ⚠️ **읽기 전용이 아니다** — 창 크기가 바뀌면 러너가 다시 넣는다.
         /// </summary>
-        private float _spawnRingRadius;
+        private float _spawnRingMin;
+        private float _spawnRingMax;
         private readonly float _challengeTime;
         private readonly float _spawnCadence;
 
@@ -668,7 +714,7 @@ namespace MBI.Core
                     label = s.label,
                     // ⚠️ **로봇 기준이다**(2026-09-11) — 원점 기준이면 로봇이 움직인 만큼
                     // 적이 **화면 안에서 튀어나온다.**
-                    position = SpawnRingRule.Position(RobotPosition, i, batch.Count, _spawnRingRadius),
+                    position = SpawnRingRule.Position(RobotPosition, i, batch.Count, SpawnDistance(i)),
                     hp = s.hp,
                     maxHp = s.hp,
                     def = s.def,
@@ -703,7 +749,10 @@ namespace MBI.Core
         private CombatSimulation(RobotSetup[] setups, MountLoad[] mounts,
             IReadOnlyList<EnemySpawn> spawns, float arenaRadius, float challengeTime, float spawnCadence)
         {
-            _spawnRingRadius = arenaRadius;
+            // ⚠️ **값이 오기 전까지는 띠가 한 점이다** — 종전 링과 같다(§72-40).
+            // `spawnRingMinTbd`·`spawnRingMaxTbd` 가 서면 러너가 `SetSpawnBand` 로 넣는다.
+            _spawnRingMin = arenaRadius;
+            _spawnRingMax = arenaRadius;
             _challengeTime = challengeTime;
             _spawnCadence = spawnCadence;
 
@@ -1006,7 +1055,7 @@ namespace MBI.Core
                     faction = Faction.Enemy,
                     label = s.label,
                     position = SpawnRingRule.Position(
-                        RobotPosition, _spawnedCount, _spawnQueue.Count, _spawnRingRadius),
+                        RobotPosition, _spawnedCount, _spawnQueue.Count, SpawnDistance(_spawnedCount)),
                     hp = s.hp,
                     maxHp = s.hp,
                     def = s.def,

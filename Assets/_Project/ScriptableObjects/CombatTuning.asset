@@ -21,6 +21,8 @@ MonoBehaviour:
   spawnCadenceTbd: 0.15
   arenaRadiusTbd: 6
   spawnRingRadiusTbd: 0
+  spawnRingMinTbd: 4
+  spawnRingMaxTbd: 14
   manualOverrideGraceTbd: 2
   autoRestartDelayTbd: 1.5
   animCellSeconds: 0.0625

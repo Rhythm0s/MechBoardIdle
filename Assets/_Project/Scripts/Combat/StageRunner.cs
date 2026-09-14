@@ -319,6 +319,13 @@ namespace MBI.Combat
             // ⚠️ **시뮬은 카메라가 없다** — 밖에서 재서 넣는다(`SetVisibleBounds` 와 같은 자리).
             // 값이 `260911_W03` 으로 오면 그것을 쓰고, 그 전에는 **화면 대각선 반 + 한 칸**을
             // 가정으로 쓴다(`SpawnRingRule.RadiusFromView`).
+            // ⚠️ **띠가 먼저다**(2026-09-15 사용자 확정 · §72-40) — 반경 하나는 그 뒤다.
+            // 적이 min~max 사이 아무 거리에나 나야 가까운 것은 제자리에서 쏘고
+            // 먼 것에는 걸어간다. 링 하나로는 **전부 같은 거리**라 둘 중 하나만 일어난다.
+            float bandMin = tuning != null ? tuning.spawnRingMinTbd : 0f;
+            float bandMax = tuning != null ? tuning.spawnRingMaxTbd : 0f;
+            if (bandMin > 0f && bandMax > 0f) { _sim.SetSpawnBand(bandMin, bandMax); return; }
+
             float fromSo = tuning != null ? tuning.spawnRingRadiusTbd : 0f;
             if (fromSo > 0f) { _sim.SetSpawnRing(fromSo); return; }
 
