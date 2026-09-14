@@ -28,8 +28,8 @@ namespace MBI.Tests
         private const float BandMin = 4f;
         private const float BandMax = 14f;
 
-        /// <summary>사거리 안 적이 이 수를 넘으면 제자리 — 사용자 확정 가정 3.</summary>
-        private const int Hold = 3;
+        /// <summary>사거리 안 적이 이 수를 넘으면 제자리 — 사용자 확정 가정 **1**(구 3 폐기).</summary>
+        private const int Hold = 1;
 
         /// <summary>S1 구성 — 밸런스 제안표(§72-14): 보병 120 × HP30 · def 0.</summary>
         private static List<EnemySpawn> S1Infantry()

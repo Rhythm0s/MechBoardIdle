@@ -36,7 +36,10 @@ namespace MBI.Data
         // ⚠️ **사거리 안에 이만큼 넘게 있으면 제자리**에서 쏜다 (2026-09-15 사용자 확정 · 가정 3).
         // 구 규칙(하나라도 있으면 제자리)에서는 적이 많을수록 로봇이 **한 걸음도 안 걸었다**.
         [Tooltip("TBD — 사거리 안 적이 이 수를 넘으면 제자리 사격. 이하면 가장 가까운 무리로 이동.")]
-        public int autoPilotHoldWhenMoreThanTbd = 3;
+        // ⚠️ **3 → 1**(2026-09-15 사용자 확정 · 가정). 3 에서는 거의 매 틱 걸어(1884/1934)
+        // 카메라가 로봇을 따라다녀 **화면이 계속 흔들렸다.** 1 이면 사거리 안에 **둘 이상**
+        // 있을 때 멈춘다 — 몰려 있으면 서서 쏘고, 성길 때만 걷는다.
+        public int autoPilotHoldWhenMoreThanTbd = 1;
 
         [Tooltip("TBD — 로봇 이동 속도(유닛/초). WASD/화살표로 조작(카이팅). chat+Notion 확정 필요.")]
         public float robotMoveSpeedTbd = 4.5f;
