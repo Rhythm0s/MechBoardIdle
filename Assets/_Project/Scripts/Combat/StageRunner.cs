@@ -977,6 +977,10 @@ namespace MBI.Combat
 
             PlayInstalledVfx();
             SyncEnemyProjectileViews();
+
+            // 날아가는 탄환은 **연출 전용**이라 시뮬 배속이 아니라 실제 시간으로 간다 —
+            // 피해는 이미 들어갔고 그림만 뒤따르기 때문이다(§72-24 ④).
+            TickFlyingShots(Time.deltaTime);
             UpdateAmmoOutView();   // 지속 상태 — 한 번 만들고 껐다 켠다(`260909_W01` 3장이 (가)를 확정)
             PublishSupplySignals();
 
@@ -1133,28 +1137,120 @@ namespace MBI.Combat
             return d;
         }
 
-        // ---- 사격 연출: 탄선(빔) + 피격 플래시 (플레이스홀더, 자동 소멸) ----
+        // ---- 사격 연출: 날아가는 탄환 + 명중 플래시 ----
+
+        /// <summary>
+        /// 탄환이 나는 속도(유닛/초). ⚠️ **가정이다** — 연출 문서에 로봇 탄속 절이 없다.
+        ///
+        /// 적 포탄이 6(<see cref="EnemyAttackRule"/> · 이것도 가정)이라 **그 넷 배**로 둔다.
+        /// 근거는 값이 아니라 **구분**이다 — 내가 쏜 것이 나에게 오는 것보다 눈에 띄게
+        /// 빨라야 두 방향이 한 화면에서 갈린다. 값이 서면 여기 하나만 바뀐다.
+        /// </summary>
+        private const float ShotBulletSpeedTbd = 24f;
+
+        /// <summary>탄환 그림이 없을 때 쓰는 사각의 한 변(유닛). ⚠️ 가정.</summary>
+        private const float ShotBulletUnits = 0.22f;
+
+        /// <summary>날아가는 중인 탄환 하나. **판정은 이미 끝났다** — 그림만 뒤따라간다.</summary>
+        private struct FlyingShot
+        {
+            public Transform view;
+            public Vector2 from;
+            public Vector2 to;
+            public float elapsed;
+            public float duration;
+            public ShotEvent shot;
+        }
+
+        private readonly List<FlyingShot> _flying = new List<FlyingShot>();
+
+        /// <summary>
+        /// 사격 연출 — **탄선을 탄환으로 바꿨다**(2026-09-14 사용자 확정 · §72-24 ④).
+        ///
+        /// 종전에는 로봇에서 적까지 **흰 사각을 늘여** 0.05초 띄웠다. 그러면 발사와 명중이
+        /// **한 프레임에 같이** 일어나 「무엇이 날아가서 맞혔다」가 안 읽힌다 —
+        /// 화면에서는 적이 그냥 줄어드는 것으로 보였다.
+        ///
+        /// ⚠️⚠️ **피해 시점은 안 옮긴다.** 시뮬은 이 이벤트가 날 때 **이미 피해를 넣었다.**
+        /// 그림만 뒤따라간다 — 연출이 판정을 끌고 다니면 **맞기 전에 죽거나 죽은 뒤에 맞는**
+        /// 자리가 생기고, 그건 밸런스가 아니라 규칙이 흔들리는 것이다.
+        /// </summary>
         private void SpawnShotFx(ShotEvent s)
         {
             Color c = TracerColor(s.kind);
 
-            // 탄선 = 흰 사각을 로봇→적 방향으로 늘려 회전.
             Vector2 from = s.from, to = s.to;
-            Vector2 mid = (from + to) * 0.5f;
             float dist = Vector2.Distance(from, to);
             // 이펙트는 1방향만 그리고 회전은 코드가 준다(V01 §C) — 회전 적용 지점은 ArtSpec 하나다.
             float ang = ArtSpec.EffectRotationDegrees(to - from);
 
-            var tracer = new GameObject("Tracer");
-            tracer.transform.SetParent(transform, false);
-            tracer.transform.position = new Vector3(mid.x, mid.y, 0f);
-            tracer.transform.rotation = Quaternion.Euler(0f, 0f, ang);
-            tracer.transform.localScale = new Vector3(Mathf.Max(dist, 0.01f), 0.06f, 1f);
-            var tsr = tracer.AddComponent<SpriteRenderer>();
-            tsr.sprite = PlaceholderSprite.White();
-            tsr.color = c;
-            tsr.sortingOrder = SortingLayers.EffectOver; // 탄선
-            Destroy(tracer, 0.05f);
+            Sprite bullet = tuning != null ? tuning.tagBulletSprite : null;
+
+            var go = new GameObject("ShotBullet");
+            go.transform.SetParent(transform, false);
+            go.transform.position = new Vector3(from.x, from.y, 0f);
+            go.transform.rotation = Quaternion.Euler(0f, 0f, ang);
+            var bsr = go.AddComponent<SpriteRenderer>();
+            if (bullet != null)
+            {
+                bsr.sprite = bullet;
+                bsr.color = c;
+            }
+            else
+            {
+                // 그림이 없으면 **작은 사각**이다 — 종전처럼 길게 늘이지 않는다.
+                bsr.sprite = PlaceholderSprite.White();
+                bsr.color = c;
+                go.transform.localScale = new Vector3(ShotBulletUnits, ShotBulletUnits, 1f);
+            }
+            bsr.sortingOrder = SortingLayers.EffectOver;
+
+            _flying.Add(new FlyingShot
+            {
+                view = go.transform,
+                from = from,
+                to = to,
+                elapsed = 0f,
+                // 아주 가까우면 한 프레임에 끝나 안 보인다 — 바닥을 둔다(가정).
+                duration = Mathf.Max(0.03f, dist / ShotBulletSpeedTbd),
+                shot = s,
+            });
+        }
+
+        /// <summary>날아가는 탄환을 옮기고, 닿으면 **명중 플래시**로 바꾼다.</summary>
+        private void TickFlyingShots(float dt)
+        {
+            // 역순 — 지우면서 돈다.
+            for (int i = _flying.Count - 1; i >= 0; i--)
+            {
+                FlyingShot f = _flying[i];
+                f.elapsed += dt;
+
+                if (f.elapsed < f.duration)
+                {
+                    if (f.view != null)
+                        f.view.position = Vector2.Lerp(f.from, f.to, f.elapsed / f.duration);
+                    _flying[i] = f;
+                    continue;
+                }
+
+                if (f.view != null) Destroy(f.view.gameObject);
+                _flying.RemoveAt(i);
+                SpawnHitFx(f.shot);
+            }
+        }
+
+        /// <summary>
+        /// 명중 플래시 — **코드 드로잉**이다(자산 없음 · §72-24 ④).
+        ///
+        /// ⚠️ **폭발탄은 크게.** 발당 50 이라 관통 20 · 표준 10 과 **다섯 배까지** 차이가
+        /// 나는데 같은 크기로 터지면 화면에서 **무엇이 센지가 안 보인다.**
+        /// </summary>
+        private void SpawnHitFx(ShotEvent s)
+        {
+            Color c = TracerColor(s.kind);
+
+            Vector2 to = s.to;
 
             if (s.aoeRadius > 0f)
             {
@@ -1164,16 +1260,19 @@ namespace MBI.Combat
                 boom.transform.SetParent(transform, false);
                 boom.transform.position = new Vector3(to.x, to.y, 0f);
                 boom.transform.localScale = new Vector3(d, d, 1f);
-                var bsr = boom.AddComponent<SpriteRenderer>();
-                bsr.sprite = PlaceholderSprite.White();
-                bsr.color = new Color(1f, 0.5f, 0.15f, 0.35f);
-                bsr.sortingOrder = SortingLayers.EffectOver - 1; // 폭발 — 탄선보다 아래
+                var bsr2 = boom.AddComponent<SpriteRenderer>();
+                bsr2.sprite = PlaceholderSprite.White();
+                bsr2.color = new Color(1f, 0.5f, 0.15f, 0.35f);
+                bsr2.sortingOrder = SortingLayers.EffectOver - 1; // 폭발 — 탄환보다 아래
                 Destroy(boom, 0.14f);
             }
             else
             {
                 // 단일/멀티샷 피격 플래시(격파 시 크고 밝게).
+                // ⚠️ **폭발탄은 한 배 반**(§72-24 ④) — 발당 50 이 10·20 과 같은 크기로
+                // 터지면 어느 것이 센지가 화면에서 안 갈린다. 값은 가정이다.
                 float fs = s.killed ? 0.6f : 0.28f;
+                if (s.kind == AmmoKind.Explosive) fs *= 1.5f;
                 var flash = new GameObject("Hit");
                 flash.transform.SetParent(transform, false);
                 flash.transform.position = new Vector3(to.x, to.y, 0f);
@@ -1223,6 +1322,11 @@ namespace MBI.Combat
             foreach (KeyValuePair<DroneUnit, SpriteRenderer> kv in _droneViews)
                 if (kv.Value != null) Destroy(kv.Value.gameObject);
             _droneViews.Clear();
+            // 날아가던 탄환도 지운다 — 안 지우면 재시작 뒤 **없던 명중 플래시**가
+            // 옛 자리에서 터진다(드론 유령과 같은 종류다 · §72-24 ④).
+            for (int i = 0; i < _flying.Count; i++)
+                if (_flying[i].view != null) Destroy(_flying[i].view.gameObject);
+            _flying.Clear();
             if (_robotView != null) Destroy(_robotView.gameObject);
             _robotView = null;
             _viewedRobotIndex = 0;
