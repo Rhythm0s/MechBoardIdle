@@ -18,9 +18,17 @@ namespace MBI.Core
         /// 지우는 것보다 **안 보는 것을 적어 두는 편**이 낫다.
         /// </summary>
         public float arenaRadius;
-        public float attackRange;  // 이 거리 안이면 제자리 사격
+        public float attackRange;  // 이 거리 안이면 칠 수 있다
         public float moveSpeed;    // 유닛/초 (TBD)
         public float dt;
+
+        /// <summary>
+        /// **사거리 안에 이만큼 넘게 있으면 제자리**에서 쏜다 (2026-09-15 사용자 확정 · 가정 3).
+        ///
+        /// ⚠️ **0 이면 종전 규칙**이다 — 사거리 안에 하나라도 있으면 제자리.
+        /// 시험 스물이 이 구조체를 만들므로 **0 을 종전으로 두어야** 안 건드린 시험이 안 깨진다.
+        /// </summary>
+        public int holdWhenMoreThan;
     }
 
     /// <summary>
@@ -28,8 +36,18 @@ namespace MBI.Core
     /// 결정론 — 난수 0, 같은 입력이면 항상 같은 위치.
     ///
     /// 규칙은 둘뿐이다:
-    ///   1. **사거리 안 → 제자리 사격.** 다가가지 않는다.
-    ///   2. **사거리 밖 → 최근접 적을 향해 4방향 이동.**
+    ///   1. **사거리 안에 <c>holdWhenMoreThan</c> 기 넘게 있으면 → 제자리 사격.**
+    ///   2. **그보다 적으면 → 가장 가까운 무리로 4방향 이동.**
+    ///
+    /// ⚠️ **「사거리 안에 하나라도 있으면 제자리」에서 바뀌었다**(2026-09-15 사용자 확정).
+    /// 구 규칙에서는 적이 많을수록 **최근접이 늘 사거리 안**이라 로봇이 한 걸음도 안 걸었다 —
+    /// S1 실측 **걸은 틱 0 / 1956**. 사거리를 줄여도(9.2) 스폰 띠를 넓혀도(4~14) 그대로였다.
+    /// 뿌리가 거리가 아니라 **「최근접만 본다」** 였다.
+    ///
+    /// ⚠️ **「무리」 판정은 구현 재량**(사용자 위임). **최근접 적 둘레**를 무리로 본다 —
+    /// 그 적에서 <see cref="AutoPilotContext.attackRange"/> 안에 있는 것들의 **무게중심**으로 간다.
+    /// 반경을 새로 만들지 않고 사거리를 쓰는 이유는 그것이 이미
+    /// **「한 자리에서 칠 수 있는 범위」**를 뜻하기 때문이다 — 무리의 뜻과 같다.
     ///
     /// ⚠️ **카이팅은 넣지 않는다**(2026-08-26 판정). 로봇은 사거리 유지를 위해 물러나지 않는다.
     ///   ① 접근당하는 상황의 답은 **회피 시스템(부스터 노드)**이며 카이팅은 그것과 중복이다.
@@ -41,6 +59,50 @@ namespace MBI.Core
     /// </summary>
     public static class AutoPilotPolicy
     {
+        /// <summary>그 자리에서 <paramref name="radius"/> 안에 있는 **생존 적 수**.</summary>
+        public static int CountWithin(Vector2 pos, IReadOnlyList<CombatEntity> enemies, float radius)
+        {
+            if (enemies == null || radius <= 0f) return 0;
+
+            float r2 = radius * radius;
+            int n = 0;
+            for (int i = 0; i < enemies.Count; i++)
+            {
+                CombatEntity e = enemies[i];
+                if (e == null || e.hp <= 0f) continue;
+                if ((e.position - pos).sqrMagnitude <= r2) n++;
+            }
+            return n;
+        }
+
+        /// <summary>
+        /// **가장 가까운 무리의 무게중심** — <paramref name="seed"/> 둘레
+        /// <paramref name="radius"/> 안에 있는 생존 적들의 평균 자리.
+        ///
+        /// ⚠️ **결정론이다** — 난수도, 순서 의존도 없다(평균은 순서를 안 탄다).
+        /// 무리가 하나뿐이면 그 적의 자리 그대로다.
+        /// </summary>
+        public static Vector2 ClusterCenter(CombatEntity seed, IReadOnlyList<CombatEntity> enemies,
+            float radius)
+        {
+            if (seed == null) return Vector2.zero;
+            if (enemies == null || radius <= 0f) return seed.position;
+
+            float r2 = radius * radius;
+            Vector2 sum = Vector2.zero;
+            int n = 0;
+
+            for (int i = 0; i < enemies.Count; i++)
+            {
+                CombatEntity e = enemies[i];
+                if (e == null || e.hp <= 0f) continue;
+                if ((e.position - seed.position).sqrMagnitude > r2) continue;
+                sum += e.position;
+                n++;
+            }
+            return n > 0 ? sum / n : seed.position;
+        }
+
         /// <summary>최근접 생존 적 방향(정규화). 없으면 zero. 동률은 낮은 인덱스 우선(결정론).</summary>
         public static Vector2 ThreatDirection(Vector2 pos, IReadOnlyList<CombatEntity> enemies)
         {
@@ -62,10 +124,16 @@ namespace MBI.Core
 
             CombatEntity nearest = NearestLiving(ctx.robotPos, ctx.enemies, out float dist);
             if (nearest == null) return ctx.robotPos;          // 적 없음 → 가만히(원점 복귀 없음)
-            if (dist <= ctx.attackRange) return ctx.robotPos;  // 사거리 안 → 제자리 사격
 
-            // 사거리 밖 → 최근접 적을 향해 4방향으로 접근.
-            Vector2 next = GridMovement.Step(ctx.robotPos, nearest.position, step);
+            // **사거리 안에 충분히 많으면 제자리**에서 쏜다.
+            if (CountWithin(ctx.robotPos, ctx.enemies, ctx.attackRange) > ctx.holdWhenMoreThan)
+                return ctx.robotPos;
+
+            // 사거리 안이 성기다 → **가장 가까운 무리**로 간다. 그 무리가 이미 발밑이면 제자리.
+            Vector2 target = ClusterCenter(nearest, ctx.enemies, ctx.attackRange);
+            if ((target - ctx.robotPos).sqrMagnitude <= 1e-8f) return ctx.robotPos;
+
+            Vector2 next = GridMovement.Step(ctx.robotPos, target, step);
 
             // ⚠️ **아레나 클램프를 걷었다**(2026-09-11 사용자 확정 · 플랜 §71-28 1).
             //

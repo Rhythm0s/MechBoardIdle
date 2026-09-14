@@ -33,6 +33,11 @@ namespace MBI.Data
         // ⚠️ **Tbd 는 그대로 둔다** — 확정값이 아니다. 창 비가 바뀌면 이 수도 바뀐다.
         [Tooltip("TBD — 로봇 사거리(유닛). 가정 9.2 = 화면 대각선의 절반(ortho 8 · 비 0.5625).")]
         public float robotAttackRangeTbd = 9.2f;
+        // ⚠️ **사거리 안에 이만큼 넘게 있으면 제자리**에서 쏜다 (2026-09-15 사용자 확정 · 가정 3).
+        // 구 규칙(하나라도 있으면 제자리)에서는 적이 많을수록 로봇이 **한 걸음도 안 걸었다**.
+        [Tooltip("TBD — 사거리 안 적이 이 수를 넘으면 제자리 사격. 이하면 가장 가까운 무리로 이동.")]
+        public int autoPilotHoldWhenMoreThanTbd = 3;
+
         [Tooltip("TBD — 로봇 이동 속도(유닛/초). WASD/화살표로 조작(카이팅). chat+Notion 확정 필요.")]
         public float robotMoveSpeedTbd = 4.5f;
 

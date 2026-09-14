@@ -927,6 +927,9 @@ namespace MBI.Combat
                         // desiredGap(후퇴 개시 거리)은 더 이상 쓰지 않는다.
                         attackRange = tuning.robotAttackRangeTbd,
                         moveSpeed = tuning.robotMoveSpeedTbd,
+                        // 사거리 안이 이 수를 넘으면 제자리 — 이하면 가장 가까운 무리로 간다
+                        // (2026-09-15 사용자 확정 · 가정 3).
+                        holdWhenMoreThan = tuning.autoPilotHoldWhenMoreThanTbd,
                         dt = Time.deltaTime,
                     };
                     _sim.Robot.position = AutoPilotPolicy.NextPosition(ctx);

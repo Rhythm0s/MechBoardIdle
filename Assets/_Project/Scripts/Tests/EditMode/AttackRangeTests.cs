@@ -28,6 +28,9 @@ namespace MBI.Tests
         private const float BandMin = 4f;
         private const float BandMax = 14f;
 
+        /// <summary>사거리 안 적이 이 수를 넘으면 제자리 — 사용자 확정 가정 3.</summary>
+        private const int Hold = 3;
+
         /// <summary>S1 구성 — 밸런스 제안표(§72-14): 보병 120 × HP30 · def 0.</summary>
         private static List<EnemySpawn> S1Infantry()
         {
@@ -109,16 +112,18 @@ namespace MBI.Tests
             {
                 robotPos = Vector2.zero, enemies = enemies,
                 arenaRadius = 6f, attackRange = Range,
-                moveSpeed = 4.5f, dt = Dt,
+                moveSpeed = 4.5f, dt = Dt, holdWhenMoreThan = Hold,
             };
 
             Vector2 next = AutoPilotPolicy.NextPosition(ctx);
             Assert.Greater(next.x, 0f, "사거리 밖이면 다가간다");
 
-            // ⚠️ **구 값 100 이면 안 걷는다** — 그것이 고친 자리다.
+            // ⚠️ **구 값 100 이어도 이제는 걷는다**(2026-09-15 규칙 개정 · §72-41).
+            // 적이 하나뿐이면 사거리 안이라도 **N(=3) 이하**라 무리로 다가간다.
+            // 구 규칙에서는 여기가 제자리였고, 그것이 「한 걸음도 안 걷는」 자리였다.
             ctx.attackRange = 100f;
-            Assert.AreEqual(Vector2.zero, AutoPilotPolicy.NextPosition(ctx),
-                "사거리 100 에서는 20 유닛 떨어진 적도 사거리 안이라 제자리다");
+            Assert.Greater(AutoPilotPolicy.NextPosition(ctx).x, 0f,
+                "사거리 안이라도 성기면 다가간다");
         }
 
         /// <summary>
@@ -137,13 +142,20 @@ namespace MBI.Tests
             var ctx = new AutoPilotContext
             {
                 robotPos = Vector2.zero, arenaRadius = 6f, attackRange = Range,
-                moveSpeed = 4.5f, dt = Dt,
+                moveSpeed = 4.5f, dt = Dt, holdWhenMoreThan = Hold,
                 enemies = new List<CombatEntity>
                 {
                     new CombatEntity { position = new Vector2(BandMin, 0f), hp = 30f, maxHp = 30f },
                 },
             };
-            Assert.AreEqual(Vector2.zero, AutoPilotPolicy.NextPosition(ctx), "안쪽 → 제자리");
+            // 안쪽이라도 **성기면** 다가간다 — 제자리는 빽빽할 때다.
+            Assert.Greater(AutoPilotPolicy.NextPosition(ctx).x, 0f, "안쪽이지만 성기다 → 다가간다");
+
+            var dense = new List<CombatEntity>();
+            for (int i = 0; i <= Hold; i++)
+                dense.Add(new CombatEntity { position = new Vector2(BandMin, i * 0.1f), hp = 30f, maxHp = 30f });
+            ctx.enemies = dense;
+            Assert.AreEqual(Vector2.zero, AutoPilotPolicy.NextPosition(ctx), "빽빽하면 제자리");
 
             ctx.enemies = new List<CombatEntity>
             {
@@ -169,6 +181,21 @@ namespace MBI.Tests
 
             while (t < 100f && sim.Result == CombatResult.InProgress)
             {
+                // ⚠️⚠️ **자동 조종은 시뮬이 아니라 러너가 돌린다**(`StageRunner.Update`).
+                // 처음에 이 줄이 없어 **걸은 틱 0** 이 나왔는데, 그건 규칙이 아니라
+                // **장치가 대상을 안 건드린 것**이었다. 러너와 같은 자리를 여기서 만든다.
+                var ctx = new AutoPilotContext
+                {
+                    robotPos = sim.Robot.position,
+                    enemies = sim.Enemies,
+                    arenaRadius = 6f,
+                    attackRange = Range,
+                    moveSpeed = 4.5f,
+                    holdWhenMoreThan = Hold,
+                    dt = Dt,
+                };
+                sim.Robot.position = AutoPilotPolicy.NextPosition(ctx);
+
                 sim.Tick(Dt);
                 t += Dt;
                 if ((sim.RobotPosition - last).sqrMagnitude > 1e-6f) movedTicks++;
@@ -177,21 +204,8 @@ namespace MBI.Tests
 
             TestContext.WriteLine($"S1 — 걸은 틱 {movedTicks} / 총 {(int)(t / Dt)} · {t:F1}초 {sim.Result}");
 
-            // ⚠️⚠️ **실측: 0 이다 — 띠를 넣어도 로봇은 안 걷는다.**
-            //
-            // 자동 조종은 **최근접 적**을 본다(`AutoPilotPolicy.NextPosition`). S1 은 적이 120 기라
-            // 띠(4~14) 어딘가에 **거의 항상 사거리 9.2 안쪽인 적이 하나는 있다** —
-            // 그러면 「사거리 안 → 제자리 사격」이 걸려 한 걸음도 안 뗀다.
-            //
-            // ⇒ **뿌리는 링도 띠도 아니라 「최근접」 + 적 수**다. 걷게 하려면 셋 중 하나다:
-            //    ① 사거리를 띠 안쪽(4) 밑으로 · ② 표적 규칙을 최근접이 아닌 것으로
-            //    · ③ 그대로 둔다(제자리 사격이 이 설계의 귀결이다).
-            //
-            // **이 단언은 지금 사실을 못 박는 것**이다 — 위 셋 중 하나가 정해져 로봇이 걷기
-            // 시작하면 여기가 빨개지고, 그때가 규칙이 바뀐 때다. 기대를 단언해 초록으로
-            // 만들어 두면 **안 걷는다는 사실이 문서에서 사라진다.**
-            Assert.AreEqual(0, movedTicks,
-                "적이 많으면 최근접이 늘 사거리 안이라 안 걷는다 — 규칙이 바뀌면 이 줄이 빨개진다");
+            // ✅ **이제 걷는다**(2026-09-15 사용자 확정 · §72-41).
+            Assert.Greater(movedTicks, 0, "성길 때는 무리로 걸어간다");
         }
 
         /// <summary>사거리 안이면 제자리에서 쏜다 — 다가가지 않는다(카이팅 없음).</summary>
@@ -207,10 +221,17 @@ namespace MBI.Tests
             {
                 robotPos = Vector2.zero, enemies = enemies,
                 arenaRadius = 6f, attackRange = Range,
-                moveSpeed = 4.5f, dt = Dt,
+                moveSpeed = 4.5f, dt = Dt, holdWhenMoreThan = Hold,
             };
 
-            Assert.AreEqual(Vector2.zero, AutoPilotPolicy.NextPosition(ctx), "사거리 안 → 제자리");
+            // 하나뿐이면 N(=3) 이하라 **다가간다**. 제자리가 되려면 넷이 있어야 한다.
+            Assert.Greater(AutoPilotPolicy.NextPosition(ctx).x, 0f, "성기면 다가간다");
+
+            for (int i = 0; i < Hold; i++)
+                enemies.Add(new CombatEntity { position = new Vector2(5f, i * 0.1f), hp = 30f, maxHp = 30f });
+
+            Assert.AreEqual(Vector2.zero, AutoPilotPolicy.NextPosition(ctx),
+                $"사거리 안에 {Hold + 1} 기면 제자리 사격");
         }
 
         /// <summary>
