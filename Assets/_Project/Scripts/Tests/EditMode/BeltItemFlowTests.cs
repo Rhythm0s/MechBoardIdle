@@ -268,13 +268,15 @@ namespace MBI.Tests
             // 실루엣 마스크를 씌운 진짜 보드여야 파츠 좌표가 맞는다.
             var grid = new BoardGrid(12, 13, 1f, Vector2.zero, PartLayout.BuildMask());
 
-            // 로봇 A 포트는 (0,6)의 서쪽이다. 그 칸에 서쪽으로 내보내는 벨트를 깐다.
-            grid.TryPlaceBelt(new Vector2Int(0, 6), PortFace.East, PortFace.West, FlowKind.Ammo, out _);
+            // ⚠️ **로봇 A 포트는 (1,4)의 남쪽이다**(2026-09-14 · §72-24 · 구 「(0,6) 서쪽」 폐기).
+            // 그 칸에 남쪽으로 내보내는 벨트를 깐다 — 떨어지는 자리가 (1,3) 이고
+            // 그 칸이 마운트 묶음의 맨 윗 칸이다.
+            grid.TryPlaceBelt(new Vector2Int(1, 4), PortFace.North, PortFace.South, FlowKind.Ammo, out _);
 
             var flow = new BeltItemFlow();
             flow.Rebuild(grid);
 
-            var cell = new Vector2Int(0, 6);
+            var cell = new Vector2Int(1, 4);
             Assert.IsTrue(flow.TryInsert(cell, FlowKind.Ammo));
             flow.Tick(SecondsPerCell);
 

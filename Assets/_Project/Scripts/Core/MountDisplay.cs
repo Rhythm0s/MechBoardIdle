@@ -78,6 +78,10 @@ namespace MBI.Core
         /// 팔R(x0~2 · y4~8) **바로 아래**의 빈 칸(x0~2 · y0~3)이다. 다리는 x3~8 이라
         /// 그 열두 칸은 **어느 파츠도 아니고 노드도 못 놓는다.**
         /// </summary>
+        /// <summary>
+        /// A 묶음이 서는 열. **포트가 (1,4) 남면으로 내려오면서 열과 도착 칸이 맞았다**
+        /// (2026-09-14 · §72-24). 구 주석 「A 포트는 못 옮긴다」는 폐기 — 옮긴 것이 답이었다.
+        /// </summary>
         public const int RobotAColumn = 1;
 
         /// <summary>그 로봇의 묶음이 서는 열.</summary>
@@ -85,11 +89,24 @@ namespace MBI.Core
             owner == MountOwner.RobotB ? SlotColumn(portCell, face) : RobotAColumn;
 
         /// <summary>
-        /// 묶음 안 <paramref name="i"/>번째(0~3) 칸. **아래에서 위로 쌓는다** —
-        /// 슬롯 번호가 커질수록 위다(채움이 아래에서 위로 차는 것과 같은 방향).
+        /// 슬롯 <paramref name="i"/> 가 앉는 **줄**.
+        ///
+        /// ⚠️ **A 는 위부터 찬다**(2026-09-14 · §72-24). 운반로가 **위에서 내려와**
+        /// (1,3) 으로 떨어지므로, 맨 윗 칸이 **첫 슬롯**이어야 「들어온 것이 위부터
+        /// 쌓인다」가 그림과 맞는다. 아래부터 채우면 **들어오는 자리와 차는 자리가
+        /// 반대**가 되어 물건이 칸을 건너뛴 것처럼 보인다.
+        ///
+        /// ⚠️ **B 는 그대로 아래부터**다 — B 포트는 (2,10)·(9,10) 이라 묶음의 **맨 아랫
+        /// 줄**로 들어온다. 같은 규칙(들어오는 쪽이 첫 슬롯)을 반대 방향으로 읽은 것이다.
         /// </summary>
+        public static int SlotRowOf(MountOwner owner, int i) =>
+            owner == MountOwner.RobotB
+                ? SlotRowStart(owner) + i
+                : SlotRowStart(owner) + (SlotsPerPort - 1 - i);
+
+        /// <summary>묶음 안 <paramref name="i"/>번째(0~3) 칸.</summary>
         public static Vector2Int SlotCell(Vector2Int portCell, PortFace face, MountOwner owner, int i) =>
-            new Vector2Int(GroupColumn(portCell, face, owner), SlotRowStart(owner) + i);
+            new Vector2Int(GroupColumn(portCell, face, owner), SlotRowOf(owner, i));
 
         /// <summary>
         /// 묶음 네 칸의 **세로 칸 수** — 그림을 이만큼 늘린다 (2026-09-14 · §72-13).

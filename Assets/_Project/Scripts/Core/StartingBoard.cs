@@ -192,7 +192,8 @@ namespace MBI.Core
         /// 시작 배선. 네 줄이 각자 달려 **x=8 기둥**에서 합류하고, 운반로 y=5 를 타고 서쪽
         /// 마운트 고정 포트(0,6)로 나간다.
         ///
-        /// ⚠️ **마지막 칸은 (0,6)이다** — `PartLayout.MountPorts` 의 로봇 A 포트가 거기 서면이다.
+        /// ⚠️ **마지막 칸은 (1,4)이다** — `PartLayout.MountPorts` 의 로봇 A 포트가 거기 **남면**이다
+        /// (2026-09-14 · §72-24 · 구 「(0,6) 서면」 폐기).
         /// </summary>
         public static readonly IReadOnlyList<Run> Belts = new[]
         {
@@ -228,10 +229,16 @@ namespace MBI.Core
             new Run(3, 5, PortFace.East, PortFace.West),
             new Run(2, 5, PortFace.East, PortFace.North),
 
-            // ── 팔R 바깥면으로
+            // ── 팔R 을 타고 **내려가** 마운트 남면으로 (2026-09-14 · §72-24)
+            //
+            // ⚠️ 구 배선은 y6 을 서쪽 끝(0,6)까지 밀어 **팔R 바깥면**으로 냈다.
+            // 포트가 (1,4) 남면으로 내려오면서 마지막 세 칸이 **꺾어 내려간다** —
+            // (1,6) 코너에서 남으로 돌아 (1,5) · (1,4) 를 지나 **(1,3) 으로 떨어진다.**
+            // 그 칸이 마운트 묶음의 **맨 윗 칸**이다.
             new Run(2, 6, PortFace.South, PortFace.West),
-            new Run(1, 6, PortFace.East, PortFace.West),
-            new Run(0, 6, PortFace.East, PortFace.West), // 서쪽 면이 마운트 고정 포트다
+            new Run(1, 6, PortFace.East, PortFace.South),   // 코너
+            new Run(1, 5, PortFace.North, PortFace.South),
+            new Run(1, 4, PortFace.North, PortFace.South),  // 남쪽 면이 마운트 고정 포트다
         };
     }
 }

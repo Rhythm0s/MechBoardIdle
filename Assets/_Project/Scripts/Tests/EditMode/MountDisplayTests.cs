@@ -25,13 +25,15 @@ namespace MBI.Tests
         [Test]
         public void 슬롯_묶음은_A는_바깥_B는_머리_옆이다()
         {
-            // A — 포트는 (0,6) 서면 그대로지만 **표시는 격자 안**이다: x1 · y0~3.
-            // 면을 따라가면 x−1(격자 밖)인데, 포트는 못 옮긴다 — 시작 보드의 운반로가
-            // 그 칸에서 끝나고 물류 도달 판정이 거기 걸려 있다.
-            Assert.AreEqual(new Vector2Int(1, 0),
-                MountDisplay.SlotCell(new Vector2Int(0, 6), PortFace.West, MountOwner.RobotA, 0));
+            // A — 포트가 **(1,4) 남면**으로 내려왔다(2026-09-14 · §72-24). 표시 열은
+            // **그대로 x1 · y0~3** 이고, 이제 도착 칸 (1,3) 이 **묶음 맨 윗 칸과 같다.**
+            //
+            // ⚠️ **위부터 찬다** — 물건이 위에서 떨어지므로 **첫 슬롯이 맨 윗 칸(y3)** 이다.
+            // 구판은 포트가 팔R 바깥이라 열과 도착 칸이 따로 놀았고 첫 슬롯이 y0 이었다(폐기).
             Assert.AreEqual(new Vector2Int(1, 3),
-                MountDisplay.SlotCell(new Vector2Int(0, 6), PortFace.West, MountOwner.RobotA, 3));
+                MountDisplay.SlotCell(new Vector2Int(1, 4), PortFace.South, MountOwner.RobotA, 0));
+            Assert.AreEqual(new Vector2Int(1, 0),
+                MountDisplay.SlotCell(new Vector2Int(1, 4), PortFace.South, MountOwner.RobotA, 3));
 
             // B 왼쪽 — 어깨R 안쪽 면 (2,10) 동면 → x 3 · y 10~13.
             Assert.AreEqual(new Vector2Int(3, 10),

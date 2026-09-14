@@ -273,7 +273,15 @@ namespace MBI.Data
         private static readonly MountPort[] Mounts =
         {
             // 로봇 A — 팔R(x 0~2 · y 4~8) 서쪽 **바깥면**, 세로 중앙 y=6. 화면에서는 왼쪽 팔이다.
-            new MountPort(new Vector2Int(0, 6), PortFace.West, MountOwner.RobotA),
+            // ⚠️ **(0,6) 서면 → (1,4) 남면**(2026-09-14 사용자 확정 · §72-24).
+            //
+            // 구 자리는 팔R **바깥면**이라 운반로가 실루엣 왼쪽 끝까지 돌아 나갔고,
+            // 도착 칸이 **그림 열(x1 · y0~3)과 따로 놀았다.** 남면으로 내리면 도착 칸이
+            // **(1,3)** 이 되어 **묶음 맨 윗 칸과 같은 자리**가 된다 — 물건이 어디로
+            // 들어가는지가 그림에서 바로 읽힌다.
+            //
+            // 그림 열은 **그대로 x1 · y0~3** 이다(`MountDisplay.RobotAColumn`).
+            new MountPort(new Vector2Int(1, 4), PortFace.South, MountOwner.RobotA),
 
             // ⚠️ **로봇 B 의 바깥면 둘은 폐기됐다**(2026-09-14 · §72-6).
             // 구: (0,10) 서면 · (11,10) 동면 — 실루엣 **바깥**이라 화면 끝에서 잘렸고,
