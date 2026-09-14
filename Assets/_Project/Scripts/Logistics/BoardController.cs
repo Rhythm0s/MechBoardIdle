@@ -66,6 +66,17 @@ namespace MBI.Logistics
 
         private int _selectedNode; // 팔레트에서 선택된 노드 인덱스
 
+        /// <summary>
+        /// **놓기 전에 미리 돌려 둔 방향** — 0~3 (2026-09-15 사용자 확정 · §72-42).
+        ///
+        /// ⚠️ **놓고 나서 돌리는 것만으로는 부족하다.** 새티스팩토리·엔드필드가 그렇듯
+        /// **놓기 전에 방향을 정하는 것**이 손에 익은 순서다. 놓고 → 고르고 → 돌리면
+        /// 한 대에 세 번 손이 가고, 줄을 스무 대 깔 때 예순 번이 된다.
+        ///
+        /// ⚠️ **팔레트를 바꿔도 안 풀린다** — 같은 방향으로 여러 종류를 깔 때가 많다.
+        /// </summary>
+        private int _placeRotation;
+
         /// <summary>팔레트 가로 스크롤 자리. 열한 칸이 기준 캔버스 1440 을 넘어선다(2026-09-11).</summary>
         private Vector2 _paletteScroll;
         // 버튼 자리는 MBI.UI.UiBlockers가 모은다 — 다른 어셈블리가 그린 패널까지 함께 막기 위해서다.
@@ -1144,6 +1155,45 @@ namespace MBI.Logistics
             }
         }
 
+        /// <summary>
+        /// **산물이 나가는 쪽**을 화살표로 그린다 (2026-09-15 · §72-42).
+        ///
+        /// ⚠️ **아트 자산을 안 쓴다.** `arrow.png` 는 벨트 흐름 표시용이고 한 칸을 통째로
+        /// 쓰는 타일이라 버튼 안에 넣으면 꽉 찬다. 여기 필요한 것은 **작은 방향 표시** 하나라
+        /// 코드로 그린다 — 사각 셋을 이어 삼각을 흉내 낸다(회전 없이 네 방향).
+        ///
+        /// 0도 = 동쪽(노드의 기본 출력면)에서 시작해 시계로 돈다.
+        /// </summary>
+        private static void DrawRotationArrow(Rect box, int rotation)
+        {
+            Texture2D dot = UiSkin.PlateTexture;
+            if (dot == null) return;
+
+            float cx = box.center.x, cy = box.center.y + box.height * 0.22f;
+            float t = Mathf.Max(2f, box.width * 0.06f);
+            float len = box.width * 0.22f;
+
+            // 동(0) · 남(1) · 서(2) · 북(3) — `PortFace` 와 같은 시계 차례.
+            Rect shaft, head;
+            switch (((rotation % 4) + 4) % 4)
+            {
+                case 1:  shaft = new Rect(cx - t * 0.5f, cy, t, len);
+                         head  = new Rect(cx - t, cy + len - t, t * 2f, t); break;
+                case 2:  shaft = new Rect(cx - len, cy - t * 0.5f, len, t);
+                         head  = new Rect(cx - len, cy - t, t, t * 2f); break;
+                case 3:  shaft = new Rect(cx - t * 0.5f, cy - len, t, len);
+                         head  = new Rect(cx - t, cy - len, t * 2f, t); break;
+                default: shaft = new Rect(cx, cy - t * 0.5f, len, t);
+                         head  = new Rect(cx + len - t, cy - t, t, t * 2f); break;
+            }
+
+            Color prev = GUI.color;
+            GUI.color = new Color(0.98f, 0.85f, 0.35f);
+            GUI.DrawTexture(shaft, dot);
+            GUI.DrawTexture(head, dot);
+            GUI.color = prev;
+        }
+
         /// <summary>슬롯 칸 테두리 한 변.</summary>
         private SpriteRenderer SlotEdge(Transform parent, float cx, float cy, float w, float h)
         {
@@ -1983,7 +2033,10 @@ namespace MBI.Logistics
                 Debug.LogWarning("[MBI] BoardController: 배치할 노드 없음(팔레트/placeTarget 미할당).");
                 return;
             }
-            if (!_grid.TryPlace(cell, node, out _)) return;
+            if (!_grid.TryPlace(cell, node, out NodeInstance placedNode)) return;
+
+            // ⚠️ **미리 돌려 둔 방향을 그대로 놓는다**(§72-42) — 놓고 나서 또 돌리지 않는다.
+            if (placedNode != null) placedNode.Rotation = _placeRotation;
 
             SpawnNodeMarker(cell);
             // 격자에 붙는 순간의 딸깍(사운드 문서 3장). **놓는 데 성공했을 때만** —
@@ -2315,6 +2368,19 @@ namespace MBI.Logistics
                 GUI.enabled = wasEnabled;
                 bx += step;
             }
+
+            // ── 놓기 전 회전 (2026-09-15 사용자 확정 · §72-42) ────────────────
+            //
+            // ⚠️ **놓고 나서 돌리는 것만으로는 부족하다.** 놓고 → 고르고 → 돌리면 한 대에
+            // 손이 세 번 가고, 줄을 스무 대 깔면 예순 번이 된다. 새티스팩토리·엔드필드처럼
+            // **놓기 전에 방향을 정해 두는 것**이 손에 익은 순서다.
+            //
+            // ⚠️ **팔레트를 바꿔도 안 풀린다** — 같은 방향으로 여러 종류를 깔 때가 많다.
+            var rotRect = new Rect(bx, 0f, side, side);
+            if (GUI.Button(rotRect, $"방향 {_placeRotation * 90}°", style))
+                _placeRotation = (_placeRotation + 1) % 4;
+            DrawRotationArrow(rotRect, _placeRotation);
+            bx += step;
 
             // 벨트 요소(§5-4 L3). 직선·코너는 드래그가 만들고, 이 둘만 탭으로 놓는다 —
             // 방향이 여러 개라 드래그 경로로는 표현되지 않는다.
