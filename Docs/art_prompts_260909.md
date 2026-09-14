@@ -513,3 +513,27 @@ COLOR: the cool grey machine steel, dark blue-grey shadow and pale highlight of 
 로봇 A 의 라이플은 **주황 몸통 + 회색 총열**이고 주황이 면적의 절반을 차지한다.
 2차는 그 점을 문단 제목으로 올렸다: `THE ORANGE IS THE POINT`.
 
+---
+
+## 21. 패널 그릇 — 설치본을 참조로 물린 2차 (2026-09-14 · job `e6a95543-7cf3-448b-af80-fd98af538bbc`)
+
+1차(설치 전 c10 참조)는 16장 중 빈 판이 12장, 변 최저 0.125 였다. **2차는 설치된 버튼 고침본을 참조로 물려**
+같은 팔레트·같은 빗각 이음으로 맞췄고, 변이 훨씬 조용해졌다(c04 = 0.125 · 네 변 중 셋이 완전 평탄).
+
+```
+A pixel art UI panel plate seen from straight on, filling the whole canvas edge to edge, matching the reference image's palette exactly.
+
+THE MIDDLE OF THE CANVAS: everything inside the outer 16 pixels is ONE SINGLE FLAT COLOUR — the same dark warm brown as the reference image's middle, the identical colour repeated in every pixel of that square, with no object, no item, no symbol, no letter, no rivet, no screw, no shading and no texture.
+
+THE BORDER: within the outer 16 pixels, a plain rectangular frame with SHARP square corners and no rounding, built from the same colours as the reference. It is QUIETER than the reference: the bright bevel line is thinner and dimmer, because this plate holds information rather than being pressed. The pale neutral outer band stays as in the reference.
+
+THE FOUR EDGE STRIPS between the corners are made of perfectly straight unbroken lines, each line one constant colour from end to end, because they will be stretched very wide.
+
+COLOR: copy the reference image's palette — the pale neutral grey outer band, the warm copper line, the dark warm brown fill, the near black inner line. Same hues, nothing new.
+
+RENDERING: flat crisp pixel shapes, hard industrial panel look, no glow, no gradient, no anti-aliasing.
+```
+
+⚠️ **「더 조용하게」가 실제로 통했다** — 1차 대비 변 흔들림이 0.125 로 내려갔고 **수리에서 바꾼 화소가 4개뿐**이었다
+(버튼은 78개, merger 는 631개였다). **참조를 설치본으로 바꾼 것**이 가장 크게 들은 것으로 보인다.
+
