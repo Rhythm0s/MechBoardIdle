@@ -7,57 +7,62 @@ namespace MBI.Tests
 {
     /// <summary>
     /// 마운트 표시 — **자리 · 슬롯 · 채움 · 점멸**
-    /// (2026-09-14 신설 · 플랜 §71-41 → **§72-5 사용자 확정으로 개정**).
+    /// (2026-09-14 신설 · §71-41 → §72-5 → **§72-6 사용자 확정**).
     ///
-    /// **무엇을 지키는가.** 묶음이 **실루엣 바깥**에 서는가, **1슬롯 = 한 칸**으로 넷씩 쌓이는가,
-    /// B 의 왼쪽·오른쪽이 **같은 여덟을 나눠 비추는가**, 재고 0 에 **점멸이 서는가**다.
+    /// **무엇을 지키는가.** 묶음이 **노드를 못 놓는 자리**에 서는가, **1슬롯 = 한 칸**으로 넷씩
+    /// 쌓이는가, B 의 왼쪽·오른쪽이 **같은 여덟을 나눠 비추는가**, 재고 0 에 **점멸이 서는가**다.
     ///
-    /// ⚠️ 첫 판의 가정 넷(칸 크기·틈·띄움·폴백 크기)은 §72-5 로 **폐기됐다** —
+    /// ⚠️ §72-5 의 가정 넷(칸 크기·틈·띄움·폴백 크기)은 폐기됐다 —
     /// 슬롯이 보드 칸과 같으면 잴 자가 화면에 이미 있다.
     /// </summary>
     public sealed class MountDisplayTests
     {
         /// <summary>
-        /// **묶음은 실루엣 바깥 열에 선다** — 마운트는 보드 없는 소비 파츠다(조립 6장).
-        /// 격자 칸에 넣으면 **노드를 놓을 수 있는 자리**가 되어 버린다.
+        /// **A 는 실루엣 바깥 · B 는 머리 옆 빈 열**(§72-6).
+        ///
+        /// 구판은 B 도 바깥이었는데 **양쪽 어깨 밖**이라 한 화면에 둘 다 못 넣었다.
         /// </summary>
         [Test]
-        public void 슬롯_묶음은_바깥_열에_넷씩_쌓인다()
+        public void 슬롯_묶음은_A는_바깥_B는_머리_옆이다()
         {
-            // 로봇 A — 포트 (0,6) 서면 → x −1 · y 5~8.
+            // A — 포트 (0,6) 서면 → x −1 · y 5~8.
             Assert.AreEqual(new Vector2Int(-1, 5),
                 MountDisplay.SlotCell(new Vector2Int(0, 6), PortFace.West, MountOwner.RobotA, 0));
             Assert.AreEqual(new Vector2Int(-1, 8),
                 MountDisplay.SlotCell(new Vector2Int(0, 6), PortFace.West, MountOwner.RobotA, 3));
 
-            // 로봇 B — 왼쪽 어깨 (0,10) 서면 → x −1 · y 9~12.
-            Assert.AreEqual(new Vector2Int(-1, 9),
-                MountDisplay.SlotCell(new Vector2Int(0, 10), PortFace.West, MountOwner.RobotB, 0));
-            Assert.AreEqual(new Vector2Int(-1, 12),
-                MountDisplay.SlotCell(new Vector2Int(0, 10), PortFace.West, MountOwner.RobotB, 3));
+            // B 왼쪽 — 어깨R 안쪽 면 (2,10) 동면 → x 3 · y 10~13.
+            Assert.AreEqual(new Vector2Int(3, 10),
+                MountDisplay.SlotCell(new Vector2Int(2, 10), PortFace.East, MountOwner.RobotB, 0));
+            Assert.AreEqual(new Vector2Int(3, 13),
+                MountDisplay.SlotCell(new Vector2Int(2, 10), PortFace.East, MountOwner.RobotB, 3));
 
-            // 로봇 B — 오른쪽 어깨 (11,10) 동면 → x 12 · y 9~12.
-            Assert.AreEqual(new Vector2Int(12, 9),
-                MountDisplay.SlotCell(new Vector2Int(11, 10), PortFace.East, MountOwner.RobotB, 0));
+            // B 오른쪽 — 어깨L 안쪽 면 (9,10) 서면 → x 8 · y 10~13.
+            Assert.AreEqual(new Vector2Int(8, 10),
+                MountDisplay.SlotCell(new Vector2Int(9, 10), PortFace.West, MountOwner.RobotB, 0));
+        }
 
-            // 포트 셋 전부가 격자 밖으로 나가는지 — 하나라도 안에 남으면 노드 자리와 겹친다.
+        /// <summary>
+        /// **어디에도 노드를 놓을 수 없다** — 마운트는 보드 없는 소비 파츠다(조립 6장).
+        ///
+        /// ⚠️ B 가 격자 **안**으로 들어왔으므로(§72-6) 「격자 밖인가」로는 이제 못 잰다.
+        /// 재야 하는 것은 **놓을 수 있는 자리인가**다.
+        /// </summary>
+        [Test]
+        public void 슬롯_자리에는_노드를_못_놓는다()
+        {
             foreach (MountPort mp in PartLayout.MountPorts)
                 for (int i = 0; i < MountDisplay.SlotsPerPort; i++)
                 {
                     Vector2Int c = MountDisplay.SlotCell(mp.cell, mp.face, mp.owner, i);
-                    Assert.IsTrue(c.x < 0 || c.x >= PartLayout.Columns,
-                        $"{mp.owner} 의 슬롯이 격자 안에 남았다: {c}");
+                    Assert.IsFalse(PartLayout.IsValid(c),
+                        $"{mp.owner} 의 슬롯 {c} 에 노드를 놓을 수 있다");
                 }
         }
 
-        /// <summary>
-        /// **A 와 B 는 같은 열에서 위아래로 맞닿는다** — A y5~8 · B y9~12.
-        ///
-        /// ⚠️ 이것이 **그림 칸을 한 칸 더 바깥으로 뺀 이유**다. 겹치면 묶음 하나가
-        /// 다른 묶음의 슬롯을 가린다.
-        /// </summary>
+        /// <summary>슬롯끼리도, 슬롯과 그림도 겹치지 않는다 — 겹치면 적재가 가려진다.</summary>
         [Test]
-        public void 두_묶음이_겹치지_않는다()
+        public void 묶음과_그림이_겹치지_않는다()
         {
             var used = new System.Collections.Generic.HashSet<Vector2Int>();
 
@@ -68,35 +73,50 @@ namespace MBI.Tests
                     Assert.IsTrue(used.Add(c), $"슬롯 칸이 겹친다: {c}");
                 }
 
-            // 그림 칸도 슬롯과 겹치면 안 된다 — 겹치면 적재가 그림에 가려진다.
             foreach (MountPort mp in PartLayout.MountPorts)
             {
                 Vector2Int b = MountDisplay.BodyCell(mp.cell, mp.face, mp.owner);
                 Assert.IsFalse(used.Contains(b), $"그림 칸이 슬롯을 덮는다: {b}");
+                Assert.IsFalse(PartLayout.IsValid(b), $"그림 칸 {b} 에 노드를 놓을 수 있다");
             }
         }
 
         /// <summary>
-        /// 그림 칸은 묶음보다 **한 칸 더 바깥**이다 — 그래서 스크롤 여유가 **두 칸** 있어야 한다.
+        /// 그림 칸 — **A 는 x−2 · B 는 마운트 전용 줄(y13)의 x2 · x9**(§72-6).
+        ///
+        /// ⚠️ **B 는 격자 안에 든다** — 그래서 **세로 여유가 필요 없다.**
+        /// 가로 여유 두 칸은 A 하나 때문에 남는다.
         /// </summary>
         [Test]
-        public void 그림_칸은_묶음보다_한_칸_더_바깥이다()
+        public void 그림_칸은_A만_격자_밖이다()
         {
+            int top = PartLayout.Rows - 1;
+
+            Assert.AreEqual(new Vector2Int(-2, 6),
+                MountDisplay.BodyCell(new Vector2Int(0, 6), PortFace.West, MountOwner.RobotA));
+            Assert.AreEqual(new Vector2Int(2, top),
+                MountDisplay.BodyCell(new Vector2Int(2, 10), PortFace.East, MountOwner.RobotB));
+            Assert.AreEqual(new Vector2Int(9, top),
+                MountDisplay.BodyCell(new Vector2Int(9, 10), PortFace.West, MountOwner.RobotB));
+
             foreach (MountPort mp in PartLayout.MountPorts)
             {
-                int slotX = MountDisplay.SlotColumn(mp.cell, mp.face);
-                Vector2Int body = MountDisplay.BodyCell(mp.cell, mp.face, mp.owner);
+                Vector2Int b = MountDisplay.BodyCell(mp.cell, mp.face, mp.owner);
+                bool inside = b.x >= 0 && b.x < PartLayout.Columns
+                              && b.y >= 0 && b.y < PartLayout.Rows;
 
-                Assert.AreEqual(1, Mathf.Abs(body.x - slotX), "그림은 묶음 옆 한 칸이다");
-                Assert.IsTrue(body.x == -2 || body.x == PartLayout.Columns + 1,
-                    $"그림 칸이 두 칸 여유 밖으로 나갔다: {body}");
+                if (mp.owner == MountOwner.RobotB)
+                    Assert.IsTrue(inside, $"B 의 그림이 격자 밖으로 나갔다: {b}");
+                else
+                    Assert.AreEqual(-2, b.x, "A 의 그림은 왼쪽 두 칸 여유 안이다");
             }
         }
 
         /// <summary>
-        /// **슬롯 수는 코어가 든 값을 가리킨다** — 여기서 새로 정하면 두 곳이 갈린다.
+        /// **왼쪽이 0~3 · 오른쪽이 4~7** — 표시 순서일 뿐 분배가 아니다(§72-5·§72-6).
         ///
-        /// ⚠️ B 의 왼쪽·오른쪽은 **표시 순서**를 나눈 것이지 적재를 나눈 것이 아니다(§72-5).
+        /// ⚠️ **면이 아니라 자리로 가른다.** §72-6 에서 B 포트가 어깨 안쪽으로 옮겨져
+        /// **왼쪽 묶음이 동면**이 됐다 — 면으로 가르면 왼쪽이 4~7 을 비춘다.
         /// </summary>
         [Test]
         public void B는_같은_여덟을_왼쪽_넷_오른쪽_넷으로_비춘다()
@@ -107,15 +127,16 @@ namespace MBI.Tests
                 "코어의 값과 갈리면 안 된다");
             Assert.AreEqual(MountLoad.SlotsRobotB, MountDisplay.SlotsOf(MountOwner.RobotB));
 
-            Assert.AreEqual(0, MountDisplay.FirstSlotOf(PortFace.West), "왼쪽이 0~3");
-            Assert.AreEqual(4, MountDisplay.FirstSlotOf(PortFace.East), "오른쪽이 4~7");
+            Assert.AreEqual(0, MountDisplay.FirstSlotOf(3), "왼쪽 묶음이 0~3");
+            Assert.AreEqual(4, MountDisplay.FirstSlotOf(8), "오른쪽 묶음이 4~7");
+            Assert.AreEqual(0, MountDisplay.FirstSlotOf(-1), "A 도 0~3");
 
             // 두 어깨가 비추는 번호를 합치면 **정확히 여덟**이고 겹치지 않는다.
             var shown = new System.Collections.Generic.HashSet<int>();
             foreach (MountPort mp in PartLayout.MountPorts)
             {
                 if (mp.owner != MountOwner.RobotB) continue;
-                int first = MountDisplay.FirstSlotOf(mp.face);
+                int first = MountDisplay.FirstSlotOf(MountDisplay.SlotColumn(mp.cell, mp.face));
                 for (int i = 0; i < MountDisplay.SlotsPerPort; i++)
                     Assert.IsTrue(shown.Add(first + i), "같은 슬롯을 두 번 비춘다");
             }
@@ -123,10 +144,8 @@ namespace MBI.Tests
         }
 
         /// <summary>
-        /// **0이면 점멸한다** (UI 문서 12-1). 이것이 전투 화면의 결과를 조립 화면으로
-        /// 끌고 오는 **유일한 고리**다. 점멸 단위는 **묶음 전체**다(§72-5).
-        ///
-        /// ⚠️ **전투가 안 돌 때는 안 깜빡인다** — 씬을 열자마자 경고가 뜨면 안 된다.
+        /// **0이면 점멸한다** (UI 문서 12-1). 점멸 단위는 **묶음 전체**다.
+        /// ⚠️ 전투가 안 돌 때는 안 깜빡인다 — 씬을 열자마자 경고가 뜨면 안 된다.
         /// </summary>
         [Test]
         public void 재고가_0이면_점멸한다()
@@ -135,15 +154,13 @@ namespace MBI.Tests
             Assert.IsFalse(MountDisplay.Blinks(hasCombat: true, mountTotal: 1f));
             Assert.IsFalse(MountDisplay.Blinks(hasCombat: false, mountTotal: 0f));
 
-            // 판정을 새로 짓지 않고 규칙을 부른다 — 두 곳이 갈리면 박자가 어긋난다.
             Assert.AreEqual(SupplyStopRules.MountIsEmpty(true, 0f),
                 MountDisplay.Blinks(true, 0f));
         }
 
         /// <summary>
-        /// 채움의 분모는 **스택 상한**이다(§72-5 「AmountAt ÷ 10」).
-        /// ⚠️ **상한이 0이면 0** — 나누지 않는다. 무한대가 나오면 칸이 통째로 차 보여
-        /// **재고가 없는데 가득 찬 묶음**이 된다.
+        /// 채움의 분모는 **스택 상한**이다(§72-6 「AmountAt ÷ 10」).
+        /// ⚠️ **상한이 0이면 0** — 나누지 않는다.
         /// </summary>
         [Test]
         public void 채움은_스택_상한으로_나눈다()
@@ -155,8 +172,8 @@ namespace MBI.Tests
         }
 
         /// <summary>
-        /// 색은 **벨트와 같은 표**에서 온다 — 같은 탄이 벨트 위와 마운트에서 다른 색이면
-        /// 둘이 같은 것이라는 게 화면에서 안 읽힌다.
+        /// 색은 **담긴 품목의 품목색**이다(§72-6) — 벨트와 같은 표를 쓴다.
+        /// 같은 탄이 벨트 위와 마운트에서 다른 색이면 둘이 같은 것인지 안 읽힌다.
         /// </summary>
         [Test]
         public void 슬롯_색은_벨트_품목과_같은_갈래다()

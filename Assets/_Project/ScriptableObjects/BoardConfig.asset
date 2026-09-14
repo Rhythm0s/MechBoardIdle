@@ -13,6 +13,6 @@ MonoBehaviour:
   m_Name: BoardConfig
   m_EditorClassIdentifier: MBI.Data::MBI.Data.BoardConfig
   columns: 12
-  rows: 13
+  rows: 14
   usePartLayout: 1
   cellSize: 1

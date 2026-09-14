@@ -1000,7 +1000,8 @@ namespace MBI.Logistics
 
             foreach (MountPort mp in PartLayout.MountPorts)
             {
-                int first = MountDisplay.FirstSlotOf(mp.face);
+                // ⚠️ **면이 아니라 자리로 가른다**(§72-6) — 왼쪽 묶음이 0~3 이다.
+                int first = MountDisplay.FirstSlotOf(MountDisplay.SlotColumn(mp.cell, mp.face));
 
                 for (int i = 0; i < MountDisplay.SlotsPerPort; i++)
                 {

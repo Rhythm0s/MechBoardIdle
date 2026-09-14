@@ -8,7 +8,7 @@ namespace MBI.Tests
 {
     /// <summary>
     /// 보드 격자 규격(조립 시스템 문서 11장, 2026-08-24 개정).
-    /// 구 규격 64칸 → 117칸. 「정답 배치 하나만 성립하고 대안 경로가 나오지 않으면
+    /// 구 규격 64칸 → 117칸 → **120칸**(§72-6 머리 4×3). 「정답 배치 하나만 성립하고 대안 경로가 나오지 않으면
     /// 최적화할 여지 자체가 사라진다」가 개정 근거이므로, 칸 수와 실루엣 형태가 계약이다.
     /// </summary>
     public sealed class PartLayoutTests
@@ -16,10 +16,25 @@ namespace MBI.Tests
         // ---- 11-2 파츠별 격자 (확정 표) ----
 
         [Test]
-        public void Silhouette_Is12By13()
+        public void Silhouette_Is12By14()
         {
             Assert.AreEqual(12, PartLayout.Columns);
-            Assert.AreEqual(13, PartLayout.Rows);
+
+            // ✅ **14**(2026-09-14 · §72-6). 맨 윗줄 y13 은 마운트 적재 전용이라
+            // 파츠가 아니고 **노드를 못 놓는다** — 아래 ValidCells 가 그것을 지킨다.
+            Assert.AreEqual(14, PartLayout.Rows);
+        }
+
+        /// <summary>
+        /// **맨 윗줄은 배치 불가다** (§72-6). 마운트 적재 칸만 쓰는 줄이라
+        /// 노드가 놓이면 규격이 무너진다.
+        /// </summary>
+        [Test]
+        public void TopRow_IsMountOnly_AndNotPlaceable()
+        {
+            for (int x = 0; x < PartLayout.Columns; x++)
+                Assert.IsFalse(PartLayout.IsValid(new Vector2Int(x, PartLayout.Rows - 1)),
+                    $"맨 윗줄 ({x},{PartLayout.Rows - 1}) 에 노드를 놓을 수 있다");
         }
 
         [Test]
@@ -34,7 +49,8 @@ namespace MBI.Tests
                 { RobotPart.LegL, new Vector2Int(3, 4) },
                 { RobotPart.ShoulderR, new Vector2Int(3, 3) },
                 { RobotPart.ShoulderL, new Vector2Int(3, 3) },
-                { RobotPart.Head, new Vector2Int(3, 3) },
+                // ✅ **4×3**(2026-09-14 · §72-6) — 구 3×3. 머리가 x4~7 로 넓어졌다.
+                { RobotPart.Head, new Vector2Int(4, 3) },
             };
 
             Assert.AreEqual(8, PartLayout.Parts.Count, "파츠 8개");
@@ -43,24 +59,28 @@ namespace MBI.Tests
         }
 
         [Test]
-        public void TotalValidCells_Is117()
+        public void TotalValidCells_Is120()
         {
             int sum = 0;
             foreach (PartRect p in PartLayout.Parts) sum += p.Cells;
 
-            Assert.AreEqual(117, sum, "36 + 15×2 + 12×2 + 9×2 + 9");
-            Assert.AreEqual(117, PartLayout.ValidCells);
-            Assert.AreEqual(117, PartLayout.BuildMask().Count, "마스크 셀 수도 같아야 한다");
+            // ✅ **120**(§72-6) — 머리가 3×3 에서 **4×3** 으로 넓어진 셋만큼 늘었다.
+            Assert.AreEqual(120, sum, "36 + 15×2 + 12×2 + 9×2 + 12");
+            Assert.AreEqual(120, PartLayout.ValidCells);
+            Assert.AreEqual(120, PartLayout.BuildMask().Count, "마스크 셀 수도 같아야 한다");
         }
 
         /// <summary>
-        /// 실루엣은 직사각형이 아니다. 12 × 13 = 156칸 중 39칸은 팔·다리 사이 빈 공간이다 —
+        /// 실루엣은 직사각형이 아니다. 12 × 14 = 168칸 중 **48칸**이 파츠 밖이다 —
         /// 이 차이가 0이 되면 격자가 다시 직사각형이 된 것이고, 개정 취지가 사라진 것이다.
+        ///
+        /// ⚠️ 48 은 「팔·다리 사이 빈 공간」만이 아니다(§72-6) — **마운트 자리**도 여기 든다:
+        /// 맨 윗줄 열둘과 머리 옆 빈 두 열이 그것이다.
         /// </summary>
         [Test]
-        public void SilhouetteIsNotRectangular_39CellsAreVoid()
+        public void SilhouetteIsNotRectangular_48CellsAreVoid()
         {
-            Assert.AreEqual(39, PartLayout.Columns * PartLayout.Rows - PartLayout.ValidCells);
+            Assert.AreEqual(48, PartLayout.Columns * PartLayout.Rows - PartLayout.ValidCells);
         }
 
         /// <summary>최소 폭 3칸 원칙(11-2): 폭 2칸이면 병합기·분류기로 갈라질 자리가 없다.</summary>
@@ -117,7 +137,7 @@ namespace MBI.Tests
             Assert.IsFalse(grid.IsInside(new Vector2Int(0, 0)), "팔 아래 빈칸은 무효");
             Assert.IsTrue(grid.IsInBounds(new Vector2Int(0, 0)), "다만 실루엣 사각 안이기는 하다");
 
-            Assert.AreEqual(117, grid.ValidCellCount);
+            Assert.AreEqual(120, grid.ValidCellCount);
         }
 
         [Test]
@@ -232,14 +252,14 @@ namespace MBI.Tests
         }
 
         /// <summary>
-        /// 합친 뒤 남는 경계는 **89칸**이다. 파츠 여덟의 변을 그냥 더하면 120칸이고,
-        /// 차이 31칸이 맞닿아 공유되는 변이다(몸통↔팔·다리↔다리·팔↔어깨 등).
+        /// 합친 뒤 남는 경계는 **90칸**이다(§72-6 전 89). 파츠 여덟의 변을 그냥 더하면 122칸이고,
+        /// 차이 32칸이 맞닿아 공유되는 변이다(몸통↔팔·다리↔다리·팔↔어깨 등).
         ///
         /// 이 두 숫자가 같아지면 파츠가 서로 떨어졌다는 뜻이고, 그러면 11-3 파츠 경계 통과가
         /// 성립하지 않는다 — <see cref="TorsoAndArms_AreAdjacent_SoBeltsCanCross"/>와 같은 계약이다.
         /// </summary>
         [Test]
-        public void BoundaryRuns_Cover89Edges_Of120Drawn()
+        public void BoundaryRuns_Cover90Edges_Of122Drawn()
         {
             int merged = 0;
             foreach (PartLayout.BoundaryRun r in PartLayout.BoundaryRuns()) merged += r.length;
@@ -247,8 +267,8 @@ namespace MBI.Tests
             int naive = 0;
             foreach (PartRect p in PartLayout.Parts) naive += 2 * (p.size.x + p.size.y);
 
-            Assert.AreEqual(120, naive, "파츠별로 그리면 이만큼");
-            Assert.AreEqual(89, merged, "합치면 이만큼 — 차이 31칸이 맞닿은 변이다");
+            Assert.AreEqual(122, naive, "파츠별로 그리면 이만큼 — 머리 4×3 으로 둘 늘었다(§72-6)");
+            Assert.AreEqual(90, merged, "합치면 이만큼 — 차이 32칸이 맞닿은 변이다");
         }
 
         /// <summary>

@@ -105,13 +105,29 @@ namespace MBI.Data
     public static class PartLayout
     {
         public const int Columns = 12;
-        public const int Rows = 13;
-        public const int ValidCells = 117;
+        /// <summary>
+        /// 격자 세로 — **14** (2026-09-14 · §72-6 사용자 확정 · 구 13).
+        ///
+        /// ⚠️ **맨 윗줄(y13)은 파츠가 아니다** — 어느 파츠 사각에도 안 들어가므로
+        /// <see cref="IsValid"/> 가 거짓이고 **노드를 놓을 수 없다.** 마운트 적재 칸만 그 줄을 쓴다.
+        /// 그래서 줄이 하나 늘었는데도 <see cref="ValidCells"/> 는 그만큼 안 는다.
+        /// </summary>
+        public const int Rows = 14;
+
+        /// <summary>
+        /// 실루엣 안 칸 수 — **120** (§72-6 · 구 117).
+        /// 머리가 3×3 에서 **4×3** 으로 넓어진 셋만큼 늘었다.
+        /// </summary>
+        public const int ValidCells = 120;
 
         // y는 아래에서 위로 증가한다(격자 좌하단 원점).
         //   y 0~3   다리 (4칸)
         //   y 4~9   몸통 (6칸) · 팔은 y 4~8, 어깨는 y 9~11
-        //   y 10~12 머리 (3칸)
+        //   y 10~12 머리 (**x 4~7 · 4칸 폭** · §72-6)
+        //   y 13    **파츠 없음** — 마운트 적재 칸 전용 줄이다(배치 불가)
+        //
+        // ⚠️ **머리 옆 x3 · x8 은 y10~12 에서 비어 있다**(어깨는 x0~2 · x9~11).
+        // 그 빈 두 열이 y13 과 이어져 **B 마운트 적재 칸 넷씩**이 선다(§72-6).
         private static readonly PartRect[] Layout =
         {
             // x가 작은 쪽 = 화면 왼쪽 = **로봇의 오른쪽**이다(위 열거 주석 참조).
@@ -122,7 +138,7 @@ namespace MBI.Data
             new PartRect(RobotPart.ArmL,      9,  4, 3, 5),
             new PartRect(RobotPart.ShoulderR, 0,  9, 3, 3),
             new PartRect(RobotPart.ShoulderL, 9,  9, 3, 3),
-            new PartRect(RobotPart.Head,      4, 10, 3, 3),
+            new PartRect(RobotPart.Head,      4, 10, 4, 3),
         };
 
         public static IReadOnlyList<PartRect> Parts => Layout;
@@ -256,12 +272,16 @@ namespace MBI.Data
         /// </summary>
         private static readonly MountPort[] Mounts =
         {
-            // 로봇 A — 팔R(x 0~2 · y 4~8) 서쪽 바깥면, 세로 중앙 y=6. 화면에서는 왼쪽 팔이다.
+            // 로봇 A — 팔R(x 0~2 · y 4~8) 서쪽 **바깥면**, 세로 중앙 y=6. 화면에서는 왼쪽 팔이다.
             new MountPort(new Vector2Int(0, 6), PortFace.West, MountOwner.RobotA),
 
-            // 로봇 B — 어깨R(x 0~2 · y 9~11) 서쪽, 어깨L(x 9~11) 동쪽. 세로 중앙 y=10
-            new MountPort(new Vector2Int(0, 10), PortFace.West, MountOwner.RobotB),
-            new MountPort(new Vector2Int(11, 10), PortFace.East, MountOwner.RobotB),
+            // ⚠️ **로봇 B 의 바깥면 둘은 폐기됐다**(2026-09-14 · §72-6).
+            // 구: (0,10) 서면 · (11,10) 동면 — 실루엣 **바깥**이라 화면 끝에서 잘렸고,
+            // 양쪽에 하나씩이라 **한 화면에 둘 다 못 넣었다.**
+            // 신: 어깨의 **안쪽 면**을 써서 머리 옆 빈 열(x3 · x8)로 적재 칸이 선다 —
+            // 실루엣 **안**이라 스크롤 없이 보인다.
+            new MountPort(new Vector2Int(2, 10), PortFace.East, MountOwner.RobotB),   // 어깨R 안쪽
+            new MountPort(new Vector2Int(9, 10), PortFace.West, MountOwner.RobotB),   // 어깨L 안쪽
         };
 
         public static IReadOnlyList<MountPort> MountPorts => Mounts;

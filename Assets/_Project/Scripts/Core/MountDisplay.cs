@@ -16,8 +16,12 @@ namespace MBI.Core
     /// 얹었고 칸 크기·틈·띄움을 가정 넷으로 두었는데, 그 값들은 **폐기됐다** —
     /// 슬롯이 보드 칸과 같은 크기면 **재는 자가 화면에 이미 있다**(옆 칸이 눈금이다).
     ///
-    /// ⚠️ **마운트는 실루엣 바깥에 선다** — 보드 없는 소비 파츠다(조립 기획서 6장).
-    /// 그래서 격자 칸이 아니라 **바깥 열**을 쓴다. 격자에 넣으면 노드를 놓을 수 있는 자리가 된다.
+    /// ⚠️ **§72-6 에서 B 가 실루엣 안으로 들어왔다.** 구판은 A·B 모두 바깥 열이었는데,
+    /// B 는 양쪽 어깨 바깥이라 **한 화면에 둘 다 못 넣었다.** 이제 B 는 머리 옆 **빈 열**
+    /// (x3 · x8 · y10~13)을 쓴다 — 격자 안이지만 **파츠가 아니라 노드를 못 놓는 자리**이며,
+    /// 맨 윗줄 y13 은 §72-6 이 그 목적으로 신설한 줄이다.
+    ///
+    /// ⚠️ **A 는 여전히 바깥이다**(x−1 · y5~8). 팔R 안쪽에는 빈 열이 없다.
     /// </summary>
     public static class MountDisplay
     {
@@ -32,27 +36,32 @@ namespace MBI.Core
             owner == MountOwner.RobotB ? MountLoad.SlotsRobotB : MountLoad.SlotsRobotA;
 
         /// <summary>
-        /// 그 로봇의 슬롯 묶음이 시작하는 행 — **A 는 y5 · B 는 y9**(§72-5 확정).
+        /// 그 로봇의 슬롯 묶음이 시작하는 행 — **A 는 y5 · B 는 y10**(§72-6 확정).
         ///
-        /// A 는 팔R(y 4~8) 옆, B 는 어깨(y 9~11) 옆이다. 둘이 **세로로 맞닿아**
-        /// 바깥 열 하나를 y5~12 로 채운다 — 그래서 그림 칸은 그 열에 못 들어간다.
+        /// A 는 팔R(y 4~8) **바깥**, B 는 머리 옆 **빈 열**(x3 · x8)이다.
+        /// B 는 y10~13 이며 맨 위 y13 은 §72-6 이 신설한 **마운트 전용 줄**이다.
         /// </summary>
-        public static int SlotRowStart(MountOwner owner) => owner == MountOwner.RobotB ? 9 : 5;
+        public static int SlotRowStart(MountOwner owner) => owner == MountOwner.RobotB ? 10 : 5;
 
         /// <summary>
-        /// 이 포트가 맡아 **보여 주는** 슬롯의 첫 번호.
+        /// 이 묶음이 맡아 **보여 주는** 슬롯의 첫 번호 — **왼쪽이 0~3 · 오른쪽이 4~7**.
         ///
-        /// ⚠️ **표시 순서일 뿐 분배가 아니다**(§72-5). B 는 어깨가 둘인데 적재는 한 벌이라,
-        /// 왼쪽이 0~3 · 오른쪽이 4~7 을 비추는 것이지 **두 몫으로 나뉜 것이 아니다.**
+        /// ⚠️ **표시 순서일 뿐 분배가 아니다**(§72-5·§72-6). B 는 어깨가 둘인데 적재는 한 벌이라,
+        /// 두 자리가 **같은 여덟을 나눠 비추는 것**이지 두 몫으로 나뉜 것이 아니다.
         /// 나뉜 것처럼 그리면 **없는 분배를 지어내는 것**이 된다.
+        ///
+        /// ⚠️ **면이 아니라 자리로 가른다**(§72-6 에서 바뀐 점). 구판은 「동면이면 4」였는데
+        /// B 포트가 어깨 **안쪽**으로 옮겨지며 왼쪽 묶음이 동면이 됐다 — 면으로 가르면
+        /// **왼쪽이 4~7 을 비춘다.** 화면에서 읽는 것은 면이 아니라 **왼쪽·오른쪽**이다.
         /// </summary>
-        public static int FirstSlotOf(PortFace face) => face == PortFace.East ? SlotsPerPort : 0;
+        public static int FirstSlotOf(int slotColumn) =>
+            slotColumn * 2 < PartLayout.Columns ? 0 : SlotsPerPort;
 
         /// <summary>
-        /// 슬롯 묶음이 서는 **바깥 열** — 포트 면 쪽으로 격자 한 칸 밖이다.
+        /// 슬롯 묶음이 서는 열 — **포트가 바라보는 쪽으로 한 칸**이다.
         ///
-        /// ⚠️ **격자 밖의 x 를 일부러 돌려준다.** 서면은 −1, 동면은 12 가 나오며
-        /// 이것은 오류가 아니라 **실루엣 바깥**이라는 뜻이다.
+        /// A 는 팔R 서쪽 바깥이라 **−1**(격자 밖 · 오류가 아니다), B 는 어깨 안쪽 면이라
+        /// **3 · 8**(격자 안의 빈 열)이 나온다.
         /// </summary>
         public static int SlotColumn(Vector2Int portCell, PortFace face) =>
             face == PortFace.East ? portCell.x + 1 : portCell.x - 1;
@@ -65,17 +74,30 @@ namespace MBI.Core
             new Vector2Int(SlotColumn(portCell, face), SlotRowStart(owner) + i);
 
         /// <summary>
-        /// 마운트 **그림**이 서는 칸 — 묶음에 붙는 **바깥 한 칸**이다(자리는 구현 재량 · §72-5).
+        /// 마운트 **그림**이 서는 칸 — 묶음에 붙는 한 칸이다(자리는 구현 재량 · §72-6).
         ///
-        /// ⚠️ **묶음 위아래로는 못 둔다.** A(y5~8)와 B(y9~12)가 같은 열에서 맞닿아 있어
-        /// 위든 아래든 **다른 묶음의 슬롯과 겹친다.** 그래서 한 칸 더 바깥 열로 뺀다 —
-        /// 스크롤 여유가 **두 칸**이어야 하는 이유가 이것이다.
+        /// **A** 는 묶음(x−1 · y5~8)보다 **한 칸 더 바깥**(x−2)이다. 팔R 이 안쪽을 막고 있어
+        /// 옆으로는 그쪽밖에 없고, 위아래는 다른 것과 부딪힌다.
+        ///
+        /// **B** 는 묶음(x3 · x8 · y10~13)의 **맨 윗 칸 옆**이다 — 즉 마운트 전용 줄 y13 의
+        /// x2 · x9 다. 어깨(x0~2 · x9~11)가 y10~11 을 차지해 그 아래로는 빈 칸이 없고,
+        /// **y13 은 파츠가 없어** 비어 있다.
+        ///
+        /// ⚠️ **그래서 세로 여유는 필요 없다**(§72-6) — B 의 그림까지 격자 안에 든다.
+        /// 가로 여유 두 칸은 **A 때문에** 남는다.
         /// </summary>
         public static Vector2Int BodyCell(Vector2Int portCell, PortFace face, MountOwner owner)
         {
-            int column = face == PortFace.East ? portCell.x + 2 : portCell.x - 2;
-            // 묶음 넷의 세로 가운데에 붙인다(5~8 → 6 · 9~12 → 10).
-            return new Vector2Int(column, SlotRowStart(owner) + 1);
+            int slotColumn = SlotColumn(portCell, face);
+            bool left = slotColumn * 2 < PartLayout.Columns;
+            int column = left ? slotColumn - 1 : slotColumn + 1;
+
+            // A 는 묶음 세로 가운데(5~8 → 6) · B 는 맨 위(10~13 → 13).
+            int row = owner == MountOwner.RobotB
+                ? SlotRowStart(owner) + SlotsPerPort - 1
+                : SlotRowStart(owner) + 1;
+
+            return new Vector2Int(column, row);
         }
 
         /// <summary>
