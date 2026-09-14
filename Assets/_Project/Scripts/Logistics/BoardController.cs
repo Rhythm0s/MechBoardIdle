@@ -2155,26 +2155,30 @@ namespace MBI.Logistics
                 var tab = new GameObject(outward ? $"out_{p.face}" : $"in_{p.face}");
                 tab.transform.SetParent(parent, false);
 
-                Sprite portArt = art != null ? (outward ? art.portOutput : art.portInput) : null;
-                if (portArt != null)
+                // ⚠️ **타일 전체 겹침을 걷었다**(2026-09-15 사용자 확정 · §72-51 · 보드 4-2 폐기).
+                //
+                // 포트 그림은 **한 칸을 통째로 쓰는 타일**이라, 면마다 한 장씩 얹으면
+                // **노드 그림이 포트 타일 넷에 덮였다** — 무엇을 놓았는지가 안 보였다.
+                // 필요한 것은 「어느 변으로 드나드는가」 하나이고 그건 **작은 커넥터**면 된다.
+                //
+                // **1단계는 코드 드로잉**이다(사용자 확정). 아트가 작은 자산 둘을 주면
+                // 그때 `portArt` 갈래를 되살려 그림으로 바꾼다 — 지금은 타일을 안 쓴다.
+                //
+                // ⚠️ **크기는 칸의 약 1/6 — 가정이다**(설계 역기입). 입구는 변 **안쪽**에
+                // 파이고, 출구는 변 **밖으로** 나간다 — 색을 못 가려도 **자리로** 갈린다.
+                Sprite portArt = null;
                 {
-                    // 포트 그림은 **한 칸을 통째로 쓰는 타일**이고 표시된 면이 남쪽이다.
-                    // 그래서 탭처럼 밖에 붙이지 않고 칸 위에 겹쳐 얹은 뒤 그 면으로 돌린다.
-                    // 부모(노드)가 이미 칸 크기로 커져 있으므로 국소 배율은 1이다.
-                    tab.transform.localPosition = Vector3.zero;
-                    tab.transform.localRotation = FaceRotation(PortFace.South, p.face);
-                    tab.transform.localScale = Vector3.one;
-                }
-                else
-                {
-                    // 출력은 면 밖으로 반쯤 나가고, 입력은 면 안쪽에 머문다.
-                    float dist = outward ? 0.52f : 0.36f;
+                    const float Thin = 0.10f;   // 변을 따라 얇은 쪽 (칸 대비)
+                    const float Long = 0.22f;   // 변을 따라 긴 쪽
+                    float dist = outward ? 0.56f : 0.38f;
+
                     tab.transform.localPosition = new Vector3(off.x * dist, off.y * dist, 0f);
+
                     // 면을 따라 납작하게 — 세로면이면 눕히고 가로면이면 세운다.
                     bool horizontal = Mathf.Abs(off.x) > 0.5f;
                     tab.transform.localScale = horizontal
-                        ? new Vector3(0.16f, 0.34f, 1f)
-                        : new Vector3(0.34f, 0.16f, 1f);
+                        ? new Vector3(Thin, Long, 1f)
+                        : new Vector3(Long, Thin, 1f);
                 }
 
                 var sr = tab.AddComponent<SpriteRenderer>();
@@ -2706,13 +2710,55 @@ namespace MBI.Logistics
             List<NodeRecipe> candidates = inst.Definition.recipes;
             if (candidates == null || candidates.Count == 0) return;
 
-            var style = new GUIStyle(GUI.skin.button) { fontSize = 15 };
-            var head = new GUIStyle(GUI.skin.label) { fontSize = 15, fontStyle = FontStyle.Bold };
-            const float w = 160f, h = 32f, pad = 4f;
-            const float x = 12f;
-            // ⚠️ 전투 HUD가 y10~280을 쓰고 태그·합체 버튼이 y300에 있다 —
-            // 실제로 겹쳐서 조합표 버튼이 물류 출력 글자 위에 얹혀 있었다. 그 아래에서 시작한다.
-            float y = 380f;
+            Camera cam = boardCamera != null ? boardCamera : Camera.main;
+            if (cam == null) return;
+
+            // ⚠️ **날 픽셀 자리를 걷었다**(2026-09-15 사용자 확정 · §72-51).
+            //
+            // 종전은 `x 12 · y 380` 고정이라 고른 노드가 보드 어디에 있든 패널이 늘 화면
+            // 왼쪽에 떴다 — **무엇을 고치는 중인지가 눈에서 멀었다.** 오늘 하단 넷이 전부
+            // 「날 픽셀 자리가 문서 좌표 위에 남아 있었다」였고, 이것이 그 다섯째다.
+            //
+            // ⚠️ **배율·스크롤을 공짜로 따라간다** — 칸의 **월드 좌표**를 매 프레임 화면으로
+            // 환산해 자리를 잡는다. 화면 좌표를 한 번 재어 들고 있으면 스크롤에서 떨어진다.
+            Vector3 cw = CellWorld(_selected.Value);
+            Vector3 sp = cam.WorldToScreenPoint(cw);
+            if (sp.z <= 0f) return;                                  // 카메라 뒤 — 안 그린다
+            var nodePos = new Vector2(sp.x, Screen.height - sp.y);   // GUI 는 y 가 뒤집혀 있다
+
+            float cellPx = Mathf.Abs(
+                cam.WorldToScreenPoint(cw + new Vector3(_grid.CellSize, 0f, 0f)).x - sp.x);
+
+            float uiS = UiLayout.Scale(Screen.height);
+            float w = UiLayout.RecipePopoverWidth * uiS;
+            float h = UiLayout.RecipePopoverRow * uiS;
+            float pad = UiLayout.RecipePopoverGap * uiS * 0.25f;
+            float inner = UiLayout.RecipePopoverGap * uiS * 0.5f;
+
+            var style = new GUIStyle(GUI.skin.button)
+            {
+                fontSize = KoreanFont.Snap(Mathf.Max(10, Mathf.RoundToInt(h * 0.34f))),
+            };
+            var head = new GUIStyle(GUI.skin.label)
+            {
+                fontSize = KoreanFont.Snap(Mathf.Max(10, Mathf.RoundToInt(h * 0.30f))),
+                fontStyle = FontStyle.Bold,
+            };
+
+            // ⚠️ **높이를 줄 수에서 잰다** — 고정값을 박으면 조합표가 넷인 노드에서 잘린다
+            // (오늘 HUD 280 이 그 자리였다).
+            bool hasAmmo = inst.CurrentRecipe.kind == RecipeKind.Ammo;
+            float total = h + (h + pad) * candidates.Count + inner * 2f
+                          + (hasAmmo ? h * 0.8f + h : 0f);
+
+            Rect box = UiLayout.RecipePopoverRect(nodePos, cellPx, total,
+                Screen.width, Screen.height);
+            UiBlockers.Add(box);
+            UiPlate.Draw(box);
+
+            float x = box.x + inner;
+            float y = box.y + inner;
+            w -= inner * 2f;
 
             // ── 회전 (2026-09-15 사용자 확정 · §72-42) ──────────────────────────
             //
@@ -2721,8 +2767,7 @@ namespace MBI.Logistics
             //
             // ⚠️ **누르면 배선을 다시 잡는다** — 면이 돌면 링크·품목·색이 전부 바뀐다.
             // 마커도 다시 짓는다(포트 탭이 면을 따라 붙어 있다).
-            var rotRect = new Rect(x, y - 26f, 72f, 24f);
-            UiBlockers.Add(rotRect);
+            var rotRect = new Rect(x, y, w * 0.32f, h);
             if (GUI.Button(rotRect, "회전 ↻", style))
             {
                 inst.Rotation = inst.Rotation + 1;
@@ -2730,14 +2775,14 @@ namespace MBI.Logistics
                 RefreshConnections();
             }
 
-            GUI.Label(new Rect(x + 80f, y - 26f, w + 80f, 24f),
-                $"{inst.Definition.displayName} · {inst.Rotation * 90}° 조합표", head);
+            GUI.Label(new Rect(x + w * 0.36f, y, w * 0.64f, h),
+                $"{inst.Definition.displayName} · {inst.Rotation * 90}°", head);
+            y += h + pad;
 
             RecipeKind current = inst.CurrentRecipe.kind;
             foreach (NodeRecipe r in candidates)
             {
                 var rect = new Rect(x, y, w, h);
-                UiBlockers.Add(rect);
 
                 // 돌릴 수 없는 후보도 **자리는 보여 준다** — 감추면 「왜 못 만드나」가 아니라
                 // 「그런 게 있었나」가 된다. 착수 금지가 화면에서도 자리로 표현된다.
@@ -2754,15 +2799,14 @@ namespace MBI.Logistics
 
             // 탄종 — 조합표만으로는 부족하다. 라인 생산량이 min(스펙, 탄종별 노드 수)이라
             // 「무엇을 몇 대 놓았는가」가 그대로 출력이 된다.
-            y += 6f;
-            GUI.Label(new Rect(x, y, w + 80f, 24f), "탄종", head);
-            y += 26f;
+            GUI.Label(new Rect(x, y, w, h * 0.8f), "탄종", head);
+            y += h * 0.8f;
 
+            float bw = (w - pad * 2f) / 3f;
             for (int k = 0; k < 3; k++)
             {
                 var kind = (AmmoKind)k;
-                var rect = new Rect(x + k * (64f + pad), y, 64f, h);
-                UiBlockers.Add(rect);
+                var rect = new Rect(x + k * (bw + pad), y, bw, h);
 
                 if (GUI.Button(rect, (inst.AmmoKind == kind ? "● " : "") + AmmoLabel(kind), style))
                     inst.AmmoKind = kind; // 탄종은 흐르는 품목(탄약)을 바꾸지 않는다 — 라벨만 갈린다

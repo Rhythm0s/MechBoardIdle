@@ -360,6 +360,53 @@ namespace MBI.UI
             return new Rect(left, band.y, Mathf.Max(0f, right - left), band.height);
         }
 
+        // ───────────────────────── 조합표 팝오버 (가정) ─────────────────────────
+        //
+        // ⚠️ **전부 가정이다** — UI 문서에 조합표 패널 절이 없다(설계 역기입).
+        //
+        // ⚠️ **왜 팝오버인가.** 종전 자리는 `x 12 · y 380` **날 픽셀**이었고, 고른 노드가
+        // 보드 어디에 있든 패널은 늘 화면 왼쪽에 떴다 — **무엇을 고쳤는지가 눈에서 멀었다.**
+        // 오늘 하단 넷이 전부 「날 픽셀 자리가 문서 좌표 위에 남아 있었다」였고 이것이 같은 종류다.
+
+        /// <summary>조합표 팝오버 폭 (기준 캔버스). ⚠️ 가정.</summary>
+        public const float RecipePopoverWidth = 380f;
+
+        /// <summary>줄 하나의 높이 (기준 캔버스). 버튼 최소 150 을 밑돈다 — ⚠️ 가정이고 판정거리다.</summary>
+        public const float RecipePopoverRow = 76f;
+
+        /// <summary>노드 칸과 팝오버 사이 틈 · 안쪽 여백 (기준 캔버스). ⚠️ 가정.</summary>
+        public const float RecipePopoverGap = 20f;
+
+        /// <summary>
+        /// 조합표 팝오버가 앉을 자리 — **고른 노드 옆**.
+        ///
+        /// ⚠️ **오른쪽이 먼저다.** 오른쪽으로 나가면 왼쪽에 붙인다. 둘 다 안 되면 오른쪽에
+        /// 붙이고 화면 안으로 민다 — **안 보이는 것보다 겹치는 편**이 낫다.
+        ///
+        /// ⚠️ **띠 밖으로는 안 나간다.** 위는 전투 인셋, 아래는 부유 띠다 — 거기까지 덮으면
+        /// 「무엇을 고치는 중인지」가 아니라 「화면이 가려졌다」가 된다.
+        /// </summary>
+        public static Rect RecipePopoverRect(Vector2 nodeScreenPos, float cellPixels,
+            float height, float screenWidth, float screenHeight)
+        {
+            float s = Scale(screenHeight);
+            float w = RecipePopoverWidth * s;
+            float gap = RecipePopoverGap * s;
+            float half = cellPixels * 0.5f;
+
+            float x = nodeScreenPos.x + half + gap;                 // 오른쪽이 먼저
+            if (x + w > screenWidth) x = nodeScreenPos.x - half - gap - w;   // 안 되면 왼쪽
+            x = Mathf.Clamp(x, 0f, Mathf.Max(0f, screenWidth - w));
+
+            float top = BandRect(Band.Board, screenWidth, screenHeight).y;
+            float bottom = BandRect(Band.FloatBand, screenWidth, screenHeight).y;
+
+            float y = nodeScreenPos.y - height * 0.5f;              // 칸 가운데에 맞춘다
+            y = Mathf.Clamp(y, top, Mathf.Max(top, bottom - height));
+
+            return new Rect(x, y, w, height);
+        }
+
         /// <summary>
         /// 배율 막대가 잡아 두는 폭 (기준 캔버스). ⚠️ **가정이다** — 문서에 배율 자리 절이 없다.
         ///
