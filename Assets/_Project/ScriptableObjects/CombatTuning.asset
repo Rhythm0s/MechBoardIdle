@@ -13,7 +13,7 @@ MonoBehaviour:
   m_Name: CombatTuning
   m_EditorClassIdentifier: MBI.Data::MBI.Data.CombatTuning
   robotHpTbd: 1000
-  robotAttackRangeTbd: 100
+  robotAttackRangeTbd: 9.2
   robotMoveSpeedTbd: 4.5
   enemyMoveSpeedTbd: 1.5
   enemyAttackRangeTbd: 1

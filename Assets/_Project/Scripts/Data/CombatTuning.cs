@@ -19,8 +19,20 @@ namespace MBI.Data
         [Header("로봇 (⚠️ TBD — 생존축 후순위, §9 미확정)")]
         [Tooltip("TBD — 로봇 최대 HP. chat+Notion 확정 필요. §9 생존축 예산 밖·후순위.")]
         public float robotHpTbd = 3000f;
-        [Tooltip("TBD — 로봇 사거리(유닛). chat+Notion 확정 필요. 기본은 arena 전체 커버.")]
-        public float robotAttackRangeTbd = 100f;
+        // ⚠️ **100 → 9.2**(2026-09-15 사용자 판정 · 가정값 · 설계 역기입 대기).
+        //
+        // 구 100 은 사실상 **무한**이라 `AutoPilotPolicy` 의 규칙 둘 중 하나가 죽어 있었다 —
+        // 「사거리 밖 → 최근접 적을 향해 이동」이 **한 번도 안 걸렸다.** 화면에서는
+        // 로봇이 제자리에 서서 쏘기만 했고, 그것이 자동 조종이 안 걷는 원인이다.
+        //
+        // 가정값은 **화면 대각선의 절반**이다 — 전투 카메라 `orthographicSize = 8`(세로 절반)에
+        // 촬영 창 1440×2560(비 0.5625)이면 세로 16 · 가로 9 유닛이고,
+        // 가운데에서 모서리까지가 √(4.5² + 8²) ≈ **9.2**.
+        // 근거는 값이 아니라 **보이는 것**이다: 화면에 든 적은 쏠 수 있고 밖은 걸어가야 한다.
+        //
+        // ⚠️ **Tbd 는 그대로 둔다** — 확정값이 아니다. 창 비가 바뀌면 이 수도 바뀐다.
+        [Tooltip("TBD — 로봇 사거리(유닛). 가정 9.2 = 화면 대각선의 절반(ortho 8 · 비 0.5625).")]
+        public float robotAttackRangeTbd = 9.2f;
         [Tooltip("TBD — 로봇 이동 속도(유닛/초). WASD/화살표로 조작(카이팅). chat+Notion 확정 필요.")]
         public float robotMoveSpeedTbd = 4.5f;
 
