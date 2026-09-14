@@ -679,6 +679,21 @@ namespace MBI.Logistics
             float t = Mathf.Max(config.cellSize * 0.03f, 0.01f);
             float b = t * 1.8f;
 
+            // ⚠️ **분기보다 먼저 그린다**(2026-09-14 실측으로 고침).
+            //
+            // 넷이 `usePartLayout` 가지의 **`return` 뒤**에 있었다. 그 가지가 실제 보드이므로
+            // **보드 바닥·마운트 포트·마운트 본체·적재 슬롯이 한 번도 안 그려졌다** —
+            // 배선은 09-09 에 됐는데 화면에는 09-14 까지 없었고, **에러도 안 났다**(그릴
+            // 것이 없으면 조용하다). 마운트 이름표가 안 보이던 것도 여기서 갈렸다:
+            // `DrawMountLabels` 가 「본체가 없으면 안 그린다」로 먼저 빠져나갔기 때문이다.
+            //
+            // ⚠️ **가지와 무관한 것들이다** — 실루엣이 직사각이든 아니든 바닥과 마운트는
+            // 같은 자리에 선다. 그래서 가지 **앞**이 제자리다.
+            BuildBoardBackground(root.transform);
+            BuildMountPorts(root.transform);
+            BuildMountBodies(root.transform);
+            BuildMountSlots(root.transform);
+
             if (config.usePartLayout)
             {
                 // 실루엣은 직사각형이 아니다 — 파츠 단위로 배경과 테두리를 그린다.
@@ -729,10 +744,6 @@ namespace MBI.Logistics
             SpawnQuad(root.transform, o.x, cy, b, h, GridBorderColor, -2);       // 좌
             SpawnQuad(root.transform, o.x + w, cy, b, h, GridBorderColor, -2);   // 우
 
-            BuildBoardBackground(root.transform);
-            BuildMountPorts(root.transform);
-            BuildMountBodies(root.transform);
-            BuildMountSlots(root.transform);
         }
 
         /// <summary>
