@@ -247,6 +247,16 @@ namespace MBI.Combat
             }
 
             if (stage0 != null && stage0.enabled) stage0.enabled = false;
+
+            // ⚠️ **튜토리얼 완료 상태의 보드로 들어간다**(2026-09-15 사용자 확정 · 육안 ⑦).
+            //
+            // 바로가기는 튜토리얼을 건너뛰므로 `IdleSignals.TutorialCleared` 가 안 선다.
+            // 그러면 보드가 비워 둔 칸 (6,5) 를 안 채우고, **운반로가 거기서 끊긴 채**
+            // S1 이 시작된다 — 탄이 마운트에 하나도 안 닿는다.
+            // 09-15 육안 ① 「실탄을 지고 78 초 0 발」의 뿌리가 이것이었다
+            // (실측: 안 채운 판 60 초 0 개 / 채운 판 219 개 · 표준 4.00 발/초).
+            TutorialSignals.FillEmptySlotRequested = true;
+
             runner.LoadStage(s);
         }
 

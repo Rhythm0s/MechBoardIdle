@@ -283,11 +283,27 @@ namespace MBI.Combat
         /// </summary>
         private void UpdateBackgroundOffset()
         {
-            if (_bgRoot == null || _sim == null || _sim.Robot == null) return;
-            Vector2 p = _sim.Robot.position;
-            _bgRoot.localPosition = new Vector3(
-                -Mathf.Repeat(p.x, _bgTile.x),
-                -Mathf.Repeat(p.y, _bgTile.y), 0f);
+            if (_bgRoot == null) return;
+
+            // ⚠️ **카메라를 기준으로 깐다**(2026-09-15 · 육안 ⑥ 카메라 추적).
+            //
+            // 종전에는 로봇 위치의 나머지만 썼다 — 카메라가 고정이었으므로 그것으로 충분했다.
+            // 카메라가 로봇을 따라가게 된 지금은 **바닥도 카메라를 따라가야** 한다. 안 그러면
+            // 로봇이 멀리 걸어간 만큼 바닥이 화면 밖으로 빠져 **검은 바닥**이 드러난다.
+            //
+            // 카메라 중심을 **타일 격자에 스냅한 자리**에 둔다 — 한 장 폭의 나머지만 쓰므로
+            // 타일 수가 안 늘고, 격자가 자기 자신과 이어져 끝이 안 보인다.
+            //
+            // ⚠️ **카메라가 로봇을 lerp 로 뒤따른다** — 로봇 위치로 깔면 한 프레임씩 어긋나
+            // 바닥이 미세하게 떤다. 재는 것은 **지금 카메라가 있는 자리**여야 한다.
+            Camera cam = Camera.main;
+            Vector2 p = cam != null ? (Vector2)cam.transform.position
+                : _sim != null && _sim.Robot != null ? _sim.Robot.position : Vector2.zero;
+
+            _bgRoot.position = new Vector3(
+                p.x - Mathf.Repeat(p.x, _bgTile.x),
+                p.y - Mathf.Repeat(p.y, _bgTile.y),
+                _bgRoot.position.z);
         }
 
         /// <summary>깔아 둔 전제가 바뀌었는가 — 스테이지(보스)와 창 크기 둘뿐이다.</summary>
@@ -727,6 +743,11 @@ namespace MBI.Combat
         /// </summary>
         private void PublishSupplySignals()
         {
+            // ⚠️ **카메라가 비출 자리를 같이 낸다**(2026-09-15 사용자 확정 · 육안 ⑥ · UI 9-5).
+            // 레이어 컨트롤러가 이것을 읽어 주 카메라와 인셋을 함께 옮긴다.
+            GameViewSignals.HasCombatFocus = _sim != null && _sim.Robot != null;
+            if (GameViewSignals.HasCombatFocus) GameViewSignals.CombatFocus = _sim.Robot.position;
+
             if (_sim == null) { SupplySignals.Reset(); return; }
 
             MountLoad mount = _sim.ActiveMount;

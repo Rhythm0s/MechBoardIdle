@@ -17,7 +17,34 @@ namespace MBI.Core
         /// <summary>조립(물류 보드) 레이어가 활성인가. 레이어 컨트롤러가 매 프레임 넣는다.</summary>
         public static bool BoardViewActive;
 
+        /// <summary>
+        /// **카메라가 비출 자리** — 싸우는 로봇의 위치 (2026-09-15 사용자 확정 · 육안 ⑥ · UI 9-5).
+        ///
+        /// ⚠️ **종전에는 카메라가 고정이었다.** 로봇만 절대 좌표로 걸어 다니고 바닥 타일만
+        /// 밀어 「흐르는 것처럼」 보이게 했는데, 09-11 에 이동 클램프(아레나 원반)가 폐기되면서
+        /// **로봇이 화면 밖까지 걸어 나갈 수 있게 됐다** — 09-15 육안에서 스테이지 시작 9 초에
+        /// 로봇이 뷰포트 오른쪽 끝에 붙어 있었다.
+        ///
+        /// 전투가 쓰고 레이어 컨트롤러가 읽는다. <see cref="BoardViewActive"/> 와 같은 채널이라
+        /// `MBI.Combat` 이 `MBI.Logistics` 를 참조하지 않아도 된다.
+        ///
+        /// ⚠️ **주 카메라와 인셋 카메라가 같이 따라간다** — 조립 화면 상단 30% 의 인셋도
+        /// 같은 자리를 비춰야 「지금 어디서 싸우는가」가 두 화면에서 어긋나지 않는다.
+        /// </summary>
+        public static UnityEngine.Vector2 CombatFocus;
+
+        /// <summary>
+        /// <see cref="CombatFocus"/> 가 실제 전투에서 온 값인가. 전투가 없으면 <c>false</c> 이고
+        /// 그때는 씬이 정한 중심을 쓴다 — **0,0 으로 튀지 않게** 하는 것이 이 깃발의 일이다.
+        /// </summary>
+        public static bool HasCombatFocus;
+
         /// <summary>도메인 리로드 비활성 시 이전 Play의 값이 남는 것을 막는다.</summary>
-        public static void Reset() => BoardViewActive = false;
+        public static void Reset()
+        {
+            BoardViewActive = false;
+            CombatFocus = UnityEngine.Vector2.zero;
+            HasCombatFocus = false;
+        }
     }
 }

@@ -111,16 +111,28 @@ namespace MBI.Logistics
 
             // ⚠️ **조립 화면에서만 켠다.** 전투 화면에서는 주 카메라가 이미 전투를 비추고 있어
             // 같은 그림을 두 번 그리는 낭비이고, 위쪽 30% 만 배율이 달라져 이상하게 보인다.
+            // ⚠️ **카메라가 로봇을 따라간다**(2026-09-15 사용자 확정 · 육안 ⑥ · UI 9-5).
+            //
+            // 종전에는 전투 중심이 씬 상수였고 로봇만 절대 좌표로 걸어 다녔다. 09-11 에
+            // 이동 클램프(아레나 원반)가 폐기되면서 **로봇이 화면 밖까지 걸어 나갔다** —
+            // 09-15 육안에서 시작 9 초에 로봇이 뷰포트 오른쪽 끝에 붙어 있었다.
+            //
+            // ⚠️ **인셋도 같이 따라간다.** 조립 화면 상단 30% 가 다른 자리를 비추면
+            // 「지금 어디서 싸우는가」가 두 화면에서 어긋난다.
+            //
+            // ⚠️ **전장은 여전히 무한이다** — 따라가는 것은 카메라이고 로봇을 가두지 않는다.
+            Vector2 focus = GameViewSignals.HasCombatFocus ? GameViewSignals.CombatFocus : combatCenter;
+
             if (combatInsetCam != null)
             {
                 combatInsetCam.enabled = _boardView;
                 combatInsetCam.transform.position =
-                    new Vector3(combatCenter.x, combatCenter.y, combatInsetCam.transform.position.z);
+                    new Vector3(focus.x, focus.y, combatInsetCam.transform.position.z);
                 combatInsetCam.orthographicSize = combatSize;
             }
 
             if (cam == null) return;
-            Vector2 tc = _boardView ? boardCenter : combatCenter;
+            Vector2 tc = _boardView ? boardCenter : focus;
             float ts = _boardView ? boardSize : combatSize;
 
             Vector3 p = cam.transform.position;

@@ -1743,6 +1743,15 @@ namespace MBI.Logistics
                 RemoveAt(StartingBoard.EmptySlot);
             }
 
+            // 심사자 바로가기가 튜토리얼을 건너뛰고 들어왔다 — 그 칸을 채워 준다
+            // (2026-09-15 사용자 확정 · 육안 ⑦). 안 채우면 운반로가 끊긴 채라 탄이 안 닿는다.
+            if (TutorialSignals.FillEmptySlotRequested)
+            {
+                TutorialSignals.FillEmptySlotRequested = false;
+                PlaceTutorialFill();
+                RefreshConnections();   // 벨트 한 칸이 라인을 잇는다 — 안 다시 풀면 안 흐른다
+            }
+
             if (_panning)
             {
                 if (TryPointerWorld(out Vector2 world))

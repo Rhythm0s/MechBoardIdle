@@ -73,6 +73,22 @@ namespace MBI.Core
         public static bool ClearEmptySlotRequested;
 
         /// <summary>
+        /// 비워 둔 칸을 **채워 달라** — 심사자 바로가기 전용 (2026-09-15 사용자 확정 · 육안 ⑦).
+        ///
+        /// ⚠️ **이것이 없어서 심사자가 끊긴 보드로 S1 에 떨어졌다.** 보드는 종전에
+        /// <c>IdleSignals.TutorialCleared</c> 일 때만 그 칸을 채웠는데, 바로가기는
+        /// 튜토리얼을 **건너뛰므로** 그 깃발이 안 선다. 그러면 운반로가 (6,5) 에서 끊긴 채라
+        /// **탄이 마운트에 하나도 안 닿는다** — 09-15 육안 ① 의 뿌리가 그것이었다
+        /// (실측: 안 채운 판 60 초 0 개 / 채운 판 219 개).
+        ///
+        /// ⚠️ **튜토리얼 스테이지 자체는 안 건드린다.** 튜토리얼로 **돌아갈** 때는 여전히
+        /// 비어 있어야 배울 것이 남는다 — 그쪽은 <see cref="ClearEmptySlotRequested"/> 다.
+        ///
+        /// 보드가 가져가며 내린다 — 안 내리면 플레이어가 지우는 족족 다시 깔린다.
+        /// </summary>
+        public static bool FillEmptySlotRequested;
+
+        /// <summary>
         /// 보드가 지금 **조립 모드**인가 — <b>보드가 쓰고 튜토리얼 게이트가 읽는다.</b>
         /// (2026-09-11 결함 수정 · 플랜 §71-19 ①)
         ///
@@ -95,6 +111,7 @@ namespace MBI.Core
             HighlightMerger = false;
             HighlightBuildMode = false;
             ClearEmptySlotRequested = false;
+            FillEmptySlotRequested = false;
             BoardInBuildMode = false;
         }
     }
