@@ -1396,8 +1396,20 @@ namespace MBI.Combat
 
             // 태그 — 쿨다운 중이거나 합체로 잠겨 있으면 비활성. 누르면 시뮬이 활성 인덱스까지 맞춘다.
             GUI.enabled = _sim.Tag.Tag.CanTag;
-            if (GUI.Button(tagRect, TagButtonLabel(), round))
-                _sim.TryManualTag();
+            if (GUI.Button(tagRect, TagButtonLabel(), round) && _sim.TryManualTag())
+            {
+                // ⚠️ **여기서 뷰를 바로 다시 묶는다**(2026-09-14 · 「교대가 한 박자 느리다」).
+                //
+                // 유니티는 한 프레임에 `Update` 를 먼저 돌고 `OnGUI` 를 나중에 돈다.
+                // 뷰 재바인드는 `Update` 에 있으므로, 버튼(OnGUI)으로 교대하면 그 프레임에는
+                // **시뮬만 바뀌고 그림은 그대로**이고 **다음 프레임**에야 따라온다 —
+                // 딱 한 박자다. 누른 사람에게는 버튼이 씹힌 것처럼 보인다.
+                //
+                // ⚠️ **자동 태그는 이 문제가 없다** — `TagTick` 이 `Update` 안에서 돌아
+                // 같은 프레임의 재바인드 블록에 걸린다. 그래서 **수동만** 늦었다.
+                BindRobotView();
+                PlayTagEntrance();
+            }
 
             // 합체 — 게이지가 차야 눌린다. 스테이지당 1회라 쓰고 나면 영영 비활성이다.
             GUI.enabled = _sim.Merge != null && _sim.Merge.IsReady;
