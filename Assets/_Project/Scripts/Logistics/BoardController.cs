@@ -2521,8 +2521,15 @@ namespace MBI.Logistics
             foreach (KeyValuePair<Vector2Int, GameObject> kv in _markers)
             {
                 if (kv.Value == null) continue;
-                DrawLabelAt(cam, kv.Value.transform.position, NodeLabel(_grid.GetAt(kv.Key)),
-                    nodeStyle, Color.black, 118f);
+                // ⚠️ **노드 이름 라벨을 걷었다**(2026-09-15 사용자 확정 · §72-51).
+                //
+                // 「가공」·「군수:관통」을 17px 검정으로 칸마다 찍고 있었다. **그림이 이미
+                // 종류를 말한다** — 노드 타일 아트가 열둘 다 배선된 뒤로 글자는 그 위에
+                // 겹치는 것뿐이었고, 보드가 시끄러웠다. 이름은 **조합표 패널에만** 둔다
+                // (노드를 탭하면 「가공 · 90° 조합표」로 뜬다).
+                //
+                // ⚠️ **「노는 중」은 남긴다** — 그것은 종류가 아니라 **상태**라 그림이 말하지
+                // 않는다. 뒤 컨펌 자리로 남겨 둔다.
 
                 // 일감률 0 = 이 노드는 지금 아무것도 안 하고 있다(260831_V07 표시 규칙).
                 // 초과분을 몰아서 0으로 두었으므로 **뺄 노드가 그대로 지목된다** —
@@ -2531,13 +2538,11 @@ namespace MBI.Logistics
                     DrawLabelAt(cam, kv.Value.transform.position, "노는 중",
                         idleStyle, IdleLabelColor, 118f, 20f);
 
-                // 모듈 기호 — **자리표시다.** 보드 아트 문서에 모듈 기호가 없어 그림이 없고,
-                // 아트 요청은 설계 판정거리다. 글자로 둔 것은 「붙어 있다」가 D구간 3초 안에
-                // 보여야 하기 때문이며(촬영 스크립트 01:03~01:06), 그림이 오면 이 줄이 사라진다.
-                string symbols = ModuleSymbols(_grid.GetAt(kv.Key));
-                if (symbols.Length > 0)
-                    DrawLabelAt(cam, kv.Value.transform.position, symbols,
-                        idleStyle, ModuleSymbolColor, 118f, -22f);
+                // ⚠️ **모듈 글자 자리표시를 걷었다**(2026-09-15 사용자 확정 · §72-51).
+                //
+                // 「그림이 오면 이 줄이 사라진다」고 적어 두었던 자리인데, **그림이 왔다**
+                // (`SpawnModuleSymbols` 가 기호 둘을 스프라이트로 얹는다). 글자를 같이
+                // 두면 그림 위에 글자가 겹쳐 **둘 다 안 읽힌다.**
             }
 
             foreach (KeyValuePair<Vector2Int, GameObject> kv in _beltMarkers)

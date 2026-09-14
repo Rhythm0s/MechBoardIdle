@@ -32,14 +32,26 @@ namespace MBI.Tests
                 NodeStatusIcon.Of(false, notConnected: true, ratio: 0f));
         }
 
+        /// <summary>
+        /// ⚠️ **뒤집은 단언**(2026-09-15 사용자 확정 · §72-51 · UI 문서 3-4-1).
+        ///
+        /// 구 시험은 「표식은 밝기와 같은 눈금을 쓴다」였다 — 산출률이 낮으면 `Stopped`·`Slow`
+        /// 표식이 떴다. 그런데 문서가 정한 **원인은 둘**이다: 전력 부족 · 미연결.
+        /// 정지·감속은 원인이 아니라 **결과**이고, 그 결과는 **밝기가 이미 말한다.**
+        ///
+        /// 표식까지 같은 말을 하면 칸마다 아이콘이 하나씩 붙어 **원인 둘이 묻힌다** —
+        /// 표식은 **고칠 수 있는 것**을 가리킬 때만 값이 있다.
+        ///
+        /// ⚠️ **밝기는 그대로다** — 아래 두 줄이 그것을 지킨다. 걷은 것은 표식뿐이다.
+        /// </summary>
         [Test]
-        public void 표식은_밝기와_같은_눈금을_쓴다()
+        public void 정지와_감속은_표식을_안_쓴다_밝기가_말한다()
         {
-            // 표식과 밝기가 다른 말을 하면 둘 다 안 믿게 된다.
-            Assert.AreEqual(NodeIcon.Stopped, NodeStatusIcon.Of(false, false, 0f));
-            Assert.AreEqual(NodeIcon.Slow, NodeStatusIcon.Of(false, false, 0.5f));
-            Assert.AreEqual(NodeIcon.Slow, NodeStatusIcon.Of(false, false, 0.998f));
+            Assert.AreEqual(NodeIcon.None, NodeStatusIcon.Of(false, false, 0f), "정지 → 표식 없음");
+            Assert.AreEqual(NodeIcon.None, NodeStatusIcon.Of(false, false, 0.5f), "감속 → 표식 없음");
+            Assert.AreEqual(NodeIcon.None, NodeStatusIcon.Of(false, false, 0.998f));
 
+            // **밝기는 여전히 눈금을 쓴다** — 이쪽이 걷히면 결과가 화면에서 통째로 사라진다.
             Assert.AreEqual(NodeStatusTint.Stopped, NodeStatusTint.Of(0f));
             Assert.AreEqual(NodeStatusTint.Slow, NodeStatusTint.Of(0.5f));
         }

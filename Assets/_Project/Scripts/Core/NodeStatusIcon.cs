@@ -50,12 +50,16 @@ namespace MBI.Core
             if (powerShort) return NodeIcon.PowerShort;
             if (notConnected) return NodeIcon.NotConnected;
 
-            // 밝기와 **같은 눈금**을 쓴다 — 표식과 밝기가 다른 말을 하면 둘 다 안 믿게 된다.
-            float tint = NodeStatusTint.Of(ratio);
-            if (tint <= NodeStatusTint.Stopped + 0.0001f) return NodeIcon.Stopped;
-            if (tint < NodeStatusTint.Normal - 0.0001f) return NodeIcon.Slow;
-
-            return ShowWhenNormal ? NodeIcon.Normal : NodeIcon.None;
+            // ⚠️ **정지·감속 표식을 걷었다**(2026-09-15 사용자 확정 · §72-51 · UI 문서 3-4-1).
+            //
+            // 문서가 정한 원인은 **둘**이다 — 전력 부족 · 미연결. 정지·감속은 원인이 아니라
+            // **결과**이고, 그 결과는 이미 **노드 밝기**가 같은 눈금으로 말하고 있었다
+            // (`NodeStatusTint`). 표식까지 같은 말을 하면 칸마다 아이콘이 하나씩 붙어
+            // **원인 둘이 묻힌다** — 표식은 **고칠 수 있는 것**을 가리킬 때만 값이 있다.
+            //
+            // 밝기는 그대로다. 구 `NodeIcon.Stopped`·`Slow` 는 열거값에 남겨 둔다(폐기 표기) —
+            // 지우면 직렬화된 자산·시험이 조용히 밀린다.
+            return NodeIcon.None;
         }
     }
 }
