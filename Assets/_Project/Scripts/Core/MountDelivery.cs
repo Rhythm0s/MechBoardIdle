@@ -35,6 +35,24 @@ namespace MBI.Core
         /// <summary>마지막으로 낸 비율(전투력/초). 아직 한 구간도 안 끝났으면 0.</summary>
         public float Rate { get; private set; }
 
+        // ── 탄종별 도착률 (2026-09-15 사용자 확정) ──────────────────────────
+        //
+        // ⚠️ **왜 필요한가.** 발사율이 종전에는 「명목 출력 대비 전역 비율」이었다.
+        // 그러면 **표준탄만 오는 보드에서도 관통·폭발이 발사율을 배분받는다** —
+        // 화면에는 「관통 0.2 · 폭발 0.5 발/초」로 찍히는데 마운트에 그 탄이 없어
+        // `ConsumeRound` 가 실패하고 **한 발도 안 나간다.** HUD 가 거짓말을 했다.
+        //
+        // 이제 **그 탄종이 실제로 마운트에 닿은 비율**을 탄종마다 따로 센다.
+        private readonly float[] _pendingCount = new float[3];
+        private readonly float[] _rateOf = new float[3];
+
+        /// <summary>그 탄종이 마운트에 닿는 비율(발/초). 한 구간도 안 끝났으면 0.</summary>
+        public float RateOf(AmmoKind kind)
+        {
+            int i = (int)kind;
+            return i >= 0 && i < _rateOf.Length ? _rateOf[i] : 0f;
+        }
+
         /// <summary>모으는 중인 구간의 길이(초). 진단용.</summary>
         public float PendingSeconds => _pendingSeconds;
 
@@ -67,6 +85,9 @@ namespace MBI.Core
 
                 _pendingPower += damage;
                 TotalPower += damage;
+
+                int ki = (int)kind;
+                if (ki >= 0 && ki < _pendingCount.Length) _pendingCount[ki] += 1f;
             }
         }
 
@@ -83,6 +104,12 @@ namespace MBI.Core
             rate = _pendingPower / _pendingSeconds;
             Rate = rate;
 
+            for (int i = 0; i < _rateOf.Length; i++)
+            {
+                _rateOf[i] = _pendingCount[i] / _pendingSeconds;
+                _pendingCount[i] = 0f;
+            }
+
             _pendingPower = 0f;
             _pendingSeconds = 0f;
             return true;
@@ -95,6 +122,7 @@ namespace MBI.Core
             _pendingSeconds = 0f;
             Rate = 0f;
             TotalPower = 0f;
+            for (int i = 0; i < _pendingCount.Length; i++) { _pendingCount[i] = 0f; _rateOf[i] = 0f; }
         }
     }
 }

@@ -671,6 +671,20 @@ namespace MBI.Core
         public int TotalEnemies => _spawnQueue.Count;
         public int Remaining => _enemies.Count;
 
+        // ── 실제로 나간 발 (2026-09-15 사용자 확정 ㉮) ───────────────────────
+        //
+        // ⚠️ **배분과 발사는 다르다.** `ShotAllocator` 가 낸 줄은 **쏠 수 있는 상한**이고,
+        // 마운트에 그 탄이 없으면 `ConsumeRound` 가 실패해 **그 틱에 안 나간다.**
+        // HUD 가 배분을 찍고 있어서 **한 발도 안 나가는 탄종이 「0.5 발/초」로 보였다.**
+        private readonly int[] _firedCount = new int[3];
+
+        /// <summary>그 탄종으로 **실제로 나간** 누적 발수.</summary>
+        public int FiredOf(AmmoKind kind)
+        {
+            int i = (int)kind;
+            return i >= 0 && i < _firedCount.Length ? _firedCount[i] : 0;
+        }
+
         /// <summary>이번 Tick에 죽은 수(관찰용). 적립에 쓸 때는 <see cref="ConsumeKills"/>로 가져간다.</summary>
         public int KillsThisTick { get; private set; }
 
@@ -1305,6 +1319,10 @@ namespace MBI.Core
                     // 실제 탄약이 있는 곳은 마운트이고, 창고에서 빼면 이송분이 이중으로 사라진다.
                     // 마운트가 없는 구성(격리 전투·단일 로봇)은 창고에서 바로 쓴다.
                     if (!ConsumeRound(side, shot.kind)) { side.lineTimers[li] = 0f; break; }
+
+                    // **실제로 나간 발**만 센다 — 배분과 발사는 다르다(2026-09-15).
+                    int fi = (int)shot.kind;
+                    if (fi >= 0 && fi < _firedCount.Length) _firedCount[fi]++;
 
                     FireOne(side, shot, target, damageMultiplier);
                 }

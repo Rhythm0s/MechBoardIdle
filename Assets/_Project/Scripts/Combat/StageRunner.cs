@@ -421,7 +421,8 @@ namespace MBI.Combat
             // 명목 출력 = 물류 단위(마운트계수 1) — 라이브 스케일의 분모이므로 Begin에서 1회만 구한다.
             _nominalOutput = RobotOutput.Nominal(robot.weapons, 1f, robot.moduleMult);
             _lastScale = 1f;
-            ShotAllocator.AllocateRates(robot.weapons, robot.consumptionCap, _lastScale, _lineBuffer);
+            ShotAllocator.AllocateRates(robot.weapons, robot.consumptionCap,
+                SupplySignals.ArrivalRateOf, _lineBuffer);
 
             // 로봇 A — 다발형. 화력이 탄약 라인에서 나온다.
             var setup = new RobotSetup
@@ -811,7 +812,9 @@ namespace MBI.Combat
             if (Mathf.Abs(scale - _lastScale) < ScaleEpsilon) return;
 
             _lastScale = scale;
-            ShotAllocator.AllocateRates(robot.weapons, robot.consumptionCap, scale, _lineBuffer);
+            // ⚠️ **탄종별 공급율로 배분한다**(2026-09-15 사용자 확정) — 구 「전역 비율」 폐기.
+            ShotAllocator.AllocateRates(robot.weapons, robot.consumptionCap,
+                SupplySignals.ArrivalRateOf, _lineBuffer);
             _sim.SetFireLines(_lineBuffer);
             _output = LogisticsOutputBridge.Output;
         }
@@ -991,6 +994,8 @@ namespace MBI.Combat
             // 날아가는 탄환은 **연출 전용**이라 시뮬 배속이 아니라 실제 시간으로 간다 —
             // 피해는 이미 들어갔고 그림만 뒤따르기 때문이다(§72-24 ④).
             TickFlyingShots(Time.deltaTime);
+
+            TickFiredRates(Time.deltaTime);
             UpdateAmmoOutView();   // 지속 상태 — 한 번 만들고 껐다 켠다(`260909_W01` 3장이 (가)를 확정)
             PublishSupplySignals();
 
@@ -1762,20 +1767,41 @@ namespace MBI.Combat
         /// ⚠️ **규칙은 안 바꿨다.** 발사율이 공급율에 묶여 있다는 것은 그대로이고,
         /// 화면이 **그 묶인 값**을 보이게 된 것뿐이다.
         /// </summary>
+        // ── 실제로 쏜 발수 (2026-09-15 사용자 확정 ㉮) ───────────────────────
+        //
+        // ⚠️ **배분을 찍고 있었다.** `_lineBuffer` 는 `ShotAllocator` 가 낸 **상한**이고,
+        // 마운트에 그 탄이 없으면 `ConsumeRound` 가 실패해 한 발도 안 나간다 —
+        // 표준탄만 오는 시작 보드에서 「관통 0.2 · 폭발 0.5 발/초」로 찍혔고 **거짓이었다.**
+        // 이제 시뮬의 **누적 발사 수**를 창으로 나눠 **난 발**을 찍는다.
+        private readonly int[] _firedMark = new int[3];
+        private readonly float[] _firedRate = new float[3];
+        private float _firedWindow;
+
+        /// <summary>발사율 창(초). ⚠️ 가정 — 짧으면 숫자가 튀고 길면 굼뜨다.</summary>
+        private const float FiredSampleSeconds = 1f;
+
+        private void TickFiredRates(float dt)
+        {
+            if (_sim == null) return;
+
+            _firedWindow += dt;
+            if (_firedWindow < FiredSampleSeconds) return;
+
+            for (int i = 0; i < _firedRate.Length; i++)
+            {
+                int now = _sim.FiredOf((AmmoKind)i);
+                _firedRate[i] = (now - _firedMark[i]) / _firedWindow;
+                _firedMark[i] = now;
+            }
+            _firedWindow = 0f;
+        }
+
         private string AmmoLine()
         {
-            float pierce = 0f, split = 0f, expl = 0f;
-            foreach (AmmoLine line in _lineBuffer)
-            {
-                switch (line.kind)
-                {
-                    case AmmoKind.Pierce: pierce += line.shotsPerSec; break;
-                    case AmmoKind.Standard: split += line.shotsPerSec; break;
-                    case AmmoKind.Explosive: expl += line.shotsPerSec; break;
-                }
-            }
-            int cap = Mathf.RoundToInt(robot.consumptionCap); // capA — RobotDefinition 단일 소스(§3, CombatTuning 중복 정리)
-            return $"탄약 마운트(용량 {cap}/종)  관통 {pierce:F1} · 표준 {split:F1} · 폭발 {expl:F1} 발/초";
+            int cap = Mathf.RoundToInt(robot.consumptionCap); // capA — RobotDefinition 단일 소스(§3)
+            return $"탄약 마운트(용량 {cap}/종)  관통 {_firedRate[(int)AmmoKind.Pierce]:F1} · " +
+                   $"표준 {_firedRate[(int)AmmoKind.Standard]:F1} · " +
+                   $"폭발 {_firedRate[(int)AmmoKind.Explosive]:F1} 발/초 (실제)";
         }
 
         /// <summary>

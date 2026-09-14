@@ -86,9 +86,39 @@ namespace MBI.Core
         public static void AllocateRates(IReadOnlyList<WeaponSpec> weapons, float cap,
             float productionScale, List<AmmoLine> into)
         {
+            // ⚠️ **구 경로는 곱하기다.** 새 경로(`supplyOf`)는 **최소값**이라 뜻이 다르다 —
+            // 처음에 `_ => productionScale` 로 이어 붙였더니 배율이 **절대 발수**로 읽혀
+            // 시험 일곱이 빨개졌다(2026-09-15). 둘은 같은 고르기를 쓰되 **take 만 다르다.**
+            if (productionScale <= 0f) { into?.Clear(); return; }
+            Allocate(weapons, cap, w => w.shotsPerSec * productionScale, into);
+        }
+
+        /// <summary>
+        /// **탄종별 공급율로 배분한다** (2026-09-15 사용자 확정 · 문서 이행).
+        ///
+        /// ⚠️ **종전은 「명목 출력 대비 전역 비율」 하나였다.** 그러면 표준탄만 오는 보드에서도
+        /// 관통·폭발이 발사율을 배분받는다 — 화면에는 「관통 0.2 · 폭발 0.5 발/초」로 찍히는데
+        /// 마운트에 그 탄이 없어 `ConsumeRound` 가 실패하고 **한 발도 안 나간다.**
+        /// 배분과 실제가 갈려 **HUD 가 거짓말을 했다.**
+        ///
+        /// <paramref name="supplyOf"/> 는 그 탄종이 **마운트에 실제로 닿는 비율**(발/초)이다.
+        /// 한 줄이 쏠 수 있는 것은 **스펙과 공급 중 작은 쪽**이다 — 스펙이 6발이어도
+        /// 공급이 1발이면 1발이고, 공급이 넘쳐도 스펙을 넘지 않는다.
+        /// </summary>
+        public static void AllocateRates(IReadOnlyList<WeaponSpec> weapons, float cap,
+            System.Func<AmmoKind, float> supplyOf, List<AmmoLine> into)
+        {
+            if (supplyOf == null) { into?.Clear(); return; }
+            Allocate(weapons, cap, w => Mathf.Min(w.shotsPerSec, supplyOf(w.kind)), into);
+        }
+
+        /// <summary>고효율 우선으로 상한까지 채운다. **한 줄이 가져갈 양만 밖에서 정한다.**</summary>
+        private static void Allocate(IReadOnlyList<WeaponSpec> weapons, float cap,
+            System.Func<WeaponSpec, float> takeOf, List<AmmoLine> into)
+        {
             if (into == null) return;
             into.Clear();
-            if (weapons == null || cap <= 0f || productionScale <= 0f) return;
+            if (weapons == null || cap <= 0f) return;
 
             // 발당피해 내림차순으로 훑되 원본을 건드리지 않고 복사도 하지 않는다.
             // 무기는 마운트 A/B 붙박이라 수가 아주 작다(MVP 가드레일 §4) → 선택 정렬로 충분하고 할당이 0.
@@ -109,7 +139,10 @@ namespace MBI.Core
                 used |= 1 << best;
 
                 WeaponSpec w = weapons[best];
-                float take = w.shotsPerSec * productionScale;
+
+                // ⚠️ **0 이면 그 줄은 아예 안 선다** — 0 발짜리 줄을 넣으면
+                // HUD 가 「쏘는 중」으로 읽는다.
+                float take = takeOf(w);
                 if (take > remaining) take = remaining;
                 if (take <= 0f) continue;
 

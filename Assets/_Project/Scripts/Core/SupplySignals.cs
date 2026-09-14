@@ -49,6 +49,22 @@ namespace MBI.Core
         /// <summary>스택 상한(확정 10 · `260901_V03`). 채움 비율의 **분모**다. 0이면 못 나눈다.</summary>
         public static float MountStackLimit;
 
+        /// <summary>
+        /// **탄종별 마운트 도착률**(발/초) — 관통·표준·폭발 차례 (2026-09-15 사용자 확정).
+        ///
+        /// ⚠️ **발사율이 이것으로 배분된다.** 종전에는 「명목 출력 대비 전역 비율」이라
+        /// **표준탄만 오는 보드에서도 관통·폭발이 발사율을 받았고**, 마운트에 그 탄이 없어
+        /// `ConsumeRound` 가 실패해 **한 발도 안 나갔다** — HUD 만 쏘는 척했다.
+        /// </summary>
+        public static readonly float[] MountArrivalRate = new float[3];
+
+        /// <summary>그 탄종의 도착률. 범위 밖이면 0.</summary>
+        public static float ArrivalRateOf(MBI.Data.AmmoKind kind)
+        {
+            int i = (int)kind;
+            return i >= 0 && i < MountArrivalRate.Length ? MountArrivalRate[i] : 0f;
+        }
+
         /// <summary>슬롯 배열을 길이에 맞춰 잡는다. 길이가 같으면 아무것도 안 한다.</summary>
         public static void EnsureSlots(int count)
         {
@@ -71,6 +87,7 @@ namespace MBI.Core
 
         public static void Reset()
         {
+            for (int i = 0; i < MountArrivalRate.Length; i++) MountArrivalRate[i] = 0f;
             HasCombat = false;
             MountTotal = 0f;
             StorageStock = 0f;
