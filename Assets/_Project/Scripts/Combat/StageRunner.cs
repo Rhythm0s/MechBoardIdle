@@ -52,6 +52,22 @@ namespace MBI.Combat
 
         // 재배분 판정 (2026-09-15). 배율 하나만 보던 동안 라인이 0 줄로 굳었다 — `FireRateGate`.
         private readonly FireRateGate _fireGate = new FireRateGate();
+
+        /// <summary>
+        /// 조립 화면에서 HUD 글자 블록을 접었는가 (2026-09-15 사용자 확정 · 육안 ③).
+        ///
+        /// ⚠️ **사람마다 다른 선택이라 기억한다** — 보드를 넓게 보고 싶은 사람과 수치를
+        /// 계속 보고 싶은 사람이 갈린다. 매번 다시 접게 하면 그 선택이 조작이 된다.
+        ///
+        /// ⚠️ **전투 화면은 안 접는다** — 거기서는 이 글자가 화면의 본문이다.
+        /// </summary>
+        private static bool HudFolded
+        {
+            get => PlayerPrefs.GetInt(HudFoldedKey, 0) != 0;
+            set => PlayerPrefs.SetInt(HudFoldedKey, value ? 1 : 0);
+        }
+
+        private const string HudFoldedKey = "mbi.hud.folded";
         private readonly List<AmmoLine> _lineBuffer = new List<AmmoLine>(); // 재배분 버퍼(프레임당 할당 0)
         private const float ScaleEpsilon = 0.001f;                      // 이만큼 변해야 재배분
         private float _manualHoldUntil;                                 // 이 시각까지는 수동 우선(자동 정지)
@@ -1450,6 +1466,31 @@ namespace MBI.Combat
                 : Screen.height - combatBand.y - 20f;
 
             var hud = new Rect(12f, combatBand.y + 10f, hudW, Mathf.Min(need, room));
+
+            // ⚠️ **조립 화면에서는 이 글자 블록을 접을 수 있다**(2026-09-15 사용자 확정 · 육안 ③).
+            //
+            // 조립 중에 이 열한 줄은 **전투 그림 위에 얹혀** 보드로 가는 눈길을 가로챈다.
+            // 접으면 **글자 블록만** 사라진다 — 인셋 전투 그림과 경고 띠는 그대로다.
+            // 전투 화면에서는 접지 않는다: 거기서는 이 글자가 화면의 본문이다.
+            //
+            // ⚠️ **가정이다** — 문서에 접기 절이 없다(설계 역기입 자리). 버튼 크기·자리는
+            // 눌리는 최소(44)를 기준으로 잡았다.
+            bool foldable = GameViewSignals.BoardViewActive;
+            if (foldable)
+            {
+                float bs = 44f;
+                var foldRect = new Rect(hud.x + hud.width - bs - 4f, hud.y, bs, bs);
+                UiBlockers.Add(foldRect);
+                if (GUI.Button(foldRect, HudFolded ? "▼" : "▲")) HudFolded = !HudFolded;
+            }
+
+            if (foldable && HudFolded)
+            {
+                // ⚠️ **합체 연출은 접어도 나온다** — 전체 화면 연출이라 HUD 와 층이 다르다.
+                DrawMergeCutscene();
+                return;
+            }
+
             if (GameViewSignals.BoardViewActive) UiPlate.Draw(hud);
 
             GUILayout.BeginArea(hud);
