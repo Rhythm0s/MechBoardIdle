@@ -163,7 +163,10 @@ namespace MBI.UI
         /// </summary>
         private void EnsureStyles(float scale)
         {
-            int size = Mathf.Max(9, Mathf.RoundToInt(22f * scale));
+            // ⚠️ **크기를 네 칸으로 스냅한다**(2026-09-15 · `KoreanFont.Snap`).
+            // 창 크기가 바뀔 때마다 새 크기가 생기고, 동적 폰트는 크기마다 글리프를 따로
+            // 굽는다 — 아틀라스가 차면 글자가 엉뚱하게 찍힌다(09-14 「마으ㅌ」· 09-15 「판1」).
+            int size = KoreanFont.Snap(Mathf.Max(9, Mathf.RoundToInt(22f * scale)));
             if (_label != null && _label.fontSize == size) return;
             _label = new GUIStyle(GUI.skin.label) { fontSize = size };
             _head = new GUIStyle(GUI.skin.label) { fontSize = size, fontStyle = FontStyle.Bold };

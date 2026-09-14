@@ -2609,7 +2609,20 @@ namespace MBI.Logistics
             if (cellScreenPx <= 0f) return;
 
             float fontScale = cellScreenPx / ZonePx;
-            int fontPx = Mathf.Max(1, Mathf.RoundToInt(ZoneLabelFontPx * fontScale));
+
+            // ⚠️ **스냅을 빠뜨린 자리였다**(2026-09-15 육안 ④ · 09-14 §72-12 1 의 남은 하나).
+            //
+            // 「팔R」이 「판1」로, 「다리R」이 「다리ㅁ」으로 나왔다. **폰트 폴백이 아니다** —
+            // NotoSansKR 에는 R·L·0·1 이 다 있다(cmap 으로 확인). 09-14 에 「마운트」가
+            // 「마으ㅌ」로 나온 것과 **같은 병**이다: 유니티 동적 폰트는 **크기마다 글리프를
+            // 따로 굽는데**, 여기 `fontScale` 은 `칸 화면 픽셀 / 96` 이라 **줌을 움직일 때마다
+            // 새 크기가 생긴다.** 한글은 완성형이라 아틀라스가 금세 차고, 차면 굽지 못한
+            // 글리프가 **엉뚱한 글리프로** 찍힌다.
+            //
+            // 09-14 에 `KoreanFont.Snap` 을 들여놓으면서 **계산값이 들어가는 이 한 곳을
+            // 빠뜨렸다**(같은 파일 2478 줄은 쓰고 있었다).
+            int fontPx = KoreanFont.Snap(
+                Mathf.Max(1, Mathf.RoundToInt(ZoneLabelFontPx * fontScale)));
 
             var style = new GUIStyle(GUI.skin.label)
             {
