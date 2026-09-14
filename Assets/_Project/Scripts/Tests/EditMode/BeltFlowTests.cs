@@ -175,24 +175,32 @@ namespace MBI.Tests
         // ---- 연결 판정과의 관계 ----
 
         /// <summary>
-        /// **흘리지 않으면 링크가 서지 않는다.** BuildLinks가 벨트↔벨트에 품목 일치를 요구하므로,
-        /// 설치 시의 임의 품목으로는 군수 노드에서 나온 라인이 이어지지 않는다.
-        /// 이 테스트가 BeltFlow가 존재하는 이유 자체다.
+        /// ⚠️ **뒤집은 단언**(2026-09-14 사용자 확정 · §72-29).
+        ///
+        /// 구 시험은 「흘리지 않으면 링크가 안 선다」였다 — `BuildLinks` 가 **벨트↔벨트에도
+        /// 품목 일치**를 요구했기 때문이다. 그 관문이 표준탄 줄과 폭발탄 줄을 한 포트로
+        /// 못 모으게 하던 자리라 **걷었다.**
+        ///
+        /// 이제 **벨트끼리는 면만 맞으면 잇는다** — 품목은 벨트 위에 섞여 흐르고,
+        /// 가리는 곳은 **노드 입력 하나뿐**이다.
         /// </summary>
         [Test]
-        public void WithoutResolve_TheLineDoesNotConnect()
+        public void BeltToBelt_LinksRegardlessOfKind()
         {
             var g = Grid();
             g.TryPlace(new Vector2Int(1, 1), _muni, out _);
             LayStraight(g, 2, 1);
             LayStraight(g, 3, 1);
 
-            int before = BeltRouting.BuildLinks(g).Count;
+            // 흘리기 전에도 **벨트끼리는 이미 이어져 있다**.
+            Assert.AreEqual(2, BeltRouting.BuildLinks(g).Count, "군수→벨트 · 벨트→벨트");
 
             BeltFlow.Resolve(g);
-            int after = BeltRouting.BuildLinks(g).Count;
+            Assert.AreEqual(2, BeltRouting.BuildLinks(g).Count, "흘려도 수는 그대로다");
 
-            Assert.Greater(after, before, "흘린 뒤에 링크가 선다");
+            // 흘리기는 **표시 품목**을 정한다 — 흐름 판정이 아니라 색과 진단이 읽는다.
+            Assert.AreEqual(FlowKind.StandardAmmo, KindAt(g, 2, 1));
+            Assert.AreEqual(FlowKind.StandardAmmo, KindAt(g, 3, 1));
         }
 
         /// <summary>

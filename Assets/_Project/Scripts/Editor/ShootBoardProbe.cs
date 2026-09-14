@@ -209,36 +209,41 @@ namespace MBI.EditorTools
         {
             sb.AppendLine();
             sb.AppendLine("[4] 한 포트에 두 탄종을 모으면 — 140/180 의 전제");
+            const RecipeKind ammo = RecipeKind.ExplosiveAmmo;
 
             var g = new BoardGrid(12, 14, 1f, Vector2.zero, PartLayout.BuildMask());
 
-            // 표준 줄 : 코어(5,8) 동면 -> 가공(6,8) -> 기초 군수(7,8) -> 표준탄
+            // 표준 줄 — 코어(5,8) 동면 -> 가공(6,8) -> 기초 군수(7,8) -> 표준탄
             g.TryPlace(new Vector2Int(5, 8), Node("core"), out _);
             g.TryPlace(new Vector2Int(6, 8), Node("proc"), out _);
             g.TryPlace(new Vector2Int(7, 8), Node("muni"), out _);
             g.TryPlaceBelt(new Vector2Int(8, 8), PortFace.West, PortFace.South, FlowKind.None, out _);
 
-            // 폭발 줄 : 코어 남면 -> 가공(6,7 · 발전재료) · 가공(6,6)->군수(7,6)->복합(8,6)
-            g.TryPlaceBelt(new Vector2Int(5, 7), PortFace.North, PortFace.East, FlowKind.None, out _);
-            g.TryPlace(new Vector2Int(6, 7), Node("proc"), out NodeInstance pm);
-            pm.SelectRecipe(RecipeKind.PowerMaterial);
-            g.TryPlaceBelt(new Vector2Int(7, 7), PortFace.West, PortFace.South, FlowKind.None, out _);
-
+            // 코어 서면 -> 분류기(4,7) 가 폭발 줄 둘(재료·발전재료)에 나눠 먹인다
             g.TryPlaceBelt(new Vector2Int(4, 8), PortFace.East, PortFace.South, FlowKind.None, out _);
-            g.TryPlaceBelt(new Vector2Int(4, 7), PortFace.North, PortFace.South, FlowKind.None, out _);
-            g.TryPlaceBelt(new Vector2Int(4, 6), PortFace.North, PortFace.East, FlowKind.None, out _);
-            g.TryPlace(new Vector2Int(5, 6), Node("proc"), out _);
-            g.TryPlace(new Vector2Int(6, 6), Node("muni"), out _);
-            g.TryPlace(new Vector2Int(7, 6), Node("munix"), out NodeInstance mx);
-            mx.SelectRecipe(RecipeKind.ExplosiveAmmo);
-
-            // 둘을 x8 기둥에서 병합기로 모아 운반로 y5 -> 마운트 A(1,4 남면)
-            g.TryPlaceBeltElement(new Vector2Int(8, 6), BeltElementKind.Merger,
-                StartingBoard.MergerInFaces(PortFace.South), new[] { PortFace.South },
+            g.TryPlaceBeltElement(new Vector2Int(4, 7), BeltElementKind.Sorter,
+                new[] { PortFace.North }, new[] { PortFace.East, PortFace.South },
                 FlowKind.None, out _);
+            g.TryPlaceBelt(new Vector2Int(4, 6), PortFace.North, PortFace.East, FlowKind.None, out _);
+
+            // 폭발 본줄 (y7) — 가공(기초재료) -> 기초 군수(표준탄) -> 복합 군수(폭발탄)
+            g.TryPlace(new Vector2Int(5, 7), Node("proc"), out _);
+            g.TryPlace(new Vector2Int(6, 7), Node("muni"), out _);
+            g.TryPlace(new Vector2Int(7, 7), Node("munix"), out NodeInstance mx);
+            mx.SelectRecipe(ammo);
+
+            // ⚠️ 둘째 재료는 **남면**으로 든다 — 아래 줄(y6)이 꺾어 올려 준다.
+            g.TryPlace(new Vector2Int(5, 6), Node("proc"), out NodeInstance pm);
+            pm.SelectRecipe(ammo == RecipeKind.ExplosiveAmmo
+                ? RecipeKind.PowerMaterial : RecipeKind.BasicParts);
+            g.TryPlaceBelt(new Vector2Int(6, 6), PortFace.West, PortFace.East, FlowKind.None, out _);
+            g.TryPlaceBelt(new Vector2Int(7, 6), PortFace.West, PortFace.North, FlowKind.None, out _);
+
+            // x8 기둥에서 표준 줄과 폭발 줄을 **병합기**로 모아 운반로 y5 -> 마운트 A(1,4 남면)
             g.TryPlaceBeltElement(new Vector2Int(8, 7), BeltElementKind.Merger,
                 StartingBoard.MergerInFaces(PortFace.South), new[] { PortFace.South },
                 FlowKind.None, out _);
+            g.TryPlaceBelt(new Vector2Int(8, 6), PortFace.North, PortFace.South, FlowKind.None, out _);
             g.TryPlaceBelt(new Vector2Int(8, 5), PortFace.North, PortFace.West, FlowKind.None, out _);
             for (int x = 7; x >= 2; x--)
                 g.TryPlaceBelt(new Vector2Int(x, 5), PortFace.East, PortFace.West, FlowKind.None, out _);

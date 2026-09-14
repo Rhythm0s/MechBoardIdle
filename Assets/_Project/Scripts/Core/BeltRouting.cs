@@ -88,8 +88,17 @@ namespace MBI.Core
                 return;
             }
 
+            // ⚠️ **벨트끼리는 품목을 안 가린다**(2026-09-14 사용자 확정 · §72-29).
+            //
+            // 종전에는 `nbBelt.Kind == kind` 로 **이웃 벨트의 품목까지** 맞춰야 링크가 섰다.
+            // 그래서 표준탄 줄과 폭발탄 줄을 병합기로 모으면 **한 종류로 굳고 나머지가
+            // 끊겼고**, 한 마운트 포트에 두 탄종이 영영 못 닿았다(하네스 `203897e`).
+            //
+            // 벨트는 **아이템 단위**다 — 위에 품목이 각자 놓여 섞여 흐르고, 병합기·분류기는
+            // 품목이 달라도 합류·분배한다. **품목을 가리는 곳은 노드 입력 하나뿐**이며
+            // 그것은 위 `HasInputPort` 가 조합표로 판정한다(`0a973da` 그대로).
             BeltInstance nbBelt = grid.GetBeltAt(nb);
-            if (nbBelt != null && nbBelt.Kind == kind && HasInFace(nbBelt, need)) // 병합기: 다중 입력면 수용
+            if (nbBelt != null && HasInFace(nbBelt, need)) // 병합기: 다중 입력면 수용
                 links.Add(new BeltLink { fromCell = cell, toCell = nb, kind = kind });
         }
 

@@ -87,6 +87,10 @@ namespace MBI.Core
         private readonly Dictionary<Vector2Int, int> _cursor = new Dictionary<Vector2Int, int>();
 
         // 칸 → 그 벨트가 나르는 품목. 분류기가 갈래를 고를 때 읽는다.
+        /// <summary>소비처가 **지금 조합표로 먹는 품목**. 없으면 전부 받는다(저장·조합표 없는 노드).</summary>
+        private readonly Dictionary<Vector2Int, HashSet<FlowKind>> _consumerAccepts =
+            new Dictionary<Vector2Int, HashSet<FlowKind>>();
+
         private readonly Dictionary<Vector2Int, FlowKind> _cellKind =
             new Dictionary<Vector2Int, FlowKind>();
 
@@ -152,6 +156,7 @@ namespace MBI.Core
             _next.Clear();
             _cursor.Clear();
             _cellKind.Clear();
+            _consumerAccepts.Clear();
             _consumers.Clear();
             _mountExits.Clear();
             if (grid == null) { _lanes.Clear(); return; }
@@ -164,7 +169,31 @@ namespace MBI.Core
             for (int y = 0; y < grid.Rows; y++)
             {
                 var c = new Vector2Int(x, y);
-                if (grid.GetAt(c) != null) { _consumers.Add(c); continue; }
+                NodeInstance consumer = grid.GetAt(c);
+                if (consumer != null)
+                {
+                    _consumers.Add(c);
+
+                    // ⚠️ **품목을 가리는 곳은 여기 하나다**(2026-09-14 사용자 확정 · §72-29).
+                    //
+                    // 벨트가 아이템 단위가 되면서 한 칸 위에 품목이 섞여 흐른다. 섞인 줄이
+                    // 노드에 닿을 때 **아무거나 먹이면** 복합 군수가 안 먹는 탄약을 삼킨다 —
+                    // 링크는 벨트의 **표시 품목** 하나로만 서므로 링크만으로는 못 막는다.
+                    //
+                    // 저장은 조합표가 없고 「무엇이든 맡아 둔다」가 그 뜻이라 **전부 받는다.**
+                    if (consumer.Definition != null
+                        && consumer.Definition.type != NodeType.Storage
+                        && consumer.Definition.recipes != null
+                        && consumer.Definition.recipes.Count > 0)
+                    {
+                        var eats = new HashSet<FlowKind>();
+                        NodeRecipe r = consumer.CurrentRecipe;
+                        if (r.inputs != null)
+                            foreach (RecipeInput input in r.inputs) eats.Add(input.kind);
+                        _consumerAccepts[c] = eats;
+                    }
+                    continue;
+                }
                 BeltInstance belt = grid.GetBeltAt(c);
                 if (belt == null) continue;
 
@@ -206,7 +235,13 @@ namespace MBI.Core
         /// </summary>
         public bool TryInsert(Vector2Int cell, FlowKind kind)
         {
-            if (_consumers.Contains(cell)) { Arrive(cell, kind); return true; }
+            if (_consumers.Contains(cell))
+            {
+                if (_consumerAccepts.TryGetValue(cell, out HashSet<FlowKind> eats)
+                    && !eats.Contains(kind)) return false;
+                Arrive(cell, kind);
+                return true;
+            }
 
             List<BeltItem> lane = LaneOf(cell);
             if (!HasRoomAtEntry(lane)) return false;
@@ -379,9 +414,19 @@ namespace MBI.Core
             // 커서를 두 루프가 함께 쓰고, 넘길 때마다 한 칸 전진시킨다.
             int start = _cursor.TryGetValue(cell, out int c) ? c : 0;
 
-            // 1차 — **품목이 맞는** 갈래. 노드로 가는 링크는 품목이 맞을 때만 서므로
-            // (`BeltRouting.TryLink`의 HasInputPort) 거기 왔다는 것 자체가 받을 수 있다는 뜻이다.
-            // 노드 칸에는 아이템을 얹지 않는다.
+            // ⚠️ **관문이 하나로 줄었다 — 자리가 있는가**(2026-09-14 사용자 확정 · §72-29).
+            //
+            // 종전에는 루프가 둘이었다: 1차는 **가는 칸의 품목이 내 품목과 같을 때만** 넘기고,
+            // 2차가 「안 맞아도 자리가 있으면」 받아 주는 폴백이었다. 그 1차 관문이
+            // 벨트 위에서 품목을 갈라 **섞여 흐르지 못하게** 하던 자리다.
+            //
+            // 벨트는 아이템 단위다. **분류기 커서는 도착 순서대로 하나씩 돌리고 품목은
+            // 안 본다** — 갈래를 나누는 것은 「무엇인가」가 아니라 「차례」다.
+            // 품목을 가리는 곳은 **노드 입력 하나뿐**이고, 노드로 가는 링크는 조합표가
+            // 맞을 때만 서므로(`BeltRouting.HasInputPort`) 거기 왔다는 것 자체가
+            // 받을 수 있다는 뜻이다. 노드 칸에는 아이템을 얹지 않는다.
+            //
+            // ⚠️ **간격 규칙은 안 건드린다** — `HasRoomAtEntry` 가 그대로 앞 칸을 지킨다.
             for (int n = 0; n < outs.Count; n++)
             {
                 int idx = (start + n) % outs.Count;
@@ -389,26 +434,15 @@ namespace MBI.Core
 
                 if (_consumers.Contains(to))
                 {
+                    // 안 먹는 품목은 **그 갈래로 안 보낸다** — 다음 갈래를 본다.
+                    if (_consumerAccepts.TryGetValue(to, out HashSet<FlowKind> eats)
+                        && !eats.Contains(item.kind)) continue;
+
                     Arrive(to, item.kind);
                     _cursor[cell] = (idx + 1) % outs.Count;
                     return true;
                 }
 
-                if (!_cellKind.TryGetValue(to, out FlowKind kind) || kind != item.kind) continue;
-                if (!HasRoomAtEntry(LaneOf(to))) continue;
-
-                LaneOf(to).Add(new BeltItem { kind = item.kind, progress = 0f });
-                _cursor[cell] = (idx + 1) % outs.Count;
-                return true;
-            }
-
-            // 2차 — 품목이 안 맞아도 자리가 있는 갈래. 라인 끝에서 물건이 사라지는 것보다
-            // 엉뚱한 갈래로라도 흘러 정체가 눈에 보이는 편이 낫다.
-            for (int n = 0; n < outs.Count; n++)
-            {
-                int idx = (start + n) % outs.Count;
-                Vector2Int to = outs[idx];
-                if (_consumers.Contains(to)) continue; // 1차에서 이미 봤다
                 if (!HasRoomAtEntry(LaneOf(to))) continue;
 
                 LaneOf(to).Add(new BeltItem { kind = item.kind, progress = 0f });
