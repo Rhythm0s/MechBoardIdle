@@ -592,16 +592,15 @@ namespace MBI.Logistics
                 config.usePartLayout ? PartLayout.BuildMask() : null);
 
             _baseWorldPosition = transform.position;
-            // ⚠️ **가로 여유는 한 칸이다**(2026-09-14 · §72-13 으로 줄었다).
-            // 별도 그림 칸(구 x−2)이 폐기돼 A 는 **슬롯 묶음(x−1)만** 바깥에 선다.
-            // B 는 머리 옆 빈 열이라 격자 안이다. 좌우 한 칸씩이라 폭에 두 칸을 더한다 —
-            // **문서의 13칸과 이것으로 맞는다.**
+            // ⚠️ **가로 여유가 없어졌다**(2026-09-14 · A 묶음도 격자 안으로 들어왔다).
+            // A 는 팔R 아래 빈 칸(x1 · y0~3), B 는 머리 옆 빈 열(x3 · x8) —
+            // **바깥으로 나가는 것이 하나도 없다.** 격자 폭 그대로 조인다.
             //
             // ⚠️ **세로는 더하지 않는다 — `config.rows` 가 이미 14 칸이다**(§72-6).
             // 마운트 전용 줄(y13)이 격자 **안**에 생겨서, 보드 높이가 그만큼 늘면
             // 스크롤 범위도 따라 늘어 맨 윗줄까지 닿는다. 구판은 13 칸이었다.
             _pan = new BoardPan(
-                new Vector2((config.columns + 2) * config.cellSize, config.rows * config.cellSize),
+                new Vector2(config.columns * config.cellSize, config.rows * config.cellSize),
                 new Vector2(viewSizeCells.x * config.cellSize, viewSizeCells.y * config.cellSize));
 
             BuildGridVisual(); // §C-4 설치 가능 그리드 영역 표시(런타임).

@@ -25,10 +25,12 @@ namespace MBI.Tests
         [Test]
         public void 슬롯_묶음은_A는_바깥_B는_머리_옆이다()
         {
-            // A — 포트 (0,6) 서면 → x −1 · y 5~8.
-            Assert.AreEqual(new Vector2Int(-1, 5),
+            // A — 포트는 (0,6) 서면 그대로지만 **표시는 격자 안**이다: x1 · y0~3.
+            // 면을 따라가면 x−1(격자 밖)인데, 포트는 못 옮긴다 — 시작 보드의 운반로가
+            // 그 칸에서 끝나고 물류 도달 판정이 거기 걸려 있다.
+            Assert.AreEqual(new Vector2Int(1, 0),
                 MountDisplay.SlotCell(new Vector2Int(0, 6), PortFace.West, MountOwner.RobotA, 0));
-            Assert.AreEqual(new Vector2Int(-1, 8),
+            Assert.AreEqual(new Vector2Int(1, 3),
                 MountDisplay.SlotCell(new Vector2Int(0, 6), PortFace.West, MountOwner.RobotA, 3));
 
             // B 왼쪽 — 어깨R 안쪽 면 (2,10) 동면 → x 3 · y 10~13.
@@ -83,23 +85,28 @@ namespace MBI.Tests
         }
 
         /// <summary>
-        /// **바깥으로 나가는 것은 A 의 묶음 한 열뿐이다** (§72-13 로 그림 칸이 폐기됐다).
+        /// **바깥으로 나가는 것이 하나도 없다** (2026-09-14 · A 묶음도 격자 안으로).
         ///
-        /// 그래서 가로 여유가 **두 칸에서 한 칸으로** 줄었고, 문서의 13칸과 맞는다.
+        /// 그래서 **가로 여유가 0** 이 됐다 — 격자 폭 그대로 스크롤을 조인다.
+        /// A 는 팔R 아래 빈 칸(x1 · y0~3) · B 는 머리 옆 빈 열(x3 · x8)이다.
         /// </summary>
         [Test]
-        public void 바깥으로_나가는_것은_A_묶음_한_열뿐이다()
+        public void 묶음이_모두_격자_안에_있다()
         {
             foreach (MountPort mp in PartLayout.MountPorts)
-            {
-                int column = MountDisplay.SlotColumn(mp.cell, mp.face);
+                for (int i = 0; i < MountDisplay.SlotsPerPort; i++)
+                {
+                    Vector2Int c = MountDisplay.SlotCell(mp.cell, mp.face, mp.owner, i);
 
-                if (mp.owner == MountOwner.RobotB)
-                    Assert.IsTrue(column >= 0 && column < PartLayout.Columns,
-                        $"B 의 묶음이 격자 밖으로 나갔다: x{column}");
-                else
-                    Assert.AreEqual(-1, column, "A 의 묶음은 왼쪽 한 칸 바깥이다");
-            }
+                    Assert.IsTrue(c.x >= 0 && c.x < PartLayout.Columns,
+                        $"{mp.owner} 의 묶음이 가로로 격자 밖이다: {c}");
+                    Assert.IsTrue(c.y >= 0 && c.y < PartLayout.Rows,
+                        $"{mp.owner} 의 묶음이 세로로 격자 밖이다: {c}");
+
+                    // 그러면서도 **노드는 못 놓는 자리**여야 한다 — 둘 다 지켜야 한다.
+                    Assert.IsFalse(PartLayout.IsValid(c),
+                        $"{mp.owner} 의 슬롯 {c} 에 노드를 놓을 수 있다");
+                }
         }
 
         /// <summary>
@@ -154,8 +161,8 @@ namespace MBI.Tests
             Assert.IsTrue(MountDisplay.FlipX(
                 new Vector2Int(9, 10), PortFace.West, MountOwner.RobotB));
 
-            // A — 실루엣 **바깥**이라 몸이 늘 안쪽(오른쪽)이다.
-            Assert.IsTrue(MountDisplay.FlipX(
+            // A — 묶음이 팔R **바로 아래**라 몸이 **위**에 있다. 좌우로 가를 것이 없다.
+            Assert.IsFalse(MountDisplay.FlipX(
                 new Vector2Int(0, 6), PortFace.West, MountOwner.RobotA));
 
             // ⚠️ **B 둘이 같으면 한쪽이 안 뒤집힌 것이다** — 대칭이 깨진다.

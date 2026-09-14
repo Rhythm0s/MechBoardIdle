@@ -41,7 +41,7 @@ namespace MBI.Core
         /// A 는 팔R(y 4~8) **바깥**, B 는 머리 옆 **빈 열**(x3 · x8)이다.
         /// B 는 y10~13 이며 맨 위 y13 은 §72-6 이 신설한 **마운트 전용 줄**이다.
         /// </summary>
-        public static int SlotRowStart(MountOwner owner) => owner == MountOwner.RobotB ? 10 : 5;
+        public static int SlotRowStart(MountOwner owner) => owner == MountOwner.RobotB ? 10 : 0;
 
         /// <summary>
         /// 이 묶음이 맡아 **보여 주는** 슬롯의 첫 번호 — **왼쪽이 0~3 · 오른쪽이 4~7**.
@@ -67,11 +67,29 @@ namespace MBI.Core
             face == PortFace.East ? portCell.x + 1 : portCell.x - 1;
 
         /// <summary>
+        /// **로봇 A 의 묶음 열** — `x1` 고정 (2026-09-14 · 「A 도 B 처럼 노드에 붙여라」).
+        ///
+        /// **왜 포트에서 안 끌어오는가.** A 포트는 `(0,6)` **서면**이라 면을 따라가면
+        /// `x−1` — **격자 밖**이다. 그런데 A 포트는 못 옮긴다: `StartingBoard` 의 운반로가
+        /// 그 칸에서 끝나고(「마지막 칸은 (0,6)」), 물류 도달 판정이 거기 걸려 있다.
+        /// **옮기면 시작 보드가 깨진다.**
+        ///
+        /// 그래서 **포트는 그대로 두고 표시만** 격자 안으로 넣는다 —
+        /// 팔R(x0~2 · y4~8) **바로 아래**의 빈 칸(x0~2 · y0~3)이다. 다리는 x3~8 이라
+        /// 그 열두 칸은 **어느 파츠도 아니고 노드도 못 놓는다.**
+        /// </summary>
+        public const int RobotAColumn = 1;
+
+        /// <summary>그 로봇의 묶음이 서는 열.</summary>
+        public static int GroupColumn(Vector2Int portCell, PortFace face, MountOwner owner) =>
+            owner == MountOwner.RobotB ? SlotColumn(portCell, face) : RobotAColumn;
+
+        /// <summary>
         /// 묶음 안 <paramref name="i"/>번째(0~3) 칸. **아래에서 위로 쌓는다** —
         /// 슬롯 번호가 커질수록 위다(채움이 아래에서 위로 차는 것과 같은 방향).
         /// </summary>
         public static Vector2Int SlotCell(Vector2Int portCell, PortFace face, MountOwner owner, int i) =>
-            new Vector2Int(SlotColumn(portCell, face), SlotRowStart(owner) + i);
+            new Vector2Int(GroupColumn(portCell, face, owner), SlotRowStart(owner) + i);
 
         /// <summary>
         /// 묶음 네 칸의 **세로 칸 수** — 그림을 이만큼 늘린다 (2026-09-14 · §72-13).
@@ -103,8 +121,10 @@ namespace MBI.Core
         /// </summary>
         public static bool FlipX(Vector2Int portCell, PortFace face, MountOwner owner)
         {
-            // A 는 실루엣 바깥이라 몸이 늘 오른쪽이다.
-            if (owner != MountOwner.RobotB) return true;
+            // ⚠️ **A 는 뒤집지 않는다**(2026-09-14 · 자리가 격자 안으로 옮겨졌다).
+            // 종전에는 실루엣 **바깥**이라 몸이 늘 오른쪽이었는데, 이제 묶음이 팔R **바로
+            // 아래**라 몸이 **위**에 있다 — 좌우로는 가를 것이 없다. 육안에서 반대면 여기다.
+            if (owner != MountOwner.RobotB) return false;
 
             // B 는 그림이 보드의 어느 쪽에 섰는가로 갈린다.
             return SlotColumn(portCell, face) * 2 >= PartLayout.Columns;
