@@ -2323,7 +2323,15 @@ namespace MBI.Logistics
             // 글자를 **아래로** 민다 — 위쪽은 노드 그림이 쓴다(`DrawPaletteThumb`).
             style.padding = new RectOffset(2, 2, Mathf.RoundToInt(side * 0.56f), 2);
 
-            int slots = palette.Count + 2 + (modulePalette != null ? modulePalette.Count : 0) + 1;
+            // ⚠️ **칸 수를 세는 자리다 — 버튼을 더하면 여기도 더해야 한다**(2026-09-15 결함).
+            //
+            // `a27182a` 에서 「방향」 버튼을 넣고 **이 줄을 안 고쳤다.** 스크롤 내용 폭이
+            // 한 칸 모자라 **맨 끝 「제거」에 손이 안 닿았다** — 화면에서는
+            // 「S1 에서 벨트 제거가 안 된다」로 보였다(사용자 육안 09-15).
+            //
+            // 팔레트 n + **방향 1** + 병합기·분류기 2 + 모듈 m + 제거 1.
+            int slots = palette.Count + 1 + 2
+                        + (modulePalette != null ? modulePalette.Count : 0) + 1;
             float step = side + pad;
             var view = new Rect(band.x + pad, band.y + pad,
                 band.width - pad * 2f, band.height - pad * 2f);

@@ -19,7 +19,7 @@ MonoBehaviour:
   enemyMoveSpeedTbd: 1.5
   enemyAttackRangeTbd: 1
   enemyAttackIntervalTbd: 1
-  spawnCadenceTbd: 0.15
+  spawnCadenceTbd: 0.8
   arenaRadiusTbd: 6
   spawnRingMinTbd: 4
   spawnRingMaxTbd: 14
