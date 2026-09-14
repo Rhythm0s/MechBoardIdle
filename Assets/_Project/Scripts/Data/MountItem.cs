@@ -32,6 +32,24 @@ namespace MBI.Data
             }
         }
 
+        /// <summary>
+        /// 마운트 품목 → **벨트를 흐르는 품목** (2026-09-14 · §72-24 ③).
+        ///
+        /// 슬롯 칸에 그릴 아이콘을 `BoardArtSet.ItemSprite` 에서 고르려면 이 대응이 필요하다.
+        /// **여기서 새로 정하는 것이 없다** — 이미 선 대응을 반대로 읽을 뿐이다.
+        /// </summary>
+        public static FlowKind ToFlow(MountItem item)
+        {
+            switch (item)
+            {
+                case MountItem.Pierce: return FlowKind.PierceAmmo;
+                case MountItem.Standard: return FlowKind.StandardAmmo;
+                case MountItem.Explosive: return FlowKind.ExplosiveAmmo;
+                case MountItem.Drone: return FlowKind.StackDrone;
+                default: return FlowKind.None;
+            }
+        }
+
         /// <summary>탄약 품목인가(드론은 아니다).</summary>
         public static bool IsAmmo(MountItem item) =>
             item == MountItem.Pierce || item == MountItem.Standard || item == MountItem.Explosive;

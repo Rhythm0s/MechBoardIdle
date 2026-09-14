@@ -516,6 +516,9 @@ namespace MBI.Logistics
         private readonly List<Vector2Int> _mountSlotCells = new List<Vector2Int>();
         private readonly List<SpriteRenderer> _mountSlotEdges = new List<SpriteRenderer>();
 
+        /// <summary>슬롯마다 **무엇이 실렸는지** 그리는 아이콘 (§72-24 ③).</summary>
+        private readonly List<SpriteRenderer> _mountSlotIcons = new List<SpriteRenderer>();
+
         /// <summary>테두리 하나하나의 임자 — **활성 로봇 것만 보인다**(§72-24 ②).</summary>
         private readonly List<MountOwner> _mountSlotEdgeOwners = new List<MountOwner>();
 
@@ -935,6 +938,33 @@ namespace MBI.Logistics
                     : MountDisplay.FillRatio(SupplySignals.MountSlotAmount[slot],
                                              SupplySignals.MountStackLimit);
 
+                // ⚠️ **무엇이 실렸는지는 그림이 말한다**(2026-09-14 · §72-24 ③).
+                //
+                // 틴트만 두면 **색을 외워야** 읽힌다. 아이콘을 깔면 색은 「얼마나 찼나」로,
+                // 그림은 「무엇이 실렸나」로 역할이 갈린다 — 틴트는 그대로 얹힌다.
+                //
+                // ⚠️ **그림이 없으면 안 그린다** — 폴백 사각을 놓으면 「무엇인지 모를 것이
+                // 실렸다」가 되어 빈 칸보다 나쁘다.
+                if (i < _mountSlotIcons.Count && _mountSlotIcons[i] != null)
+                {
+                    SpriteRenderer ic = _mountSlotIcons[i];
+                    Sprite want = item == MountItem.None || art == null
+                        ? null : art.ItemSprite(MountItemMap.ToFlow(item));
+
+                    bool showIcon = want != null;
+                    if (ic.enabled != showIcon) ic.enabled = showIcon;
+                    if (showIcon)
+                    {
+                        if (ic.sprite != want)
+                        {
+                            ic.sprite = want;
+                            float u = FitScale(want, cell);
+                            ic.transform.localScale = new Vector3(u, u, 1f);
+                        }
+                        ic.color = Color.white;
+                    }
+                }
+
                 // ⚠️ **틴트다**(2026-09-14 · §72-13) — 칸을 색으로 덮는 것이 아니라
                 // **그림 위에 품목색을 얹는다.** 빈 칸은 얹지 않아 그림만 남는다.
                 if (ratio <= 0f) { if (sr.enabled) sr.enabled = false; continue; }
@@ -1061,6 +1091,7 @@ namespace MBI.Logistics
             _mountSlotCells.Clear();
             _mountSlotEdges.Clear();
             _mountSlotEdgeOwners.Clear();
+            _mountSlotIcons.Clear();
 
             float cell = _grid.CellSize;
             float t = cell * MountSlotEdgeWidth;
@@ -1082,13 +1113,27 @@ namespace MBI.Logistics
                     _mountSlotEdges.Add(SlotEdge(parent, w.x + cell * 0.5f, w.y, t, cell));
                     for (int e = 0; e < 4; e++) _mountSlotEdgeOwners.Add(mp.owner);
 
+                    // ⚠️ **품목 아이콘 한 장**(2026-09-14 · §72-24 ③).
+                    //
+                    // 틴트만으로는 **색을 외워야** 무엇이 실렸는지 안다. 아이콘을 깔면
+                    // 색은 「얼마나 찼나」로, 그림은 「무엇이 실렸나」로 **역할이 갈린다.**
+                    // 틴트는 그대로 둔다 — 아이콘이 색을 대신하는 것이 아니다.
+                    var icon = new GameObject($"MountIcon_{mp.owner}_{first + i}");
+                    icon.transform.SetParent(parent, false);
+                    icon.transform.position = w;
+                    var iconSr = icon.AddComponent<SpriteRenderer>();
+                    iconSr.sortingOrder = MarkerOrder - 1;   // 그림 위 · 틴트 아래
+                    iconSr.enabled = false;                  // 실린 것이 없으면 안 그린다
+                    _mountSlotIcons.Add(iconSr);
+
                     var go = new GameObject($"MountSlot_{mp.owner}_{first + i}");
                     go.transform.SetParent(parent, false);
                     go.transform.position = w;
                     var sr = go.AddComponent<SpriteRenderer>();
                     sr.sprite = UnitSprite();
-                    // ⚠️ **그림보다 위** — 틴트는 그림에 얹히는 것이다(그림은 MarkerOrder−2).
-                    sr.sortingOrder = MarkerOrder - 1;
+                    // ⚠️ **아이콘보다 위** — 틴트는 얹히는 것이다
+                    // (그림 MarkerOrder−2 < 아이콘 MarkerOrder−1 < 틴트 MarkerOrder).
+                    sr.sortingOrder = MarkerOrder;
                     sr.enabled = false;   // 채움이 0이면 아예 안 그린다
 
                     _mountSlotFills.Add(sr);
