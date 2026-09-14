@@ -1255,7 +1255,17 @@ namespace MBI.Combat
             // ⚠️ **조립 화면에서는 이 글자가 전투 그림 위에 얹힌다**(2026-09-10 · 플랜 §66-35 ②).
             // 상단 인셋을 켠 대가라, 글자가 있는 자리만 어둡게 깔아 대비를 되돌린다.
             // **블록 단위로만** 깐다 — 위쪽을 통째로 덮으면 전투를 그린 뜻이 사라진다.
-            var hud = new Rect(12, 10, 560, 280);
+            // ⚠️ **날 픽셀 자리를 전투 띠 안으로 가둔다**(2026-09-14 · §72-12 1).
+            // `(12, 10, 560, 280)` 은 **창 크기와 무관한 고정 자리**라, 창이 작으면
+            // 그 사각이 **전투 인셋과 아래 띠를 통째로 가린다.**
+            //
+            // ⚠️ **비례로 줄이지 않는다** — 그러면 작은 화면에서 글자가 못 읽게 된다.
+            // 큰 화면에서는 종전 그대로 560×280 이고, 작은 화면에서만 **띠 안으로 접힌다.**
+            Rect combatBand = UiLayout.BandRect(UiLayout.Band.Combat, Screen.width, Screen.height);
+            var hud = new Rect(
+                12f, combatBand.y + 10f,
+                Mathf.Min(560f, Screen.width - 24f),
+                Mathf.Min(280f, combatBand.height - 20f));
             if (GameViewSignals.BoardViewActive) UiPlate.Draw(hud);
 
             GUILayout.BeginArea(hud);
@@ -1292,7 +1302,10 @@ namespace MBI.Combat
             {
                 if (_sim.Result != CombatResult.InProgress)
                 {
-                    GUILayout.BeginArea(new Rect(12, 300, 560, 160));
+                    GUILayout.BeginArea(new Rect(
+                        12f, hud.yMax + 10f,
+                        Mathf.Min(560f, Screen.width - 24f),
+                        Mathf.Min(160f, Mathf.Max(0f, combatBand.yMax - hud.yMax - 20f))));
                     GUILayout.Label(ResultText(), big);
                     if (GUILayout.Button("다시 (Restart)", GUILayout.Width(160), GUILayout.Height(34)))
                         Restart();
@@ -1475,7 +1488,9 @@ namespace MBI.Combat
             // (2026-09-09 사용자 확정 · UI 문서 3-3).
             HudBars.Segments(HudBars.Row(300f), _ammoSegments, _sim.AmmoCapacity, _hudSegment,
                 keepEmpty: true);
-            GUILayout.Label($"재고 {_sim.AmmoStock:F0}/{_sim.AmmoCapacity:F0}", _hudSmall);
+            // ⚠️ **「창고」다**(2026-09-14 정정) — 마운트 적재와 **다른 층**이다.
+            // 「재고」로 적어 두니 「마운트 적재 30」과 나란히 놓였을 때 **모순으로 읽혔다.**
+            GUILayout.Label($"창고 {_sim.AmmoStock:F0}/{_sim.AmmoCapacity:F0}", _hudSmall);
             GUILayout.EndHorizontal();
         }
 
@@ -1525,7 +1540,10 @@ namespace MBI.Combat
             // req가 0인데, 그대로 그리면 화면이 「요구 0 [충족 80]」이라고 한다 —
             // 없는 것을 말하고 판정까지 내리는 것이다(2026-09-01 브라우저 실측, A구간에 찍힌다).
             string req = HasRequirement ? $"  /  요구 {ReqLabel()}{ReqBadge()}" : "";
-            string line = $"물류 출력  예상 {exp:F0} · 실제 {act:F0} · 갭 {gap:F0}{req}  ·  마운트계수 {_mountCoef:F2}";
+            // ⚠️ **「물류 실제」다**(2026-09-14 정정) — 이 값은 **물류 산출률**이고
+            // 하네스의 「완료 출력」(마운트 도착 수 환산)과 **정의가 다르다.**
+            // 그냥 「실제」로 두니 둘을 같은 자를 잰 값으로 읽게 됐다.
+            string line = $"물류 출력  예상 {exp:F0} · 물류 실제 {act:F0} · 갭 {gap:F0}{req}  ·  마운트계수 {_mountCoef:F2}";
             string badge = CauseBadge();
             return badge.Length > 0 ? line + "   " + badge : line;
         }
@@ -1544,22 +1562,32 @@ namespace MBI.Combat
 
         private static bool Blink() => ((int)(Time.unscaledTime * 2.5f) & 1) == 0;
 
-        /// <summary>탄약 표시(§C-2): 마운트 용량(종당) + 탄종별 현재 물류 공급율(발/초). 재고 변동은 물류연동 #1 이후.</summary>
+        /// <summary>
+        /// 탄약 표시(§C-2) — 마운트 용량(종당) + **지금 실제로 쏘는 발사율**(발/초).
+        ///
+        /// ⚠️ **2026-09-14 정정.** 여기서 `robot.weapons[].shotsPerSec` 를 읽고 있었다 —
+        /// 그것은 **자산의 정적 스펙**이고, 실제 발사는 `ShotAllocator` 가 물류 배율을 곱해
+        /// 만든 **라인 값**(`_lineBuffer`)이다. 주석은 「현재 물류 공급율」이라고 적혀 있는데
+        /// 화면에는 물류와 무관한 수가 떠 있었다 — **읽는 사람이 없는 이상을 본다.**
+        /// (「표준 1발/초인데 시작 보드가 네 줄이면 4여야 한다」가 여기서 나왔다.)
+        ///
+        /// ⚠️ **규칙은 안 바꿨다.** 발사율이 공급율에 묶여 있다는 것은 그대로이고,
+        /// 화면이 **그 묶인 값**을 보이게 된 것뿐이다.
+        /// </summary>
         private string AmmoLine()
         {
             float pierce = 0f, split = 0f, expl = 0f;
-            if (robot.weapons != null)
-                foreach (WeaponSpec w in robot.weapons)
+            foreach (AmmoLine line in _lineBuffer)
+            {
+                switch (line.kind)
                 {
-                    switch (w.kind)
-                    {
-                        case AmmoKind.Pierce: pierce += w.shotsPerSec; break;
-                        case AmmoKind.Standard: split += w.shotsPerSec; break;
-                        case AmmoKind.Explosive: expl += w.shotsPerSec; break;
-                    }
+                    case AmmoKind.Pierce: pierce += line.shotsPerSec; break;
+                    case AmmoKind.Standard: split += line.shotsPerSec; break;
+                    case AmmoKind.Explosive: expl += line.shotsPerSec; break;
                 }
+            }
             int cap = Mathf.RoundToInt(robot.consumptionCap); // capA — RobotDefinition 단일 소스(§3, CombatTuning 중복 정리)
-            return $"탄약 마운트(용량 {cap}/종)  관통 {pierce:F0} · 표준 {split:F0} · 폭발 {expl:F0} 발/초";
+            return $"탄약 마운트(용량 {cap}/종)  관통 {pierce:F1} · 표준 {split:F1} · 폭발 {expl:F1} 발/초";
         }
 
         /// <summary>
