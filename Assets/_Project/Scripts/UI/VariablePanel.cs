@@ -153,10 +153,17 @@ namespace MBI.UI
         /// <summary>
         /// 글자 크기는 **창을 따라간다** — 13 고정이면 2560 창에서 점이 되고
         /// 800 창에서는 띠 밖으로 넘친다(하단 112 는 기준 캔버스 값이다).
+        ///
+        /// ⚠️ **26 → 22 로 내렸다**(2026-09-14 · 2차 스크린샷 1장). 한 줄이 쓸 수 있는
+        /// 높이는 `(112 - 16) / 3 = 32`(기준 캔버스)인데, 글자 26 은 줄간격까지 더하면
+        /// **32 를 넘는다** — 화면에서는 세 줄이 모두 **아래가 잘린 채** 찍혔다.
+        ///
+        /// **띠 높이 112 는 문서 값이라 못 건드린다.** 그래서 글자를 줄인다 —
+        /// 22 × 1.25 = 27.5 로 32 안에 든다. 구 26 은 폐기 표기.
         /// </summary>
         private void EnsureStyles(float scale)
         {
-            int size = Mathf.Max(9, Mathf.RoundToInt(26f * scale));
+            int size = Mathf.Max(9, Mathf.RoundToInt(22f * scale));
             if (_label != null && _label.fontSize == size) return;
             _label = new GUIStyle(GUI.skin.label) { fontSize = size };
             _head = new GUIStyle(GUI.skin.label) { fontSize = size, fontStyle = FontStyle.Bold };

@@ -47,6 +47,10 @@ namespace MBI.UI
         /// 바닥에서 버튼 아랫변까지의 거리. **심사자용 바로가기 패널 바로 위**다 —
         /// 그 패널이 <c>Screen.height - 190</c> 에서 시작하므로 그보다 위에 선다.
         ///
+        /// ⚠️ **가로도 왼쪽으로 옮겼다**(2026-09-14 · 2차 스크린샷). 오른쪽 아래는
+        /// 문서가 **태그·합체 원형 둘**(레이어 1 · x1280)에 준 자리인데, 이 버튼과
+        /// 심사자용 패널이 그 위에 나중에 그려져 **태그 원형을 통째로 덮고 있었다.**
+        ///
         /// ⚠️ **아래에서 잰다.** 위에서 재면 변수 패널·노드 팔레트가 차례로 자리를 넓힐 때마다
         /// 다시 밀려야 한다 — 실제로 2026-09-10 에 두 번 걸렸다.
         ///
@@ -105,14 +109,15 @@ namespace MBI.UI
 
             // 버튼은 오른쪽 아래 — 바닥에서 잰다(위쪽은 두 번 다 걸렸다).
             float top = Screen.height - BottomInset;
-            var button = new Rect(Screen.width - ButtonW - Margin, top, ButtonW, ButtonH);
+            // 왼쪽 아래 — 원형 둘(오른쪽)과 조립 진입 막대(가운데)를 둘 다 피한다.
+            var button = new Rect(Margin, top, ButtonW, ButtonH);
             UiBlockers.Add(button);
             if (GUI.Button(button, _open ? "소리 ▲" : "소리 ▼")) _open = !_open;
 
             if (!_open) return;
 
             // ⚠️ **슬라이더는 버튼 위로 편다.** 아래로 펴면 화면 밖으로 나간다.
-            var panel = new Rect(Screen.width - PanelW - Margin, top - PanelH - 4f, PanelW, PanelH);
+            var panel = new Rect(Margin, top - PanelH - 4f, PanelW, PanelH);
             UiBlockers.Add(panel);
             GUI.Box(panel, GUIContent.none);
 

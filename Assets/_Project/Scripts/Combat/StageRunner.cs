@@ -1260,33 +1260,67 @@ namespace MBI.Combat
             // 그 사각이 **전투 인셋과 아래 띠를 통째로 가린다.**
             //
             // ⚠️ **비례로 줄이지 않는다** — 그러면 작은 화면에서 글자가 못 읽게 된다.
-            // 큰 화면에서는 종전 그대로 560×280 이고, 작은 화면에서만 **띠 안으로 접힌다.**
+            //
+            // ⚠️ **세로 280 은 폐기**(2026-09-14 오후 · 2차 스크린샷). 가로 560 만 남았다 —
+            // 아래에서 보듯 높이는 이제 **글자에서 잰다.** 「큰 화면에서는 종전 그대로
+            // 560×280」이던 종전 문장도 함께 폐기한다.
             Rect combatBand = UiLayout.BandRect(UiLayout.Band.Combat, Screen.width, Screen.height);
-            var hud = new Rect(
-                12f, combatBand.y + 10f,
-                Mathf.Min(560f, Screen.width - 24f),
-                Mathf.Min(280f, combatBand.height - 20f));
+
+            // ⚠️ **줄을 먼저 짓고 높이를 거기서 잰다**(2026-09-14 · 2차 스크린샷 두 장).
+            //
+            // 종전 높이는 `280` **날 픽셀 고정**이었다. 그 사이 줄이 열하나로 늘고
+            // 태그 줄이 길어 **두 줄로 접히면서** 밑이 넘쳤고, 화면에서는
+            // **「경과」·「고철」·「이동 WASD」 세 줄이 통째로 사라졌다** — 2차 두 장 모두 그렇다.
+            //
+            // 줄 수는 로봇B 유무·줄바꿈에 따라 변하므로 **고정값을 다시 박을 수 없다** —
+            // 스타일에 물어 `CalcHeight` 로 재고 막대 둘을 더한다.
+            string lineTitle = $"{StageTitle()}  ·  {stage.topic}";
+            string lineOutput = OutputLine();
+            string lineAmmo = AmmoLine();
+            string lineStore = $"저장고(군수 생산) {LogisticsOutputBridge.AmmoProduce:F1} 발/초";
+            string lineEnemy = $"적 {_sim.Remaining}/{_sim.TotalEnemies}   로봇 HP {_sim.Robot.hp:F0}/{_sim.Robot.maxHp:F0}" +
+                               $"   {DodgeLine()}";
+            string lineTag = robotB != null ? TagLine() : null;
+            string lineElapsed = $"경과 {_sim.Elapsed:F1}s / {stage.challengeTime:F0}s";
+            string lineWallet = $"고철 {IdleSignals.WalletScrap:N0}   ·   강화재료 {IdleSignals.WalletEnhMaterial:N0}";
+            const string lineHelp = "이동 WASD / 화살표   ·   회피 = 화면 플릭";
+
+            float hudW = Mathf.Min(560f, Screen.width - 24f);
+            float need = HudTextHeight(style, hudW - 10f,
+                             lineTitle, lineOutput, lineAmmo, lineStore, lineEnemy, lineTag,
+                             lineElapsed, lineWallet, lineHelp)
+                         + (HudBars.BarHeight + 4f) * 2f   // 탄약 막대 · 회피 눈금
+                         + 10f;                            // 아랫변 여백
+
+            // ⚠️⚠️ **띠가 가두는 것은 조립 화면에서뿐이다.** 띠 다섯은 **레이어 2** 의 수이고
+            // 전투 화면은 **레이어 1**(절대 좌표)이라 768 과 견줄 것이 아니다 — `UiLayout` 의
+            // 주석이 「두 수는 다른 화면의 수」라고 이미 적어 둔 그 자리다. 전투 화면까지
+            // 768 로 가두면 **아래 줄을 잃을 이유가 없는데 잃는다.**
+            float room = GameViewSignals.BoardViewActive
+                ? combatBand.height - 20f
+                : Screen.height - combatBand.y - 20f;
+
+            var hud = new Rect(12f, combatBand.y + 10f, hudW, Mathf.Min(need, room));
             if (GameViewSignals.BoardViewActive) UiPlate.Draw(hud);
 
             GUILayout.BeginArea(hud);
-            GUILayout.Label($"{StageTitle()}  ·  {stage.topic}", style);
-            GUILayout.Label(OutputLine(), style);
-            GUILayout.Label(AmmoLine(), style);
+            GUILayout.Label(lineTitle, style);
+            GUILayout.Label(lineOutput, style);
+            GUILayout.Label(lineAmmo, style);
             // 탄약 줄 — **저장 노드 재고를 막대 하나로**(UI 문서 3-3). 재고가 0인 탄종은 칸이 없다.
             DrawAmmoBar();
-            GUILayout.Label($"저장고(군수 생산) {LogisticsOutputBridge.AmmoProduce:F1} 발/초", style);
+            GUILayout.Label(lineStore, style);
             // 회피 스택은 HP 바로 옆에 붙인다 — 「몇 대 더 버티는가」를 같은 눈길에서 읽게 한다.
-            GUILayout.Label($"적 {_sim.Remaining}/{_sim.TotalEnemies}   로봇 HP {_sim.Robot.hp:F0}/{_sim.Robot.maxHp:F0}" +
-                            $"   {DodgeLine()}", style);
+            GUILayout.Label(lineEnemy, style);
             // 회피 눈금 바 — 숫자 옆에 붙인 줄을 그림으로 한 번 더 준다(UI 문서 11-3).
             DrawDodgeTicks();
-            if (robotB != null) GUILayout.Label(TagLine(), style);
-            GUILayout.Label($"경과 {_sim.Elapsed:F1}s / {stage.challengeTime:F0}s", style);
+            if (lineTag != null) GUILayout.Label(lineTag, style);
+            GUILayout.Label(lineElapsed, style);
             // 재화는 방치 런타임이 게시한 값을 그대로 읽는다(IdleSignals). 여기서 계산하지 않는다 —
             // 적립 규칙은 방치 런타임 한 곳에만 산다. 화면에 새 패널을 놓을 자리가 없어
             // 이 상태 칸에 붙였다. 방치 씬이 없는 격리 전투 씬에서는 둘 다 0으로 뜬다.
-            GUILayout.Label($"고철 {IdleSignals.WalletScrap:N0}   ·   강화재료 {IdleSignals.WalletEnhMaterial:N0}", style);
-            GUILayout.Label("이동 WASD / 화살표   ·   회피 = 화면 플릭", style);
+            GUILayout.Label(lineWallet, style);
+            GUILayout.Label(lineHelp, style);
             GUILayout.EndArea();
 
             // ⚠️ **전투 조작 버튼은 조립 화면에서 그리지 않는다**(260902_W09 §5-3).
@@ -1391,6 +1425,15 @@ namespace MBI.Combat
             var round = UiSkin.RoundStyle(GUI.skin.button);
             round.fontSize = KoreanFont.Snap(Mathf.Max(10, Mathf.RoundToInt(tagRect.height * 0.15f)));
             round.wordWrap = true;   // 원형 안이라 한 줄로는 안 들어간다
+
+            // ⚠️ **글자가 쓸 수 있는 자리는 사각이 아니라 원 안의 정사각이다**
+            // (2026-09-14 · 2차 스크린샷 2장).
+            //
+            // 사각 그대로 두었더니 「합체 게이지 15%」가 **원 테두리를 넘어 좌우로 삐져나왔다.**
+            // 지름 D 인 원에 드는 정사각의 한 변은 **D / √2**(≈ 0.707 D)이므로, 남는
+            // (D − D/√2) / 2 를 사방 여백으로 준다 — **지어낸 값이 아니라 기하다.**
+            int inset = Mathf.RoundToInt(tagRect.height * (1f - 0.70710678f) * 0.5f);
+            round.padding = new RectOffset(inset, inset, inset, inset);
             UiBlockers.Add(tagRect);
             UiBlockers.Add(mergeRect);
 
@@ -1482,6 +1525,25 @@ namespace MBI.Combat
         /// 색은 <see cref="TracerColor"/>를 그대로 쓴다. 화면에 날아가는 탄선과 창고 칸이
         /// 다른 색이면 「저 노란 것이 다 떨어졌다」가 안 읽힌다.
         /// </summary>
+        /// <summary>
+        /// HUD 글자 줄들의 **실제 높이 합**(2026-09-14 · 2차 스크린샷).
+        ///
+        /// ⚠️ **줄 수가 아니라 높이를 더한다.** 태그 줄처럼 긴 줄은 폭에 따라
+        /// **두 줄로 접히므로**, 「줄 × 20px」로 재면 그만큼 모자라고 모자라면 밑줄이 잘린다.
+        /// `null` 은 안 그리는 줄이라 건너뛴다(로봇B 가 없으면 태그 줄이 없다).
+        /// </summary>
+        private static float HudTextHeight(GUIStyle style, float width, params string[] lines)
+        {
+            float total = 0f;
+            foreach (string line in lines)
+            {
+                if (line == null) continue;
+                total += style.CalcHeight(new GUIContent(line), width);
+            }
+            return total;
+        }
+
+
         private void DrawAmmoBar()
         {
             _ammoSegments.Clear();
