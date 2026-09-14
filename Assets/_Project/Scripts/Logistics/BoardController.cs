@@ -584,9 +584,13 @@ namespace MBI.Logistics
                 config.usePartLayout ? PartLayout.BuildMask() : null);
 
             _baseWorldPosition = transform.position;
-            // ⚠️ **가로로 두 칸씩 여유를 준다**(2026-09-14 · §72-5).
-            // 바깥 열이 **둘**이다 — 슬롯 묶음(±1)과 마운트 그림(±2).
-            // 안 주면 그림이 스크롤 끝에서 화면 밖으로 잘린다.
+            // ⚠️ **가로 여유 두 칸은 이제 A 하나 때문이다**(2026-09-14 · §72-6).
+            // A 만 실루엣 밖에 서고(슬롯 x−1 · 그림 x−2), B 는 머리 옆 빈 열로
+            // **격자 안**으로 들어왔다. 안 주면 A 그림이 스크롤 끝에서 잘린다.
+            //
+            // ⚠️ **세로는 더하지 않는다 — `config.rows` 가 이미 14 칸이다**(§72-6).
+            // 마운트 전용 줄(y13)이 격자 **안**에 생겨서, 보드 높이가 그만큼 늘면
+            // 스크롤 범위도 따라 늘어 맨 윗줄까지 닿는다. 구판은 13 칸이었다.
             _pan = new BoardPan(
                 new Vector2((config.columns + 4) * config.cellSize, config.rows * config.cellSize),
                 new Vector2(viewSizeCells.x * config.cellSize, viewSizeCells.y * config.cellSize));

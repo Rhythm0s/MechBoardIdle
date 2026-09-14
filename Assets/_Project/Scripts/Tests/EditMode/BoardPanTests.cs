@@ -1,11 +1,12 @@
 using MBI.Core;
+using MBI.Data;
 using NUnit.Framework;
 using UnityEngine;
 
 namespace MBI.Tests
 {
     /// <summary>
-    /// 보드 스크롤(UI 문서 9-3). 실루엣 12×13 · 한 칸 192px · 기준 화면 1440×2560 기준으로
+    /// 보드 스크롤(UI 문서 9-3). 실루엣 12×14(§72-6 · 구 12×13) · 한 칸 192px · 기준 화면 1440×2560 기준으로
     /// 가로 864px · 세로 1,144px의 스크롤 여유가 나온다는 것이 문서 확정값이다.
     /// </summary>
     public sealed class BoardPanTests
@@ -117,6 +118,42 @@ namespace MBI.Tests
         public void DefaultMode_IsPan()
         {
             Assert.AreEqual(BoardMode.Pan, default(BoardMode));
+        }
+
+        // ---- 마운트 줄까지 닿는가 (2026-09-14 · §72-6) ----
+
+        /// <summary>
+        /// **맨 윗줄(마운트 전용)까지 스크롤이 닿는다** — 세로 여유를 따로 안 줘도 된다.
+        ///
+        /// §72-6 이 행을 13 → 14 로 늘리며 맨 윗줄(y13)을 **격자 안**에 만들었다.
+        /// 보드 높이가 그만큼 늘면 스크롤 범위도 따라 늘어, 위로 끝까지 밀면 그 줄이
+        /// 화면에 든다 — **바깥에 자리를 만들었다면 여유를 따로 줘야 했을 것**이다.
+        ///
+        /// ⚠️ 여기서 재는 것은 **범위**이지 화면이 아니다. 실제로 보이는지는 빌드에서 본다.
+        /// </summary>
+        [Test]
+        public void TopMountRow_IsReachable_WithoutExtraVerticalSlack()
+        {
+            const float cell = 1f;
+            const float viewRows = 7f;   // BoardController.viewSizeCells.y
+
+            var pan = new BoardPan(
+                new Vector2((PartLayout.Columns + 4) * cell, PartLayout.Rows * cell),
+                new Vector2(7.5f * cell, viewRows * cell));
+
+            // 위로 끝까지 민다.
+            pan.Offset = new Vector2(0f, 9999f);
+
+            // 보드 한가운데를 기준으로 화면 위 가장자리가 어디까지 올라갔는가.
+            float boardCenterRow = PartLayout.Rows * 0.5f;
+            float topEdgeRow = boardCenterRow + pan.Offset.y + viewRows * 0.5f;
+
+            Assert.GreaterOrEqual(topEdgeRow, PartLayout.Rows,
+                "맨 윗줄이 화면 위 가장자리 안에 안 든다 — 세로 여유가 필요해진 것이다");
+
+            // 세로 범위는 **정확히 보드 − 화면**이다. 더 줬으면 빈 공간이 보인다.
+            Assert.AreEqual((PartLayout.Rows - viewRows) * cell, pan.Range.y, 0.0001f,
+                "세로에 여유를 더하면 보드 밖 빈 공간까지 스크롤된다");
         }
     }
 }
