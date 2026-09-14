@@ -15,7 +15,13 @@ namespace MBI.Core.Audio
     public static class MusicVolume
     {
         /// <summary>기본 **30%** (사용자 확정 2026-09-10). SO 기본값도 같은 값이어야 한다.</summary>
-        public const float Default = 0.30f;
+        /// <summary>
+        /// 배경 기본값 — **15%** (2026-09-14 사용자 지시).
+        ///
+        /// 09-10 의 30% 를 대신한다. 셋(배경·효과음·조작음)을 **같은 값**으로 맞춘 것이며,
+        /// 그래서 이 값만 따로 움직이지 않는다.
+        /// </summary>
+        public const float Default = 0.15f;
 
         /// <summary>
         /// **시험판에서는 꺼 두고 연다** (사용자 확정 2026-09-10).
@@ -27,8 +33,11 @@ namespace MBI.Core.Audio
         /// ⚠️ **끄는 것이지 없애는 것이 아니다.** 슬라이더는 그대로라 올리면 들린다.
         /// 한 번 올리면 그 값이 기기에 남아 다음에도 그 값으로 열린다.
         /// </summary>
-        public static float StartupDefault =>
-            UnityEngine.Debug.isDebugBuild ? 0f : Default;
+        /// ⚠️ **09-10 의 「시험판은 0 으로 연다」는 폐기했다**(2026-09-14 사용자 지시).
+        /// 그 규칙은 기본값이 30% 라 리허설에서 곡이 방해가 된다는 근거였는데,
+        /// **셋을 다 15% 로 맞추라는 지시가 그 근거를 없앴다** — 15% 는 방해가 되는 크기가
+        /// 아니고, 시험판만 0 이면 **지금 만지는 빌드에서 지시한 값이 안 보인다.**
+        public static float StartupDefault => Default;
 
         private static float _value = Default;
 

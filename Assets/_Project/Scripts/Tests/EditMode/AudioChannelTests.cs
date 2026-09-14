@@ -66,9 +66,15 @@ namespace MBI.Tests
         {
             // ⚠️ 사운드 문서에 사람 기본값의 절이 없다 — 배경 30% 만 확정됐다.
             // 설계가 역기입하면 이 단언이 바뀐다.
-            Assert.AreEqual(1f, AudioChannels.EffectDefault, 0.0001f);
-            Assert.AreEqual(1f, AudioChannels.UiDefault, 0.0001f);
-            Assert.AreEqual(0.30f, MusicVolume.Default, 0.0001f, "배경만 확정값이다");
+            // ✅ 셋 다 **15%**(2026-09-14 사용자 지시). 종전에는 배경만 확정(30%)이고
+            // 효과음·조작음은 가정 100% 였다 — 이제 셋이 **같은 확정값**이다.
+            Assert.AreEqual(0.15f, AudioChannels.EffectDefault, 0.0001f);
+            Assert.AreEqual(0.15f, AudioChannels.UiDefault, 0.0001f);
+            Assert.AreEqual(0.15f, MusicVolume.Default, 0.0001f);
+
+            // 셋이 갈리면 한쪽만 고친 것이다 — 그날 여기가 빨개진다.
+            Assert.AreEqual(AudioChannels.EffectDefault, AudioChannels.UiDefault, 0.0001f);
+            Assert.AreEqual(AudioChannels.EffectDefault, MusicVolume.Default, 0.0001f);
         }
 
         [Test]

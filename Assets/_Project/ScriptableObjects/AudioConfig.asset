@@ -18,7 +18,7 @@ MonoBehaviour:
   warningVolume: 1
   effectVolume: 0.75
   uiVolume: 0.5
-  musicVolume: 0.3
+  musicVolume: 0.15
   volumeConfirm: 1
   musicCrossfadeSeconds: 2.25
   crossfadeConfirm: 0

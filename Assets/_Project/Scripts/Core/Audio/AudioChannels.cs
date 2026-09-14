@@ -31,17 +31,18 @@ namespace MBI.Core.Audio
         }
 
         /// <summary>
-        /// 효과음·조작음 기본값. ⚠️ **가정 100%** — 사운드 문서에 사람 기본값의 절이 없다
-        /// (배경 30% 만 2026-09-10 에 확정됐다). 설계 역기입 자리.
+        /// 효과음 기본값 — **15%** (2026-09-14 사용자 지시).
         ///
-        /// 100% 로 둔 근거: 채널 슬라이더는 **줄이라고 있는 것**이고, 기본을 낮춰 두면
-        /// 「소리가 작다」를 슬라이더에서 찾아야 한다 — 기본값이 규정된 믹스(`AudioMix`)를
-        /// 그대로 들려주는 자리가 100% 다.
+        /// 종전 가정 100% 를 대신한다. ⚠️ **더 이상 가정이 아니다** — 사람이 정한 값이다.
+        /// 셋(배경·효과음·조작음)이 **같은 값**이라 서로 묻히지 않는다.
+        ///
+        /// ⚠️ **관계는 여전히 `AudioMix` 가 든다** — 「경고 &gt; 효과음 &gt; 조작음」은
+        /// 이 값 **위에 곱해지는** 기본 믹스이고, 여기 값은 그 전체의 크기다.
         /// </summary>
-        public const float EffectDefault = 1f;
+        public const float EffectDefault = 0.15f;
 
-        /// <summary>조작음 기본값. ⚠️ **가정 100%** — <see cref="EffectDefault"/> 와 같은 근거.</summary>
-        public const float UiDefault = 1f;
+        /// <summary>조작음 기본값 — **15%**(2026-09-14 사용자 지시 · <see cref="EffectDefault"/> 와 같다).</summary>
+        public const float UiDefault = 0.15f;
 
         private const string KeyPrefix = "mbi.volume.";
 

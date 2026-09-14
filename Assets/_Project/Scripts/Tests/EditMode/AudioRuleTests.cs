@@ -256,7 +256,7 @@ namespace MBI.Tests
         [Test]
         public void MusicVolume_DefaultsTo30Percent_AndMatchesTheAsset()
         {
-            Assert.AreEqual(0.30f, MusicVolume.Default, 1e-6f, "코어 기본값");
+            Assert.AreEqual(0.15f, MusicVolume.Default, 1e-6f, "코어 기본값");
 
             var config = UnityEditor.AssetDatabase.LoadAssetAtPath<AudioConfig>(
                 "Assets/_Project/ScriptableObjects/AudioConfig.asset");
@@ -275,10 +275,13 @@ namespace MBI.Tests
         [Test]
         public void MusicVolume_StartsSilentInTestBuilds_ButKeepsTheReleaseDefault()
         {
-            Assert.AreEqual(0.30f, MusicVolume.Default, 1e-6f, "배포판 기본값은 안 바뀐다");
+            Assert.AreEqual(0.15f, MusicVolume.Default, 1e-6f, "2026-09-14 지시로 15%");
 
             Assert.IsTrue(UnityEngine.Debug.isDebugBuild, "시험은 개발 쪽에서 돈다");
-            Assert.AreEqual(0f, MusicVolume.StartupDefault, 1e-6f, "시험판은 꺼진 채로 연다");
+            // ⚠️ **09-10 의 「시험판은 0」은 폐기됐다**(2026-09-14) — 시험판도 배포판과
+            // 같은 값으로 연다. 그래야 지금 만지는 빌드에서 지시한 값이 보인다.
+            Assert.AreEqual(MusicVolume.Default, MusicVolume.StartupDefault, 1e-6f,
+                "시험판도 같은 값으로 연다");
 
             // 끄는 것이지 없애는 것이 아니다 — 올리면 그대로 들어간다.
             MusicVolume.Set(0.5f);
