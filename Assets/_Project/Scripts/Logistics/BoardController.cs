@@ -2068,6 +2068,20 @@ namespace MBI.Logistics
         }
 
         /// <summary>
+        /// 그 칸의 마커를 **지우고 다시 짓는다** — 회전 뒤에 부른다 (2026-09-15 · §72-42).
+        ///
+        /// ⚠️ **포트 탭이 면에 붙어 있다.** 면이 돌았는데 마커를 그대로 두면
+        /// **그림은 돌았는데 탭은 안 돈** 자리가 되어, 벨트를 어디 붙일지가 거짓으로 읽힌다.
+        /// </summary>
+        private void RebuildMarker(Vector2Int cell)
+        {
+            if (_markers.TryGetValue(cell, out GameObject old) && old != null) Destroy(old);
+            _markers.Remove(cell);
+            _portMarkers.Remove(cell);
+            SpawnNodeMarker(cell);
+        }
+
+        /// <summary>
         /// 노드 면의 입출력 표시. **어느 면으로 들어오고 어느 면으로 나가는지**를 안 보여 주면
         /// 벨트를 어디에 붙여야 할지 찍어 볼 수밖에 없다.
         ///
@@ -2629,7 +2643,24 @@ namespace MBI.Logistics
             // 실제로 겹쳐서 조합표 버튼이 물류 출력 글자 위에 얹혀 있었다. 그 아래에서 시작한다.
             float y = 380f;
 
-            GUI.Label(new Rect(x, y - 26f, w + 80f, 24f), inst.Definition.displayName + " 조합표", head);
+            // ── 회전 (2026-09-15 사용자 확정 · §72-42) ──────────────────────────
+            //
+            // ⚠️ **왜 여기인가.** 노드를 고른 상태에서만 뜨는 패널이고, 조합표와 회전은
+            // 둘 다 「고른 노드를 손본다」라 같은 자리에 있어야 한다.
+            //
+            // ⚠️ **누르면 배선을 다시 잡는다** — 면이 돌면 링크·품목·색이 전부 바뀐다.
+            // 마커도 다시 짓는다(포트 탭이 면을 따라 붙어 있다).
+            var rotRect = new Rect(x, y - 26f, 72f, 24f);
+            UiBlockers.Add(rotRect);
+            if (GUI.Button(rotRect, "회전 ↻", style))
+            {
+                inst.Rotation = inst.Rotation + 1;
+                RebuildMarker(_selected.Value);
+                RefreshConnections();
+            }
+
+            GUI.Label(new Rect(x + 80f, y - 26f, w + 80f, 24f),
+                $"{inst.Definition.displayName} · {inst.Rotation * 90}° 조합표", head);
 
             RecipeKind current = inst.CurrentRecipe.kind;
             foreach (NodeRecipe r in candidates)

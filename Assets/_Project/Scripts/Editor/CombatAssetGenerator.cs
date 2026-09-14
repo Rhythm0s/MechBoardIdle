@@ -46,7 +46,17 @@ namespace MBI.Editor
             BuildRobot(json, config);
             int enemies = BuildEnemies(json);
             int stages = BuildStages(json);
-            LoadOrCreate<CombatTuning>(TuningPath); // TBD placeholder — 값 덮어쓰지 않음
+            // ⚠️ **값은 덮어쓰지 않되 새 필드는 자산에 박는다**(2026-09-15 · §72-42).
+            //
+            // `LoadOrCreate` 만 하면 **새로 만든 필드가 YAML 에 안 들어간다.** 그러면 런타임은
+            // C# 기본값을 쓰고, 나중에 누가 인스펙터에서 한 번 저장하는 순간 **자산이 이기는
+            // 값으로 바뀐다** — 그 갈림이 오늘 `spawnCadence` 에서 **SO 0.15 / C# 0.35** 로
+            // 터졌던 자리다(§72-14).
+            //
+            // `SetDirty` + `SaveAssets` 는 **지금 값 그대로** 전 필드를 다시 적는다 —
+            // 기존 값은 안 건드리고 **없던 키만 생긴다.** 「덮어쓰지 않는다」와 안 부딪힌다.
+            CombatTuning tuningAsset = LoadOrCreate<CombatTuning>(TuningPath);
+            if (tuningAsset != null) EditorUtility.SetDirty(tuningAsset);
 
             AssetDatabase.SaveAssets();
             AssetDatabase.Refresh();

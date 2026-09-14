@@ -14,15 +14,16 @@ MonoBehaviour:
   m_EditorClassIdentifier: MBI.Data::MBI.Data.CombatTuning
   robotHpTbd: 1000
   robotAttackRangeTbd: 9.2
+  autoPilotHoldWhenMoreThanTbd: 1
   robotMoveSpeedTbd: 4.5
   enemyMoveSpeedTbd: 1.5
   enemyAttackRangeTbd: 1
   enemyAttackIntervalTbd: 1
   spawnCadenceTbd: 0.15
   arenaRadiusTbd: 6
-  spawnRingRadiusTbd: 0
   spawnRingMinTbd: 4
   spawnRingMaxTbd: 14
+  spawnRingRadiusTbd: 0
   manualOverrideGraceTbd: 2
   autoRestartDelayTbd: 1.5
   animCellSeconds: 0.0625
