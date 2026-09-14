@@ -83,7 +83,7 @@ namespace MBI.Core
             NodeInstance nbNode = grid.GetAt(nb);
             if (nbNode != null)
             {
-                if (HasInputPort(nbNode.Definition, need, kind))
+                if (HasInputPort(nbNode, need, kind))
                     links.Add(new BeltLink { fromCell = cell, toCell = nb, kind = kind });
                 return;
             }
@@ -100,11 +100,56 @@ namespace MBI.Core
             return false;
         }
 
-        private static bool HasInputPort(NodeDefinition def, PortFace face, FlowKind kind)
+        /// <summary>
+        /// 그 노드가 이 면으로 이 품목을 **받는가**.
+        ///
+        /// ⚠️ **면은 자산이 정하고 품목은 조합표가 정한다**(2026-09-14 · §72-19 ·
+        /// 사용자 판정 (2) · 조립 3장 「노드 코드를 건드리지 않고 데이터만 늘려 레시피를
+        /// 추가할 수 있어야 한다」의 이행).
+        ///
+        /// ⚠️ **왜 바꿨는가.** 종전에는 `p.kind == kind` 로 **포트에 적힌 품목까지** 대조했다.
+        /// 포트 품목은 노드마다 **하나로 박혀** 있어(가공 = 기초재료·부품 · 복합 군수 남면 =
+        /// 기초재료·부품), 조합표를 바꿔도 면이 그것을 안 받았다. 실측으로는 같은 판에서
+        /// **관통탄 53개 / 폭발탄 0개**였고, 발전재료를 내는 가공이 **라인에서 통째로
+        /// 빠졌다**(2026-09-14 · `ShootBoardProbe`). 조합표에는 폭발탄·드론·배터리가
+        /// 다 있는데 **면이 없어 격자 위에 한 줄도 못 서던** 자리다.
+        ///
+        /// 이제 **면만 자산이 정하고**, 그 면이 무엇을 받는지는 **지금 돌리는 조합표의
+        /// 입력 목록**이 정한다. 포트에 적힌 품목은 **기본값 표시**로 남는다.
+        ///
+        /// ⚠️ **저장 노드는 전부 받는다** — 조합표가 없고 「무엇이든 맡아 둔다」가 그 뜻이다.
+        /// </summary>
+        private static bool HasInputPort(NodeInstance node, PortFace face, FlowKind kind)
         {
-            if (def == null) return false;
-            foreach (NodePort p in def.ports)
-                if (p.io == PortIO.Input && p.face == face && p.kind == kind) return true;
+            if (node?.Definition == null) return false;
+
+            // 면이 열려 있는가 — 이것만 자산이 정한다.
+            bool faceOpen = false;
+            foreach (NodePort p in node.Definition.ports)
+                if (p.io == PortIO.Input && p.face == face) { faceOpen = true; break; }
+            if (!faceOpen) return false;
+
+            // ⚠️ **저장만 무엇이든 받는다** — 「맡아 둔다」가 그 뜻이다.
+            //
+            // 「조합표가 없으면 전부」로 넓게 잡았더니 **부스터가 탄약을 받았다**
+            // (시험 `AmmoLine_DoesNotFeedTheBooster`). 부스터·쉴드도 조합표가 없지만
+            // 받는 것은 정해져 있다 — 그 둘은 포트에 적힌 품목이 그대로 잣대다.
+            if (node.Definition.type == NodeType.Storage) return true;
+
+            List<NodeRecipe> recipes = node.Definition.recipes;
+            if (recipes == null || recipes.Count == 0)
+            {
+                foreach (NodePort p in node.Definition.ports)
+                    if (p.io == PortIO.Input && p.face == face && p.kind == kind) return true;
+                return false;
+            }
+
+            // 지금 돌리는 조합표가 먹는 것인가.
+            NodeRecipe current = node.CurrentRecipe;
+            if (current.inputs == null) return false;
+            foreach (RecipeInput i in current.inputs)
+                if (i.kind == kind) return true;
+
             return false;
         }
 

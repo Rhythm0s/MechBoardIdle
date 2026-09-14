@@ -94,7 +94,20 @@ namespace MBI.Core
             NodeRecipe recipe = node.CurrentRecipe;
             if (recipe.IsRunnable) return recipe.output;
 
-            // 조합표가 없는 노드(코어·에너지·저장)는 포트에 적힌 것이 그대로 산출이다.
+            // ⚠️ **저장 노드는 받은 것을 그대로 낸다**(2026-09-14 · §72-19).
+            //
+            // 저장은 조합표가 없어 종전에는 **포트에 적힌 표준탄**으로 떨어졌다. 그래서
+            // 관통탄을 넣어 두면 나오는 벨트가 표준탄으로 서서 **아래가 통째로 끊겼다.**
+            // 저장의 뜻은 「무엇이든 맡아 두었다가 그대로 돌려준다」이므로 버퍼가 답이다.
+            //
+            // ⚠️ **실제로 들었을 때만이다.** `FlowKind.Material` 이 0 이라 빈 노드의
+            // `BufferKind` 도 Material 로 읽힌다 — 그것을 산출로 삼으면 **빈 저장이
+            // 물류 품목을 내보내는 노드**가 된다(시험이 그 자리에서 걸렸다).
+            if (node.Definition.type == NodeType.Storage
+                && node.OutputBuffer > 0f && node.BufferKind != FlowKind.None)
+                return node.BufferKind;
+
+            // 조합표도 버퍼도 없는 노드(코어·에너지)는 포트에 적힌 것이 그대로 산출이다.
             foreach (NodePort p in node.Definition.ports)
                 if (p.io == PortIO.Output) return p.kind;
 
