@@ -516,6 +516,9 @@ namespace MBI.Logistics
         private readonly List<Vector2Int> _mountSlotCells = new List<Vector2Int>();
         private readonly List<SpriteRenderer> _mountSlotEdges = new List<SpriteRenderer>();
 
+        /// <summary>테두리 하나하나의 임자 — **활성 로봇 것만 보인다**(§72-24 ②).</summary>
+        private readonly List<MountOwner> _mountSlotEdgeOwners = new List<MountOwner>();
+
 
         private static bool IsIdle(Vector2Int cell)
         {
@@ -857,7 +860,17 @@ namespace MBI.Logistics
             // ⚠️ **포트 마커는 결합부로 남는다** — 흰색 고정이다. 결합부까지 같이 깜빡이면
             // 「탄약이 없다」와 「이 자리가 마운트다」가 한 신호로 뭉개진다.
             for (int i = 0; i < _mountPortViews.Count; i++)
-                if (_mountPortViews[i] != null) _mountPortViews[i].color = Color.white;
+            {
+                SpriteRenderer pv = _mountPortViews[i];
+                if (pv == null) continue;
+
+                // ⚠️ **결합부도 활성 로봇 것만**(§72-24 ②) — 묶음이 사라졌는데 마커만 남으면
+                // 「여기가 마운트인데 그림이 없다」로 읽힌다.
+                bool show = i < PartLayout.MountPorts.Count
+                            && ShowsMount(PartLayout.MountPorts[i].owner);
+                if (pv.enabled != show) pv.enabled = show;
+                if (show) pv.color = Color.white;
+            }
 
             if (_mountBodyViews.Count == 0) return;
 
@@ -868,6 +881,11 @@ namespace MBI.Logistics
                 SpriteRenderer sr = _mountBodyViews[i];
                 if (sr == null) continue;
 
+                // ⚠️ **활성 로봇 것만 보인다**(§72-24 ②).
+                bool show = ShowsMount(_mountBodyOwners[i]);
+                if (sr.enabled != show) sr.enabled = show;
+                if (!show) continue;
+
                 // 그림이 없어 색 사각으로 선 것은 **제 색**으로 돌아간다 — 흰색으로 되돌리면
                 // 폴백 사각이 흰 덩어리가 되어 노드와 구분되지 않는다.
                 Color rest = _mountBodyHasArt[i] ? Color.white : MountFallbackColor;
@@ -875,8 +893,15 @@ namespace MBI.Logistics
             }
 
             for (int i = 0; i < _mountSlotEdges.Count; i++)
-                if (_mountSlotEdges[i] != null)
-                    _mountSlotEdges[i].color = on ? MountEmptyColor : MountSlotEdgeColor;
+            {
+                SpriteRenderer edge = _mountSlotEdges[i];
+                if (edge == null) continue;
+
+                // ⚠️ **활성 로봇 것만 보인다**(§72-24 ②).
+                bool show = i < _mountSlotEdgeOwners.Count && ShowsMount(_mountSlotEdgeOwners[i]);
+                if (edge.enabled != show) edge.enabled = show;
+                if (show) edge.color = on ? MountEmptyColor : MountSlotEdgeColor;
+            }
 
             UpdateMountSlotFills();
         }
@@ -933,6 +958,20 @@ namespace MBI.Logistics
         /// 지금 점멸 중인가 — **그림·그리드·이름표가 같은 박자를 쓴다**(§71-41).
         /// 세 곳에서 따로 재면 서로 다른 박자로 깜빡인다.
         /// </summary>
+        /// <summary>
+        /// 이 마운트를 조립 화면에 그리는가 — **지금 나선 로봇 것만 그린다**
+        /// (2026-09-14 사용자 확정 · §72-24 ②).
+        ///
+        /// ⚠️ **왜 가리는가.** 적재 값은 `SupplySignals` 가 **활성 로봇 것만** 나른다.
+        /// 대기 중인 로봇의 묶음은 그려도 **영영 빈 칸**이라, 화면에서는 「물류가 저기로는
+        /// 안 간다」로 읽힌다 — 실제로는 **지금 안 보고 있을 뿐**이다. 없는 고장을
+        /// 그림으로 지어내지 않으려면 **안 그리는 편**이 맞다.
+        ///
+        /// 그림·그리드·이름표·점멸이 **같은 판정 하나**를 읽는다. 따로 재면 셋 중 하나가
+        /// 남아 어긋난다(오늘 점멸에서 이미 한 번 그랬다).
+        /// </summary>
+        private static bool ShowsMount(MountOwner owner) => owner == SupplySignals.ActiveOwner;
+
         private static bool MountBlinkOn =>
             MountDisplay.Blinks(SupplySignals.HasCombat, SupplySignals.MountTotal)
             && HudMeters.BlinkOn(Time.unscaledTime);
@@ -1021,6 +1060,7 @@ namespace MBI.Logistics
             _mountSlotOwners.Clear();
             _mountSlotCells.Clear();
             _mountSlotEdges.Clear();
+            _mountSlotEdgeOwners.Clear();
 
             float cell = _grid.CellSize;
             float t = cell * MountSlotEdgeWidth;
@@ -1040,6 +1080,7 @@ namespace MBI.Logistics
                     _mountSlotEdges.Add(SlotEdge(parent, w.x, w.y + cell * 0.5f, cell, t));
                     _mountSlotEdges.Add(SlotEdge(parent, w.x - cell * 0.5f, w.y, t, cell));
                     _mountSlotEdges.Add(SlotEdge(parent, w.x + cell * 0.5f, w.y, t, cell));
+                    for (int e = 0; e < 4; e++) _mountSlotEdgeOwners.Add(mp.owner);
 
                     var go = new GameObject($"MountSlot_{mp.owner}_{first + i}");
                     go.transform.SetParent(parent, false);
@@ -1430,6 +1471,9 @@ namespace MBI.Logistics
 
             foreach (MountPort mp in PartLayout.MountPorts)
             {
+                // ⚠️ **활성 로봇 것만 적는다**(§72-24 ②) — 그림·그리드와 같은 판정이다.
+                if (!ShowsMount(mp.owner)) continue;
+
                 // ⚠️ **「마운트」 한 낱말로 줄였다**(2026-09-14 · 2차 스크린샷 1장).
                 //
                 // 종전에는 「마운트 · 탄약 적재」·「마운트 · 드론 적재」로 **로봇마다 다른 것을
