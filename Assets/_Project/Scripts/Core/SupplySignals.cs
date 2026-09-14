@@ -65,6 +65,30 @@ namespace MBI.Core
             return i >= 0 && i < MountArrivalRate.Length ? MountArrivalRate[i] : 0f;
         }
 
+        /// <summary>
+        /// **그 탄종이 마운트에 지금 몇 발 실려 있는가** (2026-09-15 사용자 확정 · 발사 규칙 (가)).
+        ///
+        /// ⚠️ **왜 도착률만으로는 모자랐나.** 도착률은 **흐름**이고 재고는 **고임**이다.
+        /// 마운트가 40 발로 가득 차 있어도 그 순간 벨트가 아무것도 안 나르면 도착률은 0 이라,
+        /// 도착률만 보면 **실탄을 40 발 지고도 안 쏘는** 로봇이 된다.
+        ///
+        /// 슬롯을 훑어 합한다 — 같은 탄이 여러 슬롯에 나뉘어 들어가므로(<see cref="MountLoad"/>)
+        /// 슬롯 하나만 보면 모자라게 센다.
+        /// </summary>
+        public static float MountStockOf(MBI.Data.AmmoKind kind)
+        {
+            MBI.Data.MountItem want = MBI.Data.MountItemMap.From(kind);
+            if (want == MBI.Data.MountItem.None) return 0f;
+
+            float sum = 0f;
+            int n = MountSlotCount;
+            if (n > MountSlotItem.Length) n = MountSlotItem.Length;
+            if (n > MountSlotAmount.Length) n = MountSlotAmount.Length;
+            for (int i = 0; i < n; i++)
+                if (MountSlotItem[i] == want) sum += MountSlotAmount[i];
+            return sum;
+        }
+
         /// <summary>슬롯 배열을 길이에 맞춰 잡는다. 길이가 같으면 아무것도 안 한다.</summary>
         public static void EnsureSlots(int count)
         {

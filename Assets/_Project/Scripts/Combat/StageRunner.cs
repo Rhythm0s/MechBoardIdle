@@ -49,6 +49,9 @@ namespace MBI.Combat
         private float _output;      // 물류 출력(전투력) 표시값
         private float _nominalOutput;                                   // 만공급 시 출력(라이브 스케일의 분모)
         private float _lastScale = 1f;                                  // 마지막으로 반영한 물류 배율
+
+        // 재배분 판정 (2026-09-15). 배율 하나만 보던 동안 라인이 0 줄로 굳었다 — `FireRateGate`.
+        private readonly FireRateGate _fireGate = new FireRateGate();
         private readonly List<AmmoLine> _lineBuffer = new List<AmmoLine>(); // 재배분 버퍼(프레임당 할당 0)
         private const float ScaleEpsilon = 0.001f;                      // 이만큼 변해야 재배분
         private float _manualHoldUntil;                                 // 이 시각까지는 수동 우선(자동 정지)
@@ -421,8 +424,9 @@ namespace MBI.Combat
             // 명목 출력 = 물류 단위(마운트계수 1) — 라이브 스케일의 분모이므로 Begin에서 1회만 구한다.
             _nominalOutput = RobotOutput.Nominal(robot.weapons, 1f, robot.moduleMult);
             _lastScale = 1f;
+            _fireGate.Reset(1f);
             ShotAllocator.AllocateRates(robot.weapons, robot.consumptionCap,
-                SupplySignals.ArrivalRateOf, _lineBuffer);
+                SupplySignals.ArrivalRateOf, SupplySignals.MountStockOf, _lineBuffer);
 
             // 로봇 A — 다발형. 화력이 탄약 라인에서 나온다.
             var setup = new RobotSetup
@@ -809,12 +813,17 @@ namespace MBI.Combat
 
             float scale = LogisticsOutputBridge.Output / _nominalOutput;
             if (scale < 0f) scale = 0f;
-            if (Mathf.Abs(scale - _lastScale) < ScaleEpsilon) return;
+
+            // ⚠️ **게이트가 배분식과 따로 놀고 있었다**(2026-09-15 실측 · `FireDeadlockProbe`).
+            // 판정은 `FireRateGate` 가 한다 — 거기 주석에 원인과 실측이 있다.
+            if (!_fireGate.ShouldReallocate(scale, SupplySignals.ArrivalRateOf,
+                    SupplySignals.MountStockOf, ScaleEpsilon)) return;
 
             _lastScale = scale;
-            // ⚠️ **탄종별 공급율로 배분한다**(2026-09-15 사용자 확정) — 구 「전역 비율」 폐기.
+
+            // ⚠️ **재고가 있으면 스펙대로, 비면 공급이 상한**(2026-09-15 사용자 확정 · (가)).
             ShotAllocator.AllocateRates(robot.weapons, robot.consumptionCap,
-                SupplySignals.ArrivalRateOf, _lineBuffer);
+                SupplySignals.ArrivalRateOf, SupplySignals.MountStockOf, _lineBuffer);
             _sim.SetFireLines(_lineBuffer);
             _output = LogisticsOutputBridge.Output;
         }

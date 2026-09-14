@@ -112,6 +112,34 @@ namespace MBI.Core
             Allocate(weapons, cap, w => Mathf.Min(w.shotsPerSec, supplyOf(w.kind)), into);
         }
 
+        /// <summary>
+        /// **재고가 있으면 스펙대로, 비면 공급이 상한** (2026-09-15 사용자 확정 · 발사 규칙 (가)).
+        ///
+        /// ⚠️ **왜 공급율 하나로는 안 됐나.** 공급율(도착률)은 **흐름**이고 재고는 **고임**이다.
+        /// 마운트에 표준탄이 40 발 실려 있어도 그 순간 벨트가 쉬고 있으면 도착률은 0 이고,
+        /// 그러면 줄이 아예 안 서서 **실탄을 지고도 한 발을 못 쐈다** — 09-15 육안이 그것이다
+        /// (창고 40/40 · 마운트 40 · 적 96 기 · 78 초 0 발).
+        ///
+        /// 이제 규칙은 **재고를 먼저 본다.**
+        /// · 재고 &gt; 0  → <c>lineSpecShots</c>(무기 스펙) 상한까지 쏜다. 쌓인 것을 쓰는 구간이다.
+        /// · 재고 == 0 → **도착률이 상한**이다. 버는 만큼만 쏘는 구간이다.
+        ///
+        /// ⚠️ **등가선 재산출은 설계 사후다** — 이 규칙은 재고가 있는 동안 발사율을 스펙까지
+        /// 올리므로 DPS 곡선이 종전과 다르다. 밸런스 값은 여기서 안 만진다.
+        ///
+        /// ⚠️ <c>ConsumeRound</c> 실패 시 안 세는 것은 그대로다 — 이 배분은 **상한**이고,
+        /// 실제로 나간 발수는 여전히 마운트에서 한 발을 빼는 데 성공한 것만 센다.
+        /// </summary>
+        public static void AllocateRates(IReadOnlyList<WeaponSpec> weapons, float cap,
+            System.Func<AmmoKind, float> supplyOf, System.Func<AmmoKind, float> stockOf,
+            List<AmmoLine> into)
+        {
+            if (supplyOf == null || stockOf == null) { into?.Clear(); return; }
+            Allocate(weapons, cap,
+                w => stockOf(w.kind) > 0f ? w.shotsPerSec : Mathf.Min(w.shotsPerSec, supplyOf(w.kind)),
+                into);
+        }
+
         /// <summary>고효율 우선으로 상한까지 채운다. **한 줄이 가져갈 양만 밖에서 정한다.**</summary>
         private static void Allocate(IReadOnlyList<WeaponSpec> weapons, float cap,
             System.Func<WeaponSpec, float> takeOf, List<AmmoLine> into)
