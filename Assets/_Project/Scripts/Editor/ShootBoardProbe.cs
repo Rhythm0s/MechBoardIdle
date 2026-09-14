@@ -37,6 +37,7 @@ namespace MBI.EditorTools
             PortTable(sb);
             FreeMap(sb);
             ExplosiveLine(sb);
+            MixedDelivery(sb);
             return sb.ToString();
         }
 
@@ -191,6 +192,71 @@ namespace MBI.EditorTools
                 }
                 if (got == 0) sb.AppendLine("  ⚠️ **한 발도 안 닿았다** — 이 조합은 격자 위에서 안 선다.");
             }
+        }
+
+        // ────────────────────────────────────────────────────────────────
+        //  4. **한 마운트 포트에 두 탄종이 들어가는가** — 140·180 의 전제
+        // ────────────────────────────────────────────────────────────────
+
+        /// <summary>
+        /// 「표준 4 + 폭발 2 = 140」은 **두 탄종이 같은 마운트에 닿는다**는 전제 위에 선다.
+        /// 그런데 벨트는 <c>BeltInstance.Kind</c> 하나만 나르고, 마운트에 넣는 것은
+        /// **포트 칸의 벨트 한 장**뿐이다. 그 한 장이 한 품목만 나른다면 전제가 깨진다.
+        ///
+        /// 여기서 재는 것은 그 하나다 — **두 줄을 한 포트로 모으면 무엇이 닿는가.**
+        /// </summary>
+        private static void MixedDelivery(StringBuilder sb)
+        {
+            sb.AppendLine();
+            sb.AppendLine("[4] 한 포트에 두 탄종을 모으면 — 140/180 의 전제");
+
+            var g = new BoardGrid(12, 14, 1f, Vector2.zero, PartLayout.BuildMask());
+
+            // 표준 줄 : 코어(5,8) 동면 -> 가공(6,8) -> 기초 군수(7,8) -> 표준탄
+            g.TryPlace(new Vector2Int(5, 8), Node("core"), out _);
+            g.TryPlace(new Vector2Int(6, 8), Node("proc"), out _);
+            g.TryPlace(new Vector2Int(7, 8), Node("muni"), out _);
+            g.TryPlaceBelt(new Vector2Int(8, 8), PortFace.West, PortFace.South, FlowKind.None, out _);
+
+            // 폭발 줄 : 코어 남면 -> 가공(6,7 · 발전재료) · 가공(6,6)->군수(7,6)->복합(8,6)
+            g.TryPlaceBelt(new Vector2Int(5, 7), PortFace.North, PortFace.East, FlowKind.None, out _);
+            g.TryPlace(new Vector2Int(6, 7), Node("proc"), out NodeInstance pm);
+            pm.SelectRecipe(RecipeKind.PowerMaterial);
+            g.TryPlaceBelt(new Vector2Int(7, 7), PortFace.West, PortFace.South, FlowKind.None, out _);
+
+            g.TryPlaceBelt(new Vector2Int(4, 8), PortFace.East, PortFace.South, FlowKind.None, out _);
+            g.TryPlaceBelt(new Vector2Int(4, 7), PortFace.North, PortFace.South, FlowKind.None, out _);
+            g.TryPlaceBelt(new Vector2Int(4, 6), PortFace.North, PortFace.East, FlowKind.None, out _);
+            g.TryPlace(new Vector2Int(5, 6), Node("proc"), out _);
+            g.TryPlace(new Vector2Int(6, 6), Node("muni"), out _);
+            g.TryPlace(new Vector2Int(7, 6), Node("munix"), out NodeInstance mx);
+            mx.SelectRecipe(RecipeKind.ExplosiveAmmo);
+
+            // 둘을 x8 기둥에서 병합기로 모아 운반로 y5 -> 마운트 A(1,4 남면)
+            g.TryPlaceBeltElement(new Vector2Int(8, 6), BeltElementKind.Merger,
+                StartingBoard.MergerInFaces(PortFace.South), new[] { PortFace.South },
+                FlowKind.None, out _);
+            g.TryPlaceBeltElement(new Vector2Int(8, 7), BeltElementKind.Merger,
+                StartingBoard.MergerInFaces(PortFace.South), new[] { PortFace.South },
+                FlowKind.None, out _);
+            g.TryPlaceBelt(new Vector2Int(8, 5), PortFace.North, PortFace.West, FlowKind.None, out _);
+            for (int x = 7; x >= 2; x--)
+                g.TryPlaceBelt(new Vector2Int(x, 5), PortFace.East, PortFace.West, FlowKind.None, out _);
+            g.TryPlaceBelt(new Vector2Int(1, 5), PortFace.East, PortFace.South, FlowKind.None, out _);
+            g.TryPlaceBelt(new Vector2Int(1, 4), PortFace.North, PortFace.South, FlowKind.None, out _);
+
+            BeltAutoOrient.Resolve(g);
+            BeltFlow.Resolve(g);
+
+            sb.AppendLine($"  운반로 (5,5) 가 나르는 것 = {BeltFlow.KindAt(g, new Vector2Int(5, 5))}");
+            sb.AppendLine($"  포트 칸 (1,4) 가 나르는 것 = {BeltFlow.KindAt(g, new Vector2Int(1, 4))}");
+
+            int got = Arrivals(g, 60f, out float firstAt, out Dictionary<FlowKind, int> byKind);
+            sb.AppendLine($"  60초 도착 {got}개 · 첫 도착 {firstAt:F1}초");
+            foreach (KeyValuePair<FlowKind, int> kv in byKind)
+                sb.AppendLine($"    {kv.Key} {kv.Value}개");
+            if (byKind.Count < 2)
+                sb.AppendLine("  ⚠️ **한 종류만 닿았다** — 한 포트는 한 품목만 받는다.");
         }
 
         // ---- 도구 ----
