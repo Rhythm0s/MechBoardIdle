@@ -1,3 +1,4 @@
+using MBI.UI;
 using MBI.Core;
 using UnityEngine;
 
@@ -158,7 +159,7 @@ namespace MBI.Logistics
             // 글자는 버튼 높이를 따라간다 — 고정 18 이면 큰 버튼 안에서 점이 된다.
             var style = new GUIStyle(GUI.skin.button)
             {
-                fontSize = Mathf.Max(12, Mathf.RoundToInt(rect.height * 0.28f)),
+                fontSize = KoreanFont.Snap(Mathf.Max(12, Mathf.RoundToInt(rect.height * 0.28f))),
             };
 
             // ⚠️ **조립 화면에서는 액션바 띠에 그릇을 깐다**(2026-09-11 실측 · §71-19 ②).

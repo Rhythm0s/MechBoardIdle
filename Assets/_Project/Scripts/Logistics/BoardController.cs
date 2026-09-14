@@ -491,6 +491,14 @@ namespace MBI.Logistics
         /// <summary>슬롯 테두리 굵기(칸 비율). 셀선과 같은 결의 가늘기다.</summary>
         private const float MountSlotEdgeWidth = 0.035f;
 
+        /// <summary>
+        /// 품목색 틴트의 불투명도. ⚠️ **가정 0.55** — 규격 문서에 절이 없다(설계 역기입 자리).
+        ///
+        /// 불투명하면 아래 마운트 그림이 통째로 가려 **무엇에 딸린 적재인지**가 사라지고,
+        /// 너무 옅으면 **무슨 탄인지**가 안 읽힌다. 둘 사이다.
+        /// </summary>
+        private const float MountSlotTintAlpha = 0.55f;
+
         // ⚠️ **1슬롯 = 보드 한 칸**(2026-09-14 · §72-5 사용자 확정).
         // 첫 판은 마운트 그림 위에 **작은 그리드**를 얹고 칸 크기·틈·띄움을
         // 가정 넷으로 두었는데, 그 넷은 **폐기됐다** — 슬롯이 보드 칸과 같으면
@@ -584,15 +592,16 @@ namespace MBI.Logistics
                 config.usePartLayout ? PartLayout.BuildMask() : null);
 
             _baseWorldPosition = transform.position;
-            // ⚠️ **가로 여유 두 칸은 이제 A 하나 때문이다**(2026-09-14 · §72-6).
-            // A 만 실루엣 밖에 서고(슬롯 x−1 · 그림 x−2), B 는 머리 옆 빈 열로
-            // **격자 안**으로 들어왔다. 안 주면 A 그림이 스크롤 끝에서 잘린다.
+            // ⚠️ **가로 여유는 한 칸이다**(2026-09-14 · §72-13 으로 줄었다).
+            // 별도 그림 칸(구 x−2)이 폐기돼 A 는 **슬롯 묶음(x−1)만** 바깥에 선다.
+            // B 는 머리 옆 빈 열이라 격자 안이다. 좌우 한 칸씩이라 폭에 두 칸을 더한다 —
+            // **문서의 13칸과 이것으로 맞는다.**
             //
             // ⚠️ **세로는 더하지 않는다 — `config.rows` 가 이미 14 칸이다**(§72-6).
             // 마운트 전용 줄(y13)이 격자 **안**에 생겨서, 보드 높이가 그만큼 늘면
             // 스크롤 범위도 따라 늘어 맨 윗줄까지 닿는다. 구판은 13 칸이었다.
             _pan = new BoardPan(
-                new Vector2((config.columns + 4) * config.cellSize, config.rows * config.cellSize),
+                new Vector2((config.columns + 2) * config.cellSize, config.rows * config.cellSize),
                 new Vector2(viewSizeCells.x * config.cellSize, viewSizeCells.y * config.cellSize));
 
             BuildGridVisual(); // §C-4 설치 가능 그리드 영역 표시(런타임).
@@ -902,17 +911,22 @@ namespace MBI.Logistics
                     : MountDisplay.FillRatio(SupplySignals.MountSlotAmount[slot],
                                              SupplySignals.MountStackLimit);
 
+                // ⚠️ **틴트다**(2026-09-14 · §72-13) — 칸을 색으로 덮는 것이 아니라
+                // **그림 위에 품목색을 얹는다.** 빈 칸은 얹지 않아 그림만 남는다.
                 if (ratio <= 0f) { if (sr.enabled) sr.enabled = false; continue; }
                 if (!sr.enabled) sr.enabled = true;
 
-                // 칸 밑변에 발을 맞추고 위로 늘린다.
+                // 칸 밑변에 발을 맞추고 위로 늘린다 — 채움 비율은 그대로다.
                 Vector3 c = CellWorld(_mountSlotCells[i]);
                 float h = cell * ratio;
                 sr.transform.position = new Vector3(c.x, c.y - cell * 0.5f + h * 0.5f, 0f);
                 sr.transform.localScale = new Vector3(cell, h, 1f);
 
                 // 색은 **벨트와 같은 표**에서 온다 — 같은 탄이 두 곳에서 다른 색이면 안 된다.
-                sr.color = ItemColor(MountDisplay.FlowOf(item));
+                // ⚠️ **반투명이다** — 불투명하면 아래 그림이 통째로 가려 마운트가 사라진다.
+                Color tint = ItemColor(MountDisplay.FlowOf(item));
+                tint.a = MountSlotTintAlpha;
+                sr.color = tint;
             }
         }
 
@@ -925,17 +939,20 @@ namespace MBI.Logistics
             && HudMeters.BlinkOn(Time.unscaledTime);
 
         /// <summary>
-        /// 마운트 **그림**을 세운다 (2026-09-14 · §71-41 → **§72-5 확정으로 자리 개정**).
+        /// 마운트 **그림**을 슬롯 묶음 **네 칸 위에 세로로 늘려** 세운다
+        /// (2026-09-14 · §72-13 사용자 확정 · 구 「별도 그림 칸」 폐기).
         ///
-        /// ⚠️ **실루엣 바깥에 선다** — 마운트는 보드 없는 소비 파츠다(조립 6장).
-        /// 격자 칸에 넣으면 **노드를 놓을 수 있는 자리**가 되어 버린다.
+        /// **왜 바꿨나.** 그림 칸과 적재 칸이 따로 서니 **둘이 한 덩어리로 안 읽혔고**,
+        /// 그림 칸 때문에 바깥 열이 하나 더 필요했다. 겹쳐 놓으면 「이 마운트에 이만큼
+        /// 들었다」가 한눈에 서고 격자도 **한 칸만** 밖으로 나간다.
         ///
-        /// ⚠️ **슬롯 묶음보다 한 칸 더 바깥이다.** A(y5~8)와 B(y9~12)가 같은 바깥 열에서
-        /// 맞닿아 있어, 그림을 묶음 위나 아래에 두면 **다른 묶음의 슬롯과 겹친다.**
-        /// 스크롤 여유가 두 칸이어야 하는 이유가 이것이다.
+        /// ⚠️ **가로는 한 칸 · 세로는 네 칸이다** — 원본이 정사각이라 세로로 늘어난다.
+        /// 규격이 「실루엣에 붙는 변 여백 0」이라 늘려도 결합부는 변에 붙어 있다.
         ///
-        /// ⚠️ **그림이 없어도 그린다** — 포트 마커와 반대다. 결합부는 없어도 격자가 말이 되지만,
-        /// 그림이 없으면 슬롯 묶음이 **무엇에 딸린 것인지** 사라진다. 그래서 색 사각으로 폴백한다.
+        /// ⚠️ **그림이 없어도 그린다**(색 사각) — 없으면 슬롯 칸만 남아
+        /// **무엇에 딸린 적재인지**가 사라진다.
+        ///
+        /// ⚠️ **슬롯 틴트보다 아래에 깐다** — 틴트가 그림 위에 곱해져야 한다.
         /// </summary>
         private void BuildMountBodies(Transform parent)
         {
@@ -944,38 +961,41 @@ namespace MBI.Logistics
             _mountBodyOwners.Clear();
             _mountBodyHasArt.Clear();
 
+            float cell = _grid.CellSize;
+            int tall = MountDisplay.GroupHeightCells;
+
             foreach (MountPort mp in PartLayout.MountPorts)
             {
-                Vector2Int cell = MountDisplay.BodyCell(mp.cell, mp.face, mp.owner);
+                // 묶음 맨 아랫 칸을 자리로 들고 있는다 — 이름표가 그 밑변을 쓴다.
+                Vector2Int bottom = MountDisplay.SlotCell(mp.cell, mp.face, mp.owner, 0);
                 Sprite body = art != null ? art.MountBody(mp.owner) : null;
 
                 var go = new GameObject($"MountBody_{mp.owner}_{mp.face}");
                 go.transform.SetParent(parent, false);
-                go.transform.position = CellWorld(cell);
+
+                Vector3 c = CellWorld(bottom);
+                go.transform.position = new Vector3(c.x, c.y + (tall - 1) * 0.5f * cell, 0f);
 
                 var sr = go.AddComponent<SpriteRenderer>();
                 if (body != null)
                 {
                     sr.sprite = body;
-                    go.transform.localScale = Vector3.one * FitScale(body, _grid.CellSize);
+                    float unit = FitScale(body, cell);
+                    go.transform.localScale = new Vector3(unit, unit * tall, 1f);
                     sr.color = Color.white;
-
-                    // ⚠️ **결합부가 몸 쪽을 보게 뒤집는다**(2026-09-14 · `MountDisplay.FlipX`).
-                    // 한 장을 양쪽에 쓰므로 한쪽은 반드시 뒤집혀야 대칭이 선다.
                     sr.flipX = MountDisplay.FlipX(mp.cell, mp.face, mp.owner);
                 }
                 else
                 {
-                    // 폴백 — **한 칸**을 채우는 색 사각. 「여기에 마운트가 온다」만 말한다.
                     sr.sprite = UnitSprite();
-                    go.transform.localScale = Vector3.one * _grid.CellSize;
+                    go.transform.localScale = new Vector3(cell, cell * tall, 1f);
                     sr.color = MountFallbackColor;
                 }
 
-                sr.sortingOrder = MarkerOrder - 1;
+                sr.sortingOrder = MarkerOrder - 2;
 
                 _mountBodyViews.Add(sr);
-                _mountBodyCells.Add(cell);
+                _mountBodyCells.Add(bottom);
                 _mountBodyOwners.Add(mp.owner);
                 _mountBodyHasArt.Add(body != null);
             }
@@ -1027,6 +1047,7 @@ namespace MBI.Logistics
                     go.transform.position = w;
                     var sr = go.AddComponent<SpriteRenderer>();
                     sr.sprite = UnitSprite();
+                    // ⚠️ **그림보다 위** — 틴트는 그림에 얹히는 것이다(그림은 MarkerOrder−2).
                     sr.sortingOrder = MarkerOrder - 1;
                     sr.enabled = false;   // 채움이 0이면 아예 안 그린다
 
@@ -2126,7 +2147,7 @@ namespace MBI.Logistics
             float side = Mathf.Min(UiLayout.MinButton * sc, band.height - pad * 2f);
             var style = new GUIStyle(GUI.skin.button)
             {
-                fontSize = Mathf.Max(9, Mathf.RoundToInt(side * 0.13f)),
+                fontSize = KoreanFont.Snap(Mathf.Max(9, Mathf.RoundToInt(side * 0.13f))),
                 wordWrap = true,
                 alignment = TextAnchor.LowerCenter,
             };
@@ -2264,7 +2285,7 @@ namespace MBI.Logistics
                 _removeMode ? "제거 모드 · 탭 = 노드/벨트 삭제"
                 : _selectedModule >= 0 ? "모듈 모드 · 탭 = 놓인 노드에 장착"
                 : "탭 = 노드 배치 · 드래그 = 벨트",
-                new GUIStyle(GUI.skin.label) { fontSize = Mathf.Max(9, Mathf.RoundToInt(24f * sc)) });
+                new GUIStyle(GUI.skin.label) { fontSize = KoreanFont.Snap(Mathf.Max(9, Mathf.RoundToInt(24f * sc))) });
 
             DrawRecipePanel();
 
@@ -2594,7 +2615,7 @@ namespace MBI.Logistics
             GUI.Label(band, SupplyStopRules.BandText,
                 new GUIStyle(GUI.skin.label)
                 {
-                    fontSize = Mathf.Max(14, Mathf.RoundToInt(band.height * 0.45f)),
+                    fontSize = KoreanFont.Snap(Mathf.Max(14, Mathf.RoundToInt(band.height * 0.45f))),
                     alignment = TextAnchor.MiddleCenter,
                     normal = { textColor = WarningBandText },
                 });
@@ -2670,7 +2691,7 @@ namespace MBI.Logistics
             var rect = UiLayout.ModeBarRect(Screen.width, Screen.height);
             var style = new GUIStyle(GUI.skin.button)
             {
-                fontSize = Mathf.Max(12, Mathf.RoundToInt(rect.height * 0.30f)),
+                fontSize = KoreanFont.Snap(Mathf.Max(12, Mathf.RoundToInt(rect.height * 0.30f))),
             };
 
             // ⚠️ **왼쪽 위로 옮긴다.** 종전에는 화면 바닥(height-78)에 고정돼 있었는데,

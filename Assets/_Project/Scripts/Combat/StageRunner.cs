@@ -1376,7 +1376,7 @@ namespace MBI.Combat
             // 없으면 `RoundStyle` 이 받은 것을 그대로 돌려줘 **네모 버튼으로 떨어진다** —
             // 누를 자리가 안 보이는 것보다 낫다.
             var round = UiSkin.RoundStyle(GUI.skin.button);
-            round.fontSize = Mathf.Max(10, Mathf.RoundToInt(tagRect.height * 0.15f));
+            round.fontSize = KoreanFont.Snap(Mathf.Max(10, Mathf.RoundToInt(tagRect.height * 0.15f)));
             round.wordWrap = true;   // 원형 안이라 한 줄로는 안 들어간다
             UiBlockers.Add(tagRect);
             UiBlockers.Add(mergeRect);

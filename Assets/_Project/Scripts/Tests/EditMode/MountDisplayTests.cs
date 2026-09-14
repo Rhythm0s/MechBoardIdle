@@ -73,42 +73,32 @@ namespace MBI.Tests
                     Assert.IsTrue(used.Add(c), $"슬롯 칸이 겹친다: {c}");
                 }
 
-            foreach (MountPort mp in PartLayout.MountPorts)
-            {
-                Vector2Int b = MountDisplay.BodyCell(mp.cell, mp.face, mp.owner);
-                Assert.IsFalse(used.Contains(b), $"그림 칸이 슬롯을 덮는다: {b}");
-                Assert.IsFalse(PartLayout.IsValid(b), $"그림 칸 {b} 에 노드를 놓을 수 있다");
-            }
+            // ⚠️ **그림 칸은 폐기됐다**(§72-13) — 그림은 묶음 네 칸 **위에 겹쳐** 그린다.
+            // 그러므로 「그림이 슬롯을 덮는가」는 이제 물음이 아니다. 대신 묶음이
+            // **네 칸을 차지하는지**를 본다 — 그림 높이가 여기에 맞춰 늘어난다.
+            Assert.AreEqual(MountDisplay.SlotsPerPort, MountDisplay.GroupHeightCells,
+                "그림은 슬롯 넷만큼 늘어난다");
+            Assert.AreEqual(PartLayout.MountPorts.Count * MountDisplay.SlotsPerPort, used.Count,
+                "포트마다 넷씩, 겹침 없이");
         }
 
         /// <summary>
-        /// 그림 칸 — **A 는 x−2 · B 는 마운트 전용 줄(y13)의 x2 · x9**(§72-6).
+        /// **바깥으로 나가는 것은 A 의 묶음 한 열뿐이다** (§72-13 로 그림 칸이 폐기됐다).
         ///
-        /// ⚠️ **B 는 격자 안에 든다** — 그래서 **세로 여유가 필요 없다.**
-        /// 가로 여유 두 칸은 A 하나 때문에 남는다.
+        /// 그래서 가로 여유가 **두 칸에서 한 칸으로** 줄었고, 문서의 13칸과 맞는다.
         /// </summary>
         [Test]
-        public void 그림_칸은_A만_격자_밖이다()
+        public void 바깥으로_나가는_것은_A_묶음_한_열뿐이다()
         {
-            int top = PartLayout.Rows - 1;
-
-            Assert.AreEqual(new Vector2Int(-2, 6),
-                MountDisplay.BodyCell(new Vector2Int(0, 6), PortFace.West, MountOwner.RobotA));
-            Assert.AreEqual(new Vector2Int(2, top),
-                MountDisplay.BodyCell(new Vector2Int(2, 10), PortFace.East, MountOwner.RobotB));
-            Assert.AreEqual(new Vector2Int(9, top),
-                MountDisplay.BodyCell(new Vector2Int(9, 10), PortFace.West, MountOwner.RobotB));
-
             foreach (MountPort mp in PartLayout.MountPorts)
             {
-                Vector2Int b = MountDisplay.BodyCell(mp.cell, mp.face, mp.owner);
-                bool inside = b.x >= 0 && b.x < PartLayout.Columns
-                              && b.y >= 0 && b.y < PartLayout.Rows;
+                int column = MountDisplay.SlotColumn(mp.cell, mp.face);
 
                 if (mp.owner == MountOwner.RobotB)
-                    Assert.IsTrue(inside, $"B 의 그림이 격자 밖으로 나갔다: {b}");
+                    Assert.IsTrue(column >= 0 && column < PartLayout.Columns,
+                        $"B 의 묶음이 격자 밖으로 나갔다: x{column}");
                 else
-                    Assert.AreEqual(-2, b.x, "A 의 그림은 왼쪽 두 칸 여유 안이다");
+                    Assert.AreEqual(-1, column, "A 의 묶음은 왼쪽 한 칸 바깥이다");
             }
         }
 
@@ -174,7 +164,7 @@ namespace MBI.Tests
             {
                 if (mp.owner != MountOwner.RobotB) continue;
                 bool f = MountDisplay.FlipX(mp.cell, mp.face, mp.owner);
-                bool onLeft = MountDisplay.BodyCell(mp.cell, mp.face, mp.owner).x * 2
+                bool onLeft = MountDisplay.SlotColumn(mp.cell, mp.face) * 2
                               < PartLayout.Columns;
                 if (onLeft) leftPlain = !f;
                 else rightFlipped = f;

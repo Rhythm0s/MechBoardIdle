@@ -79,7 +79,7 @@ namespace MBI.UI
             var title = new GUIStyle(GUI.skin.label)
             {
                 alignment = TextAnchor.MiddleCenter,
-                fontSize = Mathf.RoundToInt(S(96f)),
+                fontSize = KoreanFont.Snap(Mathf.RoundToInt(S(96f))),
                 fontStyle = FontStyle.Bold
             };
             GUI.Label(new Rect(0f, S(TitleTop), Screen.width, S(140f)), "MECH BOARD IDLE", title);
@@ -88,7 +88,7 @@ namespace MBI.UI
             var notice = new GUIStyle(GUI.skin.label)
             {
                 alignment = TextAnchor.UpperCenter,
-                fontSize = Mathf.RoundToInt(S(44f)),
+                fontSize = KoreanFont.Snap(Mathf.RoundToInt(S(44f))),
                 wordWrap = true
             };
             string line = links != null && !string.IsNullOrWhiteSpace(links.notice)
@@ -100,7 +100,7 @@ namespace MBI.UI
 
         private void DrawButtons()
         {
-            var style = new GUIStyle(GUI.skin.button) { fontSize = Mathf.RoundToInt(S(48f)) };
+            var style = new GUIStyle(GUI.skin.button) { fontSize = KoreanFont.Snap(Mathf.RoundToInt(S(48f))) };
             float x = (Screen.width - S(ButtonW)) * 0.5f;
             float y = S(ButtonsTop);
             float h = S(ButtonH);
@@ -150,7 +150,7 @@ namespace MBI.UI
             var small = new GUIStyle(GUI.skin.label)
             {
                 alignment = TextAnchor.LowerCenter,
-                fontSize = Mathf.RoundToInt(S(36f))
+                fontSize = KoreanFont.Snap(Mathf.RoundToInt(S(36f)))
             };
             GUI.Label(new Rect(0f, Screen.height - S(120f), Screen.width, S(80f)), links.version, small);
         }

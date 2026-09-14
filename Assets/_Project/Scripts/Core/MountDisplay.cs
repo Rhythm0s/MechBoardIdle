@@ -74,31 +74,16 @@ namespace MBI.Core
             new Vector2Int(SlotColumn(portCell, face), SlotRowStart(owner) + i);
 
         /// <summary>
-        /// 마운트 **그림**이 서는 칸 — 묶음에 붙는 한 칸이다(자리는 구현 재량 · §72-6).
+        /// 묶음 네 칸의 **세로 칸 수** — 그림을 이만큼 늘린다 (2026-09-14 · §72-13).
         ///
-        /// **A** 는 묶음(x−1 · y5~8)보다 **한 칸 더 바깥**(x−2)이다. 팔R 이 안쪽을 막고 있어
-        /// 옆으로는 그쪽밖에 없고, 위아래는 다른 것과 부딪힌다.
+        /// ⚠️ **별도 그림 칸은 폐기됐다.** 그림을 슬롯 묶음 **네 칸 위에 세로로 늘려**
+        /// 그리고 칸마다 품목색을 틴트로 곱한다 — 그림과 적재가 **한 덩어리**가 되어
+        /// 「무엇에 딸린 표시인가」가 저절로 선다.
         ///
-        /// **B** 는 묶음(x3 · x8 · y10~13)의 **맨 윗 칸 옆**이다 — 즉 마운트 전용 줄 y13 의
-        /// x2 · x9 다. 어깨(x0~2 · x9~11)가 y10~11 을 차지해 그 아래로는 빈 칸이 없고,
-        /// **y13 은 파츠가 없어** 비어 있다.
-        ///
-        /// ⚠️ **그래서 세로 여유는 필요 없다**(§72-6) — B 의 그림까지 격자 안에 든다.
-        /// 가로 여유 두 칸은 **A 때문에** 남는다.
+        /// 폐기 전에는 A `(−2,6)` · B `(2,13)`·`(9,13)` 을 따로 썼고 그 때문에 가로
+        /// 여유가 **두 칸** 필요했다 — 이제 **한 칸**이면 된다(문서 13칸과 맞는다).
         /// </summary>
-        public static Vector2Int BodyCell(Vector2Int portCell, PortFace face, MountOwner owner)
-        {
-            int slotColumn = SlotColumn(portCell, face);
-            bool left = slotColumn * 2 < PartLayout.Columns;
-            int column = left ? slotColumn - 1 : slotColumn + 1;
-
-            // A 는 묶음 세로 가운데(5~8 → 6) · B 는 맨 위(10~13 → 13).
-            int row = owner == MountOwner.RobotB
-                ? SlotRowStart(owner) + SlotsPerPort - 1
-                : SlotRowStart(owner) + 1;
-
-            return new Vector2Int(column, row);
-        }
+        public static int GroupHeightCells => SlotsPerPort;
 
         /// <summary>
         /// 마운트 그림을 **좌우로 뒤집는가** (2026-09-14 실측 · 플랜 「B 오른쪽 flipX 확인」).
@@ -108,9 +93,9 @@ namespace MBI.Core
         /// `mount_dronebay_b` 는 **왼쪽 0 · 오른쪽 18** 이므로 **왼쪽이 붙는 변**이다.
         ///
         /// 그래서 판단은 「**몸이 그림의 어느 쪽에 있는가**」 하나다.
-        ///   · B 왼쪽(그림 x2 · 어깨R x0~2) — 몸이 왼쪽이라 **그대로**
-        ///   · B 오른쪽(그림 x9 · 어깨L x9~11) — 몸이 오른쪽이라 **뒤집는다**
-        ///   · A(그림 x−2) — **실루엣 바깥**이라 몸이 늘 안쪽(오른쪽)이다. 항상 뒤집는다
+        ///   · B 왼쪽(묶음 x3 · 어깨R x0~2) — 몸이 왼쪽이라 **그대로**
+        ///   · B 오른쪽(묶음 x8 · 어깨L x9~11) — 몸이 오른쪽이라 **뒤집는다**
+        ///   · A(묶음 x−1) — **실루엣 바깥**이라 몸이 늘 안쪽(오른쪽)이다. 항상 뒤집는다
         ///
         /// ⚠️ **A 는 규격으로 안 갈린다** — `mount_gun_a` 는 좌우 여백이 **둘 다 0**이라
         /// 붙는 변을 못 고른다. 그림을 읽어 정했다(손잡이가 왼쪽 · 총열이 오른쪽이므로,
@@ -122,7 +107,7 @@ namespace MBI.Core
             if (owner != MountOwner.RobotB) return true;
 
             // B 는 그림이 보드의 어느 쪽에 섰는가로 갈린다.
-            return BodyCell(portCell, face, owner).x * 2 >= PartLayout.Columns;
+            return SlotColumn(portCell, face) * 2 >= PartLayout.Columns;
         }
 
         /// <summary>
