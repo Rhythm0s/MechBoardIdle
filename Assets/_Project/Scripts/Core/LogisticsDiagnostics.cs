@@ -47,7 +47,7 @@ namespace MBI.Core
                 if (node == null || node.Definition == null || !node.Definition.implemented) continue;
 
                 bool hasOut = false, hasIn = false, outLinked = false, inLinked = false;
-                foreach (NodePort p in node.Definition.ports)
+                foreach (NodePort p in node.Ports())
                 {
                     bool neighbor = HasNeighbor(grid, cell, p.face);
                     if (p.io == PortIO.Output) { hasOut = true; if (neighbor) outLinked = true; }

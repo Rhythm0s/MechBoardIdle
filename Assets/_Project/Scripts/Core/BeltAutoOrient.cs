@@ -134,7 +134,7 @@ namespace MBI.Core
         private static bool HasPort(NodeInstance node, PortIO io, PortFace face)
         {
             if (node.Definition == null || node.Definition.ports == null) return false;
-            foreach (NodePort p in node.Definition.ports)
+            foreach (NodePort p in node.Ports())
                 if (p.io == io && p.face == face) return true;
             return false;
         }

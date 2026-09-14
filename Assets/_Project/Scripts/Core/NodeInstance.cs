@@ -17,6 +17,58 @@ namespace MBI.Core
         public readonly Vector2Int Cell;
 
         /// <summary>
+        /// **놓인 방향** — 90도 단위 0~3 (2026-09-15 사용자 확정 · §72-42).
+        ///
+        /// ⚠️ **왜 필요한가.** 노드가 **서면으로 받아 동면으로만 내므로** 산물이 늘 동쪽으로
+        /// 흐른다. 도착지(마운트)가 보드 **서쪽 끝**이라 운반로가 동→서 **가로 한 줄**이 되고,
+        /// 그 줄이 코어와 아래 절반을 **가로로 가른다** — 그래서 S3 프리셋이 못 섰다
+        /// (`260914_V03` 7장). 노드를 돌릴 수 있으면 **산물이 서·남으로도 나가** 그 벽이 없어진다.
+        ///
+        /// ⚠️ **자산은 안 건드린다.** 자산의 포트 면은 **0도일 때의 면**이고, 돌린 면은
+        /// <see cref="Ports"/> 가 낸다. 그래야 같은 노드 자산 하나로 네 방향을 다 쓴다.
+        /// </summary>
+        public int Rotation
+        {
+            get => _rotation;
+            set
+            {
+                int q = ((value % 4) + 4) % 4;
+                if (q == _rotation) return;
+                _rotation = q;
+                _rotatedPorts = null;   // 다음에 물어볼 때 다시 짓는다
+            }
+        }
+
+        private int _rotation;
+        private NodePort[] _rotatedPorts;
+
+        /// <summary>
+        /// **지금 방향에서의 포트 목록** — 판정은 자산이 아니라 이것을 읽어야 한다.
+        ///
+        /// ⚠️ **캐시한다.** 링크 판정이 칸마다 이 목록을 훑으므로 매번 새로 지으면
+        /// 배치가 큰 보드에서 프레임마다 쓰레기가 쌓인다. 회전이 바뀔 때만 다시 짓는다.
+        ///
+        /// 0도면 **자산의 목록을 그대로** 돌려준다 — 안 돌린 노드에 사본을 만들지 않는다.
+        /// </summary>
+        public IReadOnlyList<NodePort> Ports()
+        {
+            List<NodePort> src = Definition != null ? Definition.ports : null;
+            if (src == null) return System.Array.Empty<NodePort>();
+            if (_rotation == 0) return src;
+
+            if (_rotatedPorts == null || _rotatedPorts.Length != src.Count)
+                _rotatedPorts = new NodePort[src.Count];
+
+            for (int i = 0; i < src.Count; i++)
+            {
+                NodePort p = src[i];
+                _rotatedPorts[i] = new NodePort(
+                    NodeConnectionRules.Rotate(p.face, _rotation), p.io, p.kind);
+            }
+            return _rotatedPorts;
+        }
+
+        /// <summary>
         /// 이 노드가 만드는 탄종(군수 노드에만 의미 — 다른 타입에서는 읽지 않는다).
         ///
         /// 노드 1개 = 1발/초이고 탄종은 **노드별로 지정**된다(260824_V02 §1).

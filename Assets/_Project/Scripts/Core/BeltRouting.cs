@@ -50,7 +50,7 @@ namespace MBI.Core
                     // 군수 노드의 출력 포트는 「탄약」 하나뿐인데 추진제를 돌리면 추진제가 나간다 —
                     // 포트만 보면 추진제 라인이 부스터에 링크가 서지 않는다(BeltFlow와 같은 원천).
                     FlowKind outKind = BeltFlow.OutputKindOf(node);
-                    foreach (NodePort p in node.Definition.ports)
+                    foreach (NodePort p in node.Ports())
                         if (p.io == PortIO.Output)
                             TryLink(grid, links, cell, p.face, outKind);
                     continue;
@@ -134,7 +134,7 @@ namespace MBI.Core
 
             // 면이 열려 있는가 — 이것만 자산이 정한다.
             bool faceOpen = false;
-            foreach (NodePort p in node.Definition.ports)
+            foreach (NodePort p in node.Ports())
                 if (p.io == PortIO.Input && p.face == face) { faceOpen = true; break; }
             if (!faceOpen) return false;
 
@@ -148,7 +148,7 @@ namespace MBI.Core
             List<NodeRecipe> recipes = node.Definition.recipes;
             if (recipes == null || recipes.Count == 0)
             {
-                foreach (NodePort p in node.Definition.ports)
+                foreach (NodePort p in node.Ports())
                     if (p.io == PortIO.Input && p.face == face && p.kind == kind) return true;
                 return false;
             }

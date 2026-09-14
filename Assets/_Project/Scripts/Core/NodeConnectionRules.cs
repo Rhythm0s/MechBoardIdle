@@ -13,6 +13,25 @@ namespace MBI.Core
     /// </summary>
     public static class NodeConnectionRules
     {
+        /// <summary>
+        /// 면을 **시계 방향으로 90도씩** 돌린다 (2026-09-15 사용자 확정 · §72-42 노드 회전).
+        ///
+        /// ⚠️ **회전은 인스턴스의 것이지 자산의 것이 아니다.** 자산의 포트 면은 **0도일 때의
+        /// 면**이고, 놓인 노드가 몇 도인지는 <see cref="NodeInstance.Rotation"/> 이 들고 있다.
+        /// 판정은 <see cref="NodeInstance.Ports"/> 가 돌려주는 **돌린 면**을 읽는다.
+        ///
+        /// ⚠️ **시계 방향이다** — 북 → 동 → 남 → 서. 화면에서 회전 버튼을 누르면 그림이
+        /// 시계로 도는 것과 같은 방향이어야 「같은 것이 돈다」로 읽힌다.
+        ///
+        /// 음수도 받는다(왼쪽으로 돌리기). 네 바퀴면 제자리다.
+        /// </summary>
+        public static PortFace Rotate(PortFace face, int quarterTurns)
+        {
+            // North=0 · East=1 · South=2 · West=3 — 열거값이 이미 시계 차례다.
+            int q = ((quarterTurns % 4) + 4) % 4;
+            return (PortFace)(((int)face + q) % 4);
+        }
+
         /// <summary>맞닿은 면의 반대 면.</summary>
         public static PortFace Opposite(PortFace face)
         {

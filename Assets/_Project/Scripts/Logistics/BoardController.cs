@@ -2080,7 +2080,7 @@ namespace MBI.Logistics
             if (inst == null || inst.Definition == null || inst.Definition.ports == null) return;
 
             var list = new List<PortMarker>();
-            foreach (NodePort p in inst.Definition.ports)
+            foreach (NodePort p in inst.Ports())
             {
                 Vector2 off = FaceOffset(p.face);
                 bool outward = p.io == PortIO.Output;

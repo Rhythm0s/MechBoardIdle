@@ -192,7 +192,7 @@ namespace MBI.Core
             if (node != null)
             {
                 if (node.Definition == null || node.Definition.ports == null) return false;
-                foreach (NodePort p in node.Definition.ports)
+                foreach (NodePort p in node.Ports())
                     if (p.io == PortIO.Output && PartLayout.TryGetMountPort(cell, p.face, out _)) return true;
                 return false;
             }
@@ -207,7 +207,7 @@ namespace MBI.Core
         private static bool HasOutput(NodeInstance node)
         {
             if (node.Definition == null || node.Definition.ports == null) return false;
-            foreach (NodePort p in node.Definition.ports)
+            foreach (NodePort p in node.Ports())
                 if (p.io == PortIO.Output) return true;
             return false;
         }

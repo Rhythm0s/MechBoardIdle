@@ -69,7 +69,7 @@ namespace MBI.Core
                 if (node == null || node.Definition == null || node.Definition.ports == null) continue;
 
                 FlowKind output = OutputKindOf(node);
-                foreach (NodePort p in node.Definition.ports)
+                foreach (NodePort p in node.Ports())
                 {
                     if (p.io != PortIO.Output) continue;
                     Feed(grid, cell, p.face, output, queue);
@@ -118,7 +118,7 @@ namespace MBI.Core
                 return node.BufferKind;
 
             // 조합표도 버퍼도 없는 노드(코어·에너지)는 포트에 적힌 것이 그대로 산출이다.
-            foreach (NodePort p in node.Definition.ports)
+            foreach (NodePort p in node.Ports())
                 if (p.io == PortIO.Output) return p.kind;
 
             return FlowKind.None;
