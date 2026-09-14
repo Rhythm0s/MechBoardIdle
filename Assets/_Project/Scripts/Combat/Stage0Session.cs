@@ -146,7 +146,12 @@ namespace MBI.Combat
 
             var style = new GUIStyle(GUI.skin.label) { fontSize = 16, fontStyle = FontStyle.Bold };
 
-            GUILayout.BeginArea(new Rect(12, Screen.height - 96f, 420f, 84f));
+            // ⚠️ **날 픽셀 자리를 걷었다**(2026-09-15 육안 ④ · 결함).
+            //
+            // 종전은 `Rect(12, Screen.height − 96, 420, 84)` 였다. 띠 체계 밖이라 창 높이만
+            // 따라갔고 화면이 낮으면 **HUD 첫 줄과 겹쳤다** — 09-14 하단 넷과 같은 병이다.
+            // 자리는 `UiLayout` 이 낸다(부유 띠 왼쪽 · 배율 막대 옆).
+            GUILayout.BeginArea(MBI.UI.UiLayout.TutorialProgressRect(Screen.width, Screen.height));
             // ⚠️ **이 문구는 벨트로 바뀐 뒤에도 맞는다** — 「끊긴 자리를 잇는다」는 노드보다
             // 벨트일 때 오히려 더 정확하다. 안내 문구를 따로 두지 않는 것도 그대로다.
             GUILayout.Label(Mark(_goal.SlotFilled) + " 끊긴 자리를 잇는다", style);

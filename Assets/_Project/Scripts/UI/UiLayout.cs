@@ -438,5 +438,32 @@ namespace MBI.UI
             float w = ZoomBarWidth * s;
             return new Rect(screenWidth - margin - w, band.y + pad, w, h);
         }
+
+        /// <summary>
+        /// 튜토리얼 진행 두 줄이 앉을 자리 — **부유 띠 왼쪽** (2026-09-15 · 육안 ④).
+        ///
+        /// ⚠️ **종전은 `Rect(12, Screen.height − 96, 420, 84)` 날 픽셀이었다.**
+        /// 띠 체계 밖이라 창 높이만 따라갔고, 화면이 낮으면 **HUD 첫 줄과 겹쳤다.**
+        /// 09-14 하단 넷과 **같은 병**이다 — 날 픽셀 자리가 문서 좌표 위에 남아 있었다.
+        ///
+        /// ⚠️ **왜 부유 띠인가.** 이 두 줄은 조립 화면에 얹히는 **상태 표시**라
+        /// 보드를 가리면 안 되고, 액션바는 버튼 자리다. 부유 띠는 오른쪽을 배율 막대가
+        /// 쓰고 **왼쪽이 비어 있다**(§71-22).
+        ///
+        /// ⚠️ **가정이다** — 문서에 튜토리얼 진행 자리 절이 없다(설계 역기입 자리).
+        /// 배율 막대와 안 겹치게 폭을 그 왼쪽까지로 자른다.
+        /// </summary>
+        public static Rect TutorialProgressRect(float screenWidth, float screenHeight)
+        {
+            Rect band = BandRect(Band.FloatBand, screenWidth, screenHeight);
+            float s = Scale(screenHeight);
+            float margin = 24f * s, pad = 12f * s;
+
+            float left = margin;
+            float right = ZoomBarRect(screenWidth, screenHeight).x - pad;
+            float w = Mathf.Max(0f, right - left);
+            float h = Mathf.Max(0f, band.height - pad * 2f);
+            return new Rect(left, band.y + pad, w, h);
+        }
     }
 }
