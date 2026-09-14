@@ -105,15 +105,32 @@ namespace MBI.Tests
         // ---- 만충 판정 (태그 발동 조건) ----
 
         [Test]
-        public void IsFull_RequiresEverySlotClaimedAndFilled()
+        public void IsFull_MeansEveryClaimedSlotIsFilled()
         {
             MountLoad m = RobotA();
 
-            m.Load(MountItem.Pierce, 30f); // 세 칸만
-            Assert.IsFalse(m.IsFull, "빈 슬롯이 있으면 만충이 아니다");
+            // ✅ **차지된 슬롯이 다 찼으면 만충이다**(2026-09-14 · §72-16 (나)).
+            // 구 규칙은 「빈 슬롯이 하나라도 있으면 거짓」이라 여기서 false 였다.
+            m.Load(MountItem.Pierce, 30f);            // 세 칸이 10·10·10
+            Assert.IsTrue(m.IsFull, "차지된 세 칸이 다 찼다");
 
-            m.Load(MountItem.Pierce, 10f);
+            // 한 발 더 넣으면 **네 번째 칸이 열리고 그 칸이 안 찼다** — 만충이 깨진다.
+            m.Load(MountItem.Pierce, 1f);
+            Assert.IsFalse(m.IsFull, "새로 연 칸이 아직 안 찼다");
+
+            m.Load(MountItem.Pierce, 9f);             // 네 칸 모두 10
             Assert.IsTrue(m.IsFull);
+        }
+
+        /// <summary>
+        /// **빈 마운트는 만충이 아니다** — 차지된 슬롯이 0이면 거짓이다(§72-16).
+        /// 「있는 것이 다 찼다」를 빈손에까지 적용하면 **아무것도 없는데 가득**이 된다.
+        /// </summary>
+        [Test]
+        public void EmptyMount_IsNotFull()
+        {
+            MountLoad m = RobotA();
+            Assert.IsFalse(m.IsFull, "빈 마운트를 가득이라 부를 수 없다");
         }
 
         /// <summary>
@@ -142,13 +159,17 @@ namespace MBI.Tests
         /// 판정이 막히는 것은 전 슬롯이 찬 뒤 「이게 끝인가」를 물을 때뿐이다.
         /// </summary>
         [Test]
-        public void EmptySlots_AreJudgeableEvenWithUnknownStacks()
+        public void UnknownStackOnAClaimedSlot_MakesItUnjudgeable()
         {
             var m = new MountLoad(4, new Dictionary<MountItem, float>());
-            m.Load(MountItem.Pierce, 999f); // 한 칸만 차지
+            m.Load(MountItem.Pierce, 999f); // 한 칸만 차지 · 상한 미확정
 
             Assert.IsFalse(m.AllSlotsClaimed);
-            Assert.IsTrue(m.CanJudgeFullness, "빈 칸이 있으면 만충이 아님이 확실하다");
+
+            // ⚠️ **차지된 슬롯만 본다**(§72-16). 그 한 칸의 상한이 미확정이라
+            // 「가득 찼다」를 말할 수 없다 — 구 규칙은 빈 칸이 있다는 것만으로
+            // 「확실히 만충 아님」이라 했지만, 이제 빈 칸은 판정에 안 든다.
+            Assert.IsFalse(m.CanJudgeFullness, "차지된 칸의 상한을 모른다");
             Assert.IsFalse(m.IsFull);
         }
 

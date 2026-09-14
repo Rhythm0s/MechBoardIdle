@@ -217,12 +217,26 @@ namespace MBI.EditorTools
                           $"첫 도착 뒤 {Window - firstAt:F1}초로 나눈 것)");
             sb.AppendLine("  주의: 「완료 출력」의 창 정의(60초 누적 ÷ 60 인가)는 설계 판정 자리다.");
 
-            float cap = bal.mountStackLimit * MountLoad.SlotsRobotA;
+            float stack = bal.mountStackLimit;
+            float cap = stack * MountLoad.SlotsRobotA;
             if (perSec > 0f)
-                sb.AppendLine($"  마운트 {cap:F0} 채움 = {firstAt + cap / perSec:F0}초 " +
+            {
+                sb.AppendLine($"  마운트 {cap:F0} 전량 채움 = {firstAt + cap / perSec:F0}초 " +
                               $"(첫 도착 {firstAt:F1} + {cap:F0} / {perSec:F2})");
+
+                // ⚠️ **만충 잣대가 바뀌었다**(2026-09-14 · §72-16 (나) 사용자 확정) —
+                // 「차지된 슬롯이 모두 상한까지」라서 **첫 슬롯 하나가 상한에 닿는 순간** 선다.
+                // 태그·태그 스킬이 열리는 시각은 전량이 아니라 **한 칸**이 정한다.
+                sb.AppendLine($"  만충(태그 스킬 문턱) = {firstAt + stack / perSec:F1}초 " +
+                              $"(첫 도착 {firstAt:F1} + 상한 {stack:F0} / {perSec:F2})");
+                sb.AppendLine("  ⚠️ 이 만충은 **스쳐 간다** — 한 발 더 실리면 다음 칸이 열려 깨지고 " +
+                              "상한의 배수마다 다시 선다. 마운트가 가득 차 더 못 받을 때에야 머문다.");
+            }
             else
-                sb.AppendLine($"  마운트 {cap:F0} 채움 = 안 찬다 (도착 0)");
+            {
+                sb.AppendLine($"  마운트 {cap:F0} 전량 채움 = 안 찬다 (도착 0)");
+                sb.AppendLine("  만충(태그 스킬 문턱) = 안 선다 (도착 0)");
+            }
 
             sb.AppendLine("  주의: 제약 4(약 8초)와 5(S1 을 여유 있게)에 닿는지는 설계가 판정한다.");
 
