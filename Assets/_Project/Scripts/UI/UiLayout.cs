@@ -368,8 +368,14 @@ namespace MBI.UI
         // 보드 어디에 있든 패널은 늘 화면 왼쪽에 떴다 — **무엇을 고쳤는지가 눈에서 멀었다.**
         // 오늘 하단 넷이 전부 「날 픽셀 자리가 문서 좌표 위에 남아 있었다」였고 이것이 같은 종류다.
 
-        /// <summary>조합표 팝오버 폭 (기준 캔버스). ⚠️ 가정.</summary>
-        public const float RecipePopoverWidth = 380f;
+        /// <summary>
+        /// 조합표 팝오버 폭 (기준 캔버스). ⚠️ 가정.
+        ///
+        /// ⚠️ **380 → 560**(2026-09-15 · 육안 ② 팝오버 확장). 절이 넷으로 늘면서
+        /// 「입력 아이콘 n/초 + 입력 아이콘 n/초 → 출력 아이콘 n/초」 한 줄이 380 을 넘는다.
+        /// 구 380 은 조합표 버튼만 있던 시절의 폭이다 — 폐기 표기로 남긴다.
+        /// </summary>
+        public const float RecipePopoverWidth = 560f;
 
         /// <summary>줄 하나의 높이 (기준 캔버스). 버튼 최소 150 을 밑돈다 — ⚠️ 가정이고 판정거리다.</summary>
         public const float RecipePopoverRow = 76f;

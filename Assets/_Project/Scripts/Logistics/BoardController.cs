@@ -2847,8 +2847,13 @@ namespace MBI.Logistics
             NodeInstance inst = _grid.GetAt(_selected.Value);
             if (inst == null || inst.Definition == null) return;
 
+            // ⚠️ **조합표가 없어도 뜬다**(2026-09-15 사용자 확정 · 육안 ②).
+            //
+            // 종전에는 후보가 없으면 여기서 돌아섰다 — 코어·에너지·저장·부스터를 탭하면
+            // **아무 일도 안 일어났다.** 이제 이 패널이 조합표만 고르는 곳이 아니라
+            // **그 노드에 대해 아는 것을 말하는 곳**이라, 고를 것이 없어도 할 말이 있다.
             List<NodeRecipe> candidates = inst.Definition.recipes;
-            if (candidates == null || candidates.Count == 0) return;
+            int candidateCount = candidates != null ? candidates.Count : 0;
 
             Camera cam = boardCamera != null ? boardCamera : Camera.main;
             if (cam == null) return;
@@ -2885,10 +2890,24 @@ namespace MBI.Logistics
                 fontStyle = FontStyle.Bold,
             };
 
+            var body = new GUIStyle(GUI.skin.label)
+            {
+                fontSize = KoreanFont.Snap(Mathf.Max(10, Mathf.RoundToInt(h * 0.26f))),
+                wordWrap = false,
+            };
+
             // ⚠️ **높이를 줄 수에서 잰다** — 고정값을 박으면 조합표가 넷인 노드에서 잘린다
             // (오늘 HUD 280 이 그 자리였다).
             bool hasAmmo = inst.CurrentRecipe.kind == RecipeKind.Ammo;
-            float total = h + (h + pad) * candidates.Count + inner * 2f
+            float row = h * 0.62f;                       // 읽기 전용 한 줄
+            int moduleRows = inst.ModuleCount;
+            float total = h                              // 회전 + 이름
+                          + row * 2f                     // ① 상태 · 가동률
+                          + row * 2f                     // ② 입력 → 출력
+                          + row * 2f                     // ③ 전력 · 생산 시간
+                          + (moduleRows > 0 ? row + (h * 0.8f) * moduleRows : 0f)   // 모듈 행
+                          + (candidateCount > 0 ? row + (h + pad) * candidateCount : 0f)
+                          + inner * 2f
                           + (hasAmmo ? h * 0.8f + h : 0f);
 
             Rect box = UiLayout.RecipePopoverRect(nodePos, cellPx, total,
@@ -2919,7 +2938,82 @@ namespace MBI.Logistics
                 $"{inst.Definition.displayName} · {inst.Rotation * 90}°", head);
             y += h + pad;
 
-            RecipeKind current = inst.CurrentRecipe.kind;
+            // ══════════ ① 상태 · 가동률 (2026-09-15 사용자 확정 · 육안 ②) ══════════
+            //
+            // ⚠️ **왜 이 절이 먼저인가.** 「왜 안 도나」가 이 패널을 여는 가장 흔한 이유다.
+            // 상태와 가동률이 맨 위에 없으면 조합표부터 의심하게 되는데, 실제 원인은
+            // 대개 **전력이거나 안 이어진 것**이다(표식 둘이 그것을 가리킨다).
+            //
+            // ⚠️ **값을 여기서 만들지 않는다** — 진단은 물류가 이미 냈다(`_lastDiagnostics`),
+            // 가동률은 `WorkloadRate` 가 냈다. 여기는 옮겨 적기만 한다(§3).
+            float workload = LogisticsOutputBridge.Workload.Of(_selected.Value);
+            GUI.Label(new Rect(x, y, w, row), "상태", head);
+            y += row;
+            GUI.Label(new Rect(x, y, w, row),
+                $"{NodeStateText(_selected.Value)}  ·  가동률 {Mathf.Clamp01(workload) * 100f:F0}%", body);
+            y += row;
+
+            // ══════════ ② 입력 → 출력 ══════════
+            //
+            // ⚠️ **개/초까지 적는다.** 품목만 적으면 「무엇이 드나드는가」는 알아도
+            // 「얼마나」를 모른다 — 줄을 설계할 때 필요한 것은 그 수다.
+            NodeRecipe cur = inst.CurrentRecipe;
+            GUI.Label(new Rect(x, y, w, row), "물품", head);
+            y += row;
+            DrawRecipeFlow(new Rect(x, y, w, row), inst, cur, body);
+            y += row;
+
+            // ══════════ ③ 전력 · 생산 시간 ══════════
+            //
+            // ⚠️ **전력은 대당 × 일감률이다.** 노는 노드는 전력을 안 먹는다(변수 패널의
+            // 「노는 노드는 전력 0」과 같은 규칙) — 대당만 적으면 합이 화면과 안 맞는다.
+            //
+            // ⚠️ **생산 시간 = 필요 생산치 ÷ 생산력.** 생산력은 밸런스 SO 값(10)이고
+            // 여기서 짓지 않는다. 필요 생산치가 0 이면 **미확정**이라 시간도 안 적는다.
+            float powerEach = inst.Definition.resources.powerDraw * inst.ModulePowerLoadMultiplier;
+            GUI.Label(new Rect(x, y, w, row), "전력 · 시간", head);
+            y += row;
+            GUI.Label(new Rect(x, y, w, row),
+                $"전력 {powerEach * Mathf.Clamp01(workload):F1} (대당 {powerEach:F1})"
+                + "  ·  " + ProductionTimeText(inst, cur), body);
+            y += row;
+
+            // ══════════ 붙은 모듈 ══════════
+            //
+            // ⚠️ **떼기가 여기 있어야 한다.** 붙이는 것은 팔레트에서 하는데 떼는 길이
+            // 없었다 — 잘못 붙이면 **노드를 통째로 지우는 것 말고 방법이 없었다.**
+            if (moduleRows > 0)
+            {
+                GUI.Label(new Rect(x, y, w, row), "붙은 모듈", head);
+                y += row;
+
+                float mh = h * 0.8f;
+                for (int slot = 0; slot < NodeInstance.ModuleSlots; slot++)
+                {
+                    ModuleDefinition mod = inst.ModuleAt(slot);
+                    if (mod == null) continue;
+
+                    GUI.Label(new Rect(x, y, w * 0.74f, mh),
+                        $"{mod.symbol} {mod.displayName}  ×{mod.outputMultiplier:F2}"
+                        + $"  부하 ×{mod.powerLoadMultiplier:F1}", body);
+
+                    if (GUI.Button(new Rect(x + w * 0.76f, y, w * 0.24f, mh), "떼기", style)
+                        && inst.DetachModuleAt(slot))
+                    {
+                        RebuildMarker(_selected.Value);   // 기호 스프라이트가 노드에 얹혀 있다
+                        RefreshConnections();             // 배수가 빠지면 하류 산출이 바뀐다
+                    }
+                    y += mh;
+                }
+            }
+
+            // ══════════ ④ 조합표 후보 ══════════
+            if (candidateCount == 0) return;
+
+            GUI.Label(new Rect(x, y, w, row), "조합표", head);
+            y += row;
+
+            RecipeKind current = cur.kind;
             foreach (NodeRecipe r in candidates)
             {
                 var rect = new Rect(x, y, w, h);
@@ -2951,6 +3045,114 @@ namespace MBI.Logistics
                 if (GUI.Button(rect, (inst.AmmoKind == kind ? "● " : "") + AmmoLabel(kind), style))
                     inst.AmmoKind = kind; // 탄종은 흐르는 품목(탄약)을 바꾸지 않는다 — 라벨만 갈린다
             }
+        }
+
+        /// <summary>
+        /// 그 칸 노드의 상태 한 마디 (2026-09-15 · 육안 ② 팝오버 ① 절).
+        ///
+        /// ⚠️ **판정은 물류가 이미 했다** — 여기는 진단을 문구로 옮길 뿐이다(§3).
+        /// 문서가 정한 원인은 둘이다: 전력 부족 · 미연결. 그 둘이 아니면 도는 정도로만 말한다.
+        /// </summary>
+        private string NodeStateText(Vector2Int cell)
+        {
+            if (_lastDiagnostics != null)
+                foreach (NodeDiagnostic d in _lastDiagnostics)
+                {
+                    if (d.cell != cell) continue;
+                    if (d.cause == ConstraintCause.Power) return "전력 부족";
+
+                    float ratio = d.targetRate > 0f ? d.actualRate / d.targetRate : 1f;
+                    if (ratio <= 0.001f) return "멈춤";
+                    if (ratio < 0.999f) return $"느림 ({ratio * 100f:F0}%)";
+                    return "도는 중";
+                }
+
+            // 진단에 없는 칸 — 코어처럼 일감 계산 밖인 노드다. 없는 것을 지어내지 않는다.
+            return "—";
+        }
+
+        /// <summary>
+        /// 「무엇을 몇 개 먹어 무엇을 몇 개 내는가」 — **아이콘과 수로** 그린다
+        /// (2026-09-15 사용자 확정 · 육안 ② 팝오버 ② 절).
+        ///
+        /// ⚠️ **글자가 아니라 그림이다.** 품목 이름표(`FlowLabel`)는 09-10 에 걷혔다 —
+        /// 품목 그림 열둘이 배선되면서 자리표시가 끝났고, 대응표를 두 곳에 두지 않기로 했다.
+        /// 여기서 이름을 다시 지으면 그 표가 되살아난다.
+        ///
+        /// ⚠️ **모듈 배수를 반영한다** — 붙은 모듈이 산출·투입을 곱하므로, 스펙만 적으면
+        /// 모듈을 붙인 노드에서 화면과 실제가 갈린다.
+        ///
+        /// ⚠️ **그림이 없으면 그 자리를 비운다** — 자리표시 글자로 메우지 않는다(§10).
+        /// </summary>
+        private void DrawRecipeFlow(Rect rect, NodeInstance inst, NodeRecipe r, GUIStyle body)
+        {
+            float outRate = r.outputPerSec * inst.ModuleOutputMultiplier;
+            float icon = rect.height;
+            float cx = rect.x;
+
+            if (r.inputs == null || r.inputs.Count == 0)
+            {
+                GUI.Label(new Rect(cx, rect.y, icon * 2.4f, rect.height), "원천", body);
+                cx += icon * 2.4f;
+            }
+            else
+            {
+                for (int i = 0; i < r.inputs.Count; i++)
+                {
+                    RecipeInput inp = r.inputs[i];
+                    if (i > 0)
+                    {
+                        GUI.Label(new Rect(cx, rect.y, icon * 0.7f, rect.height), "+", body);
+                        cx += icon * 0.7f;
+                    }
+                    cx = DrawItemChip(cx, rect.y, icon, inp.kind,
+                        inp.perOutput * outRate * inst.ModuleInputMultiplier, body);
+                }
+            }
+
+            GUI.Label(new Rect(cx, rect.y, icon * 1.2f, rect.height), "→", body);
+            cx += icon * 1.2f;
+
+            if (r.output == FlowKind.None || outRate <= 0f)
+                GUI.Label(new Rect(cx, rect.y, icon * 3f, rect.height), "산출 없음", body);
+            else
+                DrawItemChip(cx, rect.y, icon, r.output, outRate, body);
+        }
+
+        /// <summary>품목 그림 한 장 + 개/초. 다음 칸의 x 를 돌려준다.</summary>
+        private float DrawItemChip(float x, float y, float icon, FlowKind kind, float rate,
+            GUIStyle body)
+        {
+            Sprite sp = art != null ? art.ItemSprite(kind) : null;
+            if (sp != null && sp.texture != null)
+            {
+                Rect tr = sp.textureRect;
+                var uv = new Rect(tr.x / sp.texture.width, tr.y / sp.texture.height,
+                    tr.width / sp.texture.width, tr.height / sp.texture.height);
+                GUI.DrawTextureWithTexCoords(new Rect(x, y, icon, icon), sp.texture, uv);
+            }
+            x += icon + 2f;
+
+            var label = new GUIContent($"{rate:F2}/초");
+            float lw = body.CalcSize(label).x;
+            GUI.Label(new Rect(x, y, lw, icon), label, body);
+            return x + lw + 6f;
+        }
+
+        /// <summary>
+        /// 산출 하나에 걸리는 시간 (2026-09-15 · 육안 ② 팝오버 ③ 절).
+        ///
+        /// **필요 생산치 ÷ 노드 생산력**이다. 생산력은 밸런스 SO 값이고 여기서 짓지 않는다 —
+        /// 자산이 없거나 필요 생산치가 0(미확정)이면 **안 적는다.**
+        /// </summary>
+        private static string ProductionTimeText(NodeInstance inst, NodeRecipe r)
+        {
+            BalanceConfig bal = inst.Definition != null ? inst.Definition.balanceRef : null;
+            if (bal == null || r.requiredProduction <= 0f || bal.nodeProductionPower <= 0f)
+                return "생산 시간 —";
+
+            float seconds = r.requiredProduction / bal.nodeProductionPower;
+            return $"생산 {seconds:F1}초/개";
         }
 
         private static string AmmoLabel(AmmoKind kind)
