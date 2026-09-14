@@ -164,7 +164,15 @@ namespace MBI.Logistics
         /// <summary>마지막 진단. 병목 힌트가 「무엇부터」를 고르는 데 쓴다.</summary>
         private IReadOnlyList<NodeDiagnostic> _lastDiagnostics;
 
-        private bool _removeMode; // 제거 모드 — 탭으로 노드/벨트 삭제
+        // ⚠️ **폐기 — 제거는 모드가 아니라 제스처다**(2026-09-15 사용자 확정 · 육안 ⑧).
+        // 벨트 위에서 끌면 지워지고, 노드가 섞이면 컨펌을 받는다. 필드는 남겨 두지 않는다 —
+        // 직렬화되는 값이 아니라 런타임 상태였다.
+
+        /// <summary>지금 드래그가 **지우는 드래그**인가 — 시작 칸이 벨트면 그렇다(육안 ⑧).</summary>
+        private bool _dragRemoving;
+
+        /// <summary>컨펌을 기다리는 제거 경로. null 이면 팝업이 안 뜬다(육안 ⑧).</summary>
+        private List<Vector2Int> _pendingRemoval;
 
         /// <summary>
         /// 선택된 벨트 요소(병합기·분류기). 없으면 탭은 노드를 놓는다.
@@ -1705,6 +1713,16 @@ namespace MBI.Logistics
 
             if (!TryCellUnderPointer(out Vector2Int cell) || !_grid.IsInside(cell)) return;
             _dragging = true;
+
+            // ⚠️ **시작 칸이 벨트면 그 드래그는 지우는 드래그다**(2026-09-15 사용자 확정 · 육안 ⑧).
+            //
+            // 제거가 모드에서 **제스처**로 바뀌었다. 무엇을 하는 드래그인지는 **시작 칸**이
+            // 정한다 — 도중에 정하면 손이 움직이는 동안 뜻이 바뀌어 예측이 안 된다.
+            //
+            // ⚠️ **튜토리얼 동안에는 안 지운다** — 놓으라고 해 놓고 지울 수 있으면
+            // 「지금 할 일」이 둘이 된다(구 「제거」 버튼이 걸고 있던 것과 같은 문).
+            _dragRemoving = _grid.HasBelt(cell) && TutorialGate.Allows(TutorialGate.Control.Remove);
+
             _dragCells.Clear();
             _dragCells.Add(cell);
         }
@@ -1781,13 +1799,21 @@ namespace MBI.Logistics
             if (!_dragging) return;
             _dragging = false;
 
+            // 지우는 드래그는 설치 경로를 아예 안 탄다 — 갈래를 여기서 가른다(육안 ⑧).
+            if (_dragRemoving)
+            {
+                _dragRemoving = false;
+                FinishRemovalDrag();
+                _dragCells.Clear();
+                return;
+            }
+
             if (_dragCells.Count == 1)
             {
                 Vector2Int cell = _dragCells[0];
-                if (_removeMode) RemoveAt(cell);         // 제거 모드 = 탭으로 삭제
                 // 모듈을 고른 채 놓인 노드를 탭하면 **붙인다.** 못 붙이면(칸이 다 찼다)
                 // 고르기로 떨어진다 — 탭이 아무 일도 안 하면 조작이 먹지 않은 것으로 읽힌다.
-                else if (_grid.IsOccupied(cell) && TryAttachSelectedModule(cell)) { }
+                if (_grid.IsOccupied(cell) && TryAttachSelectedModule(cell)) { }
                 else if (_grid.IsOccupied(cell)) Select(cell);
                 else if (_elementMode.HasValue) PlaceElement(cell, _elementMode.Value);
                 else Place(cell);
@@ -1797,6 +1823,96 @@ namespace MBI.Logistics
                 LayBelts(_dragCells);
             }
             _dragCells.Clear();
+        }
+
+        /// <summary>
+        /// 지우는 드래그가 끝났다 (2026-09-15 사용자 확정 · 육안 ⑧).
+        ///
+        /// **벨트만 지났으면 즉시 지운다.** 벨트는 한 칸이 곧 한 조각이고, 잘못 지워도
+        /// 다시 끌면 되돌아온다 — 물어보는 값이 지우는 값보다 작다.
+        ///
+        /// **노드 칸을 하나라도 지났으면 묻는다.** 노드는 조합표·탄종·모듈·회전을 지고
+        /// 있어서 **다시 끄는 것으로 안 돌아온다.** 그래서 한 번 더 손을 받는다.
+        ///
+        /// ⚠️ **묻고 나서는 경로 전체를 지운다** — 벨트만 지우고 노드를 남기면 손이
+        /// 지나간 자리와 결과가 달라진다.
+        /// </summary>
+        private void FinishRemovalDrag()
+        {
+            if (_dragCells.Count == 0) return;
+
+            // 판정은 `RemovalRules` 가 한다 — 여기는 손을 받고 결과를 그릴 뿐이다(§3).
+            if (!RemovalRules.NeedsConfirm(_dragCells, _grid.IsOccupied))
+            {
+                foreach (Vector2Int c in _dragCells) RemoveAt(c);
+                return;
+            }
+
+            // 팝업이 뜨는 동안 경로를 들고 있어야 한다 — `_dragCells` 는 곧 비워진다.
+            _pendingRemoval = new List<Vector2Int>(_dragCells);
+        }
+
+        /// <summary>
+        /// 컨펌을 받은 뒤 경로 전체를 지운다. 노드가 섞여 있어 되돌릴 수 없는 삭제다.
+        /// </summary>
+        private void ApplyPendingRemoval()
+        {
+            if (_pendingRemoval == null) return;
+            foreach (Vector2Int c in _pendingRemoval) RemoveAt(c);
+            _pendingRemoval = null;
+        }
+
+        /// <summary>
+        /// 「정말 삭제?」 — 노드가 섞인 제거 드래그에만 뜬다 (2026-09-15 · 육안 ⑧).
+        ///
+        /// ⚠️ **맨 뒤에 그린다** — IMGUI 는 뒤에 그리는 쪽이 위다. 앞에 그리면 팔레트가
+        /// 이 팝업을 덮는다(09-10 에 오프라인 대화상자가 「게임 시작」을 덮은 그 자리).
+        ///
+        /// ⚠️ **뒤를 막는다** — 막을 깔지 않으면 팝업이 떠 있는 동안에도 보드가 눌린다.
+        /// </summary>
+        private void DrawRemovalConfirm()
+        {
+            if (_pendingRemoval == null) return;
+
+            float sc = UiLayout.Scale(Screen.height);
+            float w = 560f * sc, h = 300f * sc;
+            var box = new Rect((Screen.width - w) * 0.5f, (Screen.height - h) * 0.5f, w, h);
+
+            GUI.DrawTexture(new Rect(0f, 0f, Screen.width, Screen.height), UiSkin.DisabledTexture);
+            UiBlockers.Add(new Rect(0f, 0f, Screen.width, Screen.height));
+            GUI.DrawTexture(box, UiSkin.PlateTexture);
+
+            float pad = 24f * sc;
+            var head = new GUIStyle(GUI.skin.label)
+            {
+                fontSize = KoreanFont.Snap(Mathf.Max(9, Mathf.RoundToInt(34f * sc))),
+                fontStyle = FontStyle.Bold,
+                alignment = TextAnchor.MiddleCenter,
+            };
+            var body = new GUIStyle(GUI.skin.label)
+            {
+                fontSize = KoreanFont.Snap(Mathf.Max(9, Mathf.RoundToInt(24f * sc))),
+                alignment = TextAnchor.MiddleCenter,
+                wordWrap = true,
+            };
+
+            int nodes = RemovalRules.NodeCount(_pendingRemoval, _grid.IsOccupied);
+
+            GUI.Label(new Rect(box.x, box.y + pad, box.width, 48f * sc), "정말 삭제?", head);
+            GUI.Label(new Rect(box.x + pad, box.y + pad + 56f * sc, box.width - pad * 2f, 90f * sc),
+                "노드 " + nodes + "대를 포함해 " + _pendingRemoval.Count
+                + "칸을 지운다. 노드에 붙인 조합표·모듈·방향은 **돌아오지 않는다.**", body);
+
+            var btn = new GUIStyle(GUI.skin.button)
+            {
+                fontSize = KoreanFont.Snap(Mathf.Max(9, Mathf.RoundToInt(26f * sc))),
+            };
+            float bw = (box.width - pad * 3f) * 0.5f, bh = 72f * sc;
+            float by = box.yMax - pad - bh;
+
+            if (GUI.Button(new Rect(box.x + pad, by, bw, bh), "취소", btn)) _pendingRemoval = null;
+            if (GUI.Button(new Rect(box.x + pad * 2f + bw, by, bw, bh), "삭제", btn))
+                ApplyPendingRemoval();
         }
 
         // 드래그 경로 → 벨트 세그먼트 설치(§5-4). 점유(노드/기존벨트) 셀은 건너뜀.
@@ -2338,9 +2454,10 @@ namespace MBI.Logistics
             // 한 칸 모자라 **맨 끝 「제거」에 손이 안 닿았다** — 화면에서는
             // 「S1 에서 벨트 제거가 안 된다」로 보였다(사용자 육안 09-15).
             //
-            // 팔레트 n + **방향 1** + 병합기·분류기 2 + 모듈 m + 제거 1.
+            // 팔레트 n + **방향 1** + 병합기·분류기 2 + 모듈 m.
+            // ⚠️ **「제거」 한 칸이 빠졌다**(2026-09-15 · 육안 ⑧ — 제거가 제스처가 됐다).
             int slots = palette.Count + 1 + 2
-                        + (modulePalette != null ? modulePalette.Count : 0) + 1;
+                        + (modulePalette != null ? modulePalette.Count : 0);
             float step = side + pad;
             var view = new Rect(band.x + pad, band.y + pad,
                 band.width - pad * 2f, band.height - pad * 2f);
@@ -2371,11 +2488,10 @@ namespace MBI.Logistics
                 bool wasEnabled = GUI.enabled;
                 GUI.enabled = wasEnabled && allowed;
 
-                bool sel = !_removeMode && i == _selectedNode;
+                bool sel = i == _selectedNode;
                 if (GUI.Button(rect, (sel ? "● " : "") + palette[i].displayName, style))
                 {
                     _selectedNode = i;
-                    _removeMode = false;
                     _elementMode = null;
                     _selectedModule = -1;
                 }
@@ -2409,7 +2525,7 @@ namespace MBI.Logistics
             foreach (BeltElementKind e in new[] { BeltElementKind.Merger, BeltElementKind.Sorter })
             {
                 var eRect = new Rect(bx, 0f, side, side);
-                bool on = !_removeMode && _elementMode == e;
+                bool on = _elementMode == e;
                 bool wasE = GUI.enabled;
                 GUI.enabled = wasE && elementAllowed;
 
@@ -2426,7 +2542,6 @@ namespace MBI.Logistics
                 if (pressed)
                 {
                     _elementMode = on ? (BeltElementKind?)null : e;
-                    _removeMode = false;
                     _selectedModule = -1;
                 }
                 if (!elementAllowed) GUI.DrawTexture(eRect, UiSkin.DisabledTexture);
@@ -2446,13 +2561,12 @@ namespace MBI.Logistics
                 {
                     if (modulePalette[m] == null) { bx += step; continue; }
                     var mRect = new Rect(bx, 0f, side, side);
-                    bool on = !_removeMode && _selectedModule == m;
+                    bool on = _selectedModule == m;
                     bool wasM = GUI.enabled;
                     GUI.enabled = wasM && moduleAllowed;
                     if (GUI.Button(mRect, (on ? "●" : "") + modulePalette[m].displayName, style))
                     {
                         _selectedModule = on ? -1 : m;
-                        _removeMode = false;
                         _elementMode = null;
                     }
                     if (!moduleAllowed) GUI.DrawTexture(mRect, UiSkin.DisabledTexture);
@@ -2461,19 +2575,12 @@ namespace MBI.Logistics
                 }
             }
 
-            // 제거 토글. ⚠️ 튜토리얼 동안에는 막는다 — 놓으라고 해 놓고 지울 수 있으면
-            // 「지금 할 일」이 둘이 된다.
-            var rmRect = new Rect(bx, 0f, side, side);
-            bool removeAllowed = TutorialGate.Allows(TutorialGate.Control.Remove);
-            bool wasR = GUI.enabled;
-            GUI.enabled = wasR && removeAllowed;
-            if (GUI.Button(rmRect, (_removeMode ? "● " : "") + "제거", style))
-            {
-                _removeMode = !_removeMode;
-                if (_removeMode) { _elementMode = null; _selectedModule = -1; }
-            }
-            if (!removeAllowed) GUI.DrawTexture(rmRect, UiSkin.DisabledTexture);
-            GUI.enabled = wasR;
+            // ⚠️ **「제거」 버튼을 걷었다**(2026-09-15 사용자 확정 · 육안 ⑧).
+            //
+            // 제거는 이제 **모드가 아니라 제스처**다 — 벨트 위에서 끌면 지워진다
+            // (`OnPressStart` · `FinishRemovalDrag`). 모드 버튼이 있으면 같은 일을 하는
+            // 길이 둘이 되고, 그 버튼은 팔레트 **맨 끝**이라 손이 안 닿기까지 했다
+            // (09-15 육안 「벨트 제거가 안 된다」의 실제 원인).
 
             GUI.EndScrollView();
             GUI.enabled = true;
@@ -2481,9 +2588,8 @@ namespace MBI.Logistics
             // 조작 안내 — 띠 **바로 위**에 얹는다. 버튼 줄과 같은 칸을 쓰면 스크롤에
             // 딸려 나가 「지금 무슨 모드인가」를 볼 수 없게 된다.
             GUI.Label(new Rect(band.x + pad, band.y - 30f * sc, band.width, 30f * sc),
-                _removeMode ? "제거 모드 · 탭 = 노드/벨트 삭제"
-                : _selectedModule >= 0 ? "모듈 모드 · 탭 = 놓인 노드에 장착"
-                : "탭 = 노드 배치 · 드래그 = 벨트",
+                _selectedModule >= 0 ? "모듈 모드 · 탭 = 놓인 노드에 장착"
+                : "탭 = 노드 배치 · 드래그 = 벨트 · 벨트 위에서 끌면 제거",
                 new GUIStyle(GUI.skin.label) { fontSize = KoreanFont.Snap(Mathf.Max(9, Mathf.RoundToInt(24f * sc))) });
 
             DrawRecipePanel();
@@ -2491,6 +2597,10 @@ namespace MBI.Logistics
             // ⚠️ **모드 막대는 맨 뒤에 그린다 — 항상 맨 위다**(2026-09-11 사용자 확정).
             // 이 화면에서 가장 자주 누르는 것이고, 무엇에도 덮이면 안 된다.
             DrawModeButton();
+
+            // ⚠️ **삭제 컨펌은 그보다 더 뒤다**(2026-09-15 · 육안 ⑧) — 물어보는 동안에는
+            // 그 물음이 화면에서 가장 위여야 한다. 모드 막대까지 덮는다.
+            DrawRemovalConfirm();
         }
 
         /// <summary>
