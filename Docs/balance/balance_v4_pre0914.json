@@ -385,26 +385,16 @@
       "spawnCap": 0,
       "spawnInterval": 0,
       "spawnConfirmed": false,
-      "compConfirmed": false,
+      "compConfirmed": true,
       "monsterDir": "체력 낮은 다수·느린 등장·저방어",
       "composition": [
-        {
-          "enemy": "infantry",
-          "count": 120,
-          "hp": 30,
-          "def": 0
-        }
-      ],
-      "compositionPrev": [
         {
           "enemy": "infantry",
           "count": 40,
           "hp": 270,
           "def": 1
         }
-      ],
-      "compositionPrevNote": "구판(0914 이전) · §72-14 로 대체 · 기록으로만 남긴다",
-      "compBasis": "가정 · §72-14 · 촬영 뒤 설계 역기입"
+      ]
     },
     {
       "id": "S2",
@@ -419,23 +409,9 @@
       "spawnCap": 0,
       "spawnInterval": 0,
       "spawnConfirmed": false,
-      "compConfirmed": false,
+      "compConfirmed": true,
       "monsterDir": "체력 조금 상승·저방어",
       "composition": [
-        {
-          "enemy": "infantry",
-          "count": 100,
-          "hp": 30,
-          "def": 1
-        },
-        {
-          "enemy": "artillery",
-          "count": 10,
-          "hp": 60,
-          "def": 1
-        }
-      ],
-      "compositionPrev": [
         {
           "enemy": "infantry",
           "count": 40,
@@ -448,9 +424,7 @@
           "hp": 260,
           "def": 3
         }
-      ],
-      "compositionPrevNote": "구판(0914 이전) · §72-14 로 대체 · 기록으로만 남긴다",
-      "compBasis": "가정 · §72-14 · 촬영 뒤 설계 역기입"
+      ]
     },
     {
       "id": "S3",
@@ -465,29 +439,9 @@
       "spawnCap": 0,
       "spawnInterval": 0,
       "spawnConfirmed": false,
-      "compConfirmed": false,
+      "compConfirmed": true,
       "monsterDir": "점점 빨리 등장(지속 DPS)·방어 낮음",
       "composition": [
-        {
-          "enemy": "infantry",
-          "count": 150,
-          "hp": 50,
-          "def": 3
-        },
-        {
-          "enemy": "artillery",
-          "count": 20,
-          "hp": 150,
-          "def": 3
-        },
-        {
-          "enemy": "armor",
-          "count": 5,
-          "hp": 600,
-          "def": 3
-        }
-      ],
-      "compositionPrev": [
         {
           "enemy": "infantry",
           "count": 40,
@@ -506,9 +460,7 @@
           "hp": 440,
           "def": 6
         }
-      ],
-      "compositionPrevNote": "구판(0914 이전) · §72-14 로 대체 · 기록으로만 남긴다",
-      "compBasis": "가정 · §72-14 · 촬영 뒤 설계 역기입"
+      ]
     },
     {
       "id": "S4",
@@ -523,29 +475,9 @@
       "spawnCap": 0,
       "spawnInterval": 0,
       "spawnConfirmed": false,
-      "compConfirmed": false,
+      "compConfirmed": true,
       "monsterDir": "체력 급증(물류 천장 초과 유일 벽)",
       "composition": [
-        {
-          "enemy": "infantry",
-          "count": 160,
-          "hp": 60,
-          "def": 5
-        },
-        {
-          "enemy": "artillery",
-          "count": 25,
-          "hp": 180,
-          "def": 5
-        },
-        {
-          "enemy": "armor",
-          "count": 12,
-          "hp": 400,
-          "def": 5
-        }
-      ],
-      "compositionPrev": [
         {
           "enemy": "infantry",
           "count": 40,
@@ -564,9 +496,7 @@
           "hp": 410,
           "def": 8
         }
-      ],
-      "compositionPrevNote": "구판(0914 이전) · §72-14 로 대체 · 기록으로만 남긴다",
-      "compBasis": "가정 · §72-14 · 촬영 뒤 설계 역기입"
+      ]
     },
     {
       "id": "S5",

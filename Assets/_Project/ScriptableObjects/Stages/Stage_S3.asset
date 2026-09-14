@@ -25,15 +25,15 @@ MonoBehaviour:
   spawnConfirmed: 0
   composition:
   - enemyKey: infantry
-    count: 40
-    hp: 230
-    def: 2
+    count: 150
+    hp: 50
+    def: 3
   - enemyKey: artillery
-    count: 15
-    hp: 280
+    count: 20
+    hp: 150
     def: 3
   - enemyKey: armor
     count: 5
-    hp: 440
-    def: 6
+    hp: 600
+    def: 3
   bossHp: 0

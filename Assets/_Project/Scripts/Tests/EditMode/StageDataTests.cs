@@ -54,8 +54,21 @@ namespace MBI.Tests
             }
         }
 
+        /// <summary>
+        /// S1 구성 — **보병 120 × HP 30 · 방어 0** (2026-09-14 · §72-14 사용자 확정).
+        ///
+        /// ⚠️ **구판은 40 × 270 · 방어 1 이었다.** 지우지 않고 `balance_v4.json` 의
+        /// `compositionPrev` 에 폐기 표기로 남겼다.
+        ///
+        /// **왜 이 값인가.** 총 HP 가 **3600** 이고 시작 보드 출력 **36** 으로 나누면
+        /// **정확히 100초** — 제한 시간 120초 안에 든다. 제안표는 S1~S4 가 전부
+        /// 「요구치 DPS 로 100~107초」가 되게 짜여 있다(하네스로 확인).
+        ///
+        /// ⚠️ **값은 가정이다**(`compConfirmed` false · `compBasis` = 「가정 · §72-14 ·
+        /// 촬영 뒤 설계 역기입」). 여기 숫자를 고칠 때는 json 이 먼저다.
+        /// </summary>
         [Test]
-        public void S1_Infantry40_Hp270_Def1()
+        public void S1_Infantry120_Hp30_Def0()
         {
             StageDefinition so = LoadStage("S1");
             if (so == null) Assert.Ignore("Stage SO 없음 — 메뉴 'MBI/Generate Combat Data' 실행.");
@@ -63,9 +76,15 @@ namespace MBI.Tests
             Assert.AreEqual(1, so.composition.Count);
             StageComposition c = so.composition[0];
             Assert.AreEqual("infantry", c.enemyKey);
-            Assert.AreEqual(40, c.count);
-            Assert.AreEqual(270f, c.hp, Delta);
-            Assert.AreEqual(1f, c.def, Delta);
+            Assert.AreEqual(120, c.count);
+            Assert.AreEqual(30f, c.hp, Delta);
+            Assert.AreEqual(0f, c.def, Delta);
+
+            // **총 HP ÷ 시작 보드 출력 = 제한 시간 안** — 이것이 이 값의 근거다.
+            float totalHp = c.count * c.hp;
+            Assert.AreEqual(3600f, totalHp, Delta, "총 HP");
+            Assert.LessOrEqual(totalHp / 36f, so.challengeTime,
+                "시작 보드 출력 36 으로 제한 시간 안에 못 깬다");
         }
 
         [Test]

@@ -33,8 +33,11 @@ namespace MBI.Data
         public float enemyAttackIntervalTbd = 1.5f;
 
         [Header("스폰 / 아레나 (⚠️ TBD)")]
-        [Tooltip("TBD — 스폰 간격(초). 0이면 시작 시 전원 스폰(웨이브 없음).")]
-        public float spawnCadenceTbd = 0.35f;
+        // ⚠️ **0.35 → 0.8** (2026-09-14 · §72-14 사용자 확정). 구 값 0.35 는 여기 적어 둔다.
+        // 개체가 많아진 제안표(S1 보병 120)에서 0.35 면 40초 만에 전원이 나온다 —
+        // 로봇이 **에워싸여** 이동으로 못 벗어난다. 0.8 이면 96초에 걸쳐 들어온다.
+        [Tooltip("TBD — 스폰 간격(초). 0이면 시작 시 전원 스폰(웨이브 없음). 구 0.35(§72-14 전).")]
+        public float spawnCadenceTbd = 0.8f;
         [Tooltip("⚠️ 폐기 — 이동 경계가 없어졌다(2026-09-11). 스폰 링은 spawnRingRadiusTbd 가 든다.")]
         public float arenaRadiusTbd = 6f;
 

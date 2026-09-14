@@ -20,6 +20,7 @@ MonoBehaviour:
   enemyAttackIntervalTbd: 1
   spawnCadenceTbd: 0.15
   arenaRadiusTbd: 6
+  spawnRingRadiusTbd: 0
   manualOverrideGraceTbd: 2
   autoRestartDelayTbd: 1.5
   animCellSeconds: 0.0625
