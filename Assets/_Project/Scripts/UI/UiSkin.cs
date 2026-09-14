@@ -107,7 +107,7 @@ namespace MBI.UI
         // ────────────────────────────── 물리기 ──────────────────────────────
 
         private static GUISkin _skin;
-        private static Texture2D _normal, _hover, _active, _off, _plate;
+        private static Texture2D _normal, _hover, _active, _off, _plate, _round;
         private static int _border = BorderPx;
         private static bool _usingArt;
 
@@ -159,6 +159,46 @@ namespace MBI.UI
                 default: return null;
             }
         }
+
+        /// <summary>
+        /// **원형 버튼 스타일** (2026-09-14 · 합체·태그 원형 200).
+        ///
+        /// ⚠️ **9-슬라이스를 쓰지 않는다.** `border` 를 0 으로 둔다 — 원을 아홉 조각으로
+        /// 늘리면 가운데만 늘어나 **찌그러진 알약**이 된다. 원형은 **통짜로** 늘린다.
+        ///
+        /// ⚠️ **그림이 없으면 `null` 을 돌려준다** — 부르는 쪽이 네모 버튼으로 떨어진다.
+        /// 원형 자리에 네모가 서는 것이 **아무것도 없는 것보다 낫다**(누를 자리는 보여야 한다).
+        /// </summary>
+        public static GUIStyle RoundStyle(GUIStyle basedOn)
+        {
+            EnsureTextures();
+            if (_round == null) return basedOn;
+
+            var s = new GUIStyle(basedOn)
+            {
+                border = new RectOffset(0, 0, 0, 0),
+                alignment = TextAnchor.MiddleCenter,
+                wordWrap = true,
+            };
+            s.normal.background = _round;
+            s.hover.background = _round;
+            s.active.background = _round;
+            s.focused.background = _round;
+            s.onNormal.background = _round;
+            s.onHover.background = _round;
+            s.onActive.background = _round;
+            s.onFocused.background = _round;
+
+            // 상태는 **글자 밝기**로 말한다 — 바탕을 바꿀 그림이 없다.
+            s.normal.textColor = Text;
+            s.hover.textColor = HoverTint;
+            s.active.textColor = PressedTint;
+            s.onNormal.textColor = PressedTint;
+            return s;
+        }
+
+        /// <summary>원형 그림이 서 있는가(시험·진단용).</summary>
+        public static bool HasRound { get { EnsureTextures(); return _round != null; } }
 
         /// <summary>잠긴 버튼 바탕. IMGUI 에 꺼진 상태 칸이 없어 **호출부가 직접 깐다**.</summary>
         public static Texture2D DisabledTexture { get { EnsureTextures(); return _off; } }
@@ -254,6 +294,10 @@ namespace MBI.UI
                 // ⚠️ **패널 하나가 패널과 띠를 겸한다**(사용자 확정) — 띠용 칸을 따로 안 늘린다.
                 // 9-슬라이스라 같은 그림이 어떤 비율로도 늘어난다.
                 _plate = art.panel != null ? art.panel : Make(UiPlate.Tint, Border);
+
+                // ⚠️ **원형은 폴백을 안 만든다.** 코드로 원을 그리면 픽셀 아트 톤에서
+                // 혼자 매끈해 보이고, 없으면 네모 버튼으로 떨어지는 편이 낫다.
+                _round = art.roundButton;
 
                 if (_normal != null) return;
             }

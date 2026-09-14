@@ -1372,11 +1372,12 @@ namespace MBI.Combat
             // (`260902_W09` §5-3 이 그 자리를 이미 한 번 옮겼다) 34px 높이는 최소 150 을 밑돈다.
             Rect tagRect = UiLayout.RoundButtonRect(0, Screen.width, Screen.height);
             Rect mergeRect = UiLayout.RoundButtonRect(1, Screen.width, Screen.height);
-            var round = new GUIStyle(GUI.skin.button)
-            {
-                fontSize = Mathf.Max(10, Mathf.RoundToInt(tagRect.height * 0.15f)),
-                wordWrap = true, // 원형 안이라 한 줄로는 안 들어간다
-            };
+            // ⚠️ **원형 그림이 있으면 그것을 쓴다**(2026-09-14 · `ui_round` 설치).
+            // 없으면 `RoundStyle` 이 받은 것을 그대로 돌려줘 **네모 버튼으로 떨어진다** —
+            // 누를 자리가 안 보이는 것보다 낫다.
+            var round = UiSkin.RoundStyle(GUI.skin.button);
+            round.fontSize = Mathf.Max(10, Mathf.RoundToInt(tagRect.height * 0.15f));
+            round.wordWrap = true;   // 원형 안이라 한 줄로는 안 들어간다
             UiBlockers.Add(tagRect);
             UiBlockers.Add(mergeRect);
 

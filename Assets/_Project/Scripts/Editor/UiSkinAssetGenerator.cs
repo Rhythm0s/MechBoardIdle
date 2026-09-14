@@ -37,6 +37,11 @@ namespace MBI.Editor
             so.buttonPressed = Load("ui_plate_button_pressed");
             so.buttonLocked = Load("ui_plate_button_locked");
             so.panel = Load("ui_plate_panel");
+
+            // ⚠️ **원형은 이름이 `ui_plate_` 가 아니다** — 그래서 `SpriteImportRules` 의
+            // 9-슬라이스 여백 16 강제에 **안 걸린다.** 그게 맞다: 원을 9-슬라이스로 늘리면
+            // 가운데만 늘어나 **찌그러진 알약**이 된다.
+            so.roundButton = Load("ui_round");
             // ⚠️ **여백을 그림에서 읽는다**(2026-09-11) — 상수로 박으면 그림이 바뀔 때
             // 코드도 같이 고쳐야 하고, 안 고치면 **임포터와 껍데기가 서로 다른 여백**을 믿는다.
             // `SpriteImportRules` 가 강제한 값이 그대로 돌아온다.
@@ -53,7 +58,8 @@ namespace MBI.Editor
             AssetDatabase.SaveAssets();
 
             Debug.Log($"[MBI] UI 그릇 자산 — 기본 {Mark(so.buttonNormal)} · 눌림 {Mark(so.buttonPressed)}"
-                      + $" · 잠김 {Mark(so.buttonLocked)} · 패널 {Mark(so.panel)} · 여백 {so.border}"
+                      + $" · 잠김 {Mark(so.buttonLocked)} · 패널 {Mark(so.panel)}"
+                      + $" · 원형 {Mark(so.roundButton)} · 여백 {so.border}"
                       + $" · 표식 {IconCount(so)}/5");
         }
 

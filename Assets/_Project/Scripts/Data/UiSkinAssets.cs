@@ -30,6 +30,9 @@ namespace MBI.Data
         [Tooltip("패널·띠 바탕.")]
         public Texture2D panel;
 
+        [Tooltip("원형 버튼(합체·태그). ⚠️ **9-슬라이스가 아니다** — 늘리면 원이 찌그러진다.")]
+        public Texture2D roundButton;
+
         [Tooltip("9-슬라이스 여백(px). 원본 64 에 16 (260911_W02 9장).")]
         public int border = 16;
 
@@ -55,6 +58,6 @@ namespace MBI.Data
 
         /// <summary>쓸 만한 그림이 하나라도 있는가. 없으면 껍데기는 코드 생성본을 쓴다.</summary>
         public bool HasAny => buttonNormal != null || buttonPressed != null
-                              || buttonLocked != null || panel != null;
+                              || buttonLocked != null || panel != null || roundButton != null;
     }
 }

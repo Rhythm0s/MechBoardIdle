@@ -16,6 +16,7 @@ MonoBehaviour:
   buttonPressed: {fileID: 0}
   buttonLocked: {fileID: 0}
   panel: {fileID: 2800000, guid: 1f062ba8c5991c549ad2fbd058342d91, type: 3}
+  roundButton: {fileID: 2800000, guid: 88c2ba6000367d84d957d1ad62eb8c5d, type: 3}
   border: 16
   iconLogiNormal: {fileID: 2800000, guid: 13985f64605057b4181f56eee1f82886, type: 3}
   iconLogiSlow: {fileID: 2800000, guid: be6980abb42d0494abb7d932be9f2aaa, type: 3}
