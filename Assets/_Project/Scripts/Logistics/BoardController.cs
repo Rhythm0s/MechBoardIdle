@@ -959,6 +959,10 @@ namespace MBI.Logistics
                     sr.sprite = body;
                     go.transform.localScale = Vector3.one * FitScale(body, _grid.CellSize);
                     sr.color = Color.white;
+
+                    // ⚠️ **결합부가 몸 쪽을 보게 뒤집는다**(2026-09-14 · `MountDisplay.FlipX`).
+                    // 한 장을 양쪽에 쓰므로 한쪽은 반드시 뒤집혀야 대칭이 선다.
+                    sr.flipX = MountDisplay.FlipX(mp.cell, mp.face, mp.owner);
                 }
                 else
                 {

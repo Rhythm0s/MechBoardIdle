@@ -144,6 +144,45 @@ namespace MBI.Tests
         }
 
         /// <summary>
+        /// **결합부가 몸 쪽을 보게 뒤집는다** (2026-09-14 실측).
+        ///
+        /// 그림 한 장을 양쪽에 쓰므로 **한쪽은 반드시 뒤집혀야** 대칭이 선다.
+        /// 규격이 「실루엣에 붙는 변 여백 0」이라 여백을 재면 갈린다 —
+        /// `mount_dronebay_b` 는 **왼쪽 0 · 오른쪽 18** 이므로 왼쪽이 붙는 변이다.
+        ///
+        /// ⚠️ A 는 규격으로 안 갈린다(`mount_gun_a` 는 좌우 여백이 둘 다 0) —
+        /// 실루엣 **바깥**이라 몸이 늘 안쪽이라는 것으로 정했다.
+        /// </summary>
+        [Test]
+        public void 그림은_몸_쪽으로_뒤집는다()
+        {
+            // B 왼쪽 — 어깨R(x0~2)이 왼쪽이다. 그대로.
+            Assert.IsFalse(MountDisplay.FlipX(
+                new Vector2Int(2, 10), PortFace.East, MountOwner.RobotB));
+
+            // B 오른쪽 — 어깨L(x9~11)이 오른쪽이다. 뒤집는다.
+            Assert.IsTrue(MountDisplay.FlipX(
+                new Vector2Int(9, 10), PortFace.West, MountOwner.RobotB));
+
+            // A — 실루엣 **바깥**이라 몸이 늘 안쪽(오른쪽)이다.
+            Assert.IsTrue(MountDisplay.FlipX(
+                new Vector2Int(0, 6), PortFace.West, MountOwner.RobotA));
+
+            // ⚠️ **B 둘이 같으면 한쪽이 안 뒤집힌 것이다** — 대칭이 깨진다.
+            bool leftPlain = false, rightFlipped = false;
+            foreach (MountPort mp in PartLayout.MountPorts)
+            {
+                if (mp.owner != MountOwner.RobotB) continue;
+                bool f = MountDisplay.FlipX(mp.cell, mp.face, mp.owner);
+                bool onLeft = MountDisplay.BodyCell(mp.cell, mp.face, mp.owner).x * 2
+                              < PartLayout.Columns;
+                if (onLeft) leftPlain = !f;
+                else rightFlipped = f;
+            }
+            Assert.IsTrue(leftPlain && rightFlipped, "B 양쪽의 방향이 서로 반대여야 한다");
+        }
+
+        /// <summary>
         /// **0이면 점멸한다** (UI 문서 12-1). 점멸 단위는 **묶음 전체**다.
         /// ⚠️ 전투가 안 돌 때는 안 깜빡인다 — 씬을 열자마자 경고가 뜨면 안 된다.
         /// </summary>
