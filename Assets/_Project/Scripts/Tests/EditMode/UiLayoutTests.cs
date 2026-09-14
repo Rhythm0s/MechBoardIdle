@@ -195,12 +195,41 @@ namespace MBI.Tests
             Assert.IsTrue(bar.xMin >= 0f && bar.xMax <= 615f, "화면 밖으로 안 나간다");
         }
 
+        /// <summary>
+        /// ⚠️ **구 「팔레트는 띠 오른쪽 끝까지 쓴다」는 폐기**(2026-09-14 · §72-12 5) —
+        /// 모드 버튼이 비운 그 칸을 **배율 막대**가 물려받았다.
+        /// </summary>
         [Test]
-        public void 팔레트는_띠_오른쪽_끝까지_쓴다()
+        public void 배율_막대가_띠_오른쪽_끝을_쓴다()
         {
-            // 모드 버튼이 띠에서 나가면서 그 칸이 비었다 — 팔레트가 좁을 이유가 없다.
-            Rect pal = UiLayout.PaletteRect(1440f, 2560f);
-            Assert.Greater(pal.xMax, 1440f - 40f, "오른쪽 여백까지 쓴다");
+            Rect zoom = UiLayout.ZoomBarRect(1440f, 2560f);
+            Assert.Greater(zoom.xMax, 1440f - 40f, "오른쪽 여백까지 쓴다");
+        }
+
+        /// <summary>
+        /// 배율 막대의 자리는 **가정**이지만, 경고 띠와 안 겹치는 것은 **가정이 아니다** —
+        /// 구 날 픽셀 자리(y 308)가 작은 창에서 경고 띠(기준 캔버스 y768)와 통째로
+        /// 겹쳐 둘 다 안 읽혔던 것이 이 자리를 옮긴 이유다(2차 스크린샷 1장).
+        /// </summary>
+        [Test]
+        public void 배율_막대는_부유_띠_안이고_경고_띠와_안_겹친다()
+        {
+            Rect zoom = UiLayout.ZoomBarRect(1440f, 2560f);
+            Rect band = UiLayout.BandRect(UiLayout.Band.FloatBand, 1440f, 2560f);
+
+            Assert.IsTrue(band.y <= zoom.y && zoom.yMax <= band.yMax, "부유 띠 안에 있다");
+
+            // 경고 띠는 보드 띠 윗변(= 전투 768)에서 96 만큼 걸쳐 뜬다(UI 12-2).
+            var warn = new Rect(0f, UiLayout.DesignTop(UiLayout.Band.Board), 1440f, 96f);
+            Assert.IsFalse(zoom.Overlaps(warn), "경고 띠와 겹치면 안 된다");
+
+            // 같은 띠를 쓰는 셋과도 안 겹친다.
+            Assert.IsFalse(zoom.Overlaps(UiLayout.PaletteRect(1440f, 2560f)),
+                "팔레트와 겹치면 안 된다");
+            Assert.IsFalse(zoom.Overlaps(UiLayout.FloatBandSlot(right: false, 1440f, 2560f)),
+                "미니맵과 겹치면 안 된다");
+            Assert.Greater(UiLayout.PaletteRect(1440f, 2560f).width, 0f,
+                "물러서도 팔레트 자리가 남는다");
         }
 
         [Test]

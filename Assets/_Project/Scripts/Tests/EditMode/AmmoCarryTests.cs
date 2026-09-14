@@ -135,7 +135,7 @@ namespace MBI.Tests
         /// 속도 제한이 없어 같은 틱에 창고를 거쳐 마운트로 간다. 창고는 병목이 아니라 통로다.
         /// </summary>
         [Test]
-        public void EmptyStore_ReachesFullnessInTwoSeconds()
+        public void EmptyStore_FillsMountInEightSeconds()
         {
             CombatSimulation sim = Sim(new AmmoInventory(Capacity));
             sim.AmmoSupplyRate = 5f; // 관통 5노드 × 1발/초 — 시작 보드가 병합기를 얻은 뒤의 값
@@ -148,15 +148,8 @@ namespace MBI.Tests
                 elapsed += dt;
             }
 
-            Assert.IsTrue(sim.ActiveMount.IsFull, "30초 안에 선다");
-
-            // ✅ **2초**(2026-09-14 · §72-16 (나)) — 구 규칙에서는 8초였다.
-            // 「차지된 슬롯이 다 찼다」라서 **첫 슬롯 하나가 상한(10)에 닿는 순간** 성립한다:
-            // 10 ÷ 5발/초 = 2초. 구 규칙은 네 칸을 다 채워야 해서 40 ÷ 5 = 8초였다.
-            //
-            // ⚠️ **이 만충은 스쳐 간다** — 한 발 더 실리면 두 번째 칸이 열려 깨지고,
-            // 20·30·40 에서 다시 선다. 마운트가 가득 차 더 못 받을 때에야 **머문다.**
-            Assert.AreEqual(2f, elapsed, 0.2f, "상한 10 ÷ 5발/초 = 2초");
+            Assert.IsTrue(sim.ActiveMount.IsFull, "30초 안에 찬다");
+            Assert.AreEqual(8f, elapsed, 0.2f, "적재량 40 ÷ 5발/초 = 8초");
         }
 
         /// <summary>

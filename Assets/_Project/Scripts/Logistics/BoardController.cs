@@ -1430,10 +1430,20 @@ namespace MBI.Logistics
 
             foreach (MountPort mp in PartLayout.MountPorts)
             {
-                // ⚠️ **로봇마다 다른 것을 싣는다** — 「마운트」 한 낱말로는 A 의 탄약과
-                // B 의 드론이 같은 것으로 읽힌다.
-                string text = mp.owner == MountOwner.RobotB
-                    ? "마운트 · 드론 적재" : "마운트 · 탄약 적재";
+                // ⚠️ **「마운트」 한 낱말로 줄였다**(2026-09-14 · 2차 스크린샷 1장).
+                //
+                // 종전에는 「마운트 · 탄약 적재」·「마운트 · 드론 적재」로 **로봇마다 다른 것을
+                // 싣는다**는 것까지 글자에 담았다. 그런데 글자 높이는 **아트 픽셀**이라
+                // (96 = 반 칸 · 2026-09-06 확정) 열 글자면 **다섯 칸 폭**이 되어, 한 칸짜리
+                // 묶음 위에서 좌우로 통째로 삐져나왔다.
+                //
+                // **96 은 안 건드린다** — 확정값이고, 확대해도 이름표가 안 작아지는 근거다.
+                // 줄일 것은 **글자 수**다. 무엇을 싣는지는 이름표가 아니라 **그림과 틴트**가
+                // 이미 가른다(`BuildMountBodies` 의 스프라이트 · `MountDisplay.FlowOf`).
+                //
+                // ⚠️ **§71-41 의 구현 가정이라 재량으로 줄인다**(사용자 확인 09-14).
+                // 문구가 문서로 서면 그때 이 한 줄이 바뀐다.
+                const string text = "마운트";
                 float boxW = mountStyle.CalcSize(new GUIContent(text)).x;
 
                 // **묶음 아래**(§72-5) — 묶음 맨 아랫 칸의 밑변이다.
@@ -2754,32 +2764,45 @@ namespace MBI.Logistics
             // 상단 인셋 위라 바탕이 밝고, 회색 글자는 판을 깔아도 여전히 안 읽혔다.
             // HUD 와 **같은 흰색**으로 맞춘다 — 같은 줄에 있는 글자가 서로 다른 색이면
             // 하나는 꺼져 있는 것처럼 보인다.
-            var label = new GUIStyle(GUI.skin.label) { fontSize = 14 };
+            // ⚠️ **날 픽셀 자리를 걷었다**(2026-09-14 · §72-12 5 · 2차 스크린샷 1장).
+            //
+            // 종전은 `x 164 · y 308` 고정이었다. 근거로 달려 있던 「모드 버튼(12..152)의
+            // 오른쪽」은 모드 버튼이 `UiLayout.ModeBarRect` 로 나간 09-11 부터 **없는 것을
+            // 가리키는 참조**였고, y 308 은 경고 띠(기준 캔버스 y768)가 작은 창에서 300 대로
+            // 내려오면서 **통째로 겹쳤다** — 「생산이 멈췄습니다」가 배율 막대 뒤에 깔려
+            // 둘 다 안 읽혔다.
+            //
+            // 자리를 **부유 띠 오른쪽 끝**으로 옮긴다(레이어 2 · 2098~2298). 겹침은 값을
+            // 고쳐 피하는 것이 아니라 **자리로** 사라진다. ⚠️ 자리 자체는 **가정**이다.
+            Rect bar = UiLayout.ZoomBarRect(Screen.width, Screen.height);
+            float sz = UiLayout.Scale(Screen.height);
+            float pad = 8f * sz;
+            float bh = bar.height, bw = bh;   // 버튼은 정사각 — 띠 높이가 한 변을 준다
+
+            var label = new GUIStyle(GUI.skin.label)
+            {
+                // ⚠️ **기본 skin 의 회색을 안 쓴다**(2026-09-10 · 플랜 §66-36 ①).
+                // 같은 줄의 글자가 서로 다른 색이면 하나는 꺼져 있는 것처럼 보인다.
+                fontSize = KoreanFont.Snap(Mathf.Max(9, Mathf.RoundToInt(bh * 0.28f))),
+                alignment = TextAnchor.MiddleLeft,
+            };
             label.normal.textColor = Color.white;
-            var style = new GUIStyle(GUI.skin.button) { fontSize = 16 };
+            var style = new GUIStyle(GUI.skin.button)
+            {
+                fontSize = KoreanFont.Snap(Mathf.Max(10, Mathf.RoundToInt(bh * 0.45f))),
+            };
 
-            // ⚠️ **한 줄로 눕힌다.** 라벨을 버튼 위에 얹었더니 y 308이 되어 태그 버튼과 겹쳤다
-            // (2026-09-02 브라우저 실측 — UI 겹침 네 번째). 전투 HUD가 y 290에서 끝나고
-            // 전투 조작 버튼이 y 300에서 시작하는데, 그 조작 버튼은 이제 조립 화면에서
-            // 그려지지 않으므로(StageRunner) 이 줄이 300을 통째로 쓴다.
-            // 모드 버튼(12..152)의 오른쪽. 같은 줄에서 세로 가운데를 맞춘다.
-            const float x = 164f, y = 308f, bw = 40f, bh = 30f, pad = 6f;
+            var minus = new Rect(bar.x, bar.y, bw, bh);
+            var plus = new Rect(bar.x + bw + pad, bar.y, bw, bh);
 
-            // 버튼 둘 + 글자를 한 판으로 덮는다(§66-35 ②). 글자 폭 200 까지 든다.
-            UiPlate.Draw(new Rect(x, y, (bw + pad) * 2f + pad * 2f + 200f, bh));
+            // ⚠️ **글자 상자는 글자에서 잰다** — 오늘 이 뿌리로 세 자리가 잘렸다.
+            string zoomText = $"보드 배율 ×{_zoom:0.00}";
+            float textX = plus.xMax + pad * 2f;
+            var text = new Rect(textX, bar.y, Mathf.Max(0f, bar.xMax - textX), bh);
 
-            var minus = new Rect(x, y, bw, bh);
-            var plus = new Rect(x + bw + pad, y, bw, bh);
-
-            // ⚠️ **버튼에서 한 칸 더 띄운다**(2026-09-10 · 촬영 결함 e). 종전에는 `+` 버튼
-            // 오른쪽 끝에서 6px 뒤에 바로 붙어 **글자가 버튼에 겹쳐 보였다.**
-            // 폭도 160 → 200 으로 늘린다 — 「보드 배율 ×1.00」이 160 에 아슬아슬했다.
-            // ⚠️ **높이 20 은 한글에 모자란다** — 14pt 글자의 위아래가 잘려 「보드 배율」이
-            // 반쯤 지워진 것처럼 보였다(2026-09-10 실측). 24 로 넓히고 위 여백을 줄인다.
-            GUI.Label(new Rect(x + (bw + pad) * 2f + pad * 2f, y + 4f, 200f, 24f),
-                $"보드 배율 ×{_zoom:0.00}", label);
-            UiBlockers.Add(minus);
-            UiBlockers.Add(plus);
+            UiPlate.Draw(bar);
+            GUI.Label(text, zoomText, label);
+            UiBlockers.Add(bar);
 
             if (GUI.Button(minus, "−", style)) SetZoom(_zoom - ZoomStep);
             if (GUI.Button(plus, "+", style)) SetZoom(_zoom + ZoomStep);

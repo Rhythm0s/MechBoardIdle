@@ -352,10 +352,44 @@ namespace MBI.UI
             float gap = 16f * s, margin = 24f * s;
             float left = FloatBandSlot(false, screenWidth, screenHeight).xMax + gap;
 
-            // ⚠️ **오른쪽 끝까지 쓴다**(2026-09-11 · §71-22 ②). 모드 버튼이 띠에서 나가면서
-            // 그 칸이 비었다 — 팔레트가 좁을 이유가 없어졌다.
-            float right = screenWidth - margin;
+            // ⚠️ **오른쪽 끝은 배율 막대가 쓴다**(2026-09-14 · §72-12 5).
+            //
+            // 구 「오른쪽 끝까지 쓴다」(2026-09-11 · §71-22 ②)는 **폐기**다. 모드 버튼이
+            // 나가며 빈 그 칸을, 보드 위 날 픽셀에 있던 배율 막대가 물려받는다.
+            float right = ZoomBarRect(screenWidth, screenHeight).x - gap;
             return new Rect(left, band.y, Mathf.Max(0f, right - left), band.height);
+        }
+
+        /// <summary>
+        /// 배율 막대가 잡아 두는 폭 (기준 캔버스). ⚠️ **가정이다** — 문서에 배율 자리 절이 없다.
+        ///
+        /// 버튼 둘(각 <see cref="MinButton"/>)과 「보드 배율 ×1.00」 한 줄이 들어가는 크기다.
+        /// 실제 글자 폭은 그리는 쪽이 재고, 여기서는 **팔레트가 물러설 만큼**만 잡는다.
+        /// </summary>
+        public const float ZoomBarWidth = 560f;
+
+        /// <summary>
+        /// **보드 배율 조작 자리** — 부유 띠의 오른쪽 끝 (2026-09-14 · §72-12 5).
+        ///
+        /// ⚠️ **날 픽셀 자리를 걷었다.** 종전은 <c>x 164 · y 308</c> 고정이었고, 근거로 달린
+        /// 「모드 버튼(12..152)의 오른쪽」은 모드 버튼이 <see cref="ModeBarRect"/> 로 나간
+        /// 2026-09-11 부터 **없는 것을 가리키는 참조**였다.
+        ///
+        /// 더 나쁜 것은 y 308 이다 — 경고 띠가 기준 캔버스 **y 768** 에서 시작하는데, 창이
+        /// 작으면 그 768 이 실제 픽셀로 300 대까지 내려온다. 2차 스크린샷에서 「생산이
+        /// 멈췄습니다」가 배율 막대 뒤에 깔려 **둘 다 안 읽혔다.** 띠로 옮기면 그 겹침은
+        /// **자리로** 사라진다(부유 띠는 2098 에서 시작한다).
+        ///
+        /// ⚠️ **가정이다** — 문서에 배율 자리 절이 없다. 값이 서면 이 메서드 하나만 바뀐다.
+        /// </summary>
+        public static Rect ZoomBarRect(float screenWidth, float screenHeight)
+        {
+            Rect band = BandRect(Band.FloatBand, screenWidth, screenHeight);
+            float s = Scale(screenHeight);
+            float margin = 24f * s, pad = 12f * s;
+            float h = Mathf.Max(0f, band.height - pad * 2f);
+            float w = ZoomBarWidth * s;
+            return new Rect(screenWidth - margin - w, band.y + pad, w, h);
         }
     }
 }
