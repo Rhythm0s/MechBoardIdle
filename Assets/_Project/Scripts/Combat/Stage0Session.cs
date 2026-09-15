@@ -156,6 +156,26 @@ namespace MBI.Combat
             // 벨트일 때 오히려 더 정확하다. 안내 문구를 따로 두지 않는 것도 그대로다.
             GUILayout.Label(Mark(_goal.SlotFilled) + " 끊긴 자리를 잇는다", style);
             GUILayout.Label(Mark(_goal.MountFilled) + " 마운트가 가득 찬다", style);
+
+            // ⚠️ **왜 수를 같이 띄우는가**(2026-09-15 · 육안 4차 ⑤ · 진단).
+            //
+            // 「목표가 안 닫힌다」는 보고를 받고 배치모드로 두 단을 다 쟀는데 **둘 다
+            // 멀쩡했다** — 보드는 마운트에 90초 339개를 보냈고(`TutorialGoalProbe`),
+            // 창고→마운트 사슬은 **15.9초에 만충**이 됐다(`TutorialMountProbe`).
+            // 값도 게임과 같다(스택 상한 10 · 슬롯 4).
+            //
+            // ⚠️ **그러면 남은 것은 배치모드가 못 보는 자리다.** 재현되는 판에서는 멀쩡한데
+            // 실제 화면에서만 안 되는 것이라, 다음 육안이 **어느 줄이 왜 막혔는지**를
+            // 바로 말해 주어야 한다. 그게 없으면 또 한 바퀴를 돌게 된다.
+            //
+            // 📌 **둘째 줄이 안 서는 이유는 둘뿐이다** — 첫째 줄이 아직 안 섰거나
+            // (차례가 규칙이다), 마운트가 안 찼거나. 그 둘을 수로 가른다.
+            var thin = new GUIStyle(GUI.skin.label) { fontSize = 12 };
+            MountLoad mount = runner != null && runner.Sim != null ? runner.Sim.ActiveMount : null;
+            GUILayout.Label(mount == null
+                    ? "   마운트 없음 — 전투가 아직 안 섰다"
+                    : $"   마운트 {mount.Total:F0} · 만충판정 {(mount.CanJudgeFullness ? "가능" : "불가")}",
+                thin);
             GUILayout.EndArea();
         }
 
