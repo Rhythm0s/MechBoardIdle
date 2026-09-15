@@ -1038,10 +1038,17 @@ namespace MBI.Combat
                 }
                 else if (mv != Vector2.zero)
                 {
-                    Vector2 pos = _sim.Robot.position + mv.normalized * tuning.robotMoveSpeedTbd * Time.deltaTime;
-                    float maxR = tuning.arenaRadiusTbd;
-                    if (pos.magnitude > maxR) pos = pos.normalized * maxR; // 아레나 밖 이탈 방지
-                    _sim.Robot.position = pos;
+                    // ⚠️⚠️ **아레나 클램프가 수동 경로에만 남아 있었다**
+                    // (2026-09-15 · 사용자 육안 8차 ② — 「이동 범위에 제한이 걸린다」).
+                    //
+                    // 09-11 에 전장이 **로봇을 따라다니는 판**이 되면서 아레나 원이 없어졌고
+                    // `AutoPilotPolicy` 에서는 그때 걷었다(그 주석에 근거가 있다). 그런데
+                    // **손으로 모는 이 줄은 안 걷었다** — `arenaRadiusTbd`(6) 원 안에 갇힌다.
+                    // 자동으로 걸으면 안 막히고 **손으로 몰 때만 막히니** 더 헷갈린다.
+                    //
+                    // 📌 **같은 규칙을 두 경로가 따로 구현했고 한쪽만 고쳤다.** 오늘 내내 나온 모양이다 —
+                    // 규칙이 두 벌이면 **고칠 때도 두 벌을 고쳐야 한다**는 것을 아무도 안 알려 준다.
+                    _sim.Robot.position += mv.normalized * tuning.robotMoveSpeedTbd * Time.deltaTime;
                 }
             }
 
@@ -1538,6 +1545,19 @@ namespace MBI.Combat
             string lineWallet = $"고철 {IdleSignals.WalletScrap:N0}   ·   강화재료 {IdleSignals.WalletEnhMaterial:N0}";
             const string lineHelp = "이동 WASD / 화살표   ·   회피 = 화면 플릭";
 
+            // ⚠️ **진단 한 줄**(2026-09-15 · 육안 8차 ① — 「쏘는 쪽을 안 본다」).
+            //
+            // 코드는 맞아 보이는데 화면에서는 안 돈다. **어느 단에서 끊기는지 눈으로 못 가른다** —
+            // 덮어쓰기가 안 걸린 것인지(수동으로 읽힘 · 조준이 안 옴 · 1.5초가 지났다),
+            // 걸렸는데 벌이 안 바뀐 것인지. 그래서 **그 값을 그대로 찍는다.**
+            //
+            // 📌 오늘 튜토리얼 게이트도 이 방법으로 갈랐다 — **재는 것으로 못 잡는 자리**는
+            // 화면이 답하게 한다. 자리가 잡히면 이 줄은 걷는다.
+            string lineFace = _robotView == null ? "얼굴 — 뷰 없음"
+                : $"얼굴 {(_robotView.FacingOverride.HasValue ? "조준" : "이동")}"
+                  + $" · 마지막 조준 {(_lastAimAt > 0f ? (Time.time - _lastAimAt).ToString("F1") + "초 전" : "없음")}"
+                  + $" · 수동유예 {Mathf.Max(0f, _manualHoldUntil - Time.time):F1}s";
+
             // ⚠️ **날 픽셀 폭 560 을 걷었다**(2026-09-15 · 육안 ②).
             //
             // 글자만 배율을 먹이고 **자리는 안 고쳤더니**, 720×1280 세로 창에서 HUD 가
@@ -1572,7 +1592,7 @@ namespace MBI.Combat
             }
             float need = HudTextHeight(style, hudW - 10f,
                              lineTitle, lineOutput, lineAmmo, lineStore, lineEnemy, lineTag,
-                             lineElapsed, lineWallet, lineHelp)
+                             lineElapsed, lineWallet, lineHelp, lineFace)
                          + (HudBars.BarHeight + 4f) * 2f   // 탄약 막대 · 회피 눈금
                          + 10f;                            // 아랫변 여백
 
@@ -1608,7 +1628,7 @@ namespace MBI.Combat
                     style.fontSize = KoreanFont.Snap(shrunk);
                     need = HudTextHeight(style, hudW - 10f,
                                lineTitle, lineOutput, lineAmmo, lineStore, lineEnemy, lineTag,
-                               lineElapsed, lineWallet, lineHelp)
+                               lineElapsed, lineWallet, lineHelp, lineFace)
                            + (HudBars.BarHeight + 4f) * 2f + 10f;
                 }
             }
@@ -1669,6 +1689,7 @@ namespace MBI.Combat
             // 이 상태 칸에 붙였다. 방치 씬이 없는 격리 전투 씬에서는 둘 다 0으로 뜬다.
             GUILayout.Label(lineWallet, style);
             GUILayout.Label(lineHelp, style);
+            GUILayout.Label(lineFace, style);   // 진단 — 자리가 잡히면 걷는다(육안 8차 ①)
             GUILayout.EndArea();
 
             // ⚠️ **전투 조작 버튼은 조립 화면에서 그리지 않는다**(260902_W09 §5-3).
