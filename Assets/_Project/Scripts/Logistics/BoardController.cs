@@ -1587,7 +1587,25 @@ namespace MBI.Logistics
             // ⚠️ **점멸은 그림·그리드와 같은 판정이다**(`MountBlinkOn`). 두 번 재면
             // 글자와 그림이 서로 다른 박자로 깜빡인다.
             bool blink = MountBlinkOn;
-            var mountStyle = new GUIStyle(style) { alignment = TextAnchor.UpperCenter };
+            // ⚠️⚠️ **글자를 자르지 않는다**(2026-09-15 · 사용자 육안 4차 ⑧ — 「마운트」가 「마우」).
+            //
+            // 자리는 맞았고 **폭 측정이 틀렸다.** `CalcSize` 는 스타일의 폰트에 물어보는데,
+            // 유니티 **동적 폰트는 아직 안 구운 크기의 글리프 폭을 모른다** — 줌을 바꾸면
+            // 글자 크기가 사다리를 타고 새 단으로 올라가고, 그 단이 처음 쓰이는 프레임에는
+            // 폭이 **작게** 나온다. 상자는 그 작은 값으로 잡히고 글자는 제 크기로 그려져
+            // **뒤가 잘린다.** 「마우」가 그것이다.
+            //
+            // 📌 **같은 병의 다섯째 얼굴이다** — 아틀라스가 「마으ㅌ」·「판1」·「먹춤」·
+            // 「하단 글자 소멸」로 왔고, 이번엔 **폭을 속이는 쪽**으로 왔다.
+            //
+            // **재는 것을 고치지 않고 자르기를 끈다.** 측정이 몇 픽셀 틀려도 글자는 온전히
+            // 나오고, 가운데 정렬이라 좌우로 고르게 넘친다 — 이름표는 바탕이 없어 넘쳐도 안 겹친다.
+            var mountStyle = new GUIStyle(style)
+            {
+                alignment = TextAnchor.UpperCenter,
+                clipping = TextClipping.Overflow,
+                wordWrap = false,
+            };
             Color prev = GUI.color;
             GUI.color = blink ? MountEmptyColor : ZoneLabelColor;
 
@@ -1612,7 +1630,10 @@ namespace MBI.Logistics
                 // ⚠️ **§71-41 의 구현 가정이라 재량으로 줄인다**(사용자 확인 09-14).
                 // 문구가 문서로 서면 그때 이 한 줄이 바뀐다.
                 const string text = "마운트";
-                float boxW = mountStyle.CalcSize(new GUIContent(text)).x;
+                // 측정이 작게 나와도 넘쳐서 보이지만(위 `Overflow`), 상자가 너무 좁으면
+                // 가운데가 어긋난다 — **글자 수 × 글자 크기**를 하한으로 둔다.
+                float boxW = Mathf.Max(mountStyle.CalcSize(new GUIContent(text)).x,
+                                       text.Length * mountStyle.fontSize);
 
                 // **묶음 아래**(§72-5) — 묶음 맨 아랫 칸의 밑변이다.
                 //
@@ -1928,7 +1949,7 @@ namespace MBI.Logistics
             GUI.color = prevDim;
 
             UiBlockers.Add(full);
-            GUI.DrawTexture(box, UiSkin.PlateTexture);
+            UiSkin.DrawPlate(box);   // 9-슬라이스(육안 4차 ④)
 
             float pad = 24f * sc;
             var head = new GUIStyle(GUI.skin.label)
@@ -2069,8 +2090,20 @@ namespace MBI.Logistics
                     {
                         sr.sprite = itemArt;
                         sr.color = Color.white;
-                        sr.transform.localScale =
-                            Vector3.one * FitScale(itemArt, _grid.CellSize * ItemDrawSize);
+                        // ⚠️ **캔버스가 아니라 그림에 맞춘다**(2026-09-15 · 육안 4차 ⑥ · 실측).
+                        //
+                        // 종전에는 `FitScale` 이 캔버스(64×64)를 목표 크기에 맞췄다. 그런데
+                        // `ammo_standard` 는 그 64 안에 **40×20 만** 그려져 있어서,
+                        // 캔버스를 0.26 칸에 맞추면 **보이는 것은 0.16×0.08 칸**이 됐다 —
+                        // 한 칸 80픽셀에서 13×6픽셀, 곧 **주황 얼룩**이다.
+                        // `core_energy` 는 54×52 로 캔버스를 거의 채워 같은 셈에도 멀쩡했고,
+                        // **그래서 한 품목만 이상해 보였다.**
+                        //
+                        // ⚠️ 09-15 에 이 자리를 「그림이 맞으니 결함 아님」으로 닫았던 것이
+                        // 틀렸다. 그림은 맞았고 **크기 셈이 틀렸다.**
+                        float span = art.ItemContentSpan(items[i].kind);
+                        sr.transform.localScale = Vector3.one
+                            * FitScale(itemArt, _grid.CellSize * ItemDrawSize / span);
                         body.enabled = false;
                     }
                     else
@@ -2443,8 +2476,25 @@ namespace MBI.Logistics
             //
             // 구역 이름은 **어느 파츠인가**라 노드 하나보다 큰 말이고, 겹치면 그쪽이
             // 살아남아야 한다. IMGUI 는 **뒤에 그리는 쪽이 위**다.
+            // ⚠️⚠️ **보드 위 글자는 보드 띠 밖으로 나가면 안 된다**
+            // (2026-09-15 · 사용자 육안 4차 ⑨ · §71-23 과 같은 뿌리).
+            //
+            // 이름판·품목 아이콘·「합」은 **월드 좌표를 화면으로 옮겨** 그린다. 그런데 IMGUI 는
+            // 화면 전체가 도화지라, 보드를 끌어 칸이 띠 위로 올라가면 **글자가 전투 인셋 위에
+            // 그려진다** — 카메라는 보드를 안 비추는데 글자만 떠 있는 꼴이다.
+            //
+            // 📌 **구역 이름표는 이미 따로 막아 두었다**(「인셋에 가린 구역 숨김」). 그때
+            // 한 칸씩 막는 길을 골랐는데, **새로 그리는 것마다 같은 처리를 또 해야 했다** —
+            // 이번 ⑨ 가 그 대가다. 그래서 여기서는 **그릇 하나로** 막는다.
+            //
+            // `BeginClip` 의 둘째 인자에 자리를 음수로 넣으면 **화면 좌표가 그대로 유지된다** —
+            // 안쪽 코드는 지금처럼 화면 좌표로 계산하고, 잘리는 일만 그릇이 맡는다.
+            Rect boardView = UiLayout.BandRect(UiLayout.Band.Board, Screen.width, Screen.height);
+            GUI.BeginClip(boardView, -boardView.position, Vector2.zero, false);
             DrawCellLabels();    // 칸 라벨(노드 이름판·품목 아이콘)
             DrawZoneLabels();    // 구역 이름표 — 칸 라벨 **위**로 온다
+            GUI.EndClip();
+
             DrawBottleneckHint();
 
             // ⚠️ **그릇을 먼저 깐다**(2026-09-11 재육안 2 ① 수정). 종전에는 이 판을
@@ -2704,7 +2754,7 @@ namespace MBI.Logistics
         {
             Rect band = UiLayout.BandRect(UiLayout.Band.FloatBand, Screen.width, Screen.height);
             UiBlockers.Add(band);
-            GUI.DrawTexture(band, UiSkin.PlateTexture);
+            UiSkin.DrawPlate(band);   // 9-슬라이스 — 통짜로 늘이면 모서리가 뭉개진다(육안 4차 ④)
         }
 
         /// <summary>

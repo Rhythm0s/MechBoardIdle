@@ -255,6 +255,38 @@ namespace MBI.UI
             return true;
         }
 
+        /// <summary>
+        /// **판 하나를 9-슬라이스로 깐다** (2026-09-15 · 사용자 육안 4차 ④).
+        ///
+        /// ⚠️ **`GUI.DrawTexture` 는 9-슬라이스를 안 탄다.** 그림을 통째로 늘여서
+        /// 모서리 장식이 **가로로 뭉개진다** — 부유 띠·액션바처럼 아주 넓은 판에서
+        /// 그 늘어남이 눈에 띈다. 아홉 조각으로 나누는 것은 `GUIStyle.border` 가 하는 일이라
+        /// **스타일을 거쳐야** 한다(이 파일 머리 주석의 그 장치다).
+        ///
+        /// 📌 **모서리 굵기는 `ActiveBorder` 하나에서 온다** — 자산이 바뀌면 여기도 따라 바뀐다.
+        /// 값을 손으로 적어 두면 자산과 어긋나는 날이 온다(지침 §7).
+        /// </summary>
+        public static void DrawPlate(Rect rect)
+        {
+            EnsureTextures();
+            if (_plateStyle == null)
+                _plateStyle = new GUIStyle { normal = { background = _plate } };
+
+            // 자산이 다시 구워지면 그림·굵기가 바뀐다 — 매번 맞춘다(싸다).
+            _plateStyle.normal.background = _plate;
+            int b = ActiveBorder;
+            _plateStyle.border = new RectOffset(b, b, b, b);
+
+            if (Event.current == null || Event.current.type != EventType.Repaint)
+            {
+                // 그리기 철이 아닐 때 `style.Draw` 는 아무 일도 안 한다 — 부르지 않는다.
+                return;
+            }
+            _plateStyle.Draw(rect, false, false, false, false);
+        }
+
+        private static GUIStyle _plateStyle;
+
         public static void DrawLockVeil(Rect rect)
         {
             Color prev = GUI.color;

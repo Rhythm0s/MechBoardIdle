@@ -548,6 +548,51 @@ namespace MBI.Combat
         /// 뷰를 지금 나가 있는 로봇에 묶는다. 교대하면 **엔티티도 스프라이트도 바뀌므로**
         /// 다시 묶지 않으면 B가 싸우는데 화면에는 A가 서 있게 된다.
         /// </summary>
+        /// <summary>
+        /// **쏘는 동안 로봇이 쏘는 쪽을 보게 한다** (2026-09-15 사용자 확정 · 육안 4차 ①).
+        ///
+        /// 얼굴은 종전에 **이동 축**만 따랐다. 자동 조종은 사거리 안에 적이 있으면 제자리에서
+        /// 쏘므로, 서 있는 동안 **마지막으로 걸었던 쪽**을 그대로 보고 탄만 옆으로 나갔다.
+        ///
+        /// ⚠️ **수동이 표적을 이긴다**(구현 가정 · 되돌릴 수 있다 · 설계 사후 판정).
+        /// 손으로 몰 때도 표적을 보게 하면 **가는 쪽을 못 본다** — 조종감이 먼저다.
+        ///
+        /// ⚠️ **탄이 나간 틱에만 방향이 온다.** 사격 간격이 1초면 그 사이 틱에는 사건이 없어서,
+        /// 매 틱 새로 읽으면 **얼굴이 깜빡인다.** 그래서 마지막 조준을 잠깐 붙들어 둔다 —
+        /// 값이 아니라 **끊김**을 막는 장치다.
+        /// </summary>
+        private void UpdateRobotFacing(bool manualActive)
+        {
+            if (_robotView == null || _sim == null) return;
+
+            if (manualActive)
+            {
+                _robotView.FacingOverride = null;   // 조종 중에는 가는 쪽을 본다
+                return;
+            }
+
+            IReadOnlyList<ShotEvent> shots = _sim.ShotsThisTick;
+            if (shots != null && shots.Count > 0)
+            {
+                ShotEvent last = shots[shots.Count - 1];
+                Vector2 aim = last.to - last.from;
+                if (aim.sqrMagnitude > 1e-6f)
+                {
+                    _lastAim = aim;
+                    _lastAimAt = Time.time;
+                }
+            }
+
+            _robotView.FacingOverride =
+                Time.time - _lastAimAt <= AimHoldSeconds ? _lastAim : (Vector2?)null;
+        }
+
+        /// <summary>마지막 조준을 붙들어 두는 시간. 사격 간격보다 넉넉해야 얼굴이 안 깜빡인다.</summary>
+        private const float AimHoldSeconds = 1.5f;
+
+        private Vector2 _lastAim;
+        private float _lastAimAt = -999f;
+
         private void BindRobotView()
         {
             if (_robotView == null || _sim == null) return;
@@ -970,6 +1015,8 @@ namespace MBI.Combat
             {
                 Vector2 mv = MoveInput();
                 if (mv != Vector2.zero) _manualHoldUntil = Time.time + tuning.manualOverrideGraceTbd;
+
+                UpdateRobotFacing(mv != Vector2.zero || Time.time < _manualHoldUntil);
 
                 if (mv == Vector2.zero && autoPilot && Time.time >= _manualHoldUntil)
                 {

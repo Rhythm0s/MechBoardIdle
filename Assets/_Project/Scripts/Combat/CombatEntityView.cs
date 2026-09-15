@@ -278,6 +278,24 @@ namespace MBI.Combat
             Vector2 delta = pos - _lastPosition;
             _lastPosition = pos;
 
+            // ⚠️ **쏘는 동안에는 쏘는 쪽을 본다**(2026-09-15 사용자 확정 · 육안 4차 ①).
+            //
+            // 종전에는 얼굴이 **이동 축**만 따랐다. 자동 조종은 사거리 안에 적이 있으면
+            // 제자리에서 쏘는데, 그러면 **마지막으로 걸었던 쪽**을 그대로 보고 선 채
+            // 엉뚱한 방향으로 탄이 나갔다 — 「등지고 쏜다」로 보인다.
+            //
+            // ⚠️ **수동 입력이 우선이다**(구현 가정 · 되돌릴 수 있다 · 설계 사후).
+            // 손으로 몰 때까지 표적을 보게 하면 **내가 가는 쪽을 못 보게** 된다.
+            // 그래서 조종 중에는 이 덮어쓰기가 꺼진다 — 끄는 것은 `StageRunner` 다.
+            //
+            // 표적이 없으면 `null` 이라 아래가 종전대로 돈다.
+            if (FacingOverride.HasValue && FacingOverride.Value.sqrMagnitude > 1e-6f)
+            {
+                _lastDirection = ToDirection(FacingOverride.Value, _lastDirection);
+                PlayState(IsMoving(delta, dt) ? UnitAnimState.Move : UnitAnimState.Idle, _lastDirection);
+                return;
+            }
+
             // 문턱은 프레임 시간에 비례시킨다 — 프레임이 길어도 서 있는 것으로 오판하지 않게.
             float moved = delta.magnitude;
             if (moved > MoveEpsilonPerSecond * Mathf.Max(dt, 1e-4f))
@@ -292,6 +310,18 @@ namespace MBI.Combat
 
         /// <summary>이동으로 볼 최소 속도(월드 단위/초). 떨림을 이동으로 읽지 않을 만큼만 둔다.</summary>
         private const float MoveEpsilonPerSecond = 0.01f;
+
+        /// <summary>
+        /// **이 프레임에 바라볼 쪽**. `null` 이면 종전대로 **이동 축**을 본다.
+        ///
+        /// 로봇 뷰에만 걸린다 — `StageRunner` 가 매 프레임 넣고 뺀다(육안 4차 ①).
+        /// 몬스터는 아무도 안 넣으므로 `null` 인 채로 돈다.
+        /// </summary>
+        public Vector2? FacingOverride;
+
+        /// <summary>걷고 있는가 — 벌을 고르는 데만 쓴다(방향은 위에서 이미 정했다).</summary>
+        private static bool IsMoving(Vector2 delta, float dt) =>
+            delta.magnitude > MoveEpsilonPerSecond * Mathf.Max(dt, 1e-4f);
 
         // 반동과 점멸은 시뮬 틱이 아니라 실시간으로 흐른다 — 판정에 영향을 주지 않는 순수 연출이다.
         private void Update()

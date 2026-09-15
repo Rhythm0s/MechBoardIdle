@@ -87,7 +87,7 @@ namespace MBI.UI
             UiBlockers.Add(band);
             EnsureStyles(s);
 
-            GUI.DrawTexture(band, UiSkin.PlateTexture);
+            UiSkin.DrawPlate(band);   // 9-슬라이스(육안 4차 ④)
 
             float pad = 16f * s;
             float colW = (band.width - pad * 4f) / 3f;

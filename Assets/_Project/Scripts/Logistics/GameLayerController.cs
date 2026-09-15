@@ -184,7 +184,7 @@ namespace MBI.Logistics
                 Rect bar = MBI.UI.UiLayout.BandRect(
                     MBI.UI.UiLayout.Band.ActionBar, Screen.width, Screen.height);
                 MBI.UI.UiBlockers.Add(bar);
-                GUI.DrawTexture(bar, MBI.UI.UiSkin.PlateTexture);
+                MBI.UI.UiSkin.DrawPlate(bar);   // 9-슬라이스(육안 4차 ④)
             }
 
             MBI.UI.UiBlockers.Add(rect); // 보드가 누르는 순간 판정한다 — UiBlockers 주석
