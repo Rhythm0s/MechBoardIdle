@@ -41,6 +41,16 @@ namespace MBI.Core
         /// <param name="mountIsFull">마운트가 만충인가</param>
         public void Observe(bool emptySlotFilled, bool mountIsFull)
         {
+            // ⚠️ **소리는 걸쇠가 넘어가는 그 순간에만 넣는다**(2026-09-15 사용자 확정).
+            //
+            // 「참인가」로 넣으면 **초당 60번 울린다** — 걸쇠는 한 번 서면 안 내려가므로
+            // 그 뒤 모든 프레임이 참이다. 그래서 **거짓 → 참** 모서리를 잡는다.
+            // 목표가 두 줄이라 **한 판에 최대 두 번**이다.
+            //
+            // 넣는 쪽은 이름만 안다 — 자산이 없으면 재생기가 조용히 건너뛴다.
+            bool wasSlot = SlotFilled;
+            bool wasMount = MountFilled;
+
             if (emptySlotFilled) SlotFilled = true;
 
             // ⚠️ **놓은 뒤부터 센다.** 순서가 수업이기 때문이다 —
@@ -50,6 +60,10 @@ namespace MBI.Core
             // 5초 남짓이면 저절로 찬다. 그러면 플레이어가 노드를 놓는 순간 곧바로 끝나고,
             // 쌓이는 장면을 한 번도 못 본다 — 브라우저 실측에서 실제로 그랬다(2026-09-01).
             if (SlotFilled && mountIsFull) MountFilled = true;
+
+            if (SlotFilled != wasSlot || MountFilled != wasMount)
+                Audio.AudioSignals.Play(Audio.SoundIds.GoalClear,
+                    Audio.SoundIds.KindOf(Audio.SoundIds.GoalClear));
         }
 
         /// <summary>다시 시작할 때. 걸쇠를 전부 푼다.</summary>

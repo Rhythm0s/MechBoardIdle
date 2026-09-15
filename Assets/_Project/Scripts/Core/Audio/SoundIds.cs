@@ -47,12 +47,30 @@ namespace MBI.Core.Audio
         /// </summary>
         public const string UiClick = "sfx_ui_click";
 
-        /// <summary>훅이 걸린 **아홉**. 재생기가 자산을 찾는 목록이기도 하다.</summary>
+        /// <summary>
+        /// **튜토리얼 목표 달성** (2026-09-15 사용자 확정).
+        ///
+        /// 목표 두 줄(「끊긴 자리를 잇는다」·「마운트가 가득 찬다」)이 **체크되는 순간**
+        /// 각각 한 번씩 난다. 두 줄이라 **한 판에 최대 두 번**이다.
+        ///
+        /// ⚠️ **효과음이지 경고가 아니다.** 경고 채널은 병목처럼 **화면을 안 봐도 닿아야
+        /// 하는 것**의 자리라 가장 크다(사운드 문서 2장). 목표 달성은 **화면을 보고 있을 때**
+        /// 나는 소리다 — 경고에 넣으면 병목보다 크게 울린다.
+        ///
+        /// ⚠️ **한 번만 난다는 것은 걸쇠가 보장한다.** <see cref="MBI.Core.Stage0Goal"/> 의
+        /// 두 값은 한 번 서면 안 내려가고, 소리는 **거짓 → 참으로 넘어가는 그 순간**에만 넣는다.
+        /// 매 프레임 「참인가」로 넣으면 **초당 60번 울린다.**
+        ///
+        /// ⚠️ **파일은 리포 밖이다** — 조달 전이라 지금은 무음이다.
+        /// </summary>
+        public const string GoalClear = "sfx_goal_clear";
+
+        /// <summary>훅이 걸린 **열**. 재생기가 자산을 찾는 목록이기도 하다.</summary>
         public static readonly string[] All =
         {
             NodeSnap, BeltConnect, Bottleneck,
             FireA, DroneLaunch, Hit, Fusion, Burst,
-            UiClick,
+            UiClick, GoalClear,
         };
 
         /// <summary>
