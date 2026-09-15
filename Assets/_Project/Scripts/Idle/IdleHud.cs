@@ -28,12 +28,23 @@ namespace MBI.Idle
 
         private void Awake() => _idle = GetComponent<IdleRuntime>();
 
+        /// <summary>마지막으로 스타일을 지은 창 높이. 창이 바뀌면 다시 짓는다.</summary>
+        private float _styleHeight;
+
         private void EnsureStyles()
         {
-            if (_head != null) return;
-            _head   = new GUIStyle(GUI.skin.label)  { fontSize = 26, fontStyle = FontStyle.Bold };
-            _body   = new GUIStyle(GUI.skin.label)  { fontSize = 16, wordWrap = true };
-            _button = new GUIStyle(GUI.skin.button) { fontSize = 16 };
+            // ⚠️ **창 높이가 바뀌면 다시 짓는다.** 한 번 짓고 말면 글자가 창을 안 따라간다.
+            if (_head != null && Mathf.Abs(_styleHeight - Screen.height) < 0.5f) return;
+            _styleHeight = Screen.height;
+            // ⚠️ **글자도 창을 따라간다**(2026-09-15 · 육안 ⓒ). 날 픽셀 26/16 은
+            // 720×1280 창에서 점만 했다 — 09-14 하단 넷과 같은 병이다.
+            float sc = MBI.UI.UiLayout.Scale(Screen.height);
+            int head = MBI.UI.KoreanFont.Snap(Mathf.Max(10, Mathf.RoundToInt(52f * sc)));
+            int body = MBI.UI.KoreanFont.Snap(Mathf.Max(9, Mathf.RoundToInt(32f * sc)));
+
+            _head   = new GUIStyle(GUI.skin.label)  { fontSize = head, fontStyle = FontStyle.Bold };
+            _body   = new GUIStyle(GUI.skin.label)  { fontSize = body, wordWrap = true };
+            _button = new GUIStyle(GUI.skin.button) { fontSize = body };
         }
 
         private void OnGUI()
@@ -52,7 +63,14 @@ namespace MBI.Idle
             // 높이 300 — 232로는 「확인」 버튼이 영역 밖으로 잘려 **창을 닫을 수가 없었다**
             // (2026-09-06 웹빌드 실측). GUILayout은 BeginArea 밖을 그리지 않으므로
             // 버튼이 사라진 것이 아니라 잘린 것이었고, 화면에서 보기 전에는 드러나지 않았다.
-            const float w = 420f, h = 300f;
+            // ⚠️ **날 픽셀 420×300 을 걷었다**(2026-09-15 · 육안 ⓒ · 하단 넷과 같은 병).
+            //
+            // 창 크기와 무관한 고정 크기라 720×1280 창에서 **글자가 안 읽혔다.**
+            // 기준 캔버스(1440×2560) 값으로 적고 배율을 곱한다 — 구 420×300 은 폐기 표기.
+            // ⚠️ **크기는 가정이다**(설계 역기입) — 문서에 방치 보상 창 절이 없다.
+            float boxScale = MBI.UI.UiLayout.Scale(Screen.height);
+            float w = Mathf.Min(1040f * boxScale, Screen.width - 48f * boxScale);
+            float h = 740f * boxScale;
             var box = new Rect((Screen.width - w) * 0.5f, (Screen.height - h) * 0.5f, w, h);
 
             // 창 뒤로 클릭이 새면 안 된다 — 창을 닫으려다 그 아래 칸에 노드가 놓인다.
@@ -66,7 +84,9 @@ namespace MBI.Idle
             GUI.color = prevBg;
 
             GUI.Box(box, GUIContent.none);
-            GUILayout.BeginArea(new Rect(box.x + 18f, box.y + 14f, box.width - 36f, box.height - 28f));
+            float inset = 36f * boxScale;
+            GUILayout.BeginArea(new Rect(box.x + inset, box.y + inset * 0.8f,
+                box.width - inset * 2f, box.height - inset * 1.6f));
 
             GUILayout.Label("돌아왔다", _head);
             GUILayout.Space(6f);

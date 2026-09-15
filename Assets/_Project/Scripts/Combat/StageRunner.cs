@@ -1410,12 +1410,32 @@ namespace MBI.Combat
             if (!_ready) return;
             UiSkin.Apply(); // 껍데기 + 한글 폰트 — WebGL엔 시스템 폰트 폴백이 없다
 
-            var style = new GUIStyle(GUI.skin.label) { fontSize = 16 };
-            var big = new GUIStyle(GUI.skin.label) { fontSize = 34, fontStyle = FontStyle.Bold };
+            // ⚠️ **기본 skin 의 회색을 안 쓴다**(2026-09-15 · 육안 ⓐ 대응 · 09-10 과 같은 처방).
+            //
+            // 전투 화면에서는 이 글자 밑에 **판을 안 깐다**(조립 화면만 깐다). 그래서 회색
+            // 글자가 **흙바닥 위**에 놓이는데, 09-15 에 카메라가 로봇을 따라가게 되면서
+            // 밑에 오는 타일이 달라졌다 — 플랜 세션 육안에서 **HUD 가 통째로 안 보였다.**
+            //
+            // ⚠️ **원인을 못 좁혔다.** 회색 대비가 맞는지, 다른 것이 가린 것인지 가르지
+            // 못했다 — 다만 흰색은 **어느 쪽이든 나빠지지 않는다**(같은 줄의 다른 글자가
+            // 이미 흰색이라 색이 섞여 있던 것도 함께 풀린다).
+            // 글자 크기도 창을 따라가게 한다 — 16 은 날 픽셀이라 큰 창에서 점이 된다.
+            float hudScale = UiLayout.Scale(Screen.height);
+            int hudPx = KoreanFont.Snap(Mathf.Max(11, Mathf.RoundToInt(32f * hudScale)));
+
+            var style = new GUIStyle(GUI.skin.label) { fontSize = hudPx };
+            style.normal.textColor = Color.white;
+            var big = new GUIStyle(GUI.skin.label)
+            {
+                fontSize = KoreanFont.Snap(Mathf.Max(16, Mathf.RoundToInt(68f * hudScale))),
+                fontStyle = FontStyle.Bold,
+            };
+            big.normal.textColor = Color.white;
             // 막대 옆·막대 안 글자. 막대 높이가 14라 16으로 두면 칸 밖으로 넘친다.
             if (_hudSmall == null)
             {
-                _hudSmall = new GUIStyle(GUI.skin.label) { fontSize = 12 };
+                _hudSmall = new GUIStyle(GUI.skin.label) { fontSize = hudPx };
+                _hudSmall.normal.textColor = Color.white;
                 _hudSegment = new GUIStyle(GUI.skin.label)
                 {
                     fontSize = 11,

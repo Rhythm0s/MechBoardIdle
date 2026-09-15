@@ -2430,8 +2430,16 @@ namespace MBI.Logistics
             UiSkin.Apply(); // 껍데기 + 한글 폰트 — WebGL엔 시스템 폰트 폴백이 없다
 
             DrawSupplyWarningBand(); // 0차 — 다른 표시보다 먼저 그린다(UI 문서 12-4)
-            DrawZoneLabels();    // 구역 이름표 — 칸 라벨보다 먼저(구역은 바탕이고 칸 내용이 위다)
-            DrawCellLabels(); // 버튼보다 먼저 — 팔레트/모드 버튼이 라벨 위에 온다
+            // ⚠️ **차례를 뒤집었다**(2026-09-15 · 육안 ③ 겹침).
+            //
+            // 종전에는 구역 이름표를 **먼저**(=아래) 그렸다. 09-15 에 노드 이름판이
+            // 되살아나면서(개편 ⑥) 구역 왼윗 칸의 노드 판이 **구역 이름표를 덮었다** —
+            // 「팔R」 위에 에너지 노드 이름판이 얹혔다.
+            //
+            // 구역 이름은 **어느 파츠인가**라 노드 하나보다 큰 말이고, 겹치면 그쪽이
+            // 살아남아야 한다. IMGUI 는 **뒤에 그리는 쪽이 위**다.
+            DrawCellLabels();    // 칸 라벨(노드 이름판·품목 아이콘)
+            DrawZoneLabels();    // 구역 이름표 — 칸 라벨 **위**로 온다
             DrawBottleneckHint();
 
             // ⚠️ **그릇을 먼저 깐다**(2026-09-11 재육안 2 ① 수정). 종전에는 이 판을
@@ -2649,12 +2657,25 @@ namespace MBI.Logistics
             GUI.EndScrollView();
             GUI.enabled = true;
 
-            // 조작 안내 — 띠 **바로 위**에 얹는다. 버튼 줄과 같은 칸을 쓰면 스크롤에
-            // 딸려 나가 「지금 무슨 모드인가」를 볼 수 없게 된다.
-            GUI.Label(new Rect(band.x + pad, band.y - 30f * sc, band.width, 30f * sc),
-                _selectedModule >= 0 ? "모듈 모드 · 탭 = 놓인 노드에 장착"
-                : "탭 = 노드 배치 · 드래그 = 벨트 · 벨트 위에서 끌면 제거",
-                new GUIStyle(GUI.skin.label) { fontSize = KoreanFont.Snap(Mathf.Max(9, Mathf.RoundToInt(24f * sc))) });
+            // ⚠️ **구 규칙 문구를 걷었다**(2026-09-15 · 제거 규칙 개정 §73-15 ①).
+            //
+            // 「탭 = 노드 배치 · 드래그 = 벨트 · 벨트 위에서 끌면 제거」는 이제 틀렸다 —
+            // 제거는 **노드·벨트를 안 가리고**, **탭은 제거가 아니다.**
+            //
+            // ⚠️ **자리도 틀렸다.** `band.y − 30` 은 **탭 줄과 겹치는 자리**였다(개편 ②로
+            // 부유 띠 위쪽이 탭 줄이 됐다). 보드 띠 **왼쪽 아래**로 내린다 —
+            // 모드 판이 오른쪽 아래를 쓰므로 반대 구석이다. ⚠️ 자리는 가정이다.
+            Rect boardBand = UiLayout.BandRect(UiLayout.Band.Board, Screen.width, Screen.height);
+            float hintH = 44f * sc;
+            GUI.Label(new Rect(boardBand.x + 24f * sc, boardBand.yMax - 24f * sc - hintH,
+                    boardBand.width * 0.6f, hintH),
+                _selectedModule >= 0 ? "모듈 — 놓인 노드를 탭하면 붙는다"
+                : "빈 칸 = 벨트 · 노드 탭 = 조합표 · 놓인 것 위에서 끌면 제거",
+                new GUIStyle(GUI.skin.label)
+                {
+                    fontSize = KoreanFont.Snap(Mathf.Max(9, Mathf.RoundToInt(32f * sc))),
+                    normal = { textColor = NameTextColor },
+                });
 
             DrawRecipePanel();
 

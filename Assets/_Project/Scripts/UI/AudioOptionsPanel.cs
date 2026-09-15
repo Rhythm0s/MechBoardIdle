@@ -116,18 +116,31 @@ namespace MBI.UI
             //
             // ⚠️ **변수 패널이 걷혔기에 쓸 수 있는 자리다**(개편 ①) — 09-10 에 이 구석을
             // 포기한 까닭이 그 패널이었다.
+            // ⚠️ **크기는 규격을 따른다**(2026-09-15 · 육안 재확인).
+            //
+            // 구 96×32 는 **날 픽셀**이었다. 우상단으로 옮기면서 배율을 곱했더니
+            // 720×1280 창에서 **48×16** 이 되어 「안 보인다」가 됐다 — 배율을 곱하려면
+            // 값도 **기준 캔버스 값**이어야 한다. 96 은 그 값이 아니었다.
+            //
+            // 한 변을 `MinButton`(150)으로 잡는다 — UI 6-2 규격이고, 눌리는 크기다.
             float scale = UiLayout.Scale(Screen.height);
-            float bw = ButtonW * scale, bh = Mathf.Max(ButtonH, UiLayout.MinButton * 0.4f) * scale;
-            float margin = Margin * scale;
+            float bw = UiLayout.MinButton * 1.4f * scale;   // 「소리」 두 글자가 들어갈 폭
+            float bh = UiLayout.MinButton * scale;
+            float margin = 24f * scale;
             float top = margin;
             var button = new Rect(Screen.width - margin - bw, top, bw, bh);
             UiBlockers.Add(button);
-            if (GUI.Button(button, _open ? "소리 닫기" : "소리")) _open = !_open;
+            var btnStyle = new GUIStyle(GUI.skin.button)
+            {
+                fontSize = KoreanFont.Snap(Mathf.Max(10, Mathf.RoundToInt(bh * 0.28f))),
+            };
+            if (GUI.Button(button, _open ? "소리 닫기" : "소리", btnStyle)) _open = !_open;
 
             if (!_open) return;
 
             // ⚠️ **슬라이더는 버튼 아래로 편다** — 우상단이라 위로 펴면 화면 밖이다.
-            float pw = PanelW * scale, ph = PanelH * scale;
+            // 패널도 기준 캔버스 값으로 — 구 240×172 는 날 픽셀이라 작은 창에서 못 읽었다.
+            float pw = PanelW * 2.4f * scale, ph = PanelH * 2.4f * scale;
             var panel = new Rect(Screen.width - margin - pw, button.yMax + 4f * scale, pw, ph);
             UiBlockers.Add(panel);
             GUI.Box(panel, GUIContent.none);

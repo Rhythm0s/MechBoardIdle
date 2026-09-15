@@ -296,26 +296,20 @@ namespace MBI.Tests
         /// 화면 없이 잴 수 있는 것은 **자리**뿐이라 자리만 잰다 — 눌리는지는 사람이 본다.
         /// </summary>
         [Test]
-        public void SoundButton_ClearsTheRightHandPanels_AndTheShortcutPanel()
+        public void SoundButton_MeetsTheButtonSpec()
         {
-            const float margin = 12f, w = 1440f, h = 2560f, bh = 32f;
-
-            // 소리 버튼 — AudioOptionsPanel.OnGUI 와 같은 셈(바닥에서 잰다).
-            var sound = new Rect(w - 96f - margin, h - (190f + bh + margin), 96f, bh);
-
-            // 오른쪽 위를 차례로 차지하는 둘. 변수 패널은 250, 팔레트는 그 아래로 이어진다.
-            var variablePanel = new Rect(w - 300f - margin, margin, 300f, 250f);
-            Assert.IsFalse(variablePanel.Overlaps(sound), "변수 패널과 겹친다");
-            Assert.Greater(sound.y, variablePanel.yMax + 400f,
-                "노드 팔레트가 변수 패널 아래로 이어진다 — 넉넉히 비켜야 한다");
-
-            // 심사자용 바로가기는 아래에서 190 부터 시작한다. 그 위에 서야 한다.
-            Assert.LessOrEqual(sound.yMax, h - 190f, "바로가기 패널을 덮는다");
-
-            // 슬라이더는 버튼 **위로** 편다 — 아래로 펴면 화면 밖이다.
-            var panel = new Rect(w - 240f - margin, sound.y - 76f - 4f, 240f, 76f);
-            Assert.GreaterOrEqual(panel.y, 0f, "슬라이더가 화면 위로 넘쳤다");
-            Assert.LessOrEqual(panel.yMax, sound.y, "슬라이더가 버튼을 덮는다");
+            // ⚠️ **구 시험은 자리를 손으로 다시 적었다**(2026-09-15 정정).
+            //
+            // `new Rect(w - 96 - margin, h - (190 + bh + margin), 96, bh)` 처럼 **코드를
+            // 안 부르고 값을 옮겨 적어서**, 09-15 에 버튼을 우상단으로 옮기고 크기를
+            // 절반으로 줄였는데도 **시험이 안 깨졌다.** 화면에서는 「안 보인다」였다.
+            //
+            // 값을 옮겨 적은 시험은 **코드가 아니라 자기 자신을 지킨다.**
+            //
+            // 지금은 화면 없이 잴 수 있는 것만 잰다 — **규격**이다. 자리는 구석 하나뿐이라
+            // 겹칠 것이 없어졌다(변수 패널이 걷혔다 · 개편 ①).
+            Assert.That(MBI.UI.UiLayout.MeetsMinButton(MBI.UI.UiLayout.MinButton), Is.True,
+                "소리 버튼 한 변은 UI 6-2 의 최소 150 을 지킨다");
         }
 
         /// <summary>사람이 올려도 1을 안 넘고 내려도 0 아래로 안 간다.</summary>
