@@ -2931,11 +2931,15 @@ namespace MBI.Logistics
                 if (area.width < 8f || area.height < 8f) continue;
 
                 // ⚠️ **인셋 전투 자리에는 안 그린다**(2026-09-10 · 리허설 2차 결함 2).
-                // 보드가 안 보이는데 이름만 뜨면 「이름표가 따로 논다」로 읽힌다.
-                if (area.yMax < CombatInsetView.BottomPixels(Screen.height)) continue;
+                //
+                // ⚠️ **판정은 글자 한가운데로 한다**(2026-09-15 재실측). 파츠 사각의 아래끝으로
+                // 재면 **보드와 인셋에 걸친 파츠**(머리·어깨)가 통과해 버리는데, 워터마크는
+                // 한가운데 그려지므로 **글자만 흙 배경 위에 떠 있었다.**
+                if (area.center.y < CombatInsetView.BottomPixels(Screen.height)) continue;
 
-                // 짧은 변의 절반을 글자 높이로 — 긴 구역에서도 글자가 구역을 안 넘는다.
-                float target = Mathf.Min(area.width / Mathf.Max(1, text.Length), area.height) * 0.5f;
+                // ⚠️ **0.5 → 0.30**(2026-09-15 재실측 · 가정). 절반으로 잡았더니 몸통 글자가
+                // **노드를 덮고 파츠 경계를 넘었다** — 워터마크는 바탕이지 주인공이 아니다.
+                float target = Mathf.Min(area.width / Mathf.Max(1, text.Length), area.height) * 0.30f;
                 float zoom = Mathf.Max(0.1f, target / mark.fontSize);
 
                 Color prevMark = GUI.color;
