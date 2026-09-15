@@ -79,12 +79,15 @@ namespace MBI.Tests
         /// **걱정을 버린 것이 아니라 지키는 자리를 옮겼다.**
         /// </summary>
         [Test]
-        public void FontIsStatic_AndEveryUsedGlyphIsBaked()
+        public void FontIsDynamic_StaticBakingBrokeWebGL()
         {
             var font = Resources.Load<Font>("Fonts/NotoSansKR-Regular");
             Assert.NotNull(font);
-            Assert.IsFalse(font.dynamic,
-                "정적으로 구워야 WebGL 에서 라틴이 안 빠진다 — 09-15 「다리L」");
+            // ⚠️⚠️ **정적으로 갔다가 되돌렸다**(2026-09-15 실측). 642 자를 구워 봤더니
+            // **WebGL 에서 글자가 하나도 안 나왔다** — 한 글자가 빠지는 것보다 나쁘다.
+            // 「다리L」의 라틴 문제는 **아직 안 닫혔다**(`FontImportRules` 주석에 갈래 기록).
+            Assert.IsTrue(font.dynamic,
+                "정적 아틀라스는 WebGL 에서 통째로 안 그려졌다 — 09-15 실측");
         }
     }
 }

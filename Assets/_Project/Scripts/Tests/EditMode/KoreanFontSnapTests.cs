@@ -74,29 +74,20 @@ namespace MBI.Tests
         }
 
         [Test]
-        public void 소스의_모든_글자가_폰트에_구워져_있다()
+        public void 폰트는_동적이다()
         {
-            // ⚠️ **이것이 「다리L」을 막는다**(2026-09-15).
-            //
-            // 폰트를 **정적으로** 굽는다(`FontImportRules`) — 쓰는 글자를 임포트 시점에
-            // 전부 넣어 두면 런타임에 빠질 자리가 없다. 그런데 후처리기는 **폰트가
-            // 임포트될 때만** 돌아서, **문자열을 늘리고 폰트를 안 다시 구우면 조용히 빠진다.**
-            // 그 순간을 여기서 잡는다.
+            // ⚠️⚠️ **정적 굽기를 시도했다가 되돌렸다**(2026-09-15 실측).
+            // CustomSet 으로 642 자를 구웠더니 **WebGL 에서 글자가 하나도 안 나왔다.**
+            // 구 시험 「소스의 모든 글자가 구워져 있다」는 그 갈래 전용이라 함께 폐기한다 —
+            // 동적에서는 유니티가 런타임에 굽는다.
             var importer = (TrueTypeFontImporter)AssetImporter.GetAtPath(
                 MBI.Editor.FontImportRules.FontPath);
             if (importer == null) Assert.Ignore("폰트 자산이 없다 — 자산 전 클론");
 
-            Assert.That(importer.fontTextureCase, Is.EqualTo(FontTextureCase.CustomSet),
-                "동적 굽기는 WebGL 에서 라틴 글리프를 놓쳤다 — 09-15 「다리L」");
-
-            var baked = new HashSet<char>(importer.customCharacters);
-            var missing = new List<char>();
-            foreach (char ch in MBI.Editor.ScreenGlyphs.Collect())
-                if (!baked.Contains(ch)) missing.Add(ch);
-
-            Assert.That(missing, Is.Empty,
-                "안 구워진 글자가 있다 — 메뉴 `MBI/Reimport Korean Font` 를 돌린다: "
-                + new string(missing.ToArray()));
+            Assert.That(importer.fontTextureCase, Is.EqualTo(FontTextureCase.Dynamic),
+                "정적 아틀라스는 WebGL 에서 통째로 안 그려졌다 — 09-15 실측");
+            Assert.That(importer.includeFontData, Is.True,
+                "WebGL 엔 시스템 폰트가 없다 — 폰트를 동봉해야 한글이 나온다");
         }
 
         [Test]

@@ -10,24 +10,28 @@ namespace MBI.Editor
     /// <summary>
     /// 한글 폰트 임포트 규격 강제 (2026-09-15 · 「다리L」 결함 · 09-09 규칙 「임포트 규칙은 소스다」).
     ///
-    /// ⚠️ **왜 필요한가 — 동적 굽기가 글리프를 놓쳤다.**
-    /// 종전 설정은 `Dynamic` 이었다. 그러면 유니티가 **런타임에 쓰이는 글자만** 아틀라스에
-    /// 구워 넣는데, WebGL 에서 **라틴 대문자가 빠졌다** — 「다리R」이 「다리I」로 찍히다가
-    /// (아틀라스 UV 가 엉켰다) 사다리로 크기를 줄이자 **아예 사라졌다.**
+    /// **지금 하는 일** — `Dynamic` 유지 + `includeFontData` 강제. 손으로 `.meta` 를
+    /// 만지지 않고 **코드가 규격을 쥔다**(09-09 규칙).
     ///
-    /// 📌 **한글은 전부 나오는데 라틴만 빠진 것이 결정적 단서였다.** 아틀라스 포화라면
-    /// 글자 수가 압도적인 한글부터 빠진다 — 그러니 **포화가 아니라 굽기 자체**의 문제다.
-    /// (`NotoSansKR-Regular.ttf` 의 cmap 에 R·L 은 **있다** — 직접 읽어 확인했다.)
+    /// ⚠️⚠️ **정적 굽기를 시도했다가 되돌렸다 — 이 기록이 이 파일의 값이다.**
     ///
-    /// **정적 굽기로 바꾼다.** 쓰는 글자를 **임포트 시점에 전부** 구워 두면 런타임 아틀라스
-    /// 생성이 없고, 따라서 **빠질 자리도 없다.**
+    /// **관찰**: WebGL 에서 **라틴 대문자만** 안 그려졌다. 「다리R」이 「다리I」로 찍히다가
+    /// 글자 크기를 줄이자 **아예 사라졌다.** 한글은 **전부** 나왔다.
+    /// cmap 에 R·L 은 **있다**(직접 읽어 확인).
     ///
-    /// ⚠️ **글자 목록은 소스에서 뽑는다**(<see cref="ScreenGlyphs"/>). 손으로 적으면
-    /// 새 문구를 넣을 때마다 빠뜨리고, 빠진 글자는 **에러 없이 안 보인다.**
+    /// **추론**: 아틀라스 포화라면 글자 수가 압도적인 한글부터 빠진다 — 그러니 포화가
+    /// 아니라 **굽기 자체**의 문제로 보았다. 그래서 쓰는 글자 642 자를 `CustomSet` 으로
+    /// 임포트 시점에 전부 구웠다.
     ///
-    /// ⚠️ **문자열을 늘리면 폰트를 다시 임포트해야 한다.** 후처리기는 폰트가 임포트될 때만
-    /// 돌기 때문이다. 시험 `KoreanFontSnapTests` 가 「소스의 모든 글자가 구워졌는가」를
-    /// 지키고, 메뉴 <c>MBI/Reimport Korean Font</c> 가 한 번에 다시 굽는다.
+    /// **결과**: **WebGL 에서 글자가 하나도 안 나왔다.** 한글도 라틴도 전부. 메뉴 버튼이
+    /// 빈 판이 됐다. 정적 아틀라스가 WebGL 런타임에서 안 물리는 것으로 보인다.
+    ///
+    /// **판정**: 한 글자가 빠지는 것보다 **전부 빠지는 것이 나쁘다.** Dynamic 으로 되돌린다.
+    /// **「다리L」의 라틴 문제는 아직 안 닫혔다** — 다음 갈래는 폴백 폰트 추가나
+    /// 라틴 전용 폰트 병용이다. **같은 갈래를 두 번 시도하지 않도록** 여기 남긴다.
+    ///
+    /// <see cref="ScreenGlyphs"/> 는 **남겨 둔다** — 예산 시험이 쓰고, 폴백 갈래에서도
+    /// 「무슨 글자를 쓰는가」는 같은 물음이다.
     /// </summary>
     public sealed class FontImportRules : AssetPostprocessor
     {
@@ -39,11 +43,18 @@ namespace MBI.Editor
             if (assetPath != FontPath) return;
             if (!(assetImporter is TrueTypeFontImporter font)) return;
 
-            // ⚠️ **한 크기로 굽고 나머지는 축소해 쓴다.** 사다리 최대(44)에 맞춰 구우면
-            // 작은 단들은 줄여 그려 흐려지지 않는다 — 키우면 뭉개지지만 줄이는 것은 괜찮다.
-            font.fontSize = MBI.UI.KoreanFont.Ladder[MBI.UI.KoreanFont.Ladder.Length - 1];
-            font.fontTextureCase = FontTextureCase.CustomSet;
-            font.customCharacters = ScreenGlyphs.Collect();
+            // ⚠️⚠️ **정적 굽기(CustomSet)를 시도했다가 되돌렸다**(2026-09-15 · 실측).
+            //
+            // 「동적이 라틴을 놓친다」는 관찰에서 정적으로 642 자를 구워 봤더니
+            // **WebGL 에서 글자가 하나도 안 나왔다** — 한글도 라틴도 전부. 메뉴 버튼이
+            // 빈 판이 됐다. 정적 아틀라스가 WebGL 런타임에서 안 물리는 것으로 보인다.
+            //
+            // **한 글자가 빠지는 것보다 전부 빠지는 것이 나쁘다.** Dynamic 으로 되돌린다.
+            // 「다리L」의 라틴 문제는 **아직 안 닫혔다** — 다른 길을 찾아야 한다
+            // (폴백 폰트 추가 · 라틴 전용 폰트 병용 등). 여기 적어 두는 이유는
+            // **같은 갈래를 두 번 시도하지 않게** 하려는 것이다.
+            font.fontTextureCase = FontTextureCase.Dynamic;
+            font.fontSize = 16;            // 동적에서는 참고값일 뿐이다
             font.includeFontData = true;   // WebGL 엔 시스템 폰트가 없다 — 반드시 동봉한다
         }
 
@@ -51,8 +62,7 @@ namespace MBI.Editor
         public static void Reimport()
         {
             AssetDatabase.ImportAsset(FontPath, ImportAssetOptions.ForceUpdate);
-            Debug.Log($"[MBI] 한글 폰트 재임포트 — 구운 글자 {ScreenGlyphs.Collect().Length}자 · "
-                      + $"크기 {MBI.UI.KoreanFont.Ladder[MBI.UI.KoreanFont.Ladder.Length - 1]}");
+            Debug.Log("[MBI] 한글 폰트 재임포트 — Dynamic · includeFontData");
         }
     }
 
