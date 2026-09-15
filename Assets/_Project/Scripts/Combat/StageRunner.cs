@@ -1592,7 +1592,7 @@ namespace MBI.Combat
             }
             float need = HudTextHeight(style, hudW - 10f,
                              lineTitle, lineOutput, lineAmmo, lineStore, lineEnemy, lineTag,
-                             lineElapsed, lineWallet, lineHelp, lineFace)
+                             lineElapsed, lineWallet, lineHelp)
                          + (HudBars.BarHeight + 4f) * 2f   // 탄약 막대 · 회피 눈금
                          + 10f;                            // 아랫변 여백
 
@@ -1628,7 +1628,7 @@ namespace MBI.Combat
                     style.fontSize = KoreanFont.Snap(shrunk);
                     need = HudTextHeight(style, hudW - 10f,
                                lineTitle, lineOutput, lineAmmo, lineStore, lineEnemy, lineTag,
-                               lineElapsed, lineWallet, lineHelp, lineFace)
+                               lineElapsed, lineWallet, lineHelp)
                            + (HudBars.BarHeight + 4f) * 2f + 10f;
                 }
             }
@@ -1653,6 +1653,23 @@ namespace MBI.Combat
             //
             // ⚠️ **가정이다** — 문서에 접기 절이 없다(설계 역기입 자리). 버튼 크기·자리는
             // 눌리는 최소(44)를 기준으로 잡았다.
+            // ⚠️⚠️ **진단 줄은 HUD 밖으로 내보낸다**(2026-09-15 오후 · 사용자 「안 보인다」).
+            //
+            // 종전엔 HUD 글자 블록의 **마지막 줄**이었다 — 그것이 이 화면에서
+            // 가장 약한 자리다. `GUILayout.BeginArea` 는 넘치는 것을 **말없이 자르고**,
+            // 잘리는 것은 항상 마지막 줄이다. 게다가 접기·판 깔기가 전부 이 블록에 걸려
+            // 「안 보인다」의 갈래가 넷이나 된다.
+            //
+            // 📌 **진단물은 진단하려는 것과 같은 배에 타면 안 된다.** 그래서 따로 놓는다 —
+            // 접기와 무관 · HUD 높이 셈과 무관 · 둘 화면 모두 · 항상.
+            //
+            // 자리는 상단 `InfoBarHeight`(120) 띄다 — **아무도 안 쓰는 빈 자리**임을
+            // 전수 검색으로 확인했다(`InfoBarHeight` 를 읽는 곳은 HUD 시작점 하나뿐).
+            // 그래서 HUD 첫 줄보다 **앞**에 오고, 아무것도 밀어내지 않는다.
+            //
+            // ⚠️ **임시물이다** — 얼굴 방향의 원인이 잡히면 이 메서드를 통째로 걷는다.
+            DrawFacingDiagnostic(combatBand, hudScale, hudLeft, hudW, lineFace);
+
             bool foldable = GameViewSignals.BoardViewActive;
             if (foldable)
             {
@@ -1689,7 +1706,6 @@ namespace MBI.Combat
             // 이 상태 칸에 붙였다. 방치 씬이 없는 격리 전투 씬에서는 둘 다 0으로 뜬다.
             GUILayout.Label(lineWallet, style);
             GUILayout.Label(lineHelp, style);
-            GUILayout.Label(lineFace, style);   // 진단 — 자리가 잡히면 걷는다(육안 8차 ①)
             GUILayout.EndArea();
 
             // ⚠️ **전투 조작 버튼은 조립 화면에서 그리지 않는다**(260902_W09 §5-3).
@@ -1732,6 +1748,39 @@ namespace MBI.Combat
         /// 암전을 1.0으로 채우지 않는 이유는 그 뒤에서 전투가 계속 돌기 때문이다 —
         /// 합체 화력으로 적이 녹는 장면이 연출에 가려지면 보여 줄 것이 사라진다.
         /// </summary>
+        /// <summary>
+        /// 얼굴 방향 진단 한 줄을 **따로** 그린다(2026-09-15 오후).
+        ///
+        /// ⚠️ 판을 깔고 흰 글자로 쓴다 — 전투 화면에서는 밑이 **흙바닥**이라
+        /// 판 없이는 같은 색에 무힌다. 이미 같은 이유로 HUD 글자가 한 번 사라졌다.
+        ///
+        /// ⚠️ 크기는 **두 변**에서 잡는다 — 높이로만 정하면 좁고 긴 창에서 글자가
+        /// 한 자씩 쌓인다(오늘 네 번째 같은 병이다).
+        /// </summary>
+        private void DrawFacingDiagnostic(Rect combatBand, float scale, float left, float width, string text)
+        {
+            if (string.IsNullOrEmpty(text)) return;
+
+            float pad = 4f * scale;
+            float h = Mathf.Max(16f, UiLayout.InfoBarHeight * scale - pad * 2f);
+            var r = new Rect(left, combatBand.y + pad, width, h);
+            if (r.yMax > Screen.height) r.y = Mathf.Max(0f, Screen.height - r.height);
+
+            UiPlate.Draw(r);
+
+            int byHeight = Mathf.RoundToInt(h * 0.55f);
+            int byWidth = Mathf.RoundToInt(width / 26f);   // 이 줄은 대략 26 글자다
+            var st = new GUIStyle(GUI.skin.label)
+            {
+                fontSize = KoreanFont.Snap(Mathf.Max(10, Mathf.Min(byHeight, byWidth))),
+                alignment = TextAnchor.MiddleLeft,
+                clipping = TextClipping.Overflow,   // 재기 전에 재면 줄어드는 함정을 피한다
+            };
+            st.normal.textColor = Color.white;
+
+            GUI.Label(new Rect(r.x + pad, r.y, r.width - pad * 2f, r.height), text, st);
+        }
+
         private void DrawMergeCutscene()
         {
             if (!_cutscene.IsPlaying) return;
