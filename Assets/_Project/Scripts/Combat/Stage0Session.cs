@@ -151,7 +151,19 @@ namespace MBI.Combat
             // 종전은 `Rect(12, Screen.height − 96, 420, 84)` 였다. 띠 체계 밖이라 창 높이만
             // 따라갔고 화면이 낮으면 **HUD 첫 줄과 겹쳤다** — 09-14 하단 넷과 같은 병이다.
             // 자리는 `UiLayout` 이 낸다(부유 띠 왼쪽 · 배율 막대 옆).
-            GUILayout.BeginArea(MBI.UI.UiLayout.TutorialProgressRect(Screen.width, Screen.height));
+            // ⚠️ **바탕을 깐다**(2026-09-15 · 육안 7차 ② 이행 뒤 확인).
+            //
+            // 자리를 부유 띠에서 **보드 띠**로 내보내면서 이 세 줄이 **노드 그림 위**에
+            // 얹히게 됐다 — 겹침은 풀렸는데 **읽히지가 않는다.** 부유 띠에는 판이 이미
+            // 깔려 있어 필요 없던 것이고, 보드 위는 그렇지 않다.
+            //
+            // 📌 자리를 옮기면 **바탕도 같이 옮겨야 한다** — 글자만 옮기면 「보이는데
+            // 안 읽히는」 상태가 된다.
+            Rect progress = MBI.UI.UiLayout.TutorialProgressRect(Screen.width, Screen.height);
+            MBI.UI.UiPlate.Draw(progress);
+            MBI.UI.UiBlockers.Add(progress);   // 판 밑의 칸이 눌리지 않게
+
+            GUILayout.BeginArea(progress);
             // ⚠️ **이 문구는 벨트로 바뀐 뒤에도 맞는다** — 「끊긴 자리를 잇는다」는 노드보다
             // 벨트일 때 오히려 더 정확하다. 안내 문구를 따로 두지 않는 것도 그대로다.
             GUILayout.Label(Mark(_goal.SlotFilled) + " 끊긴 자리를 잇는다", style);
