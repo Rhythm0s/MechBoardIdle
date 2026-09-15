@@ -86,6 +86,17 @@ namespace MBI.Editor
                 "          // ⚠️ 유니티 기본 템플릿은 좁은 화면에서 캔버스에 `unity-mobile` 을 붙이고",
                 "          //    그 규칙이 `width:100%` 다 — 레터박스를 덮는다. 클래스를 떼고 !important 로 못 박는다.",
                 "          canvas.className = '';",
+                "          // ⚠️ 컨테이너를 fixed/flex 로 바꾸면 템플릿 푸터(유니티 로고·전체화면 단추)가",
+                "          //    **캔버스 위로 올라와 버튼을 덮는다** — 레터박스를 넣다가 만든 회귀다.",
+                "          //    포트폴리오 빌드에 그 줄은 필요 없다.",
+                "          var foot = document.querySelector('#unity-footer');",
+                "          if (foot) foot.style.display = 'none';",
+                "          // ⚠️ 캔버스가 flex 흐름 밖에 있어서(템플릿이 자리를 따로 준다)",
+                "          //    컨테이너의 가운데 정렬이 안 먹는다 — 캔버스에 직접 박는다.",
+                "          canvas.style.setProperty('position', 'absolute', 'important');",
+                "          canvas.style.setProperty('left', '50%', 'important');",
+                "          canvas.style.setProperty('top', '50%', 'important');",
+                "          canvas.style.setProperty('transform', 'translate(-50%, -50%)', 'important');",
                 "          function fit() {",
                 "            var vw = window.innerWidth || document.documentElement.clientWidth;",
                 "            var vh = window.innerHeight || document.documentElement.clientHeight;",
@@ -102,7 +113,24 @@ namespace MBI.Editor
                 "        })();",
             });
 
-            html = html.Replace(fixedSize, fit);
+            // ⚠️⚠️ **갈래 밖에 넣는다**(2026-09-15 · 실측으로 잡았다).
+            //
+            // 종전에는 **데스크톱 `else` 안**의 고정 크기 두 줄을 갈아 끼웠다. 그런데 그 두 줄은
+            // `if (모바일) { ... } else { ... }` 의 **한쪽**이라, 브라우저가 모바일로 읽히면
+            // (좁은 창·터치 흉내) **레터박스가 아예 안 돈다** — 실제로 비율이 0.74 로 찍혔고
+            // 캔버스 클래스가 `unity-mobile` 로 되돌아와 있었다.
+            //
+            // 📌 **두 갈래가 있는 자리에 한쪽만 고치는 실수**를 오늘만 세 번째 한다
+            // (수동 이동 클램프 · 그림 그리는 경로 둘 · 여기).
+            // 고정 크기 줄은 **지우고**, 맞춤은 갈래가 끝난 뒤 **한 번만** 돈다.
+            html = html.Replace(fixedSize, "/* 캔버스 크기는 아래 레터박스가 정한다 */");
+            const string afterBranch = "document.querySelector(\"#unity-loading-bar\").style.display = \"block\";";
+            if (html.IndexOf(afterBranch, System.StringComparison.Ordinal) < 0)
+            {
+                Debug.LogWarning("[MBI] 레터박스를 넣을 자리를 못 찾았다 — 유니티 템플릿이 바뀌었을 수 있다");
+                return;
+            }
+            html = html.Replace(afterBranch, fit + "\n\n      " + afterBranch);
             System.IO.File.WriteAllText(page, html);
             Debug.Log("[MBI] index.html 캔버스를 창에 맞췄다 — 1440x2560 고정을 걷었다");
         }
