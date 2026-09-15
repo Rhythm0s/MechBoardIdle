@@ -165,6 +165,17 @@ namespace MBI.UI
                 _loggedRect = true;
                 Debug.Log($"[MBI] 소리 버튼 자리 {button.x:F0},{button.y:F0} {button.width:F0}×{button.height:F0}");
             }
+
+            // ⚠️ **진단 — 자홍 사각**(2026-09-15 · 「자리는 맞는데 아무것도 없다」).
+            //
+            // 버튼이 안 보이는 것이 **스타일 탓인지 자리 탓인지** 가른다. 자홍이 보이면
+            // 자리는 맞고 **버튼 그리기**가 문제이며, 자홍도 안 보이면 **그 자리 자체**가
+            // 화면에 안 닿는다(부모 그룹 클리핑 · 다른 OnGUI 가 덮음).
+            // 답이 나오면 이 블록을 걷는다.
+            Color prevDiag = GUI.color;
+            GUI.color = Color.magenta;
+            GUI.DrawTexture(button, Texture2D.whiteTexture);
+            GUI.color = prevDiag;
             if (GUI.Button(button, _open ? "소리 닫기" : "소리", btnStyle)) _open = !_open;
 
             if (!_open) return;

@@ -1500,8 +1500,17 @@ namespace MBI.Combat
                 ? combatBand.height - 20f
                 : Screen.height - combatBand.y - 20f;
 
-            var hud = new Rect(hudLeft, combatBand.y + UiLayout.InfoBarHeight * hudScale,
-                hudW, Mathf.Min(need, room));
+            // ⚠️ **화면 안으로 가둔다**(2026-09-15 · 육안 ②).
+            //
+            // 자리를 띠 체계로 옮기고도 **여전히 위아래가 잘렸다.** 어느 셈이 넘치는지
+            // 아직 못 짚었으므로, **결과를 화면 안으로 클램프**한다 — 어느 DPR 에서도
+            // 잘리지 않게 하는 것이 먼저다. 넘치는 셈을 찾으면 이 클램프는 아무 일도 안 한다.
+            float hudH = Mathf.Min(need, room);
+            float hudY = combatBand.y + UiLayout.InfoBarHeight * hudScale;
+            if (hudY + hudH > Screen.height) hudY = Mathf.Max(0f, Screen.height - hudH);
+            if (hudH > Screen.height) hudH = Screen.height;
+
+            var hud = new Rect(hudLeft, hudY, hudW, hudH);
 
             // ⚠️ **조립 화면에서는 이 글자 블록을 접을 수 있다**(2026-09-15 사용자 확정 · 육안 ③).
             //

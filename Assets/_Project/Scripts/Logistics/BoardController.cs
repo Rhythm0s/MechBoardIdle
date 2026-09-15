@@ -2841,11 +2841,19 @@ namespace MBI.Logistics
             int fontPx = KoreanFont.Snap(
                 Mathf.Max(1, Mathf.RoundToInt(ZoneLabelFontPx * fontScale)));
 
+            // ⚠️ **Bold 를 걷었다**(2026-09-15 · 「다리L」 실측 갈래).
+            //
+            // 전투 HUD 에는 라틴·숫자가 **찍힌다**(「HP 946/1000」) — 그쪽은 **Regular** 다.
+            // 구역 이름표만 Bold 였고 거기서만 라틴이 빠졌다. `NotoSansKR-Regular` 에는
+            // **Bold 자형이 없어** 유니티가 굵기를 **합성**하는데, WebGL 에서 그 합성이
+            // 라틴에 실패하는 것으로 보인다.
+            //
+            // ⚠️ **읽기는 안 나빠진다** — 이 글자는 크고(칸의 절반) 어두운 바탕 위 미색이다.
+            // 굵기 없이도 구역 이름은 읽힌다.
             var style = new GUIStyle(GUI.skin.label)
             {
                 fontSize = fontPx,
                 alignment = TextAnchor.UpperLeft,
-                fontStyle = FontStyle.Bold,
             };
 
             // ⚠️ **폭을 글자에서 잰다**(2026-09-10 · 촬영 결함 b).
@@ -2964,7 +2972,7 @@ namespace MBI.Logistics
             {
                 fontSize = KoreanFont.Snap(Mathf.Max(9, Mathf.RoundToInt(h * 0.76f))),
                 alignment = TextAnchor.MiddleCenter,
-                fontStyle = FontStyle.Bold,
+                // Bold 없음 — 구역 이름표와 같은 이유(합성 굵기가 라틴을 놓친다).
             });
             GUI.color = prev;
         }
