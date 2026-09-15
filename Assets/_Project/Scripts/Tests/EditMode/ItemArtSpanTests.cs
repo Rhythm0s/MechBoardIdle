@@ -74,6 +74,46 @@ namespace MBI.Tests
         }
 
         [Test]
+        public void 그려진_네모도_전부_재어_두었다()
+        {
+            BoardArtSet set = Load();
+            foreach (BoardArtSet.ItemArt it in set.items)
+            {
+                if (it.sprite == null) continue;
+
+                // ⚠️ **`contentSpan` 만 보면 안 된다** — 스프라이트로 그리는 쪽은 긴 변만
+                // 알면 되지만 `GUI.DrawTextureWithTexCoords` 로 그리는 쪽은 **어디를
+                // 잘라 쓸지**를 알아야 한다. 09-15 에 그 둘을 한 값으로 묶으려다
+                // **한 경로만 고치고 다른 경로를 놓쳤다**(「주황 정사각」이 두 번 올라온 까닭).
+                Assert.That(it.contentRect.width, Is.GreaterThan(0f),
+                    $"{it.kind} — 「MBI/Measure Item Art Spans」 를 돌린다");
+                Assert.That(it.contentRect.height, Is.GreaterThan(0f), it.kind.ToString());
+
+                Assert.That(it.contentRect.xMax, Is.LessThanOrEqualTo(1.0001f), it.kind.ToString());
+                Assert.That(it.contentRect.yMax, Is.LessThanOrEqualTo(1.0001f), it.kind.ToString());
+                Assert.That(it.contentRect.x, Is.GreaterThanOrEqualTo(-0.0001f), it.kind.ToString());
+                Assert.That(it.contentRect.y, Is.GreaterThanOrEqualTo(-0.0001f), it.kind.ToString());
+
+                // 긴 변은 두 값이 같은 그림을 가리킨다는 증거다 — 어긋나면 한쪽만 갱신된 것이다.
+                Assert.That(Mathf.Max(it.contentRect.width, it.contentRect.height),
+                    Is.EqualTo(it.contentSpan).Within(0.01f),
+                    $"{it.kind} — 네모와 긴 변이 다른 그림을 가리킨다");
+            }
+        }
+
+        [Test]
+        public void 표준탄은_가로로_긴_네모다()
+        {
+            BoardArtSet set = Load();
+            Rect r = set.ItemContentRect(FlowKind.StandardAmmo);
+
+            // 09-15 실측 — 64 캔버스 안에 40×20(탄피). **정사각이 아니다.**
+            // 구 그리기가 이것을 정사각 상자에 밀어 넣어 뭉갰다.
+            Assert.That(r.width, Is.GreaterThan(r.height),
+                "탄피는 옆으로 누운 그림이다 — 정사각으로 그리면 뭉개진다");
+        }
+
+        [Test]
         public void 안_잰_품목은_1로_떨어진다()
         {
             BoardArtSet set = Load();
@@ -81,6 +121,8 @@ namespace MBI.Tests
             // 목록에 없는 품목 — 구 동작(캔버스 기준)을 그대로 쓴다.
             Assert.That(set.ItemContentSpan(FlowKind.None), Is.EqualTo(1f),
                 "못 잰 그림 때문에 크기가 갑자기 달라지면 안 된다");
+            Assert.That(set.ItemContentRect(FlowKind.None), Is.EqualTo(new Rect(0f, 0f, 1f, 1f)),
+                "못 잰 그림은 캔버스 전체 — 구 동작 그대로다");
         }
 
         [Test]

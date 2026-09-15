@@ -291,7 +291,17 @@ namespace MBI.Combat
             // 표적이 없으면 `null` 이라 아래가 종전대로 돈다.
             if (FacingOverride.HasValue && FacingOverride.Value.sqrMagnitude > 1e-6f)
             {
-                _lastDirection = ToDirection(FacingOverride.Value, _lastDirection);
+                // ⚠️ **조준에는 관성을 안 건다**(2026-09-15 · 육안 5차 ① — 「세 번째 발사에야 돌아본다」).
+                //
+                // 기본 관성(1.5배)은 **걸음**을 위한 것이다. 대각으로 걸을 때 두 축이 비슷해
+                // 프레임마다 승자가 뒤집히면 벌이 깜빡이기 때문이다.
+                // 그런데 **조준은 떨리지 않는다** — 고른 표적 하나를 가리키는 값이라
+                // 프레임마다 뒤집힐 일이 없다. 거기까지 1.5배를 요구하면 표적이
+                // **비스듬히 있는 동안 계속 안 돌아보다가**, 로봇이나 적이 움직여
+                // 각이 충분히 벌어진 뒤에야 돈다 — 사용자가 본 「세 번째 발사」가 그것이다.
+                //
+                // 관성 1 = 이긴 축이 그대로 이긴다. **첫 발에 돌아본다.**
+                _lastDirection = DirectionHysteresis.Resolve(FacingOverride.Value, _lastDirection, 1f);
                 PlayState(IsMoving(delta, dt) ? UnitAnimState.Move : UnitAnimState.Idle, _lastDirection);
                 return;
             }

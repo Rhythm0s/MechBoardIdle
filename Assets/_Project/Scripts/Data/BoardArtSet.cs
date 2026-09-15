@@ -49,6 +49,19 @@ namespace MBI.Data
             /// **0 이면 「안 쟀다」**는 뜻이고 부르는 쪽이 1 로 본다(구 동작 그대로).
             /// </summary>
             [Range(0f, 1f)] public float contentSpan;
+
+            /// <summary>
+            /// **그림이 캔버스 안에서 차지하는 네모**(0~1 정규화 · 2026-09-15 · 육안 5차 ③).
+            ///
+            /// ⚠️ **`contentSpan` 하나로는 모자랐다.** 스프라이트로 그리는 쪽(벨트 위 품목)은
+            /// **긴 변만** 알면 되지만, `GUI.DrawTextureWithTexCoords` 로 그리는 쪽
+            /// (노드 출력 아이콘 · 조합표 칩)은 **어디를 잘라 쓸지**를 알아야 한다.
+            /// 그 둘을 한 값으로 묶으려다 **한 경로만 고치고 다른 경로를 놓쳤다** —
+            /// 09-15 에 「주황 정사각」이 두 번 올라온 까닭이다.
+            ///
+            /// 비어 있으면(폭·높이 0) 부르는 쪽이 **캔버스 전체**로 본다(구 동작).
+            /// </summary>
+            public Rect contentRect;
         }
 
         [Header("노드 — 종류마다 한 장")]
@@ -128,6 +141,24 @@ namespace MBI.Data
         /// ⚠️ **1 로 떨어지는 것이 구 동작이다** — 못 잰 그림 때문에 크기가 갑자기
         /// 달라지지 않는다. 대신 시험이 「전부 쟀는가」를 지킨다.
         /// </summary>
+        /// <summary>
+        /// 그 품목 그림이 실제로 그려진 네모(정규화). 안 쟀으면 **캔버스 전체**를 돌려준다.
+        ///
+        /// `GUI.DrawTextureWithTexCoords` 의 UV 로 그대로 쓴다 — 그러면 **빈 여백을 빼고**
+        /// 그림만 아이콘 상자에 채워진다.
+        /// </summary>
+        public Rect ItemContentRect(FlowKind kind)
+        {
+            for (int i = 0; i < items.Count; i++)
+                if (items[i].kind == kind)
+                {
+                    Rect r = items[i].contentRect;
+                    if (r.width > 0.0001f && r.height > 0.0001f) return r;
+                    break;
+                }
+            return new Rect(0f, 0f, 1f, 1f);
+        }
+
         public float ItemContentSpan(FlowKind kind)
         {
             for (int i = 0; i < items.Count; i++)

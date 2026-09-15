@@ -49,10 +49,11 @@ namespace MBI.Editor
                 BoardArtSet.ItemArt it = set.items[i];
                 if (it.sprite == null) { missing++; continue; }
 
-                float span = MeasureSpan(AssetDatabase.GetAssetPath(it.sprite));
-                if (span <= 0f) { missing++; continue; }
+                if (!Measure(AssetDatabase.GetAssetPath(it.sprite),
+                        out float span, out Rect rect)) { missing++; continue; }
 
                 it.contentSpan = span;
+                it.contentRect = rect;
                 set.items[i] = it;
                 measured++;
 
@@ -83,14 +84,25 @@ namespace MBI.Editor
         /// ⚠️ **긴 변 기준이다** — 크기를 맞추는 쪽(`FitScale`)이 긴 변을 쓰기 때문이다.
         /// 두 곳이 다른 기준을 쓰면 값이 맞아도 그림이 틀어진다.
         /// </summary>
-        public static float MeasureSpan(string assetPath)
+        public static float MeasureSpan(string assetPath) =>
+            Measure(assetPath, out float span, out Rect _) ? span : 0f;
+
+        /// <summary>
+        /// 한 장을 재서 **긴 변 비율**과 **그려진 네모**(정규화)를 함께 낸다.
+        ///
+        /// ⚠️ **둘을 한 번에 내는 이유** — 따로 재면 같은 그림을 두 번 열게 되고,
+        /// 무엇보다 **한쪽만 갱신되는 날**이 온다(지침 §7 「한 값이 두 곳에 살면 답이 둘」).
+        /// </summary>
+        public static bool Measure(string assetPath, out float span, out Rect rect)
         {
-            if (string.IsNullOrEmpty(assetPath) || !File.Exists(assetPath)) return 0f;
+            span = 0f;
+            rect = new Rect(0f, 0f, 1f, 1f);
+            if (string.IsNullOrEmpty(assetPath) || !File.Exists(assetPath)) return false;
 
             var tex = new Texture2D(2, 2);
             try
             {
-                if (!tex.LoadImage(File.ReadAllBytes(assetPath))) return 0f;
+                if (!tex.LoadImage(File.ReadAllBytes(assetPath))) return false;
 
                 int w = tex.width, h = tex.height;
                 Color32[] px = tex.GetPixels32();
@@ -106,11 +118,18 @@ namespace MBI.Editor
                     if (y > maxY) maxY = y;
                 }
 
-                if (maxX < 0) return 0f;   // 통째로 투명하다
+                if (maxX < 0) return false;   // 통째로 투명하다
 
                 float content = Mathf.Max(maxX - minX + 1, maxY - minY + 1);
                 float canvas = Mathf.Max(w, h);
-                return Mathf.Clamp01(content / canvas);
+                span = Mathf.Clamp01(content / canvas);
+
+                // ⚠️ **UV 는 아래가 0 이다.** 화소는 위에서부터 셌으므로 y 를 뒤집는다 —
+                // 안 뒤집으면 아이콘이 **위아래가 바뀐 자리**를 잘라 쓴다.
+                float x0 = minX / (float)w;
+                float y0 = 1f - (maxY + 1) / (float)h;
+                rect = new Rect(x0, y0, (maxX - minX + 1) / (float)w, (maxY - minY + 1) / (float)h);
+                return true;
             }
             finally
             {

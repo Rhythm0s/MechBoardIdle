@@ -114,8 +114,12 @@ namespace MBI.Editor
             // **비우기 전에 들고 있다가 되꽂는다.** 그림이 바뀌었으면 값도 틀렸겠지만,
             // 그것은 `ItemArtSpanTests` 가 **다시 재서** 잡는다.
             var keptSpans = new System.Collections.Generic.Dictionary<FlowKind, float>();
+            var keptRects = new System.Collections.Generic.Dictionary<FlowKind, Rect>();
             foreach (BoardArtSet.ItemArt old in art.items)
+            {
                 if (old.contentSpan > 0f) keptSpans[old.kind] = old.contentSpan;
+                if (old.contentRect.width > 0f) keptRects[old.kind] = old.contentRect;
+            }
 
             art.items.Clear();
             AddItem(art, FlowKind.CoreEnergy, "core_energy");
@@ -143,11 +147,10 @@ namespace MBI.Editor
             for (int i = 0; i < art.items.Count; i++)
             {
                 BoardArtSet.ItemArt it = art.items[i];
-                if (keptSpans.TryGetValue(it.kind, out float span))
-                {
-                    it.contentSpan = span;
-                    art.items[i] = it;
-                }
+                bool touched = false;
+                if (keptSpans.TryGetValue(it.kind, out float span)) { it.contentSpan = span; touched = true; }
+                if (keptRects.TryGetValue(it.kind, out Rect r)) { it.contentRect = r; touched = true; }
+                if (touched) art.items[i] = it;
             }
 
             EditorUtility.SetDirty(art);

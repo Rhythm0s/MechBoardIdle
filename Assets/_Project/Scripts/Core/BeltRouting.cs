@@ -238,8 +238,23 @@ namespace MBI.Core
             }
 
             isTerminal = true;
-            if (linked) nodeSides++; // 링크가 섰는데 벨트가 아니면 노드
-            else openSides++;
+            if (linked) { nodeSides++; return; } // 링크가 섰는데 벨트가 아니면 노드
+
+            // ⚠️⚠️ **마운트도 나가는 곳이다**(2026-09-15 · 사용자 육안 5차 ⑦ · 실측).
+            //
+            // 종전에는 벨트가 **노드**로 이어질 때만 「이어졌다」로 봤다. 그런데 운반로의
+            // 끝은 노드가 아니라 **로봇 마운트**다 — 거기로 들어간 탄이 실제로 쌓인다
+            // (`BeltItemFlow` 가 `PartLayout.TryGetMountPort` 로 그 출구를 안다).
+            //
+            // 그래서 **같은 판을 두 규칙이 다르게 읽고 있었다** — 물건은 멀쩡히 도착하는데
+            // (실측 90초 339개) 화면에는 **「나가는 곳이 없다」**가 떴다. 사용자가
+            // 「이미 다 되어 있는데 어떻게 하라는 거냐」고 물은 자리가 이것이다.
+            //
+            // ⚠️ **진실이 둘이면 둘 다 고쳐야 하는 것이 아니라, 하나를 없애야 한다**(지침 §7).
+            // 출구를 아는 쪽은 `PartLayout` 이므로 여기서도 그것에 묻는다.
+            if (!isInFace && PartLayout.TryGetMountPort(cell, face, out _)) { nodeSides++; return; }
+
+            openSides++;
         }
 
         /// <summary>

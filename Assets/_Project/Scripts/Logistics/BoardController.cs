@@ -1085,7 +1085,16 @@ namespace MBI.Logistics
                     sr.sprite = body;
                     float unit = FitScale(body, cell);
                     go.transform.localScale = new Vector3(unit, unit * tall, 1f);
-                    sr.color = Color.white;
+
+                    // ⚠️ **파츠와 같은 틴트를 입힌다**(2026-09-15 사용자 확정 · 육안 5차 ④).
+                    //
+                    // 마운트는 실루엣 **안**에 앉는데 혼자 흰색이라 **바닥에서 떠 보였다.**
+                    // 파츠 바닥은 이미 `PartPalette.FloorOf` 로 구역 색을 옅게 입고 있으므로,
+                    // 마운트도 **자기가 앉은 파츠의 색**을 쓰면 같은 몸의 일부로 읽힌다.
+                    //
+                    // ⚠️ **같은 함수를 쓴다** — 여기서 색을 따로 만들면 파츠 틴트를 조정할 때
+                    // 마운트만 옛 색으로 남는다(지침 §7).
+                    sr.color = PartPalette.FloorOf(PartLayout.PartAt(bottom));
                     sr.flipX = MountDisplay.FlipX(mp.cell, mp.face, mp.owner);
                 }
                 else
@@ -3094,13 +3103,28 @@ namespace MBI.Logistics
             if (c.z <= 0f) return;
 
             float d = cellPx * 0.30f;
-            float cx = c.x + dir.x * cellPx * 0.30f - d * 0.5f;
-            float cy = Screen.height - c.y - dir.y * cellPx * 0.30f - d * 0.5f;
+            float cx = c.x + dir.x * cellPx * 0.30f;
+            float cy = Screen.height - c.y - dir.y * cellPx * 0.30f;
 
-            Rect tr = sp.textureRect;
-            var uv = new Rect(tr.x / sp.texture.width, tr.y / sp.texture.height,
-                tr.width / sp.texture.width, tr.height / sp.texture.height);
-            GUI.DrawTextureWithTexCoords(new Rect(cx, cy, d, d), sp.texture, uv);
+            // ⚠️⚠️ **여기가 「주황 정사각」의 진짜 자리였다**(2026-09-15 · 육안 5차 ③).
+            //
+            // 09-15 에 벨트 위 품목의 크기를 고치면서 **그림을 그리는 경로가 둘**이라는 것을
+            // 놓쳤다. 벨트 위는 `SpriteRenderer` 로 그리고, **노드 출력 아이콘인 여기는
+            // `GUI.DrawTextureWithTexCoords`** 로 그린다. 앞쪽만 고쳐 놓고 「고쳤다」고 적었다.
+            //
+            // 이 자리가 나빴던 까닭은 둘이다 —
+            // ① **캔버스를 통째로 썼다.** `ammo_standard` 는 64 안에 40×20 만 그려져 있어서
+            //    아이콘 상자의 대부분이 **빈 여백**이고 탄피는 가운데 몇 화소로 쪼그라들었다.
+            // ② **정사각 상자에 밀어 넣었다.** 2:1 그림을 1:1 로 늘여 **탄피가 뭉개졌다.**
+            // 둘이 겹쳐서 화면에는 **주황색 덩어리 하나**로 보였다.
+            //
+            // 이제 **그려진 네모만 잘라** 쓰고, 상자도 **그 비율대로** 잡는다.
+            Rect uv = art.ItemContentRect(kind);
+            float aspect = uv.height > 0.0001f ? uv.width / uv.height : 1f;
+            float w = aspect >= 1f ? d : d * aspect;
+            float h = aspect >= 1f ? d / aspect : d;
+            GUI.DrawTextureWithTexCoords(new Rect(cx - w * 0.5f, cy - h * 0.5f, w, h),
+                sp.texture, uv);
         }
 
         /// <summary>그 노드가 지금 내는 면. 없으면 동면(자산 기본)으로 둔다.</summary>
@@ -3437,10 +3461,14 @@ namespace MBI.Logistics
             Sprite sp = art != null ? art.ItemSprite(kind) : null;
             if (sp != null && sp.texture != null)
             {
-                Rect tr = sp.textureRect;
-                var uv = new Rect(tr.x / sp.texture.width, tr.y / sp.texture.height,
-                    tr.width / sp.texture.width, tr.height / sp.texture.height);
-                GUI.DrawTextureWithTexCoords(new Rect(x, y, icon, icon), sp.texture, uv);
+                // 위 `DrawOutputItemIcon` 과 **같은 이유로** 그려진 네모만 잘라 쓴다 —
+                // 조합표 칩도 캔버스를 통째로 늘이고 있었다(육안 5차 ③).
+                Rect uv = art.ItemContentRect(kind);
+                float aspect = uv.height > 0.0001f ? uv.width / uv.height : 1f;
+                float w = aspect >= 1f ? icon : icon * aspect;
+                float h = aspect >= 1f ? icon / aspect : icon;
+                GUI.DrawTextureWithTexCoords(
+                    new Rect(x + (icon - w) * 0.5f, y + (icon - h) * 0.5f, w, h), sp.texture, uv);
             }
             x += icon + 2f;
 
