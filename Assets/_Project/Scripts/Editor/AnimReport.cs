@@ -84,6 +84,11 @@ namespace MBI.Editor
             sb.AppendLine("- 알파 문턱: 16 초과를 「있다」로 본다 · 캔버스 그대로만 잰다(자르거나 늘이지 않는다)");
             sb.AppendLine("- 계산: `MBI.Core.SilhouetteOverlap.TryBounds` 재사용");
             sb.AppendLine("- 도구 커밋은 **실행 시점의 HEAD**다. **잰 파일이 무엇인지는 아래 표의 md5가 말한다**");
+            sb.AppendLine("- ⚠️ **벌을 가르는 것은 「벌 md5」다** — 「첫 프레임 md5」는 **첫 칸 하나**의 값이라 "
+                          + "**두 벌이 첫 칸을 공유하면 같게 찍힌다.** 실제로 보병 `Idle/south` 와 `Death/south` 가 "
+                          + "그렇다(`5b4b5aeb`) — v3 의 짝수 칸 제약 때문에 첫 칸을 참조로 넘겨 쓴 것이고 "
+                          + "**나머지 칸은 전부 다르다. 결함이 아니다.** 그래도 첫 칸만으로는 두 벌을 못 가르므로 "
+                          + "**모든 칸을 차례대로 넣어 낸 값**을 함께 적는다");
             sb.AppendLine();
 
             if (!Directory.Exists(root))
@@ -95,7 +100,7 @@ namespace MBI.Editor
 
             sb.AppendLine("- 칸 열 셋은 `MBI.Core.Anim.AnimSchedule`이 낸다 — 한 칸 1/16초 · 목표 초는 `CombatTuning`(`260907_W01` 4-5)");
             sb.AppendLine();
-            sb.AppendLine("| 벌 | 그림 | 캔버스 | **실루엣 높이(첫 칸)** | 실루엣 높이(평균) | 여백 T/B(최소) | 세로 변화 px | **세로 %(첫 칸)** | 세로 %(평균) | **가로(첫 칸)** | **가로(마지막 칸)** | 가로 최소 | 가로 최대 | **wrap 화소 차** | **wrap 겹침** | 이웃 화소 차(평균) | 잴 수 있나 | 기본 칸 | 필요 칸 | 실제 초 | 첫 프레임 md5 |");
+            sb.AppendLine("| 벌 | 그림 | 캔버스 | **실루엣 높이(첫 칸)** | 실루엣 높이(평균) | 여백 T/B(최소) | 세로 변화 px | **세로 %(첫 칸)** | 세로 %(평균) | **가로(첫 칸)** | **가로(마지막 칸)** | 가로 최소 | 가로 최대 | **wrap 화소 차** | **wrap 겹침** | 이웃 화소 차(평균) | 잴 수 있나 | 기본 칸 | 필요 칸 | 실제 초 | 첫 프레임 md5 | **벌 md5** |");
             sb.AppendLine("|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|");
 
             var warnings = new List<string>();
@@ -230,7 +235,8 @@ namespace MBI.Editor
                         + " | " + measurable
                         + " | " + sch.BaseCells + " | " + sch.NeededCells
                         + " | " + sch.ActualSeconds.ToString("0.00", CultureInfo.InvariantCulture)
-                        + " | `" + Md5(files[0]) + "` |");
+                        + " | `" + Md5(files[0]) + "`"
+                        + " | `" + Md5OfAll(files) + "` |");
                     rows++;
                 }
             }
@@ -377,6 +383,31 @@ namespace MBI.Editor
             }
             if (parts.Count == 0) return null;
             return string.Join(" · ", parts) + " — 파일 " + files.Length + "개 · **실제 그림 " + distinct + "장**";
+        }
+
+        /// <summary>
+        /// **벌 하나를 가르는 값** — 모든 칸을 차례대로 이어 붙여 낸다
+        /// (2026-09-15 · 보병 교체에서 드러났다).
+        ///
+        /// ⚠️ **첫 칸 md5 로는 두 벌을 못 가른다.** 보병 `Idle/south` 와 `Death/south` 는
+        /// **첫 칸을 공유**해서(v3 짝수 칸 제약 · 참조 칸) 같은 값이 찍힌다 —
+        /// 보고서가 「잰 파일이 무엇인지 말한다」고 적어 두었는데 **그 자리에서는 못 말했다.**
+        ///
+        /// 📌 **차례도 값에 넣는다** — 칸 순서가 바뀌면 다른 벌이다.
+        /// </summary>
+        private static string Md5OfAll(string[] files)
+        {
+            using (var md5 = MD5.Create())
+            {
+                foreach (string f in files)
+                {
+                    byte[] b = File.ReadAllBytes(f);
+                    md5.TransformBlock(b, 0, b.Length, null, 0);
+                }
+                md5.TransformFinalBlock(System.Array.Empty<byte>(), 0, 0);
+                return System.BitConverter.ToString(md5.Hash).Replace("-", "").ToLowerInvariant()
+                    .Substring(0, 8);
+            }
         }
 
         private static string Md5(string path)
