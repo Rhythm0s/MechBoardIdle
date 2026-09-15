@@ -82,11 +82,11 @@ namespace MBI.Combat
 
             if (!_open)
             {
-                if (GUI.Button(new Rect(x, y, w, h), "심사자용 바로가기 >", button)) _open = true;
+                if (UiSkin.Button(new Rect(x, y, w, h), "심사자용 바로가기 >", button)) _open = true;
                 return;
             }
 
-            if (GUI.Button(new Rect(x, y, w, h), "심사자용 바로가기 v", button)) _open = false;
+            if (UiSkin.Button(new Rect(x, y, w, h), "심사자용 바로가기 v", button)) _open = false;
             y += h + pad;
 
             // 안내 한 줄 — 이것이 있어야 「밸런스를 못 맞춰 넣었나」로 안 읽힌다.
@@ -131,7 +131,7 @@ namespace MBI.Combat
                 ? $"보드 좌표 덤프 (복사됨 {BoardDumpSignals.Version})"
                 : "보드 좌표 덤프 (클립보드로)";
 
-            if (GUI.Button(new Rect(x, y, w, h), label, style))
+            if (UiSkin.Button(new Rect(x, y, w, h), label, style))
                 BoardDumpSignals.Requested = true; // 보드가 다음 Update 에 채운다
         }
 
@@ -147,7 +147,7 @@ namespace MBI.Combat
         {
             if (!ShowTutorial || runner == null) return;
 
-            if (!GUI.Button(new Rect(x, y, w, h), "현재 적 전멸", style)) return;
+            if (!UiSkin.Button(new Rect(x, y, w, h), "현재 적 전멸", style)) return;
 
             int n = runner.KillAllEnemies();
             Debug.Log($"[MBI] 적 전멸(개발 빌드): {n}기.");
@@ -167,7 +167,7 @@ namespace MBI.Combat
         {
             if (!ShowTutorial || runner == null) return; // 배포 빌드에는 없다
 
-            if (!GUI.Button(new Rect(x, y, w, h), "처음부터 (저장 초기화)", style)) return;
+            if (!UiSkin.Button(new Rect(x, y, w, h), "처음부터 (저장 초기화)", style)) return;
 
             IdleSignals.RequestSaveReset(); // 저장 — 방치 런타임이 지운다
             runner.ResetCarry();            // 창고와 마운트
@@ -210,7 +210,7 @@ namespace MBI.Combat
 
                 // 튜토리얼은 번호를 안 쓴다(260902_W09 §2). 버튼이 좁아 짧게 적는다.
                 string label = s == tutorialStage ? "튜토" : s.stageId;
-                if (GUI.Button(new Rect(bx, y, bw, h), label, style)) GoTo(s);
+                if (UiSkin.Button(new Rect(bx, y, bw, h), label, style)) GoTo(s);
 
                 GUI.color = prev;
                 bx += bw + pad;
@@ -227,7 +227,7 @@ namespace MBI.Combat
 
             // 이미 썼거나 진행 중이면 누를 수 없다 — 스테이지당 1회 규칙을 바로가기가 깨지 않는다.
             GUI.enabled = merge != null && !merge.UsedThisStage && !merge.IsActive;
-            if (GUI.Button(new Rect(x, y, w, h), "합체 게이지 채우기", style))
+            if (UiSkin.Button(new Rect(x, y, w, h), "합체 게이지 채우기", style))
                 merge.FillGaugeAlmost();
             GUI.enabled = true;
         }

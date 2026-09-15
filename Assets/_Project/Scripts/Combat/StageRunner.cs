@@ -1526,7 +1526,7 @@ namespace MBI.Combat
                 float bs = 44f;
                 var foldRect = new Rect(hud.x + hud.width - bs - 4f, hud.y, bs, bs);
                 UiBlockers.Add(foldRect);
-                if (GUI.Button(foldRect, HudFolded ? "▼" : "▲")) HudFolded = !HudFolded;
+                if (UiSkin.Button(foldRect, HudFolded ? "▼" : "▲")) HudFolded = !HudFolded;
             }
 
             if (foldable && HudFolded)
@@ -1576,7 +1576,7 @@ namespace MBI.Combat
                         Mathf.Min(560f, Screen.width - 24f),
                         Mathf.Min(160f, Mathf.Max(0f, combatBand.yMax - hud.yMax - 20f))));
                     GUILayout.Label(ResultText(), big);
-                    if (GUILayout.Button("다시 (Restart)", GUILayout.Width(160), GUILayout.Height(34)))
+                    if (UiSkin.ButtonLayout("다시 (Restart)", GUILayout.Width(160), GUILayout.Height(34)))
                         Restart();
                     GUILayout.EndArea();
                 }
@@ -1674,7 +1674,7 @@ namespace MBI.Combat
 
             // 태그 — 쿨다운 중이거나 합체로 잠겨 있으면 비활성. 누르면 시뮬이 활성 인덱스까지 맞춘다.
             GUI.enabled = _sim.Tag.Tag.CanTag;
-            if (GUI.Button(tagRect, TagButtonLabel(), round) && _sim.TryManualTag())
+            if (UiSkin.Button(tagRect, TagButtonLabel(), round) && _sim.TryManualTag())
             {
                 // ⚠️ **여기서 뷰를 바로 다시 묶는다**(2026-09-14 · 「교대가 한 박자 느리다」).
                 //
@@ -1691,7 +1691,7 @@ namespace MBI.Combat
 
             // 합체 — 게이지가 차야 눌린다. 스테이지당 1회라 쓰고 나면 영영 비활성이다.
             GUI.enabled = _sim.Merge != null && _sim.Merge.IsReady;
-            if (GUI.Button(mergeRect, MergeButtonLabel(), round) && _sim.TryMerge())
+            if (UiSkin.Button(mergeRect, MergeButtonLabel(), round) && _sim.TryMerge())
             {
                 // 발동에 **성공했을 때만** 튼다. 실패한 버튼에 연출이 붙으면 안 된 일이 된 것처럼 보인다.
                 _cutscene.Play(_sim.LastMergeSnapshot, _sim.LastBurstDamage);

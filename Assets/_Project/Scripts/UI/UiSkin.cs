@@ -218,6 +218,43 @@ namespace MBI.UI
         /// 반투명이라 **아래 글자가 비친다**: 무엇이 잠겼는지 읽고 나서 못 누르는 것과,
         /// 무엇인지도 모르고 못 누르는 것은 다르다.
         /// </summary>
+        /// <summary>
+        /// **버튼 — 눌리면 딸깍 소리가 난다** (2026-09-15 사용자 확정 · 육안 ⑥).
+        ///
+        /// ⚠️ **왜 래퍼인가.** IMGUI 에는 「모든 버튼이 눌렸을 때」 훅이 없다. 호출부마다
+        /// 소리를 넣으면 **새 버튼을 만들 때마다 빠뜨리고**, 빠진 것은 **에러 없이 조용하다.**
+        /// 한 곳을 지나가게 해서 그 실수를 없앤다 — `SpriteImportRules` 가 임포트에 대해
+        /// 하는 일과 같은 꼴이다.
+        ///
+        /// ⚠️ **자산이 없으면 무음이다.** `sfx_ui_click` 은 리포 밖이라(재배포 금지 규약)
+        /// 새 클론에서는 소리가 안 난다 — `SfxPlayer` 가 조용히 건너뛴다.
+        /// </summary>
+        public static bool Button(Rect rect, string text)
+        {
+            if (!GUI.Button(rect, text)) return false;
+            MBI.Core.Audio.AudioSignals.Play(MBI.Core.Audio.SoundIds.UiClick,
+                MBI.Core.Audio.SoundIds.KindOf(MBI.Core.Audio.SoundIds.UiClick));
+            return true;
+        }
+
+        /// <summary>같은 버튼 — 스타일을 주는 갈래.</summary>
+        public static bool Button(Rect rect, string text, GUIStyle style)
+        {
+            if (!GUI.Button(rect, text, style)) return false;
+            MBI.Core.Audio.AudioSignals.Play(MBI.Core.Audio.SoundIds.UiClick,
+                MBI.Core.Audio.SoundIds.KindOf(MBI.Core.Audio.SoundIds.UiClick));
+            return true;
+        }
+
+        /// <summary>같은 버튼 — 자동 배치(GUILayout) 갈래.</summary>
+        public static bool ButtonLayout(string text, params GUILayoutOption[] options)
+        {
+            if (!GUILayout.Button(text, options)) return false;
+            MBI.Core.Audio.AudioSignals.Play(MBI.Core.Audio.SoundIds.UiClick,
+                MBI.Core.Audio.SoundIds.KindOf(MBI.Core.Audio.SoundIds.UiClick));
+            return true;
+        }
+
         public static void DrawLockVeil(Rect rect)
         {
             Color prev = GUI.color;

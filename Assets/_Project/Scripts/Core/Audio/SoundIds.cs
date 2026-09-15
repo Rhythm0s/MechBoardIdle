@@ -36,11 +36,23 @@ namespace MBI.Core.Audio
         /// <summary>버스트 타격. 태그 스킬과 **음색으로** 갈린다.</summary>
         public const string Burst = "sfx_burst";
 
-        /// <summary>훅이 걸린 여덟. 재생기가 자산을 찾는 목록이기도 하다.</summary>
+        /// <summary>
+        /// **UI 버튼 클릭음** (2026-09-15 사용자 확정 · 육안 ⑥).
+        ///
+        /// ⚠️ **종전에는 없었다.** 조작음 채널에 든 것은 `nodesnap`·`beltconnect` 둘뿐이고
+        /// 그 둘은 **보드 조작**(노드 스냅 · 벨트 연결)이다 — **화면 버튼은 소리가 없었다.**
+        ///
+        /// ⚠️ **파일은 리포 밖이다**(사용자가 무료 자산으로 조달 · 재배포 금지 규약).
+        /// 자산이 없으면 `SfxPlayer` 가 조용히 건너뛴다 — 자리표시 소리를 만들지 않는다.
+        /// </summary>
+        public const string UiClick = "sfx_ui_click";
+
+        /// <summary>훅이 걸린 **아홉**. 재생기가 자산을 찾는 목록이기도 하다.</summary>
         public static readonly string[] All =
         {
             NodeSnap, BeltConnect, Bottleneck,
             FireA, DroneLaunch, Hit, Fusion, Burst,
+            UiClick,
         };
 
         /// <summary>
@@ -55,7 +67,8 @@ namespace MBI.Core.Audio
             {
                 case Bottleneck: return SoundKind.Warning;
                 case NodeSnap:
-                case BeltConnect: return SoundKind.Ui;
+                case BeltConnect:
+                case UiClick: return SoundKind.Ui;   // 버튼 딸깍도 플레이어가 낸 소리다
                 default: return SoundKind.Effect;
             }
         }

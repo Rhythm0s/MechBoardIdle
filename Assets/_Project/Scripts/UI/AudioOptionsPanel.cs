@@ -193,7 +193,7 @@ namespace MBI.UI
             GUI.color = Color.magenta;
             GUI.DrawTexture(button, Texture2D.whiteTexture);
             GUI.color = prevDiag;
-            if (GUI.Button(button, _open ? "소리 닫기" : "소리", btnStyle)) _open = !_open;
+            if (UiSkin.Button(button, _open ? "소리 닫기" : "소리", btnStyle)) _open = !_open;
 
             if (!_open) return;
 

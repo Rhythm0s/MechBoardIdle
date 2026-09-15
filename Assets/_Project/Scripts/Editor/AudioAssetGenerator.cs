@@ -7,7 +7,8 @@ using UnityEngine;
 namespace MBI.Editor
 {
     /// <summary>
-    /// 효과음 여덟을 <see cref="AudioConfig.sfxClips"/> 에 꽂는다
+    /// 효과음 아홉을 <see cref="AudioConfig.sfxClips"/> 에 꽂는다
+    /// (2026-09-15 여덟 → 아홉 · `sfx_ui_click` 추가 · 사용자 확정)
     /// (2026-09-11 · 플랜 §71-33 ① · 아트 실측 O-1).
     ///
     /// **왜 신설하는가.** 파일 여덟이 `Audio/sfx/` 에 다 있는데 **칸 여덟이 전부 비어 있었다**

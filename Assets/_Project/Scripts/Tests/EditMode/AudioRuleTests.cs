@@ -229,10 +229,12 @@ namespace MBI.Tests
         // ── 소리 이름 (사운드 문서 10장) ──────────────────────────────────────────
 
         [Test]
-        public void EightSounds_AndNoInventedNames()
+        public void NineSounds_AndNoInventedNames()
         {
-            Assert.AreEqual(8, SoundIds.All.Length,
-                "영상에 나오는 일곱 + 조건부 하나 — sfx_tagskill과 선택 등급 다섯은 범위 밖이다");
+            // 2026-09-15 사용자 확정 — 여덟에 `sfx_ui_click`(조작음)을 더해 아홉이 됐다.
+            // 파일은 사용자가 무료 자산으로 조달하고 **리포 밖에 둔다**(재배포 금지 규약).
+            Assert.AreEqual(9, SoundIds.All.Length,
+                "영상에 나오는 일곱 + 조건부 하나 + 버튼 클릭음 — sfx_tagskill과 선택 등급 다섯은 범위 밖이다");
             CollectionAssert.AllItemsAreUnique(SoundIds.All);
             foreach (string id in SoundIds.All)
                 Assert.IsTrue(id.StartsWith("sfx_"), $"{id} — 자산 파일명 그대로 쓴다(지침 §8)");

@@ -38,6 +38,8 @@ namespace MBI.Tests
                 "효과음 경로가 두 곳에 살면 한쪽이 바뀔 때 다른 쪽이 조용히 어긋난다");
         }
 
+        private const string SfxDir = "Assets/_Project/Audio/sfx";
+
         [Test]
         public void 소리_배선의_주인은_하나다()
         {
@@ -61,13 +63,25 @@ namespace MBI.Tests
                 "길이가 짧으면 뒤쪽 소리가 조용히 사라진다");
 
             // ⚠️ **꽂힘 수는 단정하지 않는다** — 효과음 파일은 리포 밖이라
-            // 새 클론에서는 비는 것이 정상이다. 여기서 「여덟이어야 한다」로 적으면
+            // 새 클론에서는 비는 것이 정상이다. 여기서 「아홉이어야 한다」로 적으면
             // 남의 클론에서 늘 빨간 시험이 된다.
+            //
+            // ⚠️ **「전부 아니면 전무」도 틀렸다**(2026-09-15 정정). 종전에는 이름 여덟에
+            // 파일 여덟이라 그 둘이 같았다. 지금은 `sfx_ui_click` 처럼 **이름만 정하고
+            // 파일은 아직 조달 전**인 소리가 있어서, 부분 배선이 정상 상태가 된다.
+            //
+            // 그래서 **디스크에 있는 파일 수**와 맞춘다 — 이러면 원래 잡으려던 것
+            // (파일이 멀쩡히 있는데 칸이 빈 것 = 생성기가 덮었다)은 그대로 잡힌다.
             int wired = 0;
             foreach (AudioClip c in config.sfxClips) if (c != null) wired++;
-            if (wired > 0)
-                Assert.That(wired, Is.EqualTo(SoundIds.All.Length),
-                    "일부만 꽂혀 있으면 생성기가 배선을 덮었다는 뜻이다 — 09-14·09-15 의 그 증상");
+
+            int onDisk = 0;
+            foreach (string id in SoundIds.All)
+                if (AssetDatabase.LoadAssetAtPath<AudioClip>(SfxDir + "/" + id + ".ogg") != null) onDisk++;
+
+            Assert.That(wired, Is.EqualTo(onDisk),
+                $"파일 {onDisk}개 중 {wired}칸만 꽂혔다 — 생성기가 배선을 덮었다는 뜻이다 "
+                + "(09-14·09-15 의 그 증상). 조달 전이라 파일 자체가 없는 소리는 여기 안 센다");
         }
     }
 }

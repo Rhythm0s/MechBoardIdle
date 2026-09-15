@@ -117,7 +117,7 @@ namespace MBI.Idle
 
             var btn = new Rect(box.x + inset, box.yMax - inset * 0.6f - btnH,
                 box.width - inset * 2f, btnH);
-            if (GUI.Button(btn, "확인", _button)) _dismissed = true;
+            if (UiSkin.Button(btn, "확인", _button)) _dismissed = true;
 
             // ⚠️ **바깥을 눌러도 닫힌다**(2026-09-15 사용자 확정 · 육안 ①).
             // 닫는 길이 하나뿐이면 그 하나가 안 보이는 순간 **갇힌다** — 오늘이 그랬다.

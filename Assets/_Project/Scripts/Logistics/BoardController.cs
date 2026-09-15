@@ -1958,8 +1958,8 @@ namespace MBI.Logistics
             float bw = (box.width - pad * 3f) * 0.5f, bh = 72f * sc;
             float by = box.yMax - pad - bh;
 
-            if (GUI.Button(new Rect(box.x + pad, by, bw, bh), "취소", btn)) _pendingRemoval = null;
-            if (GUI.Button(new Rect(box.x + pad * 2f + bw, by, bw, bh), "삭제", btn))
+            if (UiSkin.Button(new Rect(box.x + pad, by, bw, bh), "취소", btn)) _pendingRemoval = null;
+            if (UiSkin.Button(new Rect(box.x + pad * 2f + bw, by, bw, bh), "삭제", btn))
                 ApplyPendingRemoval();
         }
 
@@ -2564,7 +2564,7 @@ namespace MBI.Logistics
                 GUI.enabled = wasEnabled && allowed;
 
                 bool sel = i == _selectedNode;
-                if (GUI.Button(rect, (sel ? "● " : "") + palette[i].displayName, style))
+                if (UiSkin.Button(rect, (sel ? "● " : "") + palette[i].displayName, style))
                 {
                     _selectedNode = i;
                     _elementMode = null;
@@ -2589,7 +2589,7 @@ namespace MBI.Logistics
             //
             // ⚠️ **팔레트를 바꿔도 안 풀린다** — 같은 방향으로 여러 종류를 깔 때가 많다.
             var rotRect = new Rect(bx, 0f, side, side);
-            if (GUI.Button(rotRect, $"방향 {_placeRotation * 90}°", style))
+            if (UiSkin.Button(rotRect, $"방향 {_placeRotation * 90}°", style))
                 _placeRotation = (_placeRotation + 1) % 4;
             DrawRotationArrow(rotRect, _placeRotation);
             bx += step;
@@ -2613,7 +2613,7 @@ namespace MBI.Logistics
                     GUI.color = new Color(1f, 0.92f, 0.45f,
                         0.75f + 0.25f * Mathf.Abs(Mathf.Sin(Time.unscaledTime * 2.2f)));
 
-                bool pressed = GUI.Button(eRect, (on ? "● " : "") + ElementLabel(e), style);
+                bool pressed = UiSkin.Button(eRect, (on ? "● " : "") + ElementLabel(e), style);
                 GUI.color = prevCol;
 
                 if (pressed)
@@ -2641,7 +2641,7 @@ namespace MBI.Logistics
                     bool on = _selectedModule == m;
                     bool wasM = GUI.enabled;
                     GUI.enabled = wasM && moduleAllowed;
-                    if (GUI.Button(mRect, (on ? "●" : "") + modulePalette[m].displayName, style))
+                    if (UiSkin.Button(mRect, (on ? "●" : "") + modulePalette[m].displayName, style))
                     {
                         _selectedModule = on ? -1 : m;
                         _elementMode = null;
@@ -3188,7 +3188,7 @@ namespace MBI.Logistics
             // ⚠️ **화살표 기호를 걷었다**(2026-09-15 육안 · 글리프). 「↻」(U+21BB)가
             // 폰트에 없어 **두부(□)로 찍혔다** — 한글 폰트에 없는 기호는 안 쓴다
             // (09-02 에 「⚡」·「🔥」가 같은 이유로 걷혔다 · `VariablePanel` 주석).
-            if (GUI.Button(rotRect, "90도 돌리기", style))
+            if (UiSkin.Button(rotRect, "90도 돌리기", style))
             {
                 inst.Rotation = inst.Rotation + 1;
                 RebuildMarker(_selected.Value);
@@ -3258,7 +3258,7 @@ namespace MBI.Logistics
                         $"{mod.symbol} {mod.displayName}  ×{mod.outputMultiplier:F2}"
                         + $"  부하 ×{mod.powerLoadMultiplier:F1}", body);
 
-                    if (GUI.Button(new Rect(x + w * 0.76f, y, w * 0.24f, mh), "떼기", style)
+                    if (UiSkin.Button(new Rect(x + w * 0.76f, y, w * 0.24f, mh), "떼기", style)
                         && inst.DetachModuleAt(slot))
                     {
                         RebuildMarker(_selected.Value);   // 기호 스프라이트가 노드에 얹혀 있다
@@ -3282,7 +3282,7 @@ namespace MBI.Logistics
                 // 돌릴 수 없는 후보도 **자리는 보여 준다** — 감추면 「왜 못 만드나」가 아니라
                 // 「그런 게 있었나」가 된다. 착수 금지가 화면에서도 자리로 표현된다.
                 GUI.enabled = r.IsRunnable;
-                if (GUI.Button(rect, (r.kind == current ? "● " : "") + r.displayName, style)
+                if (UiSkin.Button(rect, (r.kind == current ? "● " : "") + r.displayName, style)
                     && inst.SelectRecipe(r.kind))
                     RefreshConnections(); // 산출이 바뀌면 하류 벨트가 나르는 것도 바뀐다
 
@@ -3303,7 +3303,7 @@ namespace MBI.Logistics
                 var kind = (AmmoKind)k;
                 var rect = new Rect(x + k * (bw + pad), y, bw, h);
 
-                if (GUI.Button(rect, (inst.AmmoKind == kind ? "● " : "") + AmmoLabel(kind), style))
+                if (UiSkin.Button(rect, (inst.AmmoKind == kind ? "● " : "") + AmmoLabel(kind), style))
                     inst.AmmoKind = kind; // 탄종은 흐르는 품목(탄약)을 바꾸지 않는다 — 라벨만 갈린다
             }
         }
@@ -3568,7 +3568,7 @@ namespace MBI.Logistics
             {
                 var rect = new Rect(row.x + i * (w + pad), row.y, w, row.height);
                 bool on = _tab == order[i];
-                if (GUI.Button(rect, (on ? "● " : "") + PaletteCategories.LabelOf(order[i]), style))
+                if (UiSkin.Button(rect, (on ? "● " : "") + PaletteCategories.LabelOf(order[i]), style))
                 {
                     _tab = order[i];
                     _paletteScroll = Vector2.zero;   // 탭을 바꾸면 줄이 달라진다 — 앞에서 본다
@@ -3612,7 +3612,7 @@ namespace MBI.Logistics
             Color prev = GUI.color;
             if (urge) GUI.color = new Color(1f, 0.92f, 0.45f);
 
-            if (GUI.Button(rect, label, style)) ToggleMode();
+            if (UiSkin.Button(rect, label, style)) ToggleMode();
 
             GUI.color = prev;
             if (!allowed) UiSkin.DrawLockVeil(rect);
@@ -3666,7 +3666,7 @@ namespace MBI.Logistics
             Color prev = GUI.color;
             if (urge) GUI.color = new Color(1f, 0.92f, 0.45f);
 
-            if (GUI.Button(rect, label, style)) ToggleMode();
+            if (UiSkin.Button(rect, label, style)) ToggleMode();
 
             GUI.color = prev;
             if (!modeAllowed) UiSkin.DrawLockVeil(rect);

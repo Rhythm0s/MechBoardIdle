@@ -106,7 +106,7 @@ namespace MBI.UI
             float h = S(ButtonH);
             float step = h + S(ButtonGap);
 
-            if (GUI.Button(new Rect(x, y, S(ButtonW), h), "게임 시작", style)) StartGame();
+            if (UiSkin.Button(new Rect(x, y, S(ButtonW), h), "게임 시작", style)) StartGame();
             y += step;
 
             // ⚠️ **「볼륨」 버튼을 걷었다**(2026-09-15 사용자 확정 · 하단 개편 ⑨).
@@ -139,7 +139,7 @@ namespace MBI.UI
 
             bool was = GUI.enabled;
             GUI.enabled = usable;
-            if (GUI.Button(new Rect(x, y, S(ButtonW), h), usable ? label : label + "  (준비 중)", style))
+            if (UiSkin.Button(new Rect(x, y, S(ButtonW), h), usable ? label : label + "  (준비 중)", style))
                 Application.OpenURL(url);
             GUI.enabled = was;
 

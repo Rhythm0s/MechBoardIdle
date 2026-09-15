@@ -208,12 +208,12 @@ namespace MBI.Logistics
                     GUI.color = new Color(1f, 0.92f, 0.45f,
                         0.75f + 0.25f * Mathf.Abs(Mathf.Sin(Time.unscaledTime * 2.2f)));
 
-                if (GUI.Button(rect, "▼ 조립 (물류 보드)", style)) _boardView = true;
+                if (UiSkin.Button(rect, "▼ 조립 (물류 보드)", style)) _boardView = true;
                 GUI.color = prev;
             }
             else
             {
-                if (GUI.Button(rect, "▲ 전투로", style)) _boardView = false;
+                if (UiSkin.Button(rect, "▲ 전투로", style)) _boardView = false;
             }
 
             // ⚠️ **어둠막은 버튼 뒤에** — 앞에 그리면 버튼이 제 바탕으로 덮는다(2026-09-11).
