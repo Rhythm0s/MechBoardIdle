@@ -176,8 +176,18 @@ namespace MBI.Logistics
         /// </summary>
         private PaletteCategory _tab = PaletteCategory.All;
 
-        /// <summary>지금 드래그가 **지우는 드래그**인가 — 시작 칸이 벨트면 그렇다(육안 ⑧).</summary>
-        private bool _dragRemoving;
+
+        /// <summary>
+        /// 그 칸이 **코어**인가 — 코어는 제거할 수 없다 (2026-09-15 사용자 확정 · 개편 ①).
+        ///
+        /// 코어가 없으면 아무것도 못 만들고, 만들 것이 없으니 다시 놓지도 못한다 —
+        /// **되돌릴 수 없는 상태**가 되는 유일한 칸이라 규칙이 따로 있다.
+        /// </summary>
+        private bool IsCore(Vector2Int cell)
+        {
+            NodeInstance n = _grid != null ? _grid.GetAt(cell) : null;
+            return n != null && n.Definition != null && n.Definition.type == NodeType.Core;
+        }
 
         /// <summary>컨펌을 기다리는 제거 경로. null 이면 팝업이 안 뜬다(육안 ⑧).</summary>
         private List<Vector2Int> _pendingRemoval;
@@ -1720,15 +1730,6 @@ namespace MBI.Logistics
             if (!TryCellUnderPointer(out Vector2Int cell) || !_grid.IsInside(cell)) return;
             _dragging = true;
 
-            // ⚠️ **시작 칸이 벨트면 그 드래그는 지우는 드래그다**(2026-09-15 사용자 확정 · 육안 ⑧).
-            //
-            // 제거가 모드에서 **제스처**로 바뀌었다. 무엇을 하는 드래그인지는 **시작 칸**이
-            // 정한다 — 도중에 정하면 손이 움직이는 동안 뜻이 바뀌어 예측이 안 된다.
-            //
-            // ⚠️ **튜토리얼 동안에는 안 지운다** — 놓으라고 해 놓고 지울 수 있으면
-            // 「지금 할 일」이 둘이 된다(구 「제거」 버튼이 걸고 있던 것과 같은 문).
-            _dragRemoving = _grid.HasBelt(cell) && TutorialGate.Allows(TutorialGate.Control.Remove);
-
             _dragCells.Clear();
             _dragCells.Add(cell);
         }
@@ -1758,6 +1759,7 @@ namespace MBI.Logistics
 
             UpdateMountPortBlink();
 
+            TickZoomGesture(); // 핀치·휠 (2026-09-15 · 개편 ⑦ — 배율 버튼을 대신한다)
             ApplyZoom(); // 보드를 볼 때만 확대한다 — 나가면 원래 시야로 돌아간다
 
             // 촬영 복귀 요청 — 가져가며 내린다.
@@ -1805,10 +1807,18 @@ namespace MBI.Logistics
             if (!_dragging) return;
             _dragging = false;
 
-            // 지우는 드래그는 설치 경로를 아예 안 탄다 — 갈래를 여기서 가른다(육안 ⑧).
-            if (_dragRemoving)
+            // ⚠️ **무엇을 하는 손인지는 시작 칸과 칸 수가 정한다**(2026-09-15 사용자 확정 · 개편 ①).
+            //
+            // · 빈 칸에서 시작 → 벨트 설치(탭이든 드래그든)
+            // · 노드·벨트에서 시작한 **드래그** → 제거
+            // · **한 칸(탭)은 제거가 아니다** — 벨트 탭은 아무 일 없고 노드 탭은 팝오버다.
+            //
+            // ⚠️ **튜토리얼 동안에는 안 지운다** — 놓으라고 해 놓고 지울 수 있으면
+            // 「지금 할 일」이 둘이 된다(구 「제거」 버튼이 걸고 있던 것과 같은 문).
+            if (TutorialGate.Allows(TutorialGate.Control.Remove)
+                && RemovalRules.IsRemovalDrag(_dragCells[0], _dragCells.Count,
+                    _grid.IsOccupied, _grid.HasBelt, IsCore))
             {
-                _dragRemoving = false;
                 FinishRemovalDrag();
                 _dragCells.Clear();
                 return;
@@ -1820,9 +1830,22 @@ namespace MBI.Logistics
                 // 모듈을 고른 채 놓인 노드를 탭하면 **붙인다.** 못 붙이면(칸이 다 찼다)
                 // 고르기로 떨어진다 — 탭이 아무 일도 안 하면 조작이 먹지 않은 것으로 읽힌다.
                 if (_grid.IsOccupied(cell) && TryAttachSelectedModule(cell)) { }
-                else if (_grid.IsOccupied(cell)) Select(cell);
+                else if (_grid.IsOccupied(cell)) Select(cell);   // 다른 노드면 그 노드로 갈아탄다
                 else if (_elementMode.HasValue) PlaceElement(cell, _elementMode.Value);
-                else Place(cell);
+                // ⚠️ **벨트 탭은 아무 일도 안 한다**(2026-09-15 사용자 확정 · 개편 ①).
+                // 지우려면 끌어야 한다 — 한 번 눌러 지워지면 실수가 곧 손실이다.
+                else if (_grid.HasBelt(cell)) { if (_selected.HasValue) Deselect(); }
+                else
+                {
+                    // ⚠️ **팝오버는 바깥을 누르면 닫힌다**(2026-09-15 사용자 확정 · 육안 ③).
+                    //
+                    // 종전에는 닫는 길이 **없었다** — 한 번 열면 다른 노드를 누를 때까지
+                    // 화면 한쪽을 계속 가렸다. 빈 칸을 누르는 것은 「여기에 놓겠다」이기도 한데,
+                    // **열려 있는 동안에는 닫기가 먼저다** — 팝오버가 덮은 자리를 잘못 눌러
+                    // 엉뚱한 칸에 노드가 놓이는 것을 막는다.
+                    if (_selected.HasValue) Deselect();
+                    else Place(cell);
+                }
             }
             else if (_dragCells.Count > 1)
             {
@@ -1847,15 +1870,19 @@ namespace MBI.Logistics
         {
             if (_dragCells.Count == 0) return;
 
+            // ⚠️ **코어는 못 지운다**(2026-09-15 사용자 확정) — 경로에서 빼고 나머지를 본다.
+            List<Vector2Int> targets = RemovalRules.Removable(_dragCells, IsCore);
+            if (targets.Count == 0) return;
+
             // 판정은 `RemovalRules` 가 한다 — 여기는 손을 받고 결과를 그릴 뿐이다(§3).
-            if (!RemovalRules.NeedsConfirm(_dragCells, _grid.IsOccupied))
+            if (!RemovalRules.NeedsConfirm(targets, _grid.IsOccupied))
             {
-                foreach (Vector2Int c in _dragCells) RemoveAt(c);
+                foreach (Vector2Int c in targets) RemoveAt(c);
                 return;
             }
 
             // 팝업이 뜨는 동안 경로를 들고 있어야 한다 — `_dragCells` 는 곧 비워진다.
-            _pendingRemoval = new List<Vector2Int>(_dragCells);
+            _pendingRemoval = targets;
         }
 
         /// <summary>
@@ -1884,8 +1911,18 @@ namespace MBI.Logistics
             float w = 560f * sc, h = 300f * sc;
             var box = new Rect((Screen.width - w) * 0.5f, (Screen.height - h) * 0.5f, w, h);
 
-            GUI.DrawTexture(new Rect(0f, 0f, Screen.width, Screen.height), UiSkin.DisabledTexture);
-            UiBlockers.Add(new Rect(0f, 0f, Screen.width, Screen.height));
+            // ⚠️ **뒤는 반투명 DIM 이다**(2026-09-15 육안 ② · 결함 수정).
+            //
+            // 종전에는 `UiSkin.DisabledTexture` 를 전체 화면에 깔았다. 그것은 **잠긴 버튼
+            // 바탕**이라 불투명이고, 화면에서는 팝업이 아니라 **판이 화면을 통째로 덮은 것**으로
+            // 보였다 — 무엇을 지우려는지가 안 보이면 물음에 답할 근거가 사라진다.
+            var full = new Rect(0f, 0f, Screen.width, Screen.height);
+            Color prevDim = GUI.color;
+            GUI.color = RemovalDimColor;
+            GUI.DrawTexture(full, Texture2D.whiteTexture);
+            GUI.color = prevDim;
+
+            UiBlockers.Add(full);
             GUI.DrawTexture(box, UiSkin.PlateTexture);
 
             float pad = 24f * sc;
@@ -1907,7 +1944,7 @@ namespace MBI.Logistics
             GUI.Label(new Rect(box.x, box.y + pad, box.width, 48f * sc), "정말 삭제?", head);
             GUI.Label(new Rect(box.x + pad, box.y + pad + 56f * sc, box.width - pad * 2f, 90f * sc),
                 "노드 " + nodes + "대를 포함해 " + _pendingRemoval.Count
-                + "칸을 지운다. 노드에 붙인 조합표·모듈·방향은 **돌아오지 않는다.**", body);
+                + "칸을 지운다. 노드에 붙인 조합표·모듈·방향은 돌아오지 않는다.", body);
 
             var btn = new GUIStyle(GUI.skin.button)
             {
@@ -2407,7 +2444,7 @@ namespace MBI.Logistics
             // 그 자리(부유 띠 왼쪽 정사각)는 이제 튜토리얼 진행 두 줄이 쓴다.
             // `DrawMiniMap` 자체는 폐기 표기로 남겨 둔다 — 되돌릴 때 다시 짓지 않게.
 
-            DrawZoom();
+            // ⚠️ **배율 막대를 걷었다**(2026-09-15 · 개편 ⑦) — 핀치·휠이 대신한다.
             DrawCategoryTabs();
             DrawModePlate();
 
@@ -2864,6 +2901,12 @@ namespace MBI.Logistics
             return Mathf.Abs(b.x - a.x);
         }
 
+        /// <summary>
+        /// 삭제 컨펌 뒤에 까는 DIM. ⚠️ **알파는 가정**(튜토리얼 어둠막 0.55 와 같은 눈금).
+        /// 불투명하면 「팝업」이 아니라 「화면이 덮였다」가 된다(2026-09-15 육안 ②).
+        /// </summary>
+        private static readonly Color RemovalDimColor = new Color(0.02f, 0.03f, 0.05f, 0.55f);
+
         /// <summary>노드 이름 판 — 타일 **위쪽** 어두운 판 + 미색 글자. ⚠️ 알파·높이는 가정.</summary>
         private static readonly Color NamePlateColor = new Color(0.05f, 0.07f, 0.10f, 0.78f);
         private static readonly Color NameTextColor = new Color(0.93f, 0.90f, 0.82f);
@@ -3076,7 +3119,10 @@ namespace MBI.Logistics
             // ⚠️ **누르면 배선을 다시 잡는다** — 면이 돌면 링크·품목·색이 전부 바뀐다.
             // 마커도 다시 짓는다(포트 탭이 면을 따라 붙어 있다).
             var rotRect = new Rect(x, y, w * 0.32f, h);
-            if (GUI.Button(rotRect, "회전 ↻", style))
+            // ⚠️ **화살표 기호를 걷었다**(2026-09-15 육안 · 글리프). 「↻」(U+21BB)가
+            // 폰트에 없어 **두부(□)로 찍혔다** — 한글 폰트에 없는 기호는 안 쓴다
+            // (09-02 에 「⚡」·「🔥」가 같은 이유로 걷혔다 · `VariablePanel` 주석).
+            if (GUI.Button(rotRect, "90도 돌리기", style))
             {
                 inst.Rotation = inst.Rotation + 1;
                 RebuildMarker(_selected.Value);
@@ -3492,7 +3538,8 @@ namespace MBI.Logistics
             GUI.enabled = was && allowed;
 
             bool build = _mode == BoardMode.Build;
-            string label = (build ? "조립 모드" : "이동 모드") + "  ⇄";
+            // ⚠️ 「⇄」(U+21C4) 도 폰트에 없다 — 글자로 적는다(육안 · 글리프).
+            string label = (build ? "조립 모드" : "이동 모드") + " (바꾸기)";
 
             // 강제 버튼(T-7) — 이동 모드일 때만 빛난다. 바꾸고 나면 할 일이 끝났다.
             bool urge = TutorialSignals.HighlightBuildMode && !build;
@@ -3576,57 +3623,83 @@ namespace MBI.Logistics
 
         private const float ZoomMin = 1f, ZoomMax = 2.5f, ZoomStep = 0.25f;
 
+        /// <summary>
+        /// ⚠️ **폐기 — 배율 버튼·라벨을 걷었다**(2026-09-15 사용자 확정 · 개편 ⑦).
+        ///
+        /// 자리는 **핀치 줌(모바일)** 과 **마우스 휠(PC)** 이 대신한다(<see cref="TickZoomGesture"/>).
+        /// 버튼 둘과 라벨 하나가 부유 띠 오른쪽을 늘 차지하고 있었는데, 배율은 **보는 동작**이라
+        /// 손가락이 화면에서 바로 하는 편이 맞다 — 새티스팩토리·엔드필드가 그렇다.
+        ///
+        /// 메서드는 **부르는 곳 없이 남긴다** — 되살리려면 이 한 줄을 다시 부르면 된다.
+        /// ⚠️ 범위 ×1.00~×2.50 은 UI 9-3 값 그대로고 여기서 안 건드린다.
+        /// </summary>
         private void DrawZoom()
         {
-            // ⚠️ **기본 skin 의 회색을 안 쓴다**(2026-09-10 · 플랜 §66-36 ①).
-            // 상단 인셋 위라 바탕이 밝고, 회색 글자는 판을 깔아도 여전히 안 읽혔다.
-            // HUD 와 **같은 흰색**으로 맞춘다 — 같은 줄에 있는 글자가 서로 다른 색이면
-            // 하나는 꺼져 있는 것처럼 보인다.
-            // ⚠️ **날 픽셀 자리를 걷었다**(2026-09-14 · §72-12 5 · 2차 스크린샷 1장).
-            //
-            // 종전은 `x 164 · y 308` 고정이었다. 근거로 달려 있던 「모드 버튼(12..152)의
-            // 오른쪽」은 모드 버튼이 `UiLayout.ModeBarRect` 로 나간 09-11 부터 **없는 것을
-            // 가리키는 참조**였고, y 308 은 경고 띠(기준 캔버스 y768)가 작은 창에서 300 대로
-            // 내려오면서 **통째로 겹쳤다** — 「생산이 멈췄습니다」가 배율 막대 뒤에 깔려
-            // 둘 다 안 읽혔다.
-            //
-            // 자리를 **부유 띠 오른쪽 끝**으로 옮긴다(레이어 2 · 2098~2298). 겹침은 값을
-            // 고쳐 피하는 것이 아니라 **자리로** 사라진다. ⚠️ 자리 자체는 **가정**이다.
-            Rect bar = UiLayout.ZoomBarRect(Screen.width, Screen.height);
-            float sz = UiLayout.Scale(Screen.height);
-            float pad = 8f * sz;
-            float bh = bar.height, bw = bh;   // 버튼은 정사각 — 띠 높이가 한 변을 준다
-
-            var label = new GUIStyle(GUI.skin.label)
-            {
-                // ⚠️ **기본 skin 의 회색을 안 쓴다**(2026-09-10 · 플랜 §66-36 ①).
-                // 같은 줄의 글자가 서로 다른 색이면 하나는 꺼져 있는 것처럼 보인다.
-                fontSize = KoreanFont.Snap(Mathf.Max(9, Mathf.RoundToInt(bh * 0.28f))),
-                alignment = TextAnchor.MiddleLeft,
-            };
-            label.normal.textColor = Color.white;
-            var style = new GUIStyle(GUI.skin.button)
-            {
-                fontSize = KoreanFont.Snap(Mathf.Max(10, Mathf.RoundToInt(bh * 0.45f))),
-            };
-
-            var minus = new Rect(bar.x, bar.y, bw, bh);
-            var plus = new Rect(bar.x + bw + pad, bar.y, bw, bh);
-
-            // ⚠️ **글자 상자는 글자에서 잰다** — 오늘 이 뿌리로 세 자리가 잘렸다.
-            string zoomText = $"보드 배율 ×{_zoom:0.00}";
-            float textX = plus.xMax + pad * 2f;
-            var text = new Rect(textX, bar.y, Mathf.Max(0f, bar.xMax - textX), bh);
-
-            UiPlate.Draw(bar);
-            GUI.Label(text, zoomText, label);
-            UiBlockers.Add(bar);
-
-            if (GUI.Button(minus, "−", style)) SetZoom(_zoom - ZoomStep);
-            if (GUI.Button(plus, "+", style)) SetZoom(_zoom + ZoomStep);
         }
 
         private void SetZoom(float z) => _zoom = Mathf.Clamp(z, ZoomMin, ZoomMax);
+
+        /// <summary>핀치 직전 두 손가락 거리. 0 이면 핀치 중이 아니다.</summary>
+        private float _pinchStartDistance;
+
+        /// <summary>핀치를 시작할 때의 배율 — 비율을 여기에 곱한다.</summary>
+        private float _pinchStartZoom;
+
+        /// <summary>
+        /// **핀치 줌(모바일) · 마우스 휠(PC)** (2026-09-15 사용자 확정 · 개편 ⑦).
+        ///
+        /// ⚠️ **배율 버튼을 대신한다.** 배율은 **보는 동작**이라 손가락이 화면에서 바로
+        /// 하는 편이 맞다 — 버튼 둘과 라벨 하나가 부유 띠 오른쪽을 늘 차지하고 있었다.
+        ///
+        /// ⚠️ **범위는 UI 9-3 값 그대로다**(×1.00~×2.50) — 여기서 안 만든다.
+        ///
+        /// ⚠️ **휠 한 칸당 배율은 가정이다**(설계 역기입). 핀치는 **두 손가락 거리의 비**라
+        /// 값이 필요 없다 — 손이 벌린 만큼이 곧 배율이다.
+        ///
+        /// ⚠️ **조립 화면에서만 듣는다.** 전투 화면에서 휠을 굴려도 보드가 커지면
+        /// 「무엇이 움직인 건가」가 된다.
+        /// </summary>
+        private void TickZoomGesture()
+        {
+            if (!GameLayerController.BoardViewActive) return;
+            if (!TutorialGate.Allows(TutorialGate.Control.Zoom)) return;
+
+            // ── 핀치 (모바일) ────────────────────────────────────────────────
+            Touchscreen touch = Touchscreen.current;
+            if (touch != null && touch.touches.Count >= 2)
+            {
+                UnityEngine.InputSystem.Controls.TouchControl a = touch.touches[0];
+                UnityEngine.InputSystem.Controls.TouchControl b = touch.touches[1];
+                bool bothDown = a.press.isPressed && b.press.isPressed;
+
+                if (bothDown)
+                {
+                    float d = Vector2.Distance(a.position.ReadValue(), b.position.ReadValue());
+                    if (_pinchStartDistance <= 0f)
+                    {
+                        _pinchStartDistance = d;
+                        _pinchStartZoom = _zoom;
+                    }
+                    else if (_pinchStartDistance > 1f)
+                    {
+                        SetZoom(_pinchStartZoom * (d / _pinchStartDistance));
+                    }
+                    return;   // 핀치 중에는 휠을 안 본다
+                }
+            }
+            _pinchStartDistance = 0f;
+
+            // ── 휠 (PC) ─────────────────────────────────────────────────────
+            Mouse mouse = Mouse.current;
+            if (mouse == null) return;
+
+            float scroll = mouse.scroll.ReadValue().y;
+            if (Mathf.Abs(scroll) < 0.01f) return;
+
+            // ⚠️ **한 칸이 얼마인지는 기기마다 다르다** — 부호만 쓰고 크기는 고정 칸으로
+            // 바꾼다. 안 그러면 트랙패드에서 한 번에 상한까지 튄다.
+            SetZoom(_zoom + (scroll > 0f ? ZoomStep : -ZoomStep));
+        }
 
         /// <summary>
         /// 배율을 카메라에 먹인다. **보드를 볼 때만** — 전투 화면으로 나가면 원래 시야로 돌린다.
@@ -3728,6 +3801,24 @@ namespace MBI.Logistics
             sr.color = SelectedColor;
             // 노드 몸통(0)·포트(1·2)·벨트 위 물건(2)보다 위 — 테두리가 가려지면 뜻이 없다.
             sr.sortingOrder = BeltItemOrder + 2;
+        }
+
+        /// <summary>
+        /// 고르기를 푼다 — 팝오버가 닫히고 테두리가 사라진다 (2026-09-15 · 육안 ③).
+        /// </summary>
+        private void Deselect()
+        {
+            if (!_selected.HasValue) return;
+
+            if (_markers.TryGetValue(_selected.Value, out GameObject prev) && prev != null)
+            {
+                prev.GetComponent<SpriteRenderer>().color =
+                    _nodeColors.TryGetValue(_selected.Value, out Color pc) ? pc : NodeBaseColor;
+            }
+
+            _selected = null;
+            // 노드를 안 골랐는데 테두리가 남으면 빈 칸이 골라져 있는 것으로 읽힌다.
+            if (_selectRing != null) _selectRing.SetActive(false);
         }
 
         private void Select(Vector2Int cell)

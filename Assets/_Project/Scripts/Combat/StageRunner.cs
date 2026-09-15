@@ -310,11 +310,17 @@ namespace MBI.Combat
             // 카메라 중심을 **타일 격자에 스냅한 자리**에 둔다 — 한 장 폭의 나머지만 쓰므로
             // 타일 수가 안 늘고, 격자가 자기 자신과 이어져 끝이 안 보인다.
             //
-            // ⚠️ **카메라가 로봇을 lerp 로 뒤따른다** — 로봇 위치로 깔면 한 프레임씩 어긋나
-            // 바닥이 미세하게 떤다. 재는 것은 **지금 카메라가 있는 자리**여야 한다.
-            Camera cam = Camera.main;
-            Vector2 p = cam != null ? (Vector2)cam.transform.position
-                : _sim != null && _sim.Robot != null ? _sim.Robot.position : Vector2.zero;
+            // ⚠️ **로봇 기준으로 되돌렸다**(2026-09-15 육안 ④ · 결함 수정).
+            //
+            // 09-15 오전에 「카메라 기준」으로 바꿨다가 **조립 화면 인셋이 검게 됐다.**
+            // 조립 화면의 전투는 **상단 인셋**이고 그것은 별개 카메라인데(`combatInsetCam`),
+            // 주 카메라는 그때 **보드**를 비춘다 — 주 카메라 기준으로 깔면 바닥이 보드 쪽에
+            // 가 버려 인셋에는 로봇과 적만 남는다.
+            //
+            // **로봇 기준이면 두 카메라 모두에서 맞다.** 카메라가 로봇을 따라가므로
+            // 로봇 자리가 곧 두 카메라의 목표 자리이고, 인셋은 언제나 로봇을 비춘다.
+            // 뒤따르는 lerp 차이는 **타일 한 장 안에서 흡수된다**(아래 나머지 셈).
+            Vector2 p = _sim != null && _sim.Robot != null ? _sim.Robot.position : Vector2.zero;
 
             _bgRoot.position = new Vector3(
                 p.x - Mathf.Repeat(p.x, _bgTile.x),

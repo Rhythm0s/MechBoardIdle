@@ -107,17 +107,28 @@ namespace MBI.UI
 
             UiSkin.Apply(); // 껍데기 + 한글 폰트 — WebGL엔 시스템 폰트 폴백이 없다
 
-            // 버튼은 오른쪽 아래 — 바닥에서 잰다(위쪽은 두 번 다 걸렸다).
-            float top = Screen.height - BottomInset;
-            // 왼쪽 아래 — 원형 둘(오른쪽)과 조립 진입 막대(가운데)를 둘 다 피한다.
-            var button = new Rect(Margin, top, ButtonW, ButtonH);
+            // ⚠️ **화면 우상단으로 옮겼다**(2026-09-15 사용자 확정 · 하단 개편 ⑧).
+            //
+            // 조립·전투·메인 메뉴 **세 화면에서 같은 자리**다. 종전 왼쪽 아래는 화면마다
+            // 무엇이 지나가느냐가 달라 세 번 옮겨 다녔고(위 주석의 ①②), 그때마다
+            // 「무엇 옆에 있는가」로 자리를 정한 탓에 **다른 것이 움직이면 또 걸렸다.**
+            // 구석은 **아무것도 자라 들어오지 않는 유일한 자리**다.
+            //
+            // ⚠️ **변수 패널이 걷혔기에 쓸 수 있는 자리다**(개편 ①) — 09-10 에 이 구석을
+            // 포기한 까닭이 그 패널이었다.
+            float scale = UiLayout.Scale(Screen.height);
+            float bw = ButtonW * scale, bh = Mathf.Max(ButtonH, UiLayout.MinButton * 0.4f) * scale;
+            float margin = Margin * scale;
+            float top = margin;
+            var button = new Rect(Screen.width - margin - bw, top, bw, bh);
             UiBlockers.Add(button);
-            if (GUI.Button(button, _open ? "소리 ▲" : "소리 ▼")) _open = !_open;
+            if (GUI.Button(button, _open ? "소리 닫기" : "소리")) _open = !_open;
 
             if (!_open) return;
 
-            // ⚠️ **슬라이더는 버튼 위로 편다.** 아래로 펴면 화면 밖으로 나간다.
-            var panel = new Rect(Margin, top - PanelH - 4f, PanelW, PanelH);
+            // ⚠️ **슬라이더는 버튼 아래로 편다** — 우상단이라 위로 펴면 화면 밖이다.
+            float pw = PanelW * scale, ph = PanelH * scale;
+            var panel = new Rect(Screen.width - margin - pw, button.yMax + 4f * scale, pw, ph);
             UiBlockers.Add(panel);
             GUI.Box(panel, GUIContent.none);
 

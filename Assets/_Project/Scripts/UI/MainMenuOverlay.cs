@@ -109,11 +109,13 @@ namespace MBI.UI
             if (GUI.Button(new Rect(x, y, S(ButtonW), h), "게임 시작", style)) StartGame();
             y += step;
 
-            if (audioOptions != null)
-            {
-                if (GUI.Button(new Rect(x, y, S(ButtonW), h), "볼륨", style)) audioOptions.Open();
-                y += step;
-            }
+            // ⚠️ **「볼륨」 버튼을 걷었다**(2026-09-15 사용자 확정 · 하단 개편 ⑨).
+            //
+            // 소리는 이제 **화면 우상단의 「소리」 버튼**이 맡는다 — 조립·전투·메인 메뉴
+            // 세 화면에서 같은 자리다(개편 ⑧). 메뉴에 또 두면 **같은 일을 하는 길이 둘**이 되고,
+            // 그중 하나는 메뉴를 닫으면 사라져 「어디서 줄이더라」가 생긴다.
+            //
+            // `audioOptions` 참조는 남긴다 — 씬이 들고 있고, 되살릴 때 배선을 다시 할 일이 없다.
 
             y = LinkButton(x, y, h, step, style, "포트폴리오 문서 보기",
                 links != null ? links.documentUrl : null);

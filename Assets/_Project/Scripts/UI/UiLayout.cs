@@ -57,9 +57,8 @@ namespace MBI.UI
         //           768 ├──────────────────────────┤  ← 경고 띠 96 이 여기서 시작(12-2 · 겹쳐 뜬다)
         //               │  보드            1330    │
         //          2098 ├──────────────────────────┤
-        //               │  부유 띠(미니맵·모드) 200│
-        //          2298 ├──────────────────────────┤
-        //               │  변수 패널        112    │
+        //               │  부유 띠           312   │  ← 탭 96 + 노드 버튼 216 (09-15 개편)
+        //               │   (변수 패널 112 을 흡수)│
         //          2410 ├──────────────────────────┤
         //               │  액션바           150    │  ← 적용 320×150 이 여기 앉는다
         //          2560 └──────────────────────────┘
@@ -79,11 +78,37 @@ namespace MBI.UI
         /// </summary>
         public const float BoardHeight = 1330f;
 
-        /// <summary>부유 띠 높이 — 미니맵·모드 버튼이 **보드 위에 떠 있지 않고** 여기 앉는다.</summary>
-        public const float FloatBandHeight = 200f;
+        /// <summary>
+        /// 부유 띠 높이 — 카테고리 탭 줄 + 노드 버튼 줄이 여기 앉는다.
+        ///
+        /// ⚠️ **200 → 312**(2026-09-15 · 하단 개편 ⑥ · 육안 「버튼이 너무 작다」).
+        ///
+        /// **값을 지어내지 않았다** — 같은 날 걷은 **변수 패널의 112 를 그대로 받았다**
+        /// (개편 ①). 띠 다섯의 합은 2560 그대로다:
+        /// 전투 768 + 보드 1330 + 부유 **312** + 변수 **0** + 액션바 150 = 2560.
+        ///
+        /// ⚠️ **왜 키워야 했나.** 200 안에 두 줄을 넣으면 **둘 다 최소 150 을 밑돈다**
+        /// (UI 6-2). 312 면 탭 96 + 버튼 216 이라 **버튼 줄이 규격을 넘는다.**
+        /// </summary>
+        public const float FloatBandHeight = 312f;
 
-        /// <summary>변수 패널 높이 (기준 캔버스). **하단이다** — 우상단이 아니다.</summary>
-        public const float VariablePanelHeight = 112f;
+        /// <summary>
+        /// ⚠️ **폐기 — 변수 패널을 걷었다**(2026-09-15 사용자 확정 · 하단 개편 ①).
+        ///
+        /// 구 112. 그 높이는 **부유 띠가 받았다**(200 → 312). 상수를 지우지 않고 0 으로
+        /// 두는 이유는 <see cref="DesignTop"/> 의 셈이 이 이름을 쓰기 때문이다 —
+        /// 되살리려면 이 값만 112 로 되돌리고 부유 띠를 200 으로 내리면 된다.
+        /// </summary>
+        public const float VariablePanelHeight = 0f;
+
+        /// <summary>
+        /// 카테고리 탭 줄 높이 (기준 캔버스). ⚠️ **가정**(설계 역기입) — 문서에 탭 줄 절이 없다.
+        ///
+        /// ⚠️ **버튼 최소 150 을 밑돈다.** 탭은 **글자만** 있어 낮아도 눌리는 자리가 보이고,
+        /// 남는 높이는 **자주 누르는 쪽**(노드 버튼)에 준다 — 그쪽이 216 으로 규격을 넘는다.
+        /// 96 을 고르면 두 줄 합이 312 에 정확히 맞는다.
+        /// </summary>
+        public const float CategoryTabHeight = 96f;
 
         /// <summary>
         /// 액션바 높이 (기준 캔버스). **128 → 150**(2026-09-11 설계 확정 (가)).
@@ -360,9 +385,9 @@ namespace MBI.UI
         /// ⚠️ **비율 0.38 은 가정이다** — 문서에 탭 줄 절이 없다(설계 역기입).
         /// 탭은 글자만 있어 낮아도 읽히고, 노드 버튼은 그림이 들어가 높아야 한다.
         ///
-        /// ⚠️ **탭 줄은 눌리는 최소 150 을 밑돈다**(200 × 0.38 ≈ 76). 띠 높이 200 이
-        /// 문서 값이라 못 건드리므로, 둘 중 하나는 밑돌 수밖에 없다 — 자주 누르는 쪽
-        /// (노드 버튼)에 남는 높이를 준다. **판정거리다.**
+        /// ⚠️ **폐기 — 비율이 아니라 절대 높이로 나눈다**(2026-09-15 · 개편 ⑥).
+        /// 비율로 두면 띠가 바뀔 때 **두 줄이 같이 작아진다.** 노드 버튼은 규격(150)이
+        /// 있으므로 **탭을 96 으로 못 박고 나머지를 버튼에 준다** — `CategoryTabHeight`.
         /// </summary>
         public const float CategoryTabFraction = 0.38f;
 
@@ -374,8 +399,7 @@ namespace MBI.UI
             float gap = 16f * s;
             float left = FloatBandSlot(false, screenWidth, screenHeight).xMax + gap;
             float right = ZoomBarRect(screenWidth, screenHeight).x - gap;
-            return new Rect(left, band.y, Mathf.Max(0f, right - left),
-                band.height * CategoryTabFraction);
+            return new Rect(left, band.y, Mathf.Max(0f, right - left), CategoryTabHeight * s);
         }
 
         /// <summary>
@@ -395,9 +419,9 @@ namespace MBI.UI
             float left = FloatBandSlot(false, screenWidth, screenHeight).xMax + gap;
             float right = ZoomBarRect(screenWidth, screenHeight).x - gap;
 
-            float top = band.y + band.height * CategoryTabFraction;
+            float top = band.y + CategoryTabHeight * s;
             return new Rect(left, top, Mathf.Max(0f, right - left),
-                band.height * (1f - CategoryTabFraction));
+                Mathf.Max(0f, band.yMax - top));
         }
 
         /// <summary>

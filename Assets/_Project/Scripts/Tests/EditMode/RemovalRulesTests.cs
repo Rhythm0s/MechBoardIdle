@@ -64,5 +64,61 @@ namespace MBI.Tests
             Assert.That(RemovalRules.NeedsConfirm(Path((1, 1)), NodeAt55), Is.False,
                 "벨트 한 칸을 지우자고 묻는 것은 지우는 값보다 물음이 비싸다");
         }
+
+        // ── 무엇이 지우는 손인가 (2026-09-15 사용자 확정 · 개편 ① 개정) ──────────
+
+        private static bool Never(Vector2Int c) => false;
+        private static bool Always(Vector2Int c) => true;
+        private static bool CoreAt99(Vector2Int c) => c == new Vector2Int(9, 9);
+
+        [Test]
+        public void 탭은_제거가_아니다()
+        {
+            // ⚠️ 이것이 「벨트 탭 실수 삭제」 판정거리를 닫는다.
+            Assert.That(RemovalRules.IsRemovalDrag(new Vector2Int(1, 1), 1,
+                Never, Always, Never), Is.False, "한 칸이면 끌지 않은 것이다");
+        }
+
+        [Test]
+        public void 벨트에서_끌면_제거다()
+        {
+            Assert.That(RemovalRules.IsRemovalDrag(new Vector2Int(1, 1), 3,
+                Never, Always, Never), Is.True);
+        }
+
+        [Test]
+        public void 노드에서_끌어도_제거다()
+        {
+            // 노드·벨트를 안 가린다(사용자 확정).
+            Assert.That(RemovalRules.IsRemovalDrag(new Vector2Int(1, 1), 3,
+                Always, Never, Never), Is.True);
+        }
+
+        [Test]
+        public void 빈_칸에서_끌면_설치다()
+        {
+            Assert.That(RemovalRules.IsRemovalDrag(new Vector2Int(1, 1), 3,
+                Never, Never, Never), Is.False, "빈 칸에서 끄는 것은 벨트를 까는 손이다");
+        }
+
+        [Test]
+        public void 코어에서_시작하면_안_지운다()
+        {
+            Assert.That(RemovalRules.IsRemovalDrag(new Vector2Int(9, 9), 5,
+                Always, Never, CoreAt99), Is.False,
+                "코어를 시작점으로 잡은 손은 애초에 지우려는 뜻이 아니다");
+        }
+
+        [Test]
+        public void 코어는_경로에서_빠지고_나머지는_지운다()
+        {
+            List<Vector2Int> kept = RemovalRules.Removable(
+                Path((1, 1), (9, 9), (2, 1)), CoreAt99);
+
+            Assert.That(kept.Count, Is.EqualTo(2), "코어만 남기고 나머지는 지운다");
+            Assert.That(kept.Contains(new Vector2Int(9, 9)), Is.False);
+            // ⚠️ 다른 갈래(코어가 끼면 통째로 무시)를 안 고른 까닭 — 긴 줄을 지우다
+            // 코어를 스치기만 해도 손이 한 일이 통째로 사라진다.
+        }
     }
 }
