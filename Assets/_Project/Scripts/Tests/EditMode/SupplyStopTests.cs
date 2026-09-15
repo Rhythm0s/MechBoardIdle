@@ -221,5 +221,38 @@ namespace MBI.Tests
             // 창이 작아져도 둘 다 비율이라 관계가 유지된다.
             Assert.IsTrue(CombatInsetView.ClearsBand(960f, 600f));
         }
+        /// <summary>
+        /// **말과 조건이 맞는가** (2026-09-15 사용자 육안 — 「생산이 멈췄다는데 안 멈췄는데?」).
+        ///
+        /// ⚠️ 종전 조건은 **창고 0**인데 적는 말은 「생산이 멈췄습니다」였다.
+        /// 실측으로 두 자리에서 어긋났다 — 멀쩡한 판의 **처음 18초**(첫 도착 5.6초)와
+        /// **운반로만 끊긴 판**(노드는 만들고 있다). 이 시험이 그 둘을 못 박는다.
+        /// </summary>
+        [Test]
+        public void 만들고_있으면_멈췄다고_안_한다()
+        {
+            // 만드는 중 — 창고가 아직 비어 있어도(막 시작했다) 멈춘 것이 아니다.
+            Assert.IsFalse(SupplyStopRules.ProductionIsStopped(hasCombat: true, ammoProduce: 2f),
+                "초당 2발을 만들고 있는데 「생산이 멈췄다」고 하면 거짓이다");
+
+            // 운반로가 끊겨도 **만드는 것**은 계속된다 — 그쪽은 「나가는 곳이 없다」가 말한다.
+            Assert.IsFalse(SupplyStopRules.ProductionIsStopped(true, 0.5f),
+                "전달이 막힌 것과 생산이 멈춘 것은 다른 일이다");
+        }
+
+        [Test]
+        public void 정말_안_만들_때만_멈췄다고_한다()
+        {
+            Assert.IsTrue(SupplyStopRules.ProductionIsStopped(hasCombat: true, ammoProduce: 0f));
+            Assert.IsTrue(SupplyStopRules.BandIsVisible(
+                SupplyStopRules.ProductionIsStopped(true, 0f), powerShort: false));
+        }
+
+        [Test]
+        public void 전투가_없으면_안_띄운다()
+        {
+            // 조립만 만지는 동안 붉은 띠가 상주하면 띠가 뜻을 잃는다(0차 위계 · UI 12-4).
+            Assert.IsFalse(SupplyStopRules.ProductionIsStopped(hasCombat: false, ammoProduce: 0f));
+        }
     }
 }

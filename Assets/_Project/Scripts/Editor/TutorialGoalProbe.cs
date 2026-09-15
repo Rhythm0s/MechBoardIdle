@@ -103,6 +103,23 @@ namespace MBI.EditorTools
             }
             sb.AppendLine($"  「나가는 곳이 없다」 칸 **{stuck.Count}개**"
                           + (stuck.Count > 0 ? " — " + string.Join(" · ", stuck) : ""));
+
+            // ── 「생산이 멈췄습니다」 는 **창고 재고**로 뜨고, 창고는 **노드 집계**가 채운다.
+            //    벨트 위에 물건이 흘러도 이 집계가 0 이면 띠가 뜬다 — 그 자리를 가른다.
+            var connected = new HashSet<Vector2Int>(LogisticsReach.ConnectedNodes(grid));
+            WorkloadRate.Result work = WorkloadRate.Compute(grid, connected, Balance());
+            NetworkAggregate agg = LogisticsNetwork.Aggregate(grid, connected, work);
+
+            sb.AppendLine($"  이어진 노드 {connected.Count}개 · 탄약 생산 **{agg.ammoProduce:F2} 발/초**"
+                          + $" · 전력 {agg.powerSupply:F0}/{agg.powerDraw:F0} · 코어 {agg.hasCore}");
+
+            foreach (StartingBoard.Slot slot in StartingBoard.Nodes)
+            {
+                if (slot.nodeId != StartingBoard.MuniId) continue;
+                var c = new Vector2Int(slot.cell.x, slot.cell.y);
+                sb.AppendLine($"    군수@{c} — 이어짐 {connected.Contains(c)}"
+                              + $" · 일감률 {(work.perNode.ContainsKey(c) ? work.perNode[c].ToString("F2") : "없음")}");
+            }
             return sb.ToString();
         }
 
@@ -128,6 +145,10 @@ namespace MBI.EditorTools
             else
                 g.TryPlaceBelt(run.cell, run.inFace, run.outFace, FlowKind.None, out _);
         }
+
+        private static BalanceConfig Balance() =>
+            AssetDatabase.LoadAssetAtPath<BalanceConfig>(
+                "Assets/_Project/ScriptableObjects/BalanceConfig.asset");
 
         private static NodeDefinition Node(string id) =>
             AssetDatabase.LoadAssetAtPath<NodeDefinition>(NodeRoot + "/Node_" + id + ".asset");

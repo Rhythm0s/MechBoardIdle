@@ -3588,12 +3588,19 @@ namespace MBI.Logistics
         /// </summary>
         private void DrawSupplyWarningBand()
         {
-            bool storageEmpty = SupplyStopRules.StorageIsEmpty(
-                SupplySignals.HasCombat, SupplySignals.StorageStock);
+            // ⚠️ **재고가 아니라 생산을 본다**(2026-09-15 사용자 육안 · `ProductionIsStopped` 주석).
+            //
+            // 종전에는 **창고 0** 으로 띄우면서 「생산이 멈췄습니다」라고 적었다. 그래서
+            // ① 멀쩡한 판의 **처음 18초**(첫 도착이 5.6초라 창고가 아직 0)와
+            // ② **운반로만 끊긴 판**(노드는 만들고 있는데 못 닿는다)에서 거짓말을 했다.
+            // 끊긴 것은 「나가는 곳이 없다」가 이미 따로 말한다 — 두 띠가 서로 다른 것을 말해야
+            // 읽는 사람이 고칠 자리를 안다.
+            bool stopped = SupplyStopRules.ProductionIsStopped(
+                SupplySignals.HasCombat, LogisticsOutputBridge.AmmoProduce);
             bool powerShort = SupplyStopRules.PowerIsShort(
                 LogisticsOutputBridge.PowerSupply, LogisticsOutputBridge.PowerDraw);
 
-            if (!SupplyStopRules.BandIsVisible(storageEmpty, powerShort)) return;
+            if (!SupplyStopRules.BandIsVisible(stopped, powerShort)) return;
 
             Rect band = SupplyStopRules.BandRect(Screen.width, Screen.height);
             UiBlockers.Add(band);
