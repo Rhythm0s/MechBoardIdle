@@ -27,6 +27,63 @@ namespace MBI.Editor
         /// 배포 빌드 — **심사자에게 링크로 가는 것.** 튜토리얼 복귀 버튼은 여기에 없다
         /// (260902_W08 §2-2: 스테이지 0은 스테이지 이동 목록에 뜨지 않는다).
         /// </summary>
+        /// <summary>
+        /// 만든 `index.html` 의 **캔버스 크기를 창에 맞춘다** (2026-09-15 · 「HUD 잘림」의 진짜 원인).
+        ///
+        /// ⚠️⚠️ **HUD 가 잘린 것이 아니라 페이지가 캔버스를 창 밖으로 밀어내고 있었다.**
+        /// 유니티 기본 템플릿은 데스크톱에서 캔버스를 **`1440 x 2560` 으로 박아 둔다.**
+        /// 창이 그보다 작으면 캔버스가 가운데 정렬로 **삐져나가고**, 실측으로 위가
+        /// **431px** 잘려 있었다(`top: -431`) — 그래서 화면에는 HUD 윗줄들이 사라졌다.
+        ///
+        /// 📌 **게임 안에서는 못 고친다.** 유니티는 자기 캔버스가 다 보인다고 믿고 그린다 —
+        /// `Screen.height` 는 2560 을 그대로 돌려주므로 **클램프도 소용이 없다.**
+        /// 09-15 에 HUD 자리를 두 번 고치고도 증상이 남았던 까닭이 이것이다.
+        ///
+        /// ⚠️ **비율은 지킨다**(1440:2560). 늘리면 도트가 뭉개진다.
+        ///
+        /// 템플릿을 새로 만드는 대신 **만든 뒤 한 줄을 고치는** 쪽을 골랐다 —
+        /// 템플릿을 복제하면 `TemplateData` 까지 따라와 유니티가 올릴 때마다 갈라진다.
+        /// </summary>
+        private static void FitCanvasToWindow()
+        {
+            string page = System.IO.Path.Combine(OutputDir, "index.html");
+            if (!System.IO.File.Exists(page))
+            {
+                Debug.LogWarning("[MBI] index.html 이 없다 — 캔버스 맞춤을 건너뛴다: " + page);
+                return;
+            }
+
+            string html = System.IO.File.ReadAllText(page);
+            const string fixedSize = "canvas.style.width = \"1440px\";\n        canvas.style.height = \"2560px\";";
+
+            // 기본 템플릿이 바뀌면 여기가 안 맞는다 — **조용히 지나가지 않는다.**
+            if (html.IndexOf("canvas.style.width = \"1440px\"", System.StringComparison.Ordinal) < 0)
+            {
+                Debug.LogWarning("[MBI] index.html 에서 고정 캔버스 크기를 못 찾았다 — "
+                                 + "유니티 템플릿이 바뀌었을 수 있다. 창보다 큰 캔버스는 "
+                                 + "화면 가장자리를 잘라 먹으니 직접 확인한다.");
+                return;
+            }
+
+            string fit = string.Join("\n", new[]
+            {
+                "(function () {",
+                "          var W = 1440, H = 2560;",
+                "          function fit() {",
+                "            var k = Math.min(window.innerWidth / W, window.innerHeight / H);",
+                "            canvas.style.width = Math.round(W * k) + 'px';",
+                "            canvas.style.height = Math.round(H * k) + 'px';",
+                "          }",
+                "          fit();",
+                "          window.addEventListener('resize', fit);",
+                "        })();",
+            });
+
+            html = html.Replace(fixedSize, fit);
+            System.IO.File.WriteAllText(page, html);
+            Debug.Log("[MBI] index.html 캔버스를 창에 맞췄다 — 1440x2560 고정을 걷었다");
+        }
+
         [MenuItem("MBI/Build WebGL")]
         public static void Build() => Build(development: false);
 
@@ -76,6 +133,7 @@ namespace MBI.Editor
             {
                 double mb = s.totalSize / (1024.0 * 1024.0);
                 string kind = development ? "개발(촬영용)" : "배포";
+                FitCanvasToWindow();
                 Debug.Log($"[MBI] WebGL {kind} 빌드 성공: {OutputDir} · {mb:F1} MB · {s.totalTime.TotalSeconds:F0}초");
                 EditorApplication.Exit(0);
             }
