@@ -24,10 +24,11 @@ namespace MBI.Tests
         [Test]
         public void 사다리_위의_값으로만_올린다()
         {
-            Assert.That(KoreanFont.Snap(1), Is.EqualTo(24));
+            Assert.That(KoreanFont.Snap(1), Is.EqualTo(16));
+            Assert.That(KoreanFont.Snap(16), Is.EqualTo(16));
+            Assert.That(KoreanFont.Snap(17), Is.EqualTo(24));
             Assert.That(KoreanFont.Snap(24), Is.EqualTo(24));
             Assert.That(KoreanFont.Snap(25), Is.EqualTo(36));
-            Assert.That(KoreanFont.Snap(36), Is.EqualTo(36));
             Assert.That(KoreanFont.Snap(37), Is.EqualTo(52));
             Assert.That(KoreanFont.Snap(52), Is.EqualTo(52));
         }
