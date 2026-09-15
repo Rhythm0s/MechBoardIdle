@@ -29,15 +29,15 @@ namespace MBI.Tests
             Assert.That(KoreanFont.Snap(17), Is.EqualTo(24));
             Assert.That(KoreanFont.Snap(24), Is.EqualTo(24));
             Assert.That(KoreanFont.Snap(25), Is.EqualTo(36));
-            Assert.That(KoreanFont.Snap(37), Is.EqualTo(52));
-            Assert.That(KoreanFont.Snap(52), Is.EqualTo(52));
+            Assert.That(KoreanFont.Snap(37), Is.EqualTo(44));
+            Assert.That(KoreanFont.Snap(44), Is.EqualTo(44));
         }
 
         [Test]
         public void 아무리_커도_사다리_밖으로_안_나간다()
         {
-            Assert.That(KoreanFont.Snap(500), Is.EqualTo(52));
-            Assert.That(KoreanFont.Snap(int.MaxValue), Is.EqualTo(52));
+            Assert.That(KoreanFont.Snap(500), Is.EqualTo(44));
+            Assert.That(KoreanFont.Snap(int.MaxValue), Is.EqualTo(44));
         }
 
         [Test]
@@ -83,7 +83,26 @@ namespace MBI.Tests
         }
 
         /// <summary>
-        /// **화면에 나올 수 있는** 한글 유일 글자 수. 문자열 리터럴만 센다 —
+        /// 아틀라스에 **구워지는** 글자인가 (2026-09-15 정정 · 「다리L」 조사).
+        ///
+        /// ⚠️ **한글만 세던 것이 틀렸다.** 동적 폰트는 **쓰이는 글자 전부**를 굽는다 —
+        /// 라틴 대문자·숫자·문장부호도 아틀라스를 먹는다. 「다리L」의 **L 만** 깨진
+        /// 자리가 그것을 가리킨다: 한글은 다 나오는데 라틴 하나가 빠졌다.
+        ///
+        /// 공백은 뺀다 — 그릴 것이 없어 자리를 안 먹는다.
+        /// </summary>
+        private static bool IsBaked(char ch)
+        {
+            if (char.IsWhiteSpace(ch)) return false;
+            if (ch >= '가' && ch <= '힣') return true;   // 한글 음절
+            if (ch >= 'ㄱ' && ch <= 'ㆎ') return true;   // 낱자
+            if (ch < 0x80) return !char.IsControl(ch);            // 라틴·숫자·부호
+            return ch == '·' || ch == '×' || ch == '→' || ch == '—' || ch == '⇄'
+                || ch == '▲' || ch == '▼' || ch == '●';           // 실제로 쓰는 기호
+        }
+
+        /// <summary>
+        /// **화면에 나올 수 있는** 유일 글자 수. 문자열 리터럴만 센다 —
         /// 주석은 화면에 안 나오므로 아틀라스를 안 먹는다.
         /// </summary>
         private static int CountKoreanGlyphsInStrings()
@@ -100,8 +119,7 @@ namespace MBI.Tests
 
                 foreach (Match m in literal.Matches(File.ReadAllText(path)))
                     foreach (char ch in m.Groups[1].Value)
-                        if ((ch >= '가' && ch <= '힣') || (ch >= 'ㄱ' && ch <= 'ㆎ'))
-                            chars.Add(ch);
+                        if (IsBaked(ch)) chars.Add(ch);
             }
             return chars.Count;
         }

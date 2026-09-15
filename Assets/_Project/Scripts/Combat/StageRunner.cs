@@ -1476,7 +1476,16 @@ namespace MBI.Combat
             string lineWallet = $"고철 {IdleSignals.WalletScrap:N0}   ·   강화재료 {IdleSignals.WalletEnhMaterial:N0}";
             const string lineHelp = "이동 WASD / 화살표   ·   회피 = 화면 플릭";
 
-            float hudW = Mathf.Min(560f, Screen.width - 24f);
+            // ⚠️ **날 픽셀 폭 560 을 걷었다**(2026-09-15 · 육안 ②).
+            //
+            // 글자만 배율을 먹이고 **자리는 안 고쳤더니**, 720×1280 세로 창에서 HUD 가
+            // **화면 왼쪽 밖으로 잘렸다** — 「(부」·「마운」만 보였다.
+            //
+            // 전투 화면은 **레이어 1**(절대 좌표)이다. 상태창이 x40 에서 시작하므로
+            // (`UiLayout.StatusPanelOrigin`) 그 자리를 쓰고, 폭은 기준 캔버스 **760**
+            // (상태창이 화면 절반을 넘지 않는 선 · ⚠️ 가정)으로 잡아 배율을 곱한다.
+            float hudLeft = UiLayout.StatusPanelOrigin.x * hudScale;
+            float hudW = Mathf.Min(760f * hudScale, Screen.width - hudLeft * 2f);
             float need = HudTextHeight(style, hudW - 10f,
                              lineTitle, lineOutput, lineAmmo, lineStore, lineEnemy, lineTag,
                              lineElapsed, lineWallet, lineHelp)
@@ -1491,7 +1500,8 @@ namespace MBI.Combat
                 ? combatBand.height - 20f
                 : Screen.height - combatBand.y - 20f;
 
-            var hud = new Rect(12f, combatBand.y + 10f, hudW, Mathf.Min(need, room));
+            var hud = new Rect(hudLeft, combatBand.y + UiLayout.InfoBarHeight * hudScale,
+                hudW, Mathf.Min(need, room));
 
             // ⚠️ **조립 화면에서는 이 글자 블록을 접을 수 있다**(2026-09-15 사용자 확정 · 육안 ③).
             //

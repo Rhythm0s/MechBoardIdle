@@ -27,6 +27,12 @@ namespace MBI.UI
     /// </summary>
     public sealed class AudioOptionsPanel : MonoBehaviour
     {
+        /// <summary>진단 로그를 한 번만 찍었는가 (2026-09-15 · 걷을 자리).</summary>
+        private static bool _loggedOnce;
+
+        /// <summary>자리 로그를 한 번만 찍었는가 (2026-09-15 · 걷을 자리).</summary>
+        private static bool _loggedRect;
+
         /// <summary>기기에 남기는 자리. 이름이 바뀌면 사람이 고른 값이 사라진다.</summary>
         private const string PrefKey = "mbi.music.volume";
 
@@ -105,6 +111,17 @@ namespace MBI.UI
             // 메뉴의 「볼륨」이 아무것도 안 여는 버튼이 된다.
             GUI.depth = MenuDepth - 1;
 
+            // ⚠️ **진단 한 줄**(2026-09-15 · 「소리 버튼이 안 보인다」 원인 미확정).
+            //
+            // 셋 중 어느 것인지 코드만 봐서는 못 갈랐다 — ① 이 OnGUI 가 아예 안 도는가
+            // ② 도는데 자리가 화면 밖인가 ③ 그려지는데 무언가 덮는가.
+            // **한 번만** 찍어 콘솔로 답을 받는다. 답이 나오면 이 블록을 걷는다.
+            if (!_loggedOnce)
+            {
+                _loggedOnce = true;
+                Debug.Log($"[MBI] 소리 패널 OnGUI 돈다 — 화면 {Screen.width}×{Screen.height}");
+            }
+
             UiSkin.Apply(); // 껍데기 + 한글 폰트 — WebGL엔 시스템 폰트 폴백이 없다
 
             // ⚠️ **화면 우상단으로 옮겼다**(2026-09-15 사용자 확정 · 하단 개편 ⑧).
@@ -134,6 +151,11 @@ namespace MBI.UI
             {
                 fontSize = KoreanFont.Snap(Mathf.Max(10, Mathf.RoundToInt(bh * 0.28f))),
             };
+            if (!_loggedRect)
+            {
+                _loggedRect = true;
+                Debug.Log($"[MBI] 소리 버튼 자리 {button.x:F0},{button.y:F0} {button.width:F0}×{button.height:F0}");
+            }
             if (GUI.Button(button, _open ? "소리 닫기" : "소리", btnStyle)) _open = !_open;
 
             if (!_open) return;

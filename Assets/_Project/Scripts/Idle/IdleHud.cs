@@ -69,8 +69,10 @@ namespace MBI.Idle
             // 기준 캔버스(1440×2560) 값으로 적고 배율을 곱한다 — 구 420×300 은 폐기 표기.
             // ⚠️ **크기는 가정이다**(설계 역기입) — 문서에 방치 보상 창 절이 없다.
             float boxScale = MBI.UI.UiLayout.Scale(Screen.height);
-            float w = Mathf.Min(1040f * boxScale, Screen.width - 48f * boxScale);
-            float h = 740f * boxScale;
+            // ⚠️ **1040×740 은 과했다**(2026-09-15 재실측) — 세로 창에서 화면 절반을 먹었다.
+            // 세로 창(720×1280)에서 **1/4 안**에 들도록 줄인다. 값은 여전히 가정이다.
+            float w = Mathf.Min(760f * boxScale, Screen.width - 48f * boxScale);
+            float h = 520f * boxScale;
             var box = new Rect((Screen.width - w) * 0.5f, (Screen.height - h) * 0.5f, w, h);
 
             // 창 뒤로 클릭이 새면 안 된다 — 창을 닫으려다 그 아래 칸에 노드가 놓인다.
