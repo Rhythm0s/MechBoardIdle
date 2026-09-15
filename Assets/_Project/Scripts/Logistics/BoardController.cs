@@ -2592,7 +2592,13 @@ namespace MBI.Logistics
                 clipping = TextClipping.Overflow,
             };
             // 글자를 **아래로** 민다 — 위쪽은 노드 그림이 쓴다(`DrawPaletteThumb`).
-            style.padding = new RectOffset(2, 2, Mathf.RoundToInt(side * 0.56f), 2);
+            //
+            // ⚠️ **아래 여백이 2 였다**(2026-09-15 · 육안 점검에서 잡았다). 버튼이 216 으로
+            // 커지면서 글자가 **버튼 맨 밑변에 붙었고**, 그 밑변이 곧 부유 띠의 끝이라
+            // 화면에서는 **액션바에 물려 아랫부분이 잘린 것처럼** 보였다.
+            // 위를 조금 덜 밀고 아래를 띄워 **글자를 버튼 안쪽에** 앉힌다.
+            int padBottom = Mathf.Max(4, Mathf.RoundToInt(side * 0.08f));
+            style.padding = new RectOffset(2, 2, Mathf.RoundToInt(side * 0.50f), padBottom);
 
             // ⚠️ **칸 수를 세는 자리다 — 버튼을 더하면 여기도 더해야 한다**(2026-09-15 결함).
             //

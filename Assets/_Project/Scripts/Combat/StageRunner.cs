@@ -1558,9 +1558,38 @@ namespace MBI.Combat
             // 전투 화면은 **레이어 1**(절대 좌표)이라 768 과 견줄 것이 아니다 — `UiLayout` 의
             // 주석이 「두 수는 다른 화면의 수」라고 이미 적어 둔 그 자리다. 전투 화면까지
             // 768 로 가두면 **아래 줄을 잃을 이유가 없는데 잃는다.**
+            // ⚠️⚠️ **방을 잴 때 시작점을 빼야 한다**(2026-09-15 · 육안 점검에서 잡았다).
+            //
+            // 종전에는 조립 화면에서 `combatBand.height - 20` 을 방으로 썼다. 그런데 글자는
+            // 띠 맨 위가 아니라 **`InfoBarHeight` 만큼 내려와서** 시작한다 — 그 높이를
+            // 안 뺐으니 **방을 그만큼 넘겨 잡았다.** 결과로 HUD 가 전투 띠를 **넘어 보드
+            // 위까지** 내려왔고, 화면에서는 경고 띠와 노드가 그 위를 덮어 **글자가 잘린
+            // 것처럼** 보였다(실제로는 잘린 게 아니라 **가려진** 것이다).
+            //
+            // 📌 **띠 안에 가두는 것이 목적이면 띠의 아랫변에서 재야 한다** — 높이에서
+            // 빼는 것과 아랫변에서 재는 것은 시작점이 0 일 때만 같다.
+            float hudTop = combatBand.y + UiLayout.InfoBarHeight * hudScale;
             float room = GameViewSignals.BoardViewActive
-                ? combatBand.height - 20f
-                : Screen.height - combatBand.y - 20f;
+                ? Mathf.Max(0f, combatBand.yMax - hudTop - 10f)
+                : Mathf.Max(0f, Screen.height - hudTop - 20f);
+
+            // ⚠️ **방이 모자라면 글자를 줄인다 — 줄을 버리지 않는다.**
+            //
+            // `GUILayout.BeginArea` 는 넘치는 것을 **말없이 자른다.** 방만 맞추고 끝내면
+            // 아래 줄들이 **에러 없이 사라진다** — 09-14 에 「경과·고철·이동 WASD」 세 줄이
+            // 통째로 없어졌던 그 모양이다. 줄 수는 화면이 정할 것이 아니므로 크기를 줄인다.
+            if (need > room && room > 0f)
+            {
+                int shrunk = Mathf.Max(9, Mathf.RoundToInt(style.fontSize * room / need));
+                if (shrunk < style.fontSize)
+                {
+                    style.fontSize = KoreanFont.Snap(shrunk);
+                    need = HudTextHeight(style, hudW - 10f,
+                               lineTitle, lineOutput, lineAmmo, lineStore, lineEnemy, lineTag,
+                               lineElapsed, lineWallet, lineHelp)
+                           + (HudBars.BarHeight + 4f) * 2f + 10f;
+                }
+            }
 
             // ⚠️ **화면 안으로 가둔다**(2026-09-15 · 육안 ②).
             //
@@ -1568,7 +1597,7 @@ namespace MBI.Combat
             // 아직 못 짚었으므로, **결과를 화면 안으로 클램프**한다 — 어느 DPR 에서도
             // 잘리지 않게 하는 것이 먼저다. 넘치는 셈을 찾으면 이 클램프는 아무 일도 안 한다.
             float hudH = Mathf.Min(need, room);
-            float hudY = combatBand.y + UiLayout.InfoBarHeight * hudScale;
+            float hudY = hudTop;
             if (hudY + hudH > Screen.height) hudY = Mathf.Max(0f, Screen.height - hudH);
             if (hudH > Screen.height) hudH = Screen.height;
 
