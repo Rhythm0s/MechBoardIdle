@@ -38,6 +38,18 @@ namespace MBI.Editor
                 return;
             }
 
+            // ⚠️ **곡 둘도 여기서 꽂는다**(2026-09-15 · `AudioConfig` 의 주인을 하나로).
+            //
+            // 종전에는 `CombatAssetGenerator.BuildAudioConfig` 가 곡과 효과음을 같이 꽂았다.
+            // 그런데 그쪽은 효과음을 `.wav` 로 찾고 여기는 `.ogg` 로 꽂아서, **전투 생성기를
+            // 돌릴 때마다 배선 여덟이 null 로 덮여 날아갔다** — 09-14 · 09-15 두 번 겪고
+            // 함정으로 적어 두었는데 **세 번째가 또 왔다.**
+            //
+            // 확장자를 맞추는 것으로는 안 끝난다. **주인이 둘인 것**이 그대로라 한쪽이 경로를
+            // 바꾸면 다른 쪽이 조용히 어긋난다(지침 §7 「한 값이 두 곳에 살면 답이 둘이 된다」).
+            config.musicBattle = LoadBgm("bgm_battle");
+            config.musicBoss = LoadBgm("bgm_boss");
+
             // ⚠️ **길이를 목록에 맞춘다.** 짧으면 `SfxPlayer` 가 `Min(All.Length, sfxClips.Length)`
             // 로 자르므로 **뒤쪽 소리가 조용히 사라진다.**
             if (config.sfxClips == null || config.sfxClips.Length != SoundIds.All.Length)
@@ -76,5 +88,13 @@ namespace MBI.Editor
             Debug.Log($"[MBI] 효과음 배선 — 꽂힘 {wired}/{SoundIds.All.Length}"
                       + $" · ⚠️ 파일 있는데 빈 칸 {presentButEmpty}{tail}");
         }
+        /// <summary>
+        /// 배경곡. **`.ogg` 다** — 효과음과 같은 형식이고, 곡 둘은 리포 안에 있다
+        /// (효과음만 재배포 금지라 `.gitignore` 가 막는다).
+        /// </summary>
+        private static AudioClip LoadBgm(string fileName)
+            => AssetDatabase.LoadAssetAtPath<AudioClip>(
+                $"Assets/_Project/Audio/bgm/{fileName}.ogg");
+
     }
 }

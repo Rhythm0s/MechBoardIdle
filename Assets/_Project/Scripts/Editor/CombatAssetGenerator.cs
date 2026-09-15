@@ -98,8 +98,8 @@ namespace MBI.Editor
 
             if (tuning != null) EditorUtility.SetDirty(tuning);
 
-            // 소리 값 묶음 — 곡 둘은 이미 리포에 있고 효과음 여덟은 아직 없다.
-            BuildAudioConfig();
+            // ⚠️ **소리는 여기서 안 건드린다**(2026-09-15 · 함정 세 번째 재발을 끊는다).
+            // `AudioConfig` 의 주인은 `AudioAssetGenerator` 하나다 — 그 주석에 까닭이 있다.
             BuildPortfolioLinks(); // 메인 메뉴 주소 — 자리만 만들고 값은 사용자가 넣는다
 
             float capA = json.Param("capA");             // 6 소비 상한
@@ -198,38 +198,27 @@ namespace MBI.Editor
         }
 
         /// <summary>
-        /// 소리 값 묶음을 만들고 **자산 자리만** 다시 채운다.
+        /// ⚠️ **폐기 — 이 생성기는 `AudioConfig` 를 안 건드린다**
+        /// (2026-09-15 · 등재된 함정의 **세 번째 재발**을 끊는다).
         ///
-        /// ⚠️ **값은 안 덮는다.** 겹침 상한과 볼륨은 화면에서 듣고 고치는 값이라
-        /// (사운드 문서 9장 S-1·S-2) 생성기가 재실행될 때마다 되돌리면 **귀로 고른 값이
-        /// 조용히 사라진다.** 여기서 채우는 것은 클립 참조뿐이다.
+        /// **무슨 일이 있었나.** 여기서 효과음을 `.wav` 로 찾았는데
+        /// <see cref="AudioAssetGenerator"/> 는 `.ogg` 로 꽂는다. 그래서 이 생성기를 돌릴
+        /// 때마다 **못 찾은 클립이 null 로 덮여** 배선 여덟이 통째로 날아갔다 —
+        /// 09-14 · 09-15 두 번 겪고 HANDOFF 에 함정으로 적어 두었는데, **적어 둔 것이
+        /// 세 번째를 막지 못했다.** 적는 것과 고치는 것은 다른 일이다.
+        ///
+        /// **왜 확장자를 맞추는 것으로 안 끝내나.** 맞춰도 **주인이 둘인 것**은 그대로다.
+        /// 한쪽이 경로를 바꾸면 다른 쪽이 조용히 어긋난다(지침 §7 「한 값이 두 곳에 살면
+        /// 답이 둘이 된다」). 그래서 **`AudioConfig` 의 주인을 `AudioAssetGenerator` 하나로**
+        /// 옮겼다 — BGM 둘까지 그쪽이 꽂는다.
+        ///
+        /// 메서드는 **폐기 표기로 남긴다.** 부르는 곳은 없다.
         /// </summary>
         public static AudioConfig BuildAudioConfig()
         {
-            AudioConfig audio = LoadOrCreate<AudioConfig>(AudioConfigPath);
-
-            audio.musicBattle = LoadBgm("bgm_battle");
-            audio.musicBoss = LoadBgm("bgm_boss");
-
-            // 효과음 여덟 — **순서는 `SoundIds.All`과 같다.** 없는 것은 null로 남고
-            // 재생기가 조용히 건너뛴다(자리표시 소리 금지).
-            var clips = new AudioClip[SoundIds.All.Length];
-            for (int i = 0; i < SoundIds.All.Length; i++) clips[i] = LoadSfx(SoundIds.All[i]);
-            audio.sfxClips = clips;
-
-            EditorUtility.SetDirty(audio);
-            return audio;
+            // 소유자는 `AudioAssetGenerator` 다. 여기서는 읽지도 만들지도 않는다.
+            return AssetDatabase.LoadAssetAtPath<AudioConfig>(AudioConfigPath);
         }
-
-        private static AudioClip LoadBgm(string fileName)
-            => AssetDatabase.LoadAssetAtPath<AudioClip>($"Assets/_Project/Audio/bgm/{fileName}.ogg");
-
-        /// <summary>
-        /// 효과음. ⚠️ **아직 하나도 없다**(소리 자산 대장 2장 — 사용자가 무료 자산으로 조달 중).
-        /// 형식은 대장이 `.wav`로 적어 두었다.
-        /// </summary>
-        private static AudioClip LoadSfx(string fileName)
-            => AssetDatabase.LoadAssetAtPath<AudioClip>($"Assets/_Project/Audio/sfx/{fileName}.wav");
 
         /// <summary>
         /// 배경은 `Art/Backgrounds` 아래에 산다 (2026-09-09 배선).
