@@ -20,7 +20,34 @@ namespace MBI.Core
 
         /// <summary>피격 점멸 지속(초). **세기는 일정하다** — 로봇에 방어력이 없어 받는 피해가
         /// 몬스터 공격력 그대로이므로, 세기로 정도를 표현하면 없는 정보를 지어내는 것이 된다.</summary>
-        public const float HitFlashDuration = 0.12f;
+        /// <summary>
+        /// 로봇 피격 표시 길이 — ⚠️ **0.12 → 0.35**(2026-09-15 사용자 확정 · 육안 ④).
+        ///
+        /// 0.12 초는 배선이 다 있는데도 **「이펙트가 없다」로 보였다** — 눈이 따라가기 전에
+        /// 끝났다. 사용자가 **길게·진하게**로 확정했다.
+        /// ⚠️ **값은 가정**(설계 역기입) — 길면 맞는 줄이 이어질 때 계속 붉어 보인다.
+        /// </summary>
+        public const float HitFlashDuration = 0.35f;
+
+        /// <summary>
+        /// 피격 흔들림 크기(아트 픽셀). ⚠️ **가정 3**(2026-09-15 · 육안 ④ 「작은 흔들림」).
+        ///
+        /// ⚠️ **넉백이 아니다.** 로봇은 제자리에 있고 **그림만** 떤다 — 밀려나면 이동 규칙과
+        /// 싸우고, 자동 조종이 그 자리를 다시 계산한다.
+        /// </summary>
+        public const float HitShakePixels = 3f;
+
+        /// <summary>피격 흔들림 — 짧은 주기로 좌우. 지속이 끝나면 0 이다.</summary>
+        public static Vector2 HitShakeOffset(float elapsed)
+        {
+            if (elapsed < 0f || elapsed >= HitFlashDuration) return Vector2.zero;
+
+            // 결정론적 — 난수를 쓰지 않는다(같은 틱이면 같은 그림).
+            float t = elapsed / HitFlashDuration;
+            float decay = 1f - t;                       // 갈수록 잦아든다
+            float wave = Mathf.Sin(elapsed * 90f);      // 빠른 떨림
+            return new Vector2(wave * decay * (HitShakePixels / ArtSpec.PixelsPerUnit), 0f);
+        }
 
         /// <summary>
         /// 발사 반동 오프셋. 표적 **반대 방향**으로 밀렸다가 복귀한다.
@@ -44,9 +71,13 @@ namespace MBI.Core
         {
             if (elapsed < 0f || elapsed >= HitFlashDuration) return baseColor;
 
-            // 지속을 4등분해 빨강·하양이 두 번 교차한다 — 한 번만 깜빡이면 눈에 안 걸린다.
-            int phase = Mathf.FloorToInt(elapsed / (HitFlashDuration * 0.25f));
-            return (phase % 2 == 0) ? Color.red : Color.white;
+            // ⚠️ **빨강·하양 교차 → 빨강 틴트로**(2026-09-15 사용자 확정 · 육안 ④ 「진하게」).
+            //
+            // 교차는 **하양 국면에 원래 색과 같아 보여** 절반이 헛돌았다. 이제 **줄곧 붉게**
+            // 두되 갈수록 옅어진다 — 맞은 순간이 가장 진하고 그것이 눈에 남는다.
+            float t = elapsed / HitFlashDuration;
+            float strength = 1f - t;                    // 1 → 0
+            return Color.Lerp(baseColor, Color.red, strength);
         }
 
         /// <summary>

@@ -311,6 +311,21 @@ namespace MBI.Combat
             {
                 _flashElapsed += dt;
                 _bodyRenderer.color = EffectTiming.HitFlashColor(_bodyBaseColor, _flashElapsed);
+
+                // ⚠️ **작은 흔들림**(2026-09-15 사용자 확정 · 육안 ④). **넉백이 아니다** —
+                // 몸은 제자리에 있고 **그림만** 떤다. 밀려나면 이동 규칙과 싸우고
+                // 자동 조종이 그 자리를 다시 계산한다.
+                if (_body != null)
+                {
+                    Vector2 shake = EffectTiming.HitShakeOffset(_flashElapsed);
+                    _body.localPosition += new Vector3(shake.x, shake.y, 0f);
+                }
+
+                // ⚠️ **끝나면 색을 되돌린다.** 종전에는 지속이 지나면 이 블록을 통째로
+                // 건너뛰어 **마지막 프레임의 색이 그대로 남았다** — 빨강·하양 교차라
+                // 하양으로 끝나면 티가 안 났을 뿐이다.
+                if (_flashElapsed >= EffectTiming.HitFlashDuration)
+                    _bodyRenderer.color = _bodyBaseColor;
             }
         }
     }

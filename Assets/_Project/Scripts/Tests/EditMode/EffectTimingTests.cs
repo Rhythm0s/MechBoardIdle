@@ -66,19 +66,50 @@ namespace MBI.Tests
         // ---- 피격 점멸 ----
 
         /// <summary>
-        /// 빨강·하양만 오간다. **세기는 일정** — 로봇에 방어력이 없어 받는 피해가 몬스터 공격력
-        /// 그대로이므로, 세기로 정도를 표현하면 없는 정보를 지어내는 것이 된다.
+        /// **줄곧 붉되 갈수록 옅어진다** (2026-09-15 사용자 확정 · 육안 ④ 「길게·진하게」).
+        ///
+        /// ⚠️ **구 시험은 「빨강·하양 교차 · 세기 일정」을 지켰다.** 근거는 「로봇에 방어력이
+        /// 없어 세기로 정도를 표현하면 없는 정보를 지어낸다」였고 그 자체로는 옳다.
+        /// 그런데 화면에서 **하양 국면이 원래 색과 같아 보여 절반이 헛돌았고**, 0.12 초는
+        /// 배선이 다 있는데도 **「이펙트가 없다」로 보였다.**
+        ///
+        /// 이제 세기는 **정도가 아니라 시간**을 말한다 — 맞은 순간이 가장 진하고 잦아든다.
+        /// 여전히 **피해량과 무관**하므로 없는 정보를 지어내지 않는다.
         /// </summary>
         [Test]
-        public void HitFlash_AlternatesRedAndWhite_AtConstantIntensity()
+        public void HitFlash_StaysRed_AndFadesOverTime()
         {
-            var seen = new System.Collections.Generic.HashSet<Color>();
-            for (int i = 0; i < 4; i++)
-                seen.Add(EffectTiming.HitFlashColor(Color.blue, EffectTiming.HitFlashDuration * (0.125f + i * 0.25f)));
+            Color early = EffectTiming.HitFlashColor(Color.blue, EffectTiming.HitFlashDuration * 0.05f);
+            Color late = EffectTiming.HitFlashColor(Color.blue, EffectTiming.HitFlashDuration * 0.90f);
 
-            Assert.AreEqual(2, seen.Count, "두 색만 나온다");
-            Assert.IsTrue(seen.Contains(Color.red));
-            Assert.IsTrue(seen.Contains(Color.white));
+            Assert.Greater(early.r, late.r, "맞은 순간이 가장 붉다");
+            Assert.Greater(early.r, Color.blue.r, "바탕색보다 붉어야 맞은 것이 보인다");
+            // ⚠️ 바탕이 파랑이므로 **잦아들수록 파랑이 늘어난다**(빨강 쪽에서 바탕 쪽으로).
+            Assert.Greater(late.b, early.b, "잦아들수록 바탕색으로 돌아온다");
+        }
+
+        /// <summary>
+        /// 흔들림은 **그림만** 떤다 — 넉백이 아니다 (2026-09-15 사용자 확정).
+        /// 결정론적이어야 한다: 같은 시각이면 같은 값이다(난수 금지 · §5-6).
+        /// </summary>
+        [Test]
+        public void HitShake_IsDeterministic_AndStopsWhenDone()
+        {
+            float t = EffectTiming.HitFlashDuration * 0.3f;
+            Assert.AreEqual(EffectTiming.HitShakeOffset(t).x, EffectTiming.HitShakeOffset(t).x, D,
+                "같은 시각이면 같은 값 — 난수를 쓰면 재현이 깨진다");
+
+            Assert.AreEqual(Vector2.zero, EffectTiming.HitShakeOffset(EffectTiming.HitFlashDuration),
+                "끝나면 제자리 — 안 되돌리면 몸이 밀린 채로 남는다");
+            Assert.AreEqual(Vector2.zero, EffectTiming.HitShakeOffset(-1f));
+        }
+
+        /// <summary>피격 표시가 **눈에 걸릴 만큼 길다** — 0.12 초는 「없다」로 보였다.</summary>
+        [Test]
+        public void HitFlash_IsLongEnoughToSee()
+        {
+            Assert.Greater(EffectTiming.HitFlashDuration, 0.2f,
+                "0.12 초는 배선이 다 있는데도 「이펙트가 없다」로 보였다(09-15 육안)");
         }
 
         [Test]
