@@ -328,12 +328,47 @@ md5 를 찾을 자리가 없어 먼저 적는다. **승인 상태는 아트가 �
 
 | 파일 | md5 | 캔버스 | 실루엣 | 여백 L R T B | 상태 |
 |---|---|---|---|---|---|
-| `UI/icon_logi_normal.png` | `8289d3c4` | 128 | 94 × 38 | 17 17 47 43 | 09-04 생성 · ⚠️ **육안 기록 없음** |
-| `UI/icon_logi_slow.png` | `22af3cc2` | 128 | 78 × 55 | 25 25 36 37 | 〃 |
-| `UI/icon_logi_stop.png` | `1d95e7d3` | 128 | 98 × 28 | 15 15 49 51 | 〃 |
-| `UI/icon_not_connected.png` | `59d54db7` | 128 | 66 × 74 | 38 24 27 27 | 〃 |
-| `UI/icon_power_short.png` | `9ceb4692` | 128 | 72 × 64 | 28 28 30 34 | 〃 |
+| `UI/icon_logi_normal.png` | `8289d3c4` | 128 | 94 × 38 | 17 17 47 43 | ⚠️ **반려 09-15 · 색만 고쳤다** — 사유 「물류 박스 색상만 종이 박스로」. 설치 대기 |
+| `UI/icon_logi_slow.png` | `22af3cc2` | 128 | 78 × 55 | 25 25 36 37 | ❌ **폐기 09-15** — 반려됐으나 다시 뽑지 않는다 |
+| `UI/icon_logi_stop.png` | `1d95e7d3` | 128 | 98 × 28 | 15 15 49 51 | ❌ **폐기 09-15** — 〃 |
+| `UI/icon_not_connected.png` | **`1cd46845`** | 128 | 128 × 103 | **0 0** 17 8 | ✅ **사용자 통과 09-15 · 2차 `c01`** — 끊긴 벨트 · 구판 `59d54db7` 는 `candidates/icon_not_connected_v1/` |
+| `UI/icon_power_short.png` | `9ceb4692` | 128 | 72 × 64 | 28 28 30 34 | ✅ **사용자 통과 09-15** |
 | ~~`UI/ui_kit_main.png`~~ | `3377a5dd` | **512** | 353 × 417 | 64 95 64 31 | ✅ **이동 · 09-04 초안 · 미승인** — 2026-09-11 에 `Docs/art_log/candidates/ui_kit_v0904/` 로 옮겼다(`.zip` 사본과 `.meta` 둘 함께) |
+
+### ⚠️ 표식 다섯 중 셋은 이제 화면에 안 뜼다 (2026-09-15)
+
+사용자 육안으로 넷이 반려됐고(`icon_logi_normal` · `icon_logi_slow` · `icon_logi_stop` ·
+`icon_not_connected`), 그 자리를 고치려다 **둘은 고쳐도 볼 수 없다**는 것을 코드에서 찾았다.
+
+`Assets/_Project/Scripts/Core/NodeStatusIcon.cs:56` — **같은 날(09-15) 사용자 확정**으로 적혀 있다:
+
+> ⚠️ **정지·감속 표식을 걷었다**(2026-09-15 사용자 확정 · §72-51 · UI 문서 3-4-1).
+> 문서가 정한 원인은 **둘**이다 — 전력 부족 · 미연결. 정지·감속은 원인이 아니라 **결과**이고,
+> 그 결과는 이미 **노드 밝기**가 같은 눈금으로 말하고 있었다.
+
+판정 함수 `NodeStatusIcon.Of()` 가 돌려주는 값은 셋뿐이다 — `PowerShort` · `NotConnected` · `None`.
+`icon_logi_normal` 은 같은 파일의 `ShowWhenNormal = false` 로 **자산은 물려 두고 안 쓴다.**
+
+| 표식 | 코드가 화면에 띄우는가 |
+|---|---|
+| `icon_power_short` | ✅ |
+| `icon_not_connected` | ✅ |
+| `icon_logi_stop` | ❌ 걷혔다 (`NodeIcon.Stopped` 는 열거값에만 남음) |
+| `icon_logi_slow` | ❌ 걷혔다 |
+| `icon_logi_normal` | ❌ `ShowWhenNormal = false` |
+
+**사용자 판정 (09-15) — 정지·감속 둘은 다시 뽑지 않고 폐기 표기만 한다.**
+화면에 안 뜼 그림에 40~80 생성을 쓰지 않는다는 뜻이다.
+
+⚠️ **파일은 옮기지 않았다.** 다섯 전부 `Resources/UiSkinAssets.asset` 에 guid 로 물려 있고
+(`iconLogiSlow: be6980ab…` · `iconLogiStop: e450d79c…`), `UiSkinAssetGenerator.cs:54` 가 이름으로 다시 찾는다.
+옮기면 그 참조가 끊기고, **그 자리는 아트 소유가 아니다** — 문서·코드가 배선을 걷을지 정한다.
+`ui_kit_main` 을 `candidates/` 로 옮겼던 것과 다른 자리다 — 그것은 배선된 적이 없었다.
+
+**`icon_not_connected` 는 전원이 아니라 벽트다.** 사용자가 「파워와 연결이 되지 않은 것인가」를
+물었고, 같은 파일 `:45` 가 답을 가지고 있다 — 「끊긴 줄은 산출률이 0 이라 「정지」로도 읽히지만,
+**고칠 것은 노드가 아니라 줄이다**」. 번개와 플러그로 그리면 `icon_power_short` 와
+**같은 말을 하는 표식 둘**이 되므로, 사용자 판정으로 **끊긴 벨트**로 간다.
 
 **아이콘 다섯은 코드가 아직 안 읽는다** — `Assets/_Project/Scripts/` 에 파일 이름으로 참조하는 자리가 **0건**이다(2026-09-11 grep). 월요일 배선이 그 자리를 만든다.
 
