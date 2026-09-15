@@ -44,6 +44,32 @@ namespace MBI.Editor
         /// 템플릿을 새로 만드는 대신 **만든 뒤 한 줄을 고치는** 쪽을 골랐다 —
         /// 템플릿을 복제하면 `TemplateData` 까지 따라와 유니티가 올릴 때마다 갈라진다.
         /// </summary>
+        /// <summary>
+        /// 레터박스 여백에 깔 **흙바닥 타일**을 산출 폴더로 옮긴다
+        /// (2026-09-15 사용자 확정 · §73-42).
+        ///
+        /// ⚠️ **전투 바닥과 같은 그림을 쓴다** — 여백이 다른 그림이면 「여기도 화면인가」가 된다.
+        /// 원본은 `Art/Backgrounds/bg_combat.png` 이고, 페이지가 읽을 수 있게 `TemplateData/` 로 옮긴다.
+        ///
+        /// ⚠️ **없으면 경고한다.** 그림이 안 가도 화면은 그냥 **검정**이라 —
+        /// 안 된 것이 스스로 안 알려진다(오늘 여러 번 겪은 모양이다).
+        /// </summary>
+        private static void CopyLetterboxTile()
+        {
+            const string src = "Assets/_Project/Art/Backgrounds/bg_combat.png";
+            string dst = System.IO.Path.Combine(OutputDir, "TemplateData", "bg_letterbox.png");
+
+            if (!System.IO.File.Exists(src))
+            {
+                Debug.LogWarning("[MBI] 레터박스 타일 원본이 없다 — 여백이 검정으로 남는다: " + src);
+                return;
+            }
+
+            System.IO.Directory.CreateDirectory(System.IO.Path.GetDirectoryName(dst));
+            System.IO.File.Copy(src, dst, true);
+            Debug.Log("[MBI] 레터박스 타일을 내보냈다 — " + dst);
+        }
+
         private static void FitCanvasToWindow()
         {
             string page = System.IO.Path.Combine(OutputDir, "index.html");
@@ -75,13 +101,21 @@ namespace MBI.Editor
                 "          document.documentElement.style.overflow = 'hidden';",
                 "          document.body.style.margin = '0';",
                 "          document.body.style.overflow = 'hidden';",
-                "          document.body.style.background = '#000';",
+                "          // ⚠️ **여백은 검정이 아니라 흙바닥이다**(2026-09-15 사용자 확정 · §73-42).",
+                "          //    전투 바닥과 같은 타일을 **페이지 층에서** 반복해 깔고 어둡게 덮는다 —",
+                "          //    캔버스 밖이라 유니티는 손을 못 대고, 그래서 CSS 가 맡는다.",
+                "          //    ⚠️ **정적이다**(스크롤 안 함) — 움직이면 여백이 내용처럼 읽힌다.",
+                "          //    어둠은 같은 배경 속성의 gradient 한 겹이다(검정 알파 0.5 · ⚠️ 가정).",
+                "          //    ⚠️⚠️ **까는 자리는 컨테이너 하나다.** body 에 깔았더니 보이지 않았다 —",
+                "          //    밑에 #unity-container 가 창 전체를 덮고 있어서다(같은 일을 하는 자리 둘).",
                 "          // 컨테이너를 화면 전체로 펴고 가운데 정렬 — 캔버스는 그 안에서 9:16 으로 앉는다.",
                 "          var box = document.querySelector('#unity-container');",
                 "          if (box) {",
                 "            box.className = '';",
                 "            box.style.cssText = 'position:fixed;left:0;top:0;width:100%;height:100%;'",
-                "              + 'display:flex;align-items:center;justify-content:center;background:#000;transform:none';",
+                "              + 'display:flex;align-items:center;justify-content:center;transform:none';",
+                "            box.style.background =",
+                "              'linear-gradient(rgba(0,0,0,0.5), rgba(0,0,0,0.5)), url(TemplateData/bg_letterbox.png) repeat';",
                 "          }",
                 "          // ⚠️ 유니티 기본 템플릿은 좁은 화면에서 캔버스에 `unity-mobile` 을 붙이고",
                 "          //    그 규칙이 `width:100%` 다 — 레터박스를 덮는다. 클래스를 떼고 !important 로 못 박는다.",
@@ -131,6 +165,10 @@ namespace MBI.Editor
                 return;
             }
             html = html.Replace(afterBranch, fit + "\n\n      " + afterBranch);
+
+            // ⚠️ **타일도 같이 내보낸다** — CSS 만 넣고 그림을 안 옮기면 **조용히 안 나온다**
+            // (404 는 콘솔에만 남고 화면에는 그냥 검정으로 보인다). 한 곳에서 같이 한다.
+            CopyLetterboxTile();
             System.IO.File.WriteAllText(page, html);
             Debug.Log("[MBI] index.html 캔버스를 창에 맞췄다 — 1440x2560 고정을 걷었다");
         }
