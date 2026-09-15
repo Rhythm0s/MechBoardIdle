@@ -685,8 +685,53 @@ namespace MBI.Logistics
             return null;
         }
 
+        /// <summary>
+        /// 저장된 판을 세운다. 없거나 격자 크기가 다르면 안 세우고 <c>false</c>.
+        ///
+        /// ⚠️ **놓는 길은 시작 보드와 같다** — `TryPlace` · `TryPlaceBeltElement` 에
+        /// 같은 마커 생성을 붙인다. 복원용 별도 경로를 만들면 **둘 중 한쪽만**
+        /// 고쳐지는 버그가 생긴다(이 리포에서 여러 번 나온 모양이다).
+        ///
+        /// ⚠️ 못 놓은 것이 있어도 **통째로 버리지 않는다** — 자산 하나가 없어졌다고
+        /// 나머지 판까지 날리는 편이 더 나쁘다. 다만 몇 개를 못 놓았는지는 남긴다.
+        /// </summary>
+        private bool TryRestoreSavedBoard()
+        {
+            BoardStateV1 saved = IdleSignals.BoardState;
+            if (!BoardStateCodec.Fits(saved, _grid)) return false;
+
+            int missed = BoardStateCodec.Restore(
+                saved, _grid, FindStartingNode, FindModuleById, SpawnNodeMarker, SpawnBeltMarker);
+
+            if (missed > 0)
+                Debug.LogWarning($"[MBI] 저장된 보드에서 {missed} 개를 못 놓았다 — "
+                                 + "자산 id 가 바뀜었거나 칸이 막혔다. 나머지는 그대로 섬.");
+
+            return true;
+        }
+
+        /// <summary>모듈 id 로 자산을 찾는다 — 복원이 쓴다. 없으면 null.</summary>
+        private ModuleDefinition FindModuleById(string moduleId)
+        {
+            if (modulePalette == null || string.IsNullOrEmpty(moduleId)) return null;
+            foreach (ModuleDefinition m in modulePalette)
+                if (m != null && m.moduleId == moduleId) return m;
+            return null;
+        }
+
         private void ApplyInitialLayout()
         {
+            // ⚠️⚠️ **저장된 판이 있으면 그것이 진실이다**(2026-09-16 · `Docs/board_save_design.md`).
+            //
+            // 종전엔 재입장할 때마다 **시작 보드를 다시 깔았다.** 플레이어가 늘린 판이
+            // 통째로 사라졌고, 이 파일의 아래쪽 주석이 그것을 「진짜 구멍」이라고 적어 둔
+            // 그 자리다. 이제 메운다.
+            if (TryRestoreSavedBoard())
+            {
+                RefreshConnections();
+                return;
+            }
+
             if (initialLayout != null)
                 foreach (InitialNode item in initialLayout)
                 {
@@ -4374,6 +4419,15 @@ namespace MBI.Logistics
             foreach (KeyValuePair<Vector2Int, SpriteRenderer> kv in _beltWarnings)
                 if (kv.Value != null)
                     kv.Value.enabled = warn.Contains(kv.Key);
+            // ⚠️⚠️ **보드가 바뀌는 것을 여기서 한 번만 본다**(2026-09-16).
+            //
+            // 놓기·지우기·회전·조합표·모듈·병합기 — 전부 이 메서드를 거친다(부르는 곳 열한 곳).
+            // 바꾸는 자리마다 저장을 붙이면 **빠뜨리는 자리가 생긴다** — 오늘까지
+            // 이 리포에서 반복된 결함이 대개 그 모양이었다.
+            //
+            // 파일에 바로 쓰지는 않는다 — 신호에만 올려 두고 방치 런타임의 자동저장이
+            // 가져간다. 한 프레임에 여러 번 바뀌어도 디스크는 한 번만 닿는다.
+            IdleSignals.BoardState = BoardStateCodec.Capture(_grid);
         }
 
         private static Vector2 FaceOffset(PortFace face)

@@ -53,6 +53,11 @@ namespace MBI.Idle
             // 실행 순서(-100 → -50)가 뒤집히면 매번 튜토리얼이 다시 열린다.
             IdleSignals.TutorialCleared = Data.HasCleared(IdleSignals.TutorialId);
 
+            // 저장된 보드를 물류 쪽에 내놓는다. **Awake 에서 한다** —
+            // `BoardController` 가 자기 `Start` 에서 이것을 읽어 판을 세우므로,
+            // 실행 순서(-100 → 기본)가 뒤집히면 **매번 시작 보드로 돌아간다.**
+            IdleSignals.BoardState = Data.board;
+
             SettleOffline();
         }
 
@@ -137,6 +142,11 @@ namespace MBI.Idle
             Data.scrap = Wallet.Scrap;
             Data.enhMaterial = Wallet.EnhMaterial;
             Data.lastSeenUtcTicks = _clock.UtcNow.Ticks; // 꺼둔 시간 계산의 기준점
+
+            // 보드 한 판. ⚠️ 물류가 아직 안 섬으면 `null` 이고, 그때는
+            //    **새로 쓰지 않고 불러온 것을 그대로 다시 싣는다** — 그러지 않으면
+            //    판이 서기 전에 도는 자동저장이 저장된 판을 지운다.
+            if (IdleSignals.BoardState != null) Data.board = IdleSignals.BoardState;
             _store.Save(Data);
         }
 
@@ -145,6 +155,7 @@ namespace MBI.Idle
         {
             _store.Delete();
             Data = new SaveDataV1();
+            IdleSignals.BoardState = null;   // 저장을 지웠으면 보드도 같이 지운다
             Wallet = new CurrencyWallet();
         }
     }

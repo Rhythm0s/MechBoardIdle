@@ -146,6 +146,24 @@ namespace MBI.Core
             return false;
         }
 
+        /// <summary>
+        /// **정해진 칸에** 모듈을 붙인다 — 저장 복원이 쓴다(2026-09-16).
+        ///
+        /// ⚠️ `TryAttachModule` 은 **빈 칸을 앞에서부터 찾아** 붙인다. 그것으로 복원하면
+        /// 0번이 비고 1번만 차 있던 판이 **0번에 붙은 판으로 바뀜다** — 칸 순서가 뜻을
+        /// 갖는다고 적어 둔 설계(보드 저장 1장)와 어긋난다.
+        ///
+        /// ⚠️ 이미 차 있는 칸은 **안 밀어낸다** — `TryAttachModule` 과 같은 규약이다
+        /// (「코드가 플레이어의 물건을 없애지 않는다」).
+        /// </summary>
+        public bool TryAttachModuleAt(int slot, ModuleDefinition module)
+        {
+            if (module == null || slot < 0 || slot >= ModuleSlots) return false;
+            if (_modules[slot] != null) return false;
+            _modules[slot] = module;
+            return true;
+        }
+
         /// <summary>칸을 비운다. 이미 비어 있었으면 <c>false</c>.</summary>
         public bool DetachModuleAt(int slot)
         {

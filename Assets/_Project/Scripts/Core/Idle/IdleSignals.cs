@@ -39,6 +39,18 @@ namespace MBI.Core
         public static bool TutorialCleared;
 
         /// <summary>
+        /// 보드 한 판 — 물류가 쓰고 방치 런타임이 저장에 싣는다 (2026-09-16).
+        ///
+        /// ⚠️⚠️ **이 칸이 다리다.** `BoardController` 는 저장소를 모르고 `IdleRuntime` 은
+        /// 격자를 모른다 — 둘이 서로를 부르게 두면 두 살림이 얽힌다.
+        /// 다른 신호들과 같은 규약이다(`TutorialCleared` 와 같은 자리).
+        ///
+        /// ⚠️ `null` 은 **「저장된 판이 없다」**이며 그때 보드는 시작 보드로 간다 —
+        /// **빈 판과 다르다.** 빈 판은 플레이어가 지운 결과라 그대로 되살려야 한다.
+        /// </summary>
+        public static BoardStateV1 BoardState;
+
+        /// <summary>
         /// 지갑 잔액 게시 — **방치 런타임이 쓰고 전투 HUD가 읽는다.** 고철.
         ///
         /// ⚠️ 위의 처치·클리어와 달리 **가져가며 비우지 않는다.** 저건 「무슨 일이 있었나」라
@@ -111,6 +123,7 @@ namespace MBI.Core
             _hasClear = false;
             _resetSave = false;
             TutorialCleared = false;
+            BoardState = null;
             WalletScrap = 0d;
             WalletEnhMaterial = 0d;
         }

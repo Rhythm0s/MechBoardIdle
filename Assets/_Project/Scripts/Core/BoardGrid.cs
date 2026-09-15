@@ -94,6 +94,15 @@ namespace MBI.Core
         // ---- 점유 (노드 · 벨트 — 한 셀에 배타) ----
 
         /// <summary>노드가 점유 중인가.</summary>
+        /// <summary>
+        /// 지금 놓인 노드 전부 — **저장이 읽는다**(2026-09-16).
+        /// ⚠️ 순서를 정하지 않는다(사전 순서다) — 저장본을 줄 단위로 비교하지 말 것.
+        /// </summary>
+        public IEnumerable<NodeInstance> Nodes => _occupancy.Values;
+
+        /// <summary>지금 놓인 벨트 전부. 순서는 같은 이유로 정해지지 않는다.</summary>
+        public IEnumerable<BeltInstance> Belts => _belts.Values;
+
         public bool IsOccupied(Vector2Int cell)
         {
             return _occupancy.ContainsKey(cell);

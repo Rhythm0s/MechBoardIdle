@@ -37,6 +37,14 @@ namespace MBI.Core
         public List<StageRateEntry> bestFarmRates = new List<StageRateEntry>();
         public List<string> clearedStageIds = new List<string>(); // 최초 클리어 1회 보상 판정용
 
+        /// <summary>
+        /// 보드 한 판 — **없으면 시작 보드로 간다**(2026-09-16 · 설계 규칙 1).
+        ///
+        /// ⚠️ 빈 보드로 떨어뜨리지 않는다 — 노드가 없으면 아무것도 못 만들고,
+        /// 만들 것이 없으니 못 놓는다. **스스로 못 빠져나오는 상태**가 된다.
+        /// </summary>
+        public BoardStateV1 board;
+
         /// <summary>그 스테이지의 최고 파밍 시급. 기록이 없으면 0(= 미측정 → 호출자가 기본 시급으로 대체).</summary>
         public float BestFarmRate(string stageId)
         {
