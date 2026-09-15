@@ -571,23 +571,30 @@ namespace MBI.Combat
                 return;
             }
 
-            IReadOnlyList<ShotEvent> shots = _sim.ShotsThisTick;
-            if (shots != null && shots.Count > 0)
+            // ⚠️⚠️ **근거는 발사가 아니라 표적이다**(2026-09-15 사용자 확정 · 육안 8차 ①).
+            //
+            // 종전: `ShotsThisTick` — 쏘 때만 조준이 생겼다. 탄약 0 이면 사거리 안에
+            // 적을 두고도 영영 등을 돌렸다(09-15 진단 줄 「마지막 조준 없음」).
+            // 지금: 사거리 안 최근접 적을 고른 순간부터 그쪽을 본다 — 발사와 무관.
+            Vector2? aim = _sim.AimDirection;
+            if (aim.HasValue)
             {
-                ShotEvent last = shots[shots.Count - 1];
-                Vector2 aim = last.to - last.from;
-                if (aim.sqrMagnitude > 1e-6f)
-                {
-                    _lastAim = aim;
-                    _lastAimAt = Time.time;
-                }
+                _lastAim = aim.Value;
+                _lastAimAt = Time.time;
             }
 
             _robotView.FacingOverride =
                 Time.time - _lastAimAt <= AimHoldSeconds ? _lastAim : (Vector2?)null;
         }
 
-        /// <summary>마지막 조준을 붙들어 두는 시간. 사격 간격보다 넉넉해야 얼굴이 안 깜빡인다.</summary>
+        /// <summary>
+        /// **표적이 사라진 뒤** 마지막 조준을 붙들어 두는 시간(2026-09-15 사용자 확정 · 뜻이 바뀌었다).
+        ///
+        /// ⚠️ 종전 뜻은 「마지막 **발사** 뒤 유지」였다. 근거가 발사에서 표적으로 옮겨졌으므로
+        /// 이 값이 세는 것도 바뀐다 — 사거리 안에 적이 있는 동안에는 계속 갱신되고,
+        /// 적이 죽거나 사거리를 벗어난 **뒤부터** 이 시간이 흐른다.
+        /// 그래야 적 하나를 죽인 직후 얼굴이 홱 돌아가지 않는다.
+        /// </summary>
         private const float AimHoldSeconds = 1.5f;
 
         private Vector2 _lastAim;

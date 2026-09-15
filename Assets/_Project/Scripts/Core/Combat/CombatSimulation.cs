@@ -661,6 +661,30 @@ namespace MBI.Core
         /// </summary>
         public Vector2 RobotPosition => Robot != null ? Robot.position : Vector2.zero;
         public IReadOnlyList<CombatEntity> Enemies => _enemies;
+        /// <summary>
+        /// 지금 겸누는 방향 — 사거리 안 최근접 적까지의 방향이다. 표적이 없으면 `null`.
+        ///
+        /// ⚠️⚠️ **얼굴은 발사가 아니라 표적을 따른다**(2026-09-15 사용자 확정 · 육안 8차 ①).
+        ///
+        /// 종전엔 `ShotsThisTick` 이 유일한 근거였다. 그러면 **한 발도 안 쏘 동안에는
+        /// 영영 안 돌아본다** — 탄약이 0 이면 사거리 안에 적을 두고도 딱 등을 돌린다.
+        /// 09-15 진단 줄이 그것을 그대로 찍었다 — 「얼굴 이동 · 마지막 조준 없음」(S2 9.8초).
+        ///
+        /// 📌 **표적 고르는 규칙은 여기 한 곳에만 산다** — `NearestLivingEnemyInRange` 를
+        /// 그대로 부른다. 밖에서 「최근접 적」을 다시 고르면 쏘는 놀과 보는 놀이 갈라진다
+        /// (지침 §7 — 「한 값이 두 곳에 살면 답이 둘이 된다」).
+        /// </summary>
+        public Vector2? AimDirection
+        {
+            get
+            {
+                CombatEntity target = NearestLivingEnemyInRange();
+                if (target == null || Robot == null) return null;
+                Vector2 d = target.position - Robot.position;
+                return d.sqrMagnitude > 1e-6f ? d : (Vector2?)null;
+            }
+        }
+
         public IReadOnlyList<ShotEvent> ShotsThisTick => _shots;
 
         /// <summary>

@@ -350,26 +350,45 @@ namespace MBI.Combat
 
             DriveAnimation(dt);
 
-            if (_body != null && _recoilElapsed < EffectTiming.RecoilDuration)
+            // ⚠️⚠️ **몸의 오프셋은 매 프레임 0 에서 다시 짓는다**(2026-09-15 오후 · 육안 ⑤).
+            //
+            // 종전엔 반동이 `localPosition` 을 **쓰기만 하고 끝날 때 안 되돌렸다.**
+            // 지속이 지나면 그 블록을 통째로 건너뛰므로 **마지막 오프셋이 그대로 남고**,
+            // 피격 흔들림은 거기에 `+=` 로 쌓였다. 로봇은 쏘고 맞기를 한 판 내내 하므로
+            // **몸만 점점 걸어 나간다** — HP 막대·그림자는 형제라 localPosition 0 에 그대로 서
+            // 있고, 탄약 소진 아이콘은 시뮬 좌표에 서 있다. 그래서 사용자 화면에서
+            // **막대와 아이콘만 허공에 떠 보였다** — 월드→화면 환산이 아니라 이것이었다.
+            //
+            // 📌 적은 안 쏴서(반동 없음) 거의 안 보였고, 무엇보다 금방 죽는다 —
+            // 「적 막대는 잘 붙어 있는데 로봇만」이 그 뜻이다.
+            if (_body != null)
             {
-                _recoilElapsed += dt;
-                Vector2 off = EffectTiming.RecoilOffset(_recoilDirection, _recoilElapsed);
-                _body.localPosition = new Vector3(off.x, off.y, 0f);
+                Vector3 bodyOffset = Vector3.zero;
+
+                if (_recoilElapsed < EffectTiming.RecoilDuration)
+                {
+                    _recoilElapsed += dt;
+                    Vector2 off = EffectTiming.RecoilOffset(_recoilDirection, _recoilElapsed);
+                    bodyOffset += new Vector3(off.x, off.y, 0f);
+                }
+
+                // ⚠️ **작은 흔들림**(2026-09-15 사용자 확정 · 육안 ④). **넉백이 아니다** —
+                // 몸은 제자리에 있고 **그림만** 떤다. 밀려나면 이동 규칙과 싸우고
+                // 자동 조종이 그 자리를 다시 계산한다.
+                if (_flashElapsed < EffectTiming.HitFlashDuration)
+                {
+                    Vector2 shake = EffectTiming.HitShakeOffset(_flashElapsed);
+                    bodyOffset += new Vector3(shake.x, shake.y, 0f);
+                }
+
+                // 항상 쓴다 — 두 연출이 다 끝나면 저절로 0 이 된다.
+                _body.localPosition = bodyOffset;
             }
 
             if (_bodyRenderer != null && _flashElapsed < EffectTiming.HitFlashDuration)
             {
                 _flashElapsed += dt;
                 _bodyRenderer.color = EffectTiming.HitFlashColor(_bodyBaseColor, _flashElapsed);
-
-                // ⚠️ **작은 흔들림**(2026-09-15 사용자 확정 · 육안 ④). **넉백이 아니다** —
-                // 몸은 제자리에 있고 **그림만** 떤다. 밀려나면 이동 규칙과 싸우고
-                // 자동 조종이 그 자리를 다시 계산한다.
-                if (_body != null)
-                {
-                    Vector2 shake = EffectTiming.HitShakeOffset(_flashElapsed);
-                    _body.localPosition += new Vector3(shake.x, shake.y, 0f);
-                }
 
                 // ⚠️ **끝나면 색을 되돌린다.** 종전에는 지속이 지나면 이 블록을 통째로
                 // 건너뛰어 **마지막 프레임의 색이 그대로 남았다** — 빨강·하양 교차라
