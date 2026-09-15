@@ -21,7 +21,7 @@ MonoBehaviour:
   attackRange: 0
   attackInterval: 0
   projectileSpeed: 0
-  sprite: {fileID: 21300000, guid: f4574686aacc85e489d9cbac1692b806, type: 3}
+  sprite: {fileID: 21300000, guid: 8ac7b5c45460d6f489b2d2642f24d225, type: 3}
   animClips:
   - state: 0
     direction: 0
