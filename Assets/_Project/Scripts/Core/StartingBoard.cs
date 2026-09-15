@@ -169,16 +169,26 @@ namespace MBI.Core
             new Slot(7, 8, MuniId),
 
             // 북 줄
-            new Slot(6, 9, ProcId),
-            new Slot(7, 9, MuniId),
+            // ⚠️⚠️ **네 줄에서 두 줄로 줄였다**(2026-09-15 사용자 확정 · 육안 6차 ②).
+            //
+            // 고치려던 것은 「마운트가 너무 빨리 찬다」였다. 처음에는 **소비**를 두 배로
+            // 올렸는데(발사율 ×2 · 피해 ÷2) **안 쏠 때는 소비가 0 이라 아무것도 안 변했다** —
+            // 차는 속도를 묶고 있는 것은 소비가 아니라 **공급**이었다.
+            // 실측: 네 줄 = **4.03 발/초** · 마운트 40 까지 **15.9초**.
+            //
+            // 남기는 것은 **동 줄**(코어 동면에서 벨트 0칸)과 **남 줄**(벨트 한 칸) —
+            // 짧은 둘이라 보드가 단순해지고 「이으면 만들어진다」도 그대로 보인다.
+            //
+            // ⚠️ **코어 출력면 4 는 그대로다**(값이라 안 건드린다) — 넷 중 **둘만 쓴다.**
+            // 남은 두 면은 열려 있고 플레이어가 줄을 더 놓을 자리가 된다.
+            //
+            // 📌 **폐기 표기 — 북 줄** `(6,9)` 가공 · `(7,9)` 군수.
 
             // 남 줄
             new Slot(6, 7, ProcId),
             new Slot(7, 7, MuniId),
 
-            // 서 줄 — 코어 서면에서 내려와 동쪽으로 되돌아 들어간다
-            new Slot(5, 6, ProcId),
-            new Slot(6, 6, MuniId),
+            // 📌 **폐기 표기 — 서 줄** `(5,6)` 가공 · `(6,6)` 군수.
 
             // 전력 셋 — **벨트를 안 문다**(2026-09-11 확정). 전력망은 전역이라 놓기만 하면
             // 발전한다. 종전에 코어 남면으로 물리던 배선은 **문서에 없던 것**이었다.
@@ -198,30 +208,29 @@ namespace MBI.Core
         public static readonly IReadOnlyList<Run> Belts = new[]
         {
             // ── 북 줄: 코어 북면 → 동쪽으로 꺾어 가공에 넣는다
-            new Run(5, 9, PortFace.South, PortFace.East),
-            new Run(8, 9, PortFace.West, PortFace.South),
+            // 📌 **폐기 표기 — 북 줄 벨트** (5,9) 남→동 · (8,9) 서→남.
 
             // ── 남 줄: 코어 남면 → 동쪽으로 꺾어 가공에 넣는다
             new Run(5, 7, PortFace.North, PortFace.East),
 
             // ── 서 줄: 코어 서면 → 내려가서 동쪽으로 되돌아 가공에 넣는다
-            new Run(4, 8, PortFace.East, PortFace.South),
-            new Run(4, 7, PortFace.North, PortFace.South),
-            new Run(4, 6, PortFace.North, PortFace.East),
-            new Run(7, 6, PortFace.West, PortFace.South),
+            // 📌 **폐기 표기 — 서 줄 벨트** (4,8) 동→남 · (4,7) 북→남 · (4,6) 북→동 · (7,6) 서→남.
 
             // ── x=8 합류 기둥.
             // ⚠️ **병합기도 출력면을 적어야 한다.** `Run.Merger` 는 서→동 고정이고
             // 「이웃에서 다시 잡는다」는 주석과 달리 **자동 배향이 그 면을 안 고쳤다** —
             // 첫 배치가 여기서 통째로 끊겼다(2026-09-11 실측 · 출력면이 East 로 남아
             // 팔L 쪽 빈 칸으로 흘렀다). 입력면은 여럿을 받으므로 하나만 적으면 된다.
-            new Run(8, 8, PortFace.North, PortFace.South, merger: true),   // 동 줄(서) + 북 줄(북)
+            // ⚠️ **병합기에서 곧은 벨트로 내렸다** — 북 줄이 빠져 **들어오는 것이 하나**다.
+            // 입력이 하나인데 병합기를 두면 「무언가 더 들어올 자리」로 읽힌다.
+            new Run(8, 8, PortFace.West, PortFace.South),   // 동 줄(서) + 북 줄(북)
             new Run(8, 7, PortFace.North, PortFace.South, merger: true),   // 남 줄(서) + 위(북)
             new Run(8, 6, PortFace.North, PortFace.South),
             new Run(8, 5, PortFace.North, PortFace.West),
 
             // ── 운반로 y=5 — 서향
-            new Run(7, 5, PortFace.East, PortFace.West, merger: true),   // 서 줄(북) + 기둥(동)
+            // ⚠️ 같은 이유로 곧은 벨트다 — 서 줄이 빠져 **기둥에서 오는 것 하나**만 받는다.
+            new Run(7, 5, PortFace.East, PortFace.West),   // 서 줄(북) + 기둥(동)
             // ⚠️ **(6,5) 는 여기 없다 — 비워 둔 칸이다**(`EmptySlot`).
             // 합류 바로 뒤의 외길이라 이 한 칸이 비면 마운트 도착이 **정확히 0** 이다.
             new Run(5, 5, PortFace.East, PortFace.West),

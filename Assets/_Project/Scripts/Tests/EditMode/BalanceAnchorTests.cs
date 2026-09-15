@@ -47,7 +47,45 @@ namespace MBI.Tests
             (long)Math.Round(v, MidpointRounding.AwayFromZero);
 
         /// <summary>대표 조합 = **표준 4 + 폭발 2** = 140. 원천 좌표에서 그때그때 낸다 — 새 상수를 만들지 않는다.</summary>
-        private float Representative() => 4f * _json.Param("dA1") + 2f * _json.Param("dA2");
+        /// <summary>
+        /// 대표 구성의 초당 출력 — **표준 4줄 + 폭발 1줄**(밸런스 문서의 대표 상태).
+        ///
+        /// ⚠️⚠️ **종전에는 `4 × dA1 + 2 × dA2` 였다**(2026-09-15 정정). 그 4 와 2 는
+        /// **발/초**인데, 그것이 「표준 4줄 × 1발/초」·「폭발 1줄 × 2발/초」에서 나온 수라는
+        /// 것이 식에 안 보였다 — **발사율이 상수로 녹아 있었다.**
+        ///
+        /// 그래서 09-15 에 발사율을 두 배(피해는 절반)로 바꾸자 **DPS 는 그대로인데 이 식만
+        /// 절반(140 → 70)이 되어** S3·S4 앵커 넷이 깨졌다. 값이 아니라 **식이 원천을
+        /// 안 따라간 것**이다(지침 §7 — 한 값이 두 곳에 살면 답이 둘이 된다).
+        ///
+        /// 이제 **줄 수만 상수**로 두고 발사율·피해는 원천에서 읽는다 —
+        /// 전: 4 × 1 × 10 + 1 × 2 × 50 = **140** · 후: 4 × 2 × 5 + 1 × 4 × 25 = **140**.
+        /// </summary>
+        private float Representative() =>
+            StandardLines * _json.Param("pA1") * _json.Param("dA1")
+            + ExplosiveLines * _json.Param("pA2") * _json.Param("dA2");
+
+        /// <summary>대표 구성의 줄 수. ⚠️ 밸런스 문서의 값이라 여기서 안 고친다.</summary>
+        private const float StandardLines = 4f;
+        private const float ExplosiveLines = 1f;
+
+        /// <summary>
+        /// 시작 보드의 **군수 줄 수** — 값을 박지 않고 보드에서 센다
+        /// (2026-09-15 · 넷 → 둘로 줄이며 40 이 거짓이 됐다).
+        ///
+        /// ⚠️ **요구치는 보드에서 나온다.** 보드를 고치고 이 수를 손으로 옮기는 한,
+        /// 언젠가 한쪽만 고쳐진다 — 그때 요구치는 **닿을 수 없는 값**이 된다.
+        /// </summary>
+        private static float StartingMuniLines
+        {
+            get
+            {
+                int n = 0;
+                foreach (MBI.Core.StartingBoard.Slot slot in MBI.Core.StartingBoard.Nodes)
+                    if (slot.nodeId == MBI.Core.StartingBoard.MuniId) n++;
+                return n;
+            }
+        }
 
         // ---- 0. 드리프트 감시: SO가 원천 json을 미러하는가 ----
         [Test]
@@ -144,13 +182,23 @@ namespace MBI.Tests
             Assert.AreEqual(183f, _json.Stage("S4").req, Delta, "S4 정본 183");
             Assert.AreEqual(s4Derived, (long)_json.Stage("S4").req, "S4 도출식이 원천과 맞는다");
 
-            // ⚠️ **S1·S2 는 54 에서 36 으로 내려갔다**(2026-09-11 · `260911_W01` 값 4).
-            // 54 는 도달 60 전제였고, **60 의 출처는 「표준탄 라인 스펙 6발/초」** 였다 —
-            // 그것은 **마운트 소비 상한**이지 시작 보드가 채워야 할 값이 아니다(W01 2-2).
-            // 네 줄 보드의 도달은 40 이고 40 × 0.9 = 36 이다.
-            Assert.AreEqual(36f, _json.Stage("S1").req, Delta, "S1 정본 36");
-            Assert.AreEqual(RoundAway(40f * ReqRatio), (long)_json.Stage("S1").req,
-                "S1 도 같은 역산이다 — 도달 40 × 0.9");
+            // ⚠️ **S1·S2 는 36 에서 18 로 다시 내려갔다**(2026-09-15 사용자 확정 · 육안 6차 ②).
+            //
+            // 54 → 36 은 09-11 에 **네 줄 보드의 도달 40**(40 × 0.9)으로 잡은 값이었다.
+            // 09-15 에 「마운트가 너무 빨리 찬다」를 **공급을 낮춰** 고치기로 하면서
+            // 시작 보드 군수 줄이 **넷 → 둘**이 됐다 — 도달이 **20** 이고 20 × 0.9 = **18**.
+            //
+            // ⚠️ **규칙은 안 바꿨다** — `round(도달 × 0.9)` 는 `260910_W02` Anchor3 그대로다.
+            // 바뀐 것은 **도달**이고, 그것은 보드가 정한다.
+            // 📌 실측: 네 줄 **4.03 발/초** → 두 줄 **2.02 발/초**(공칭과 맞는다).
+            Assert.AreEqual(18f, _json.Stage("S1").req, Delta, "S1 정본 18");
+            // 도달 = 군수 줄 수 × 1발/초 × 10(만충 40 · 0.9 규칙의 분모는 그대로다).
+            // ⚠️ **40 을 박아 두었던 것이 09-15 에 거짓이 됐다** — 줄이 넷에서 둘이 되며
+            // 도달이 20 으로 내려갔는데 식은 40 인 채였다. 보드에서 세어 쓴다.
+            const float ReachPerLine = 10f;
+            float reach = StartingMuniLines * ReachPerLine;
+            Assert.AreEqual(RoundAway(reach * ReqRatio), (long)_json.Stage("S1").req,
+                $"S1 도 같은 역산이다 — 도달 {reach} × 0.9");
             Assert.AreEqual(_json.Stage("S1").req, _json.Stage("S2").req, Delta,
                 "S2 는 S1 과 같은 값이 맞다 — 오타가 아니다(260910_W02 2-3)");
         }

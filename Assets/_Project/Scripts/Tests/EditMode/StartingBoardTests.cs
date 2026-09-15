@@ -221,7 +221,7 @@ namespace MBI.Tests
             int placed = 0;
             foreach (StartingBoard.Slot slot in StartingBoard.Nodes)
                 if (slot.nodeId == StartingBoard.MuniId) placed++;
-            Assert.AreEqual(4, placed, "군수 넷은 처음부터 놓여 있다");
+            Assert.AreEqual(2, placed, "군수 둘은 처음부터 놓여 있다 — 09-15 에 넷에서 둘로 줄였다");
 
             BoardGrid g = Build(fillEmptySlot: false);
             NetworkAggregate agg = LogisticsNetwork.Aggregate(g, LogisticsReach.ConnectedNodes(g));
@@ -246,8 +246,9 @@ namespace MBI.Tests
             BoardGrid g = Build(fillEmptySlot: true);
             NetworkAggregate agg = LogisticsNetwork.Aggregate(g, LogisticsReach.ConnectedNodes(g));
 
-            Assert.AreEqual(4, agg.muniPierce + agg.muniSplit + agg.muniExplosive,
-                "한 칸을 이으면 군수 넷이 한꺼번에 라인에 든다");
+            Assert.AreEqual(2, agg.muniPierce + agg.muniSplit + agg.muniExplosive,
+                "한 칸을 이으면 군수 둘이 한꺼번에 라인에 든다 — 그 칸은 합류 뒤 외길이라 "
+                + "막히면 둘 다 못 나간다(줄 수가 줄어도 그 성질은 그대로다)");
         }
 
         // ---- 일감률·전력 ----
@@ -338,7 +339,7 @@ namespace MBI.Tests
                 if (slot.nodeId == StartingBoard.MuniId) muni++;
 
             // ✅ 군수는 **넷** 다 놓여 있다 — 플레이어 몫은 **벨트 한 칸**이다(2026-09-11).
-            Assert.AreEqual(4, muni, "군수 넷이 다 놓여 있다");
+            Assert.AreEqual(2, muni, "군수 둘이 다 놓여 있다");
         }
 
         private NetworkAggregate Aggregate(BoardGrid g)
@@ -371,10 +372,11 @@ namespace MBI.Tests
             // ⚠️ 네 줄 보드다(2026-09-11 · `260911_W01` 값 3) — 코어 하나가 네 방향으로
             // 라인을 세우므로 가공도 넷이다. 에너지 셋은 **벨트를 안 물고** 놓여만 있다.
             Assert.AreEqual(1, core, "코어 1대");
-            Assert.AreEqual(4, proc, "가공 4대 — 네 줄이라 줄마다 하나다");
+            Assert.AreEqual(2, proc, "가공 2대 — 두 줄이라 줄마다 하나다");
             Assert.AreEqual(3, ener, "에너지 3대 — 전력망은 전역이라 안 이어도 발전한다");
             Assert.AreEqual(0, stor, "저장 노드 없음");
-            Assert.AreEqual(12, StartingBoard.Nodes.Count, "코어1 + 가공4 + 군수4 + 에너지3 — 군수 넷째가 들어왔다(2026-09-11)");
+            Assert.AreEqual(8, StartingBoard.Nodes.Count,
+                "코어1 + 가공2 + 군수2 + 에너지3 — 09-15 에 줄을 넷에서 둘로 줄였다(공급 하향)");
         }
     }
 }

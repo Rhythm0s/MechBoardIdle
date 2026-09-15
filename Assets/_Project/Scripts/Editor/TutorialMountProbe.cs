@@ -118,6 +118,8 @@ namespace MBI.EditorTools
             var lineBuffer = new List<AmmoLine>();
             int steps = Mathf.RoundToInt(Seconds / Dt);
             float fullAt = -1f;
+            int rawAmmo = 0, rawNonAmmo = 0, rawNonStandard = 0;
+            float firstAt = -1f;
 
             sb.AppendLine();
             sb.AppendLine("  초 | 도착률(표준) | 라인 | 창고유입 | 창고재고 | 마운트 | 만충");
@@ -126,6 +128,22 @@ namespace MBI.EditorTools
             {
                 // ── 물류 쪽 (LogisticsOutputProvider 가 하는 일) ──
                 BoardItemTick.Step(grid, flow, Dt, 1f);
+
+                // ⚠️ **창 값과 누적을 같이 센다**(2026-09-15 · 「공칭 4인데 6으로 재어진다」).
+                // `MountDelivery.RateOf` 는 **0.5초 창**의 값이라 도착이 뭉치면 튄다 —
+                // 긴 구간의 진짜 값은 누적으로만 나온다.
+                IReadOnlyList<MountArrival> got = flow.PendingMountArrivals;
+                for (int a = 0; a < got.Count; a++)
+                {
+                    if (MountItemMap.TryAmmoKindOf(got[a].kind, out AmmoKind ak))
+                    {
+                        rawAmmo++;
+                        if (firstAt < 0f) firstAt = i * Dt;
+                        if (ak != AmmoKind.Standard) rawNonStandard++;
+                    }
+                    else rawNonAmmo++;
+                }
+
                 delivery.Observe(flow.PendingMountArrivals, DamageOf, Dt, SupplySignals.ActiveOwner);
                 flow.ClearPendingMountArrivals();
                 delivery.TryDrain(0.5f, out float _);
@@ -184,6 +202,14 @@ namespace MBI.EditorTools
             // ⚠️ **소비와 공급을 나란히 적는다** — 판정 (가) 의 핵심이 그 대소다.
             float consume = 0f;
             for (int i2 = 0; i2 < lineBuffer.Count; i2++) consume += lineBuffer[i2].shotsPerSec;
+            // 누적 — 첫 도착부터 끝까지로 나눈다(앞의 빈 구간이 평균을 낮춘다).
+            float active = firstAt >= 0f ? Seconds - firstAt : 0f;
+            sb.AppendLine("  도착 누적 — 탄약 " + rawAmmo + "개 · 탄약 아닌 것 " + rawNonAmmo + "개"
+                          + " · 표준 아닌 탄약 " + rawNonStandard + "개");
+            sb.AppendLine("  첫 도착 " + (firstAt < 0f ? "없음" : firstAt.ToString("F1") + "초")
+                          + " · 그 뒤 " + active.ToString("F1") + "초 동안 초당 "
+                          + (active > 0f ? (rawAmmo / active).ToString("F2") : "0")
+                          + " 발  <- 이것이 긴 구간의 진짜 공급이다");
             sb.AppendLine("  소비(라인 합) " + consume.ToString("F2")
                           + " 발/초  vs  공급(도착률) "
                           + SupplySignals.ArrivalRateOf(AmmoKind.Standard).ToString("F2") + " 발/초"
