@@ -168,6 +168,14 @@ namespace MBI.Logistics
         // 벨트 위에서 끌면 지워지고, 노드가 섞이면 컨펌을 받는다. 필드는 남겨 두지 않는다 —
         // 직렬화되는 값이 아니라 런타임 상태였다.
 
+        /// <summary>
+        /// 지금 고른 팔레트 카테고리 (2026-09-15 · 하단 개편 ②).
+        ///
+        /// ⚠️ **「전체」에서 시작한다** — 처음 여는 사람에게 걸러진 목록을 주면
+        /// 「나머지는 어디 갔나」가 먼저 생긴다.
+        /// </summary>
+        private PaletteCategory _tab = PaletteCategory.All;
+
         /// <summary>지금 드래그가 **지우는 드래그**인가 — 시작 칸이 벨트면 그렇다(육안 ⑧).</summary>
         private bool _dragRemoving;
 
@@ -314,15 +322,13 @@ namespace MBI.Logistics
         private static string NodeLabel(NodeInstance inst)
         {
             if (inst == null || inst.Definition == null) return "";
-            if (inst.Definition.type != NodeType.MunitionsBasic) return inst.Definition.displayName;
 
-            switch (inst.CurrentRecipe.kind)
-            {
-                case RecipeKind.DroneBody: return "군수:드론";
-                case RecipeKind.Propellant: return "군수:추진";
-                case RecipeKind.ShieldMaterial: return "군수:쉴드";
-                default: return "군수:" + AmmoLabel(inst.AmmoKind);
-            }
+            // ⚠️ **군수는 「군수」만 적는다**(2026-09-15 사용자 확정 · 하단 개편 ⑥).
+            //
+            // 종전에는 「군수:관통」처럼 **지금 만드는 것**까지 적었다. 그 정보는 이제
+            // **출력 품목 아이콘**이 말하므로(개편 ⑦), 글자로 또 적으면 같은 말이 둘이 된다.
+            // 구 분기(드론·추진·쉴드·탄종)는 폐기 표기로 남긴다.
+            return inst.Definition.displayName;
         }
 
         // 보드 지역 그리기 순서. 격자 배경 -3 · 셀선 -2 아래에 맞춘 같은 축이다
@@ -2397,8 +2403,13 @@ namespace MBI.Logistics
             // 원인이 그것이다(IMGUI 는 뒤에 그리는 쪽이 위로 온다).
             DrawFloatBandPlate();
 
-            DrawMiniMap();
+            // ⚠️ **미니맵을 걷었다**(2026-09-15 사용자 확정 · 하단 개편 ①).
+            // 그 자리(부유 띠 왼쪽 정사각)는 이제 튜토리얼 진행 두 줄이 쓴다.
+            // `DrawMiniMap` 자체는 폐기 표기로 남겨 둔다 — 되돌릴 때 다시 짓지 않게.
+
             DrawZoom();
+            DrawCategoryTabs();
+            DrawModePlate();
 
             if (palette == null || palette.Count == 0) return;
 
@@ -2456,8 +2467,21 @@ namespace MBI.Logistics
             //
             // 팔레트 n + **방향 1** + 병합기·분류기 2 + 모듈 m.
             // ⚠️ **「제거」 한 칸이 빠졌다**(2026-09-15 · 육안 ⑧ — 제거가 제스처가 됐다).
-            int slots = palette.Count + 1 + 2
-                        + (modulePalette != null ? modulePalette.Count : 0);
+            //
+            // ⚠️ **탭이 걸러낸 것만 센다**(2026-09-15 · 하단 개편 ②). 안 세면 「전력」 탭에서
+            // 버튼 둘만 보이는데 스크롤 폭은 열넷짜리라 **빈 칸을 한참 끌게 된다.**
+            int visibleNodes = 0;
+            for (int i = 0; i < palette.Count; i++)
+                if (palette[i] != null && PaletteCategories.Shows(_tab, palette[i])) visibleNodes++;
+
+            int visibleModules = 0;
+            if (modulePalette != null && PaletteCategories.ShowsModule(_tab))
+                visibleModules = modulePalette.Count;
+
+            int elementSlots = PaletteCategories.ShowsBeltElement(_tab) ? 2 : 0;
+
+            // 「방향」은 어느 탭에서나 뜬다 — 놓기 전 방향은 종류와 무관한 손버릇이다.
+            int slots = visibleNodes + 1 + elementSlots + visibleModules;
             float step = side + pad;
             var view = new Rect(band.x + pad, band.y + pad,
                 band.width - pad * 2f, band.height - pad * 2f);
@@ -2471,7 +2495,8 @@ namespace MBI.Logistics
 
             for (int i = 0; i < palette.Count; i++)
             {
-                if (palette[i] == null) { bx += step; continue; }
+                if (palette[i] == null) continue;   // 빈 칸은 자리도 안 먹는다(탭 폭 계산과 맞춘다)
+                if (!PaletteCategories.Shows(_tab, palette[i])) continue;
                 var rect = new Rect(bx, 0f, side, side);
 
                 // ⚠️ **튜토리얼 동안에는 놓을 것 하나만 켠다**(2026-09-11 · 플랜 §68-5 ①).
@@ -2522,7 +2547,9 @@ namespace MBI.Logistics
             // 벨트 요소(§5-4 L3). 직선·코너는 드래그가 만들고, 이 둘만 탭으로 놓는다 —
             // 방향이 여러 개라 드래그 경로로는 표현되지 않는다.
             bool elementAllowed = TutorialGate.Allows(TutorialGate.Control.BeltElement);
-            foreach (BeltElementKind e in new[] { BeltElementKind.Merger, BeltElementKind.Sorter })
+            foreach (BeltElementKind e in PaletteCategories.ShowsBeltElement(_tab)
+                         ? new[] { BeltElementKind.Merger, BeltElementKind.Sorter }
+                         : System.Array.Empty<BeltElementKind>())
             {
                 var eRect = new Rect(bx, 0f, side, side);
                 bool on = _elementMode == e;
@@ -2554,12 +2581,12 @@ namespace MBI.Logistics
             //
             // ⚠️ 종전의 「한 줄에 둘씩」은 세로 줄에서 아래가 잘리는 것을 막던 장치였다
             // (2026-09-09). 가로 줄에서는 잘릴 아래가 없어 **같은 크기로 나란히** 둔다.
-            if (modulePalette != null)
+            if (modulePalette != null && PaletteCategories.ShowsModule(_tab))
             {
                 bool moduleAllowed = TutorialGate.Allows(TutorialGate.Control.Module);
                 for (int m = 0; m < modulePalette.Count; m++)
                 {
-                    if (modulePalette[m] == null) { bx += step; continue; }
+                    if (modulePalette[m] == null) continue;
                     var mRect = new Rect(bx, 0f, side, side);
                     bool on = _selectedModule == m;
                     bool wasM = GUI.enabled;
@@ -2594,9 +2621,9 @@ namespace MBI.Logistics
 
             DrawRecipePanel();
 
-            // ⚠️ **모드 막대는 맨 뒤에 그린다 — 항상 맨 위다**(2026-09-11 사용자 확정).
-            // 이 화면에서 가장 자주 누르는 것이고, 무엇에도 덮이면 안 된다.
-            DrawModeButton();
+            // ⚠️ **모드 막대를 걷었다**(2026-09-15 · 하단 개편 ④). 자리는 보드 우측 하단
+            // 판으로 옮겼고(`DrawModePlate`), 그 판은 팔레트보다 **먼저** 그린다 —
+            // 보드 안이라 팔레트와 자리를 다투지 않으므로 맨 뒤일 이유가 없다.
 
             // ⚠️ **삭제 컨펌은 그보다 더 뒤다**(2026-09-15 · 육안 ⑧) — 물어보는 동안에는
             // 그 물음이 화면에서 가장 위여야 한다. 모드 막대까지 덮는다.
@@ -2649,18 +2676,31 @@ namespace MBI.Logistics
                 fontStyle = FontStyle.Bold,
             };
 
+            // 칸 하나가 화면에서 몇 픽셀인가 — 이름 판과 품목 아이콘이 이것을 따라간다.
+            float cellPx = CellScreenPixels(cam);
+
             foreach (KeyValuePair<Vector2Int, GameObject> kv in _markers)
             {
                 if (kv.Value == null) continue;
-                // ⚠️ **노드 이름 라벨을 걷었다**(2026-09-15 사용자 확정 · §72-51).
+                // ⚠️ **이름 라벨을 되살렸다**(2026-09-15 사용자 확정 · 하단 개편 ⑥).
                 //
-                // 「가공」·「군수:관통」을 17px 검정으로 칸마다 찍고 있었다. **그림이 이미
-                // 종류를 말한다** — 노드 타일 아트가 열둘 다 배선된 뒤로 글자는 그 위에
-                // 겹치는 것뿐이었고, 보드가 시끄러웠다. 이름은 **조합표 패널에만** 둔다
-                // (노드를 탭하면 「가공 · 90° 조합표」로 뜬다).
+                // 아침에 걷었던 것이다(§72-51 — 「그림이 이미 종류를 말한다」). 육안에서
+                // **그림만으로는 열둘이 안 갈렸다** — 타일 아트가 같은 계열끼리 비슷하다.
                 //
-                // ⚠️ **「노는 중」은 남긴다** — 그것은 종류가 아니라 **상태**라 그림이 말하지
-                // 않는다. 뒤 컨펌 자리로 남겨 둔다.
+                // 되살리되 **종전과 다르게** 놓는다 —
+                // · 타일 **위쪽**에 어두운 판을 깔고 그 위에 미색 글자(종전은 타일 한가운데
+                //   검정 글자라 그림 위에 겹쳤다)
+                // · 크기가 **배율을 따라간다**(종전은 17px 날 픽셀이라 줌을 넣으면 점이 됐다)
+                // · 구역 이름표와 **같은 스냅**을 쓴다 — 안 쓰면 줌마다 새 글리프를 구워
+                //   아틀라스가 차고 글자가 깨진다(09-15 「판1」의 그 병).
+                //
+                // ⚠️ **군수는 「군수」만 적는다**(사용자 확정). 종전 「군수:관통」은 탄종까지
+                // 적었는데, 그것은 이제 **출력 품목 아이콘**이 말한다(개편 ⑦).
+                NodeInstance nodeHere = _grid.GetAt(kv.Key);
+                DrawNodeNamePlate(cam, kv.Value.transform.position, NodeLabel(nodeHere), cellPx);
+
+                // ⚠️ **무엇을 내는가는 그림이 말한다**(2026-09-15 · 하단 개편 ⑦).
+                DrawOutputItemIcon(cam, kv.Value.transform.position, nodeHere, cellPx);
 
                 // 일감률 0 = 이 노드는 지금 아무것도 안 하고 있다(260831_V07 표시 규칙).
                 // 초과분을 몰아서 0으로 두었으므로 **뺄 노드가 그대로 지목된다** —
@@ -2812,6 +2852,115 @@ namespace MBI.Logistics
                 GUI.color = ZoneLabelColor; // 경계선과 같은 미색이되 70% — 글자는 더 진해야 읽힌다
                 GUI.Label(new Rect(Mathf.Min(sp.x, maxX), Mathf.Min(y, maxY), boxW, boxH), text, style);
                 GUI.color = prev;
+            }
+        }
+
+        /// <summary>칸 하나가 화면에서 몇 픽셀인가. 배율·창 크기를 따라간다.</summary>
+        private float CellScreenPixels(Camera cam)
+        {
+            if (cam == null || _grid == null) return 0f;
+            Vector3 a = cam.WorldToScreenPoint(Vector3.zero);
+            Vector3 b = cam.WorldToScreenPoint(new Vector3(_grid.CellSize, 0f, 0f));
+            return Mathf.Abs(b.x - a.x);
+        }
+
+        /// <summary>노드 이름 판 — 타일 **위쪽** 어두운 판 + 미색 글자. ⚠️ 알파·높이는 가정.</summary>
+        private static readonly Color NamePlateColor = new Color(0.05f, 0.07f, 0.10f, 0.78f);
+        private static readonly Color NameTextColor = new Color(0.93f, 0.90f, 0.82f);
+
+        /// <summary>
+        /// 노드 이름을 타일 **위쪽 띠**에 적는다 (2026-09-15 사용자 확정 · 하단 개편 ⑥).
+        ///
+        /// ⚠️ **한가운데가 아니라 위쪽이다.** 종전(§72-51 이전)은 타일 한가운데 검정
+        /// 글자라 **그림 위에 겹쳤다** — 그래서 09-15 아침에 통째로 걷었던 것이다.
+        /// 위쪽 띠로 올리고 판을 깔면 그림과 글자가 자리를 나눠 갖는다.
+        ///
+        /// ⚠️ **배율을 따라가고 스냅한다** — 구역 이름표와 같은 처리다. 날 픽셀로 두면
+        /// 줌을 넣었을 때 점이 되고, 스냅을 빼면 줌마다 새 글리프를 구워 아틀라스가 찬다.
+        /// </summary>
+        private static void DrawNodeNamePlate(Camera cam, Vector3 world, string text, float cellPx)
+        {
+            if (string.IsNullOrEmpty(text) || cellPx < 24f) return;   // 너무 작으면 못 읽는다
+
+            Vector3 sp = cam.WorldToScreenPoint(world);
+            if (sp.z <= 0f) return;
+
+            float w = cellPx * 0.92f;
+            float h = cellPx * 0.26f;
+            float x = sp.x - w * 0.5f;
+            float y = Screen.height - sp.y - cellPx * 0.5f + cellPx * 0.04f;   // 타일 위쪽 안쪽
+            if (x + w < 0f || x > Screen.width || y + h < 0f || y > Screen.height) return;
+
+            var box = new Rect(x, y, w, h);
+            Color prev = GUI.color;
+            GUI.color = NamePlateColor;
+            GUI.DrawTexture(box, Texture2D.whiteTexture);
+            GUI.color = NameTextColor;
+            GUI.Label(box, text, new GUIStyle(GUI.skin.label)
+            {
+                fontSize = KoreanFont.Snap(Mathf.Max(9, Mathf.RoundToInt(h * 0.76f))),
+                alignment = TextAnchor.MiddleCenter,
+                fontStyle = FontStyle.Bold,
+            });
+            GUI.color = prev;
+        }
+
+        /// <summary>
+        /// **지금 내는 품목** 아이콘을 출력 면 커넥터 옆에 (2026-09-15 사용자 확정 · 개편 ⑦).
+        ///
+        /// ⚠️ **이름 글자가 못 하는 말을 한다.** 이름은 이제 「군수」까지만 적으므로
+        /// (개편 ⑥), **무엇을 내는 군수인가**는 이 그림이 유일한 답이다.
+        ///
+        /// ⚠️ **레시피가 바뀌면 따라 바뀐다** — 매 프레임 `CurrentRecipe` 에서 읽는다.
+        /// 한 번 구워 두면 조합표를 바꿔도 옛 그림이 남는다.
+        ///
+        /// ⚠️ **출력이 없는 노드에는 안 뜬다** — 저장·부스터가 그렇다. 빈 그림으로
+        /// 자리를 채우지 않는다.
+        /// </summary>
+        private void DrawOutputItemIcon(Camera cam, Vector3 world, NodeInstance inst, float cellPx)
+        {
+            if (inst == null || inst.Definition == null || cellPx < 24f) return;
+
+            FlowKind kind = inst.CurrentRecipe.output;
+            if (kind == FlowKind.None) return;
+
+            Sprite sp = art != null ? art.ItemSprite(kind) : null;
+            if (sp == null || sp.texture == null) return;   // 그림이 없으면 안 그린다(§10)
+
+            // 출력 면 쪽으로 붙인다 — 면이 돌면 아이콘도 따라 돈다(회전한 노드).
+            PortFace face = OutputFaceOf(inst);
+            Vector2 dir = FaceDirection(face);
+
+            Vector3 c = cam.WorldToScreenPoint(world);
+            if (c.z <= 0f) return;
+
+            float d = cellPx * 0.30f;
+            float cx = c.x + dir.x * cellPx * 0.30f - d * 0.5f;
+            float cy = Screen.height - c.y - dir.y * cellPx * 0.30f - d * 0.5f;
+
+            Rect tr = sp.textureRect;
+            var uv = new Rect(tr.x / sp.texture.width, tr.y / sp.texture.height,
+                tr.width / sp.texture.width, tr.height / sp.texture.height);
+            GUI.DrawTextureWithTexCoords(new Rect(cx, cy, d, d), sp.texture, uv);
+        }
+
+        /// <summary>그 노드가 지금 내는 면. 없으면 동면(자산 기본)으로 둔다.</summary>
+        private static PortFace OutputFaceOf(NodeInstance inst)
+        {
+            IReadOnlyList<NodePort> ports = inst.Ports();
+            for (int i = 0; i < ports.Count; i++)
+                if (ports[i].io == PortIO.Output) return ports[i].face;
+            return PortFace.East;
+        }
+
+        private static Vector2 FaceDirection(PortFace face)
+        {
+            switch (face)
+            {
+                case PortFace.North: return Vector2.up;
+                case PortFace.South: return Vector2.down;
+                case PortFace.West: return Vector2.left;
+                default: return Vector2.right;
             }
         }
 
@@ -3272,6 +3421,98 @@ namespace MBI.Logistics
         // 모드 버튼 — 화면 우측 하단 1개(UI 문서 9-2).
         // **버튼이 표시를 겸한다.** 문구가 현재 모드를 그대로 나타내므로 별도 모드 표시를 두지 않는다.
         // 모드를 바꾸는 곳과 확인하는 곳이 같은 자리가 되고, 화면 요소도 하나 아낀다.
+        /// <summary>
+        /// 카테고리 탭 줄 — 부유 띠 위쪽 (2026-09-15 사용자 확정 · 하단 개편 ②).
+        ///
+        /// ⚠️ **탭은 무엇을 놓을지가 아니라 무엇을 볼지를 정한다.** 고른 노드는 탭을 바꿔도
+        /// 안 풀린다 — 「전력」 탭에서 에너지를 고르고 「물류」로 옮겨 벨트를 보다가
+        /// 다시 놓으려는데 고르기가 풀려 있으면 손이 한 번 더 간다.
+        ///
+        /// ⚠️ **글자 크기·탭 높이는 가정이다**(설계 역기입 목록).
+        /// </summary>
+        private void DrawCategoryTabs()
+        {
+            Rect row = UiLayout.CategoryTabRect(Screen.width, Screen.height);
+            if (row.width <= 0f || row.height <= 0f) return;
+            UiBlockers.Add(row);
+
+            var order = PaletteCategories.Order;
+            float pad = 6f * UiLayout.Scale(Screen.height);
+            float w = (row.width - pad * (order.Length - 1)) / order.Length;
+
+            var style = new GUIStyle(GUI.skin.button)
+            {
+                fontSize = KoreanFont.Snap(Mathf.Max(9, Mathf.RoundToInt(row.height * 0.36f))),
+                wordWrap = false,
+            };
+
+            // 튜토리얼 동안에는 탭도 잠근다 — 팔레트가 잠겼는데 탭만 살아 있으면
+            // 「눌러도 아무 일 없는 줄」이 하나 생긴다.
+            bool allowed = TutorialGate.Allows(TutorialGate.Control.PaletteOther);
+            bool was = GUI.enabled;
+            GUI.enabled = was && allowed;
+
+            for (int i = 0; i < order.Length; i++)
+            {
+                var rect = new Rect(row.x + i * (w + pad), row.y, w, row.height);
+                bool on = _tab == order[i];
+                if (GUI.Button(rect, (on ? "● " : "") + PaletteCategories.LabelOf(order[i]), style))
+                {
+                    _tab = order[i];
+                    _paletteScroll = Vector2.zero;   // 탭을 바꾸면 줄이 달라진다 — 앞에서 본다
+                }
+                if (!allowed) GUI.DrawTexture(rect, UiSkin.DisabledTexture);
+            }
+
+            GUI.enabled = was;
+        }
+
+        /// <summary>
+        /// **지금 무슨 모드인가** 판 — 보드 우측 하단 (2026-09-15 · 하단 개편 ④).
+        ///
+        /// ⚠️ **가정이다 · 사용자 미답.** 구 중앙 600×150 막대(`DrawModeButton`)를 걷고
+        /// 이 판이 그 일을 대신한다 — **판이 곧 전환 버튼이다.**
+        ///
+        /// ⚠️ **문구가 구 막대와 반대다.** 막대는 「무엇으로 바뀌는가」(「▼ 조립 모드로」)를
+        /// 적었는데, 이 판은 **지금 무엇인가**를 적는다(「조립 모드」) — 사용자가 「현재 모드
+        /// 표시」로 지정했기 때문이다. 눌러서 바뀐다는 것은 **화살표**가 말한다.
+        /// </summary>
+        private void DrawModePlate()
+        {
+            Rect rect = UiLayout.ModePlateRect(Screen.width, Screen.height);
+            UiBlockers.Add(rect);
+
+            var style = new GUIStyle(GUI.skin.button)
+            {
+                fontSize = KoreanFont.Snap(Mathf.Max(10, Mathf.RoundToInt(rect.height * 0.30f))),
+            };
+
+            bool allowed = TutorialGate.Allows(TutorialGate.Control.ModeToggle);
+            bool was = GUI.enabled;
+            GUI.enabled = was && allowed;
+
+            bool build = _mode == BoardMode.Build;
+            string label = (build ? "조립 모드" : "이동 모드") + "  ⇄";
+
+            // 강제 버튼(T-7) — 이동 모드일 때만 빛난다. 바꾸고 나면 할 일이 끝났다.
+            bool urge = TutorialSignals.HighlightBuildMode && !build;
+            Color prev = GUI.color;
+            if (urge) GUI.color = new Color(1f, 0.92f, 0.45f);
+
+            if (GUI.Button(rect, label, style)) ToggleMode();
+
+            GUI.color = prev;
+            if (!allowed) GUI.DrawTexture(rect, UiSkin.DisabledTexture);
+            GUI.enabled = was;
+        }
+
+        /// <summary>
+        /// ⚠️ **폐기 — 중앙 600×150 모드 막대**(2026-09-15 · 하단 개편 ④ · 가정).
+        ///
+        /// 자리는 이제 보드 우측 하단 판이다(<see cref="DrawModePlate"/>). 되돌릴 수 있게
+        /// **한 메서드로 남긴다** — 부르는 곳은 없다. 사용자가 판을 물리면 이 줄 하나를
+        /// 다시 부르면 된다.
+        /// </summary>
         private void DrawModeButton()
         {
             var rect = UiLayout.ModeBarRect(Screen.width, Screen.height);

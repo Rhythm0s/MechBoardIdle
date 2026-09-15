@@ -52,6 +52,20 @@ namespace MBI.UI
             // 태그 · 합체 · 조립 진입). 물류 변수는 조립을 하는 동안 보는 것이다.
             if (!GameViewSignals.BoardViewActive) return;
 
+            // ⚠️ **변수 패널을 걷었다**(2026-09-15 사용자 확정 · 하단 개편 ①).
+            //
+            // 전력량·일감률·출력·요구·창고·탄종 줄이 전부 여기 있었다. 그 수들은 이제
+            // **노드 팝오버**가 그 노드에 대해서만 말한다(09-15 오전 개편 ②) — 보드 전체의
+            // 합을 늘 띄워 두는 것보다, **고친 노드의 수를 그 자리에서 보는 편**이 조립에
+            // 쓸모가 있다는 판정이다.
+            //
+            // ⚠️ **파일을 지우지 않는다** — 되돌릴 수 있게 그리기만 멈춘다. 자리(하단 112)를
+            // 다시 쓰기로 하면 이 한 줄을 지우면 된다. 아래 코드는 전부 살아 있다.
+            //
+            // ⚠️ **띠 자체도 안 깐다** — 그릇만 남기면 빈 베이지 띠가 화면 아래를 먹는다.
+            return;
+
+#pragma warning disable CS0162 // 아래는 되돌리기 위해 남긴 코드다(위 return 이 막는다)
             UiSkin.Apply(); // 껍데기 + 한글 폰트 — WebGL엔 시스템 폰트 폴백이 없다
 
             LogisticsResult r = LogisticsOutputBridge.Result;
@@ -117,6 +131,7 @@ namespace MBI.UI
             // 일감률(260831_V07 승인분). **총합은 평균**이고, 어느 노드가 노는지는 보드가 그린다.
             GUI.Label(new Rect(x, band.y + pad * 0.2f + rowH * 2f, colW, rowH),
                 $"일감률 평균 {Pct(WorkloadAverage)}  (노는 노드는 전력 0)", _label);
+#pragma warning restore CS0162
         }
 
         /// <summary>

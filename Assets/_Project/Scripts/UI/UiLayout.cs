@@ -278,8 +278,14 @@ namespace MBI.UI
         {
             Rect bar = BandRect(Band.ActionBar, screenWidth, screenHeight);
             float s = Scale(screenHeight);
-            float margin = 24f * s;
-            return new Rect(bar.x + margin, bar.y, BarButtonWidth * s * 0.5f, bar.height);
+
+            // ⚠️ **왼쪽 끝 → 가운데**(2026-09-15 사용자 확정 · 하단 개편 ③).
+            //
+            // 액션바에 있던 것은 이 버튼 하나뿐이었다(「적용」은 자리만 있고 아무도 안 그렸다).
+            // 하나뿐인 것을 왼쪽에 붙여 두면 **오른쪽이 빈 판**으로 남는다 — 띠 전체가
+            // 이 버튼의 자리라는 것이 화면에서 읽히지 않았다.
+            float w = BarButtonWidth * s * 0.5f;
+            return new Rect((screenWidth - w) * 0.5f, bar.y, w, bar.height);
         }
 
         /// <summary>액션바 「적용」 — 오른쪽 끝. 높이가 띠와 같아 띠를 꽉 채운다.</summary>
@@ -345,19 +351,74 @@ namespace MBI.UI
         ///
         /// 값이 서면 **이 메서드 하나만** 바뀐다.
         /// </summary>
+        /// <summary>
+        /// 부유 띠를 **두 줄로 쪼갠다** (2026-09-15 사용자 확정 · 하단 개편 ② ·
+        /// 참고 = 명일방주: 엔드필드 배치 화면).
+        ///
+        /// 위 = **카테고리 탭 줄**, 아래 = **노드 버튼 줄**(가로 스크롤).
+        ///
+        /// ⚠️ **비율 0.38 은 가정이다** — 문서에 탭 줄 절이 없다(설계 역기입).
+        /// 탭은 글자만 있어 낮아도 읽히고, 노드 버튼은 그림이 들어가 높아야 한다.
+        ///
+        /// ⚠️ **탭 줄은 눌리는 최소 150 을 밑돈다**(200 × 0.38 ≈ 76). 띠 높이 200 이
+        /// 문서 값이라 못 건드리므로, 둘 중 하나는 밑돌 수밖에 없다 — 자주 누르는 쪽
+        /// (노드 버튼)에 남는 높이를 준다. **판정거리다.**
+        /// </summary>
+        public const float CategoryTabFraction = 0.38f;
+
+        /// <summary>카테고리 탭 줄 — 부유 띠 위쪽. 오른쪽 끝은 배율 막대가 쓴다.</summary>
+        public static Rect CategoryTabRect(float screenWidth, float screenHeight)
+        {
+            Rect band = BandRect(Band.FloatBand, screenWidth, screenHeight);
+            float s = Scale(screenHeight);
+            float gap = 16f * s;
+            float left = FloatBandSlot(false, screenWidth, screenHeight).xMax + gap;
+            float right = ZoomBarRect(screenWidth, screenHeight).x - gap;
+            return new Rect(left, band.y, Mathf.Max(0f, right - left),
+                band.height * CategoryTabFraction);
+        }
+
+        /// <summary>
+        /// 노드 버튼 줄 — 부유 띠 **아래쪽**.
+        ///
+        /// ⚠️ **왼쪽 정사각 자리는 튜토리얼 진행 두 줄이 쓴다**(2026-09-15 · 개편 ⑤).
+        /// 미니맵이 나가며 빈 자리다.
+        ///
+        /// ⚠️ **오른쪽 끝은 배율 막대가 쓴다**(2026-09-14 · §72-12 5).
+        /// 구 「오른쪽 끝까지 쓴다」(2026-09-11 · §71-22 ②)는 폐기다.
+        /// </summary>
         public static Rect PaletteRect(float screenWidth, float screenHeight)
         {
             Rect band = BandRect(Band.FloatBand, screenWidth, screenHeight);
             float s = Scale(screenHeight);
-            float gap = 16f * s, margin = 24f * s;
+            float gap = 16f * s;
             float left = FloatBandSlot(false, screenWidth, screenHeight).xMax + gap;
-
-            // ⚠️ **오른쪽 끝은 배율 막대가 쓴다**(2026-09-14 · §72-12 5).
-            //
-            // 구 「오른쪽 끝까지 쓴다」(2026-09-11 · §71-22 ②)는 **폐기**다. 모드 버튼이
-            // 나가며 빈 그 칸을, 보드 위 날 픽셀에 있던 배율 막대가 물려받는다.
             float right = ZoomBarRect(screenWidth, screenHeight).x - gap;
-            return new Rect(left, band.y, Mathf.Max(0f, right - left), band.height);
+
+            float top = band.y + band.height * CategoryTabFraction;
+            return new Rect(left, top, Mathf.Max(0f, right - left),
+                band.height * (1f - CategoryTabFraction));
+        }
+
+        /// <summary>
+        /// **지금 무슨 모드인가** 판 — 보드 **우측 하단** (2026-09-15 · 하단 개편 ④).
+        ///
+        /// ⚠️ **가정이다 · 사용자 미답.** 구 중앙 600×150 막대를 걷고 이 판이 그 일을
+        /// 대신한다 — 판이 곧 전환 버튼이다. 되돌릴 수 있게 **한 메서드**로 둔다.
+        ///
+        /// ⚠️ **보드 띠 안이다** — 부유 띠로 내리면 팔레트와 자리를 다투고, 전투 띠로
+        /// 올리면 인셋을 가린다. 보드 오른쪽 아래는 실루엣이 안 닿는 모서리다.
+        /// </summary>
+        public const float ModePlateWidth = 320f;
+        public const float ModePlateHeight = 96f;
+
+        public static Rect ModePlateRect(float screenWidth, float screenHeight)
+        {
+            Rect band = BandRect(Band.Board, screenWidth, screenHeight);
+            float s = Scale(screenHeight);
+            float margin = 24f * s;
+            float w = ModePlateWidth * s, h = ModePlateHeight * s;
+            return new Rect(screenWidth - margin - w, band.yMax - margin - h, w, h);
         }
 
         // ───────────────────────── 조합표 팝오버 (가정) ─────────────────────────
@@ -463,13 +524,19 @@ namespace MBI.UI
         {
             Rect band = BandRect(Band.FloatBand, screenWidth, screenHeight);
             float s = Scale(screenHeight);
-            float margin = 24f * s, pad = 12f * s;
+            float pad = 12f * s;
 
-            float left = margin;
-            float right = ZoomBarRect(screenWidth, screenHeight).x - pad;
-            float w = Mathf.Max(0f, right - left);
+            // ⚠️ **미니맵이 쓰던 왼쪽 정사각 자리로 들어왔다**(2026-09-15 · 하단 개편 ⑤).
+            //
+            // 09-15 아침에 이 두 줄을 「부유 띠 왼쪽 · 배율 막대 앞까지」로 옮겼는데,
+            // 그날 오후 개편으로 그 폭을 **탭 줄과 노드 버튼 줄이 쓰게 됐다.**
+            // 미니맵이 나가며 빈 왼쪽 칸이 마침 이 두 줄의 자리다.
+            Rect slot = FloatBandSlot(right: false, screenWidth, screenHeight);
+
+            // 정사각 칸보다 조금 넓게 — 「[v] 끊긴 자리를 잇는다」가 한 줄로 서야 한다.
+            float w = slot.width * 2.6f;
             float h = Mathf.Max(0f, band.height - pad * 2f);
-            return new Rect(left, band.y + pad, w, h);
+            return new Rect(slot.x, band.y + pad, w, h);
         }
     }
 }
