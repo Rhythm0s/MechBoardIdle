@@ -78,7 +78,23 @@ namespace MBI.Core
             // 할 수 있는 일은 「조립 모드로 바꾸기」 하나뿐이다.
             if (ghostWaiting) return inBuildMode ? Phase.PlaceNode : Phase.BuildMode;
 
-            if (urgeBuildMode) return Phase.BuildMode;
+            // ⚠️⚠️ **이미 조립 모드면 「바꿔라」 국면이 아니다**
+            // (2026-09-15 · 사용자 육안 7차 — 「전투로 버튼이 안 눌린다」).
+            //
+            // `HighlightBuildMode` 도 **켜는 곳만 있고 끄는 곳이 없다** — 앞의
+            // `HighlightBoardButton` 과 **똑같은 병이고 신호 하나 옆이다.**
+            // 빈 칸을 채우면 `ghostWaiting` 이 거짓이 되어 여기로 내려오는데, 그때
+            // 이미 조립 모드인데도 `BuildMode` 국면이 서고 그 국면은
+            // **모드 버튼 하나만** 내준다 — **전투로 나갈 수가 없다.**
+            //
+            // 📌 **막다른 국면이다.** 남은 목표는 「마운트가 가득 찬다」인데 그것은
+            // 전투가 돌아야 차오른다. 나갈 수 없으면 **기다리는 것 말고 할 일이 없고**,
+            // 화면에는 왜 안 눌리는지가 안 적힌다.
+            //
+            // 📌 **그리는 쪽은 이미 알고 있었다** — `BoardController` 가 강조를
+            // `HighlightBuildMode && !build` 로 끄고 있다. **두 쪽이 다른 것을 믿고 있었고**,
+            // 그래서 버튼은 안 빛나는데 잠겨 있었다.
+            if (urgeBuildMode && !inBuildMode) return Phase.BuildMode;
             return Phase.None;
         }
 

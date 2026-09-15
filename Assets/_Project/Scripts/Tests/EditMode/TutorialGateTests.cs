@@ -216,5 +216,30 @@ namespace MBI.Tests
 
             TutorialSignals.Reset();
         }
+
+        [Test]
+        public void 놓기를_마치면_전투로_나갈_수_있다()
+        {
+            // ⚠️⚠️ **이 시험이 없어서 한 번 더 갇혔다**(2026-09-15 · 육안 7차).
+            //
+            // 위 시험은 「할 수 있는 일이 하나는 있는가」만 봤고, 모드 버튼 하나가
+            // 살아 있으면 통과했다 — 그런데 **나갈 수 없는 것**이 진짜 막다름이었다.
+            // 남은 목표(「마운트가 가득 찬다」)는 **전투가 돌아야** 차오르므로,
+            // 못 나가면 기다리는 것 말고 할 일이 없다.
+            TutorialSignals.Reset();
+            TutorialSignals.HighlightBoardButton = true;
+            TutorialSignals.HighlightBuildMode = true;
+            TutorialSignals.BoardViewOpen = true;
+            TutorialSignals.BoardInBuildMode = true;
+
+            // 빈 칸을 채웠다 — 첫 줄은 끝났고 둘째 줄을 기다린다.
+            TutorialSignals.GhostCell = new Vector2Int(6, 5);
+            TutorialSignals.GhostCellFilled = true;
+
+            Assert.IsTrue(TutorialGate.Allows(TutorialGate.Control.ExitBoard),
+                "놓기를 마쳤는데 전투로 못 나가면 목표를 채울 길이 없다");
+
+            TutorialSignals.Reset();
+        }
     }
 }

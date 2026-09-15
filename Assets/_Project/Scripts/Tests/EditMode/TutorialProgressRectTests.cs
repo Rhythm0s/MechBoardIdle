@@ -12,17 +12,17 @@ namespace MBI.Tests
     /// </summary>
     public sealed class TutorialProgressRectTests
     {
-        [Test]
-        public void 부유_띠_안에_앉는다()
-        {
-            const float w = 1440f, h = 2560f;
-            Rect band = UiLayout.BandRect(UiLayout.Band.FloatBand, w, h);
-            Rect r = UiLayout.TutorialProgressRect(w, h);
-
-            Assert.That(r.y, Is.GreaterThanOrEqualTo(band.y), "띠 위로 삐져나가면 보드를 가린다");
-            Assert.That(r.yMax, Is.LessThanOrEqualTo(band.yMax + 0.001f), "띠 아래로 넘치면 변수 패널을 덮는다");
-        }
-
+        /// <summary>
+        /// ⚠️ **구 시험 둘을 여기서 갈았다**(2026-09-15 · 사용자 육안 7차 ②).
+        ///
+        /// 「부유 띠 안에 앉는다」·「배율 막대와 안 겹친다」는 **자리가 부유 띠였을 때**의
+        /// 규칙이다. 그 띠를 탭 줄 여섯과 노드 버튼이 함께 쓰게 되면서 **좁은 창에서 셋이
+        /// 겹쳤고**, 자리를 보드 띠로 내보냈다 — 그러면 저 둘은 **뜻이 사라진 시험**이다.
+        ///
+        /// 📌 **지우지 않고 갈아 끼운다** — 무엇을 지키던 시험이었는지가 함께 사라지면,
+        /// 다음에 누가 자리를 되돌릴 때 같은 겹침을 다시 만든다.
+        /// 지키던 것(「다른 것을 덮지 않는다」)은 아래 `좁은_창에서도_탭_줄과_안_겹친다` 가 잇는다.
+        /// </summary>
         [Test]
         public void 배율_막대와_안_겹친다()
         {
@@ -30,8 +30,9 @@ namespace MBI.Tests
             Rect zoom = UiLayout.ZoomBarRect(w, h);
             Rect r = UiLayout.TutorialProgressRect(w, h);
 
-            Assert.That(r.xMax, Is.LessThanOrEqualTo(zoom.x + 0.001f),
-                "부유 띠 오른쪽은 배율 막대가 쓴다");
+            // 배율 막대는 부유 띠에 있고 진행 줄은 보드 띠에 있으므로 이제 층이 다르다 —
+            // 그래도 **겹치지 않는다**는 결론은 그대로여야 한다.
+            Assert.IsFalse(r.Overlaps(zoom), "배율 막대를 덮으면 안 된다");
         }
 
         [Test]
@@ -64,5 +65,47 @@ namespace MBI.Tests
             Assert.That(r.width, Is.GreaterThanOrEqualTo(0f));
             Assert.That(r.height, Is.GreaterThanOrEqualTo(0f));
         }
-    }
+    
+        [Test]
+        public void 좁은_창에서도_탭_줄과_안_겹친다()
+        {
+            // ⚠️⚠️ **좁은 창이 이 자리를 깨뜨렸다**(2026-09-15 · 사용자 육안 7차 ②).
+            //
+            // 종전 자리는 **부유 띠 왼쪽**이었는데, 그 띠는 탭 줄 여섯과 노드 버튼이
+            // 함께 쓴다. 창이 좁아지면 셋이 같은 폭을 다투고 — 실측(약 730px)에서
+            // 튜토리얼 세 줄이 **탭 위에 그대로 겹쳐** 탭이 「전」 한 글자만 보였다.
+            //
+            // 📌 **띠 안에서 나누는 것으로는 못 푼다** — 탭 여섯·버튼 여섯은 이미
+            // 띠를 꽉 쓰기로 정한 값이다. 그래서 **띠 밖**인지를 여기서 못 박는다.
+            foreach (float w in new[] { 480f, 730f, 1080f, 1440f, 1920f })
+            foreach (float h in new[] { 800f, 960f, 1280f, 2560f })
+            {
+                Rect prog = UiLayout.TutorialProgressRect(w, h);
+                Rect tabs = UiLayout.CategoryTabRect(w, h);
+                Rect palette = UiLayout.PaletteRect(w, h);
+
+                Assert.IsFalse(prog.Overlaps(tabs),
+                    $"{w}x{h} — 진행 줄이 카테고리 탭을 덮는다");
+                Assert.IsFalse(prog.Overlaps(palette),
+                    $"{w}x{h} — 진행 줄이 노드 버튼을 덮는다");
+            }
+        }
+
+        [Test]
+        public void 보드_띠_안에_있다()
+        {
+            // 띠 밖으로 내보낸 자리는 **보드 띠**다 — 목표 두 줄은 보드에서 할 일을
+            // 말하므로 보드 안이 제자리이고, 모드 판(오른쪽 아래)의 반대 구석이다.
+            foreach (float w in new[] { 480f, 730f, 1440f })
+            foreach (float h in new[] { 800f, 1280f, 2560f })
+            {
+                Rect prog = UiLayout.TutorialProgressRect(w, h);
+                Rect board = UiLayout.BandRect(UiLayout.Band.Board, w, h);
+
+                Assert.GreaterOrEqual(prog.y, board.y - 0.01f, $"{w}x{h} — 보드 띠 위로 나갔다");
+                Assert.LessOrEqual(prog.yMax, board.yMax + 0.01f, $"{w}x{h} — 보드 띠 아래로 나갔다");
+                Assert.LessOrEqual(prog.xMax, board.xMax + 0.01f, $"{w}x{h} — 오른쪽으로 나갔다");
+            }
+        }
+}
 }

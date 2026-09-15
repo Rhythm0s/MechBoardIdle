@@ -558,21 +558,31 @@ namespace MBI.UI
         /// </summary>
         public static Rect TutorialProgressRect(float screenWidth, float screenHeight)
         {
-            Rect band = BandRect(Band.FloatBand, screenWidth, screenHeight);
             float s = Scale(screenHeight);
             float pad = 12f * s;
 
-            // ⚠️ **미니맵이 쓰던 왼쪽 정사각 자리로 들어왔다**(2026-09-15 · 하단 개편 ⑤).
+            // ⚠️⚠️ **부유 띠에서 보드 띠로 내보냈다**(2026-09-15 · 사용자 육안 7차 ②).
             //
-            // 09-15 아침에 이 두 줄을 「부유 띠 왼쪽 · 배율 막대 앞까지」로 옮겼는데,
-            // 그날 오후 개편으로 그 폭을 **탭 줄과 노드 버튼 줄이 쓰게 됐다.**
-            // 미니맵이 나가며 빈 왼쪽 칸이 마침 이 두 줄의 자리다.
-            Rect slot = FloatBandSlot(right: false, screenWidth, screenHeight);
+            // 종전 자리는 부유 띠 **왼쪽**이었다. 그런데 그 띠는 **탭 줄 여섯 + 노드 버튼**이
+            // 함께 쓰는 자리라, **창이 좁아지면 셋이 같은 폭을 다툰다** — 실측(약 730px)에서
+            // 튜토리얼 세 줄이 탭·버튼 **위에 그대로 겹쳐** 탭이 「전」 한 글자만 보였다.
+            //
+            // 📌 **띠 안에서 자리를 나누는 것으로는 못 푼다.** 탭 여섯과 버튼 여섯은
+            // 이미 띠를 꽉 쓰기로 정한 값이다(216 · C안). 겹침을 없애려면 **띠 밖**이어야 한다.
+            //
+            // 보드 띠 **왼쪽 아래**로 내린다 — 모드 판이 오른쪽 아래를 쓰므로 반대 구석이고,
+            // 조작 안내 한 줄(`BoardController`)이 그 아래에 있으므로 **그 위에** 앉는다.
+            // 목표 두 줄은 보드에서 할 일을 말하므로 보드 안이 오히려 제자리다.
+            Rect boardBand = BandRect(Band.Board, screenWidth, screenHeight);
 
-            // 정사각 칸보다 조금 넓게 — 「[v] 끊긴 자리를 잇는다」가 한 줄로 서야 한다.
-            float w = slot.width * 2.6f;
-            float h = Mathf.Max(0f, band.height - pad * 2f);
-            return new Rect(slot.x, band.y + pad, w, h);
+            float lineH = 40f * s;                 // 목표 두 줄 + 진단 한 줄
+            float h = lineH * 3f;
+            float hintH = 44f * s;                 // 조작 안내 줄(같은 파일이 아니라 보드가 그린다)
+            float bottomGap = 24f * s;
+
+            float y = boardBand.yMax - bottomGap - hintH - 8f * s - h;
+            float w = Mathf.Min(boardBand.width * 0.62f, 880f * s);
+            return new Rect(boardBand.x + bottomGap, Mathf.Max(boardBand.y + pad, y), w, h);
         }
     }
 }

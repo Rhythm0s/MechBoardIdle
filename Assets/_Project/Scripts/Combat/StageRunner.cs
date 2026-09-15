@@ -1548,6 +1548,28 @@ namespace MBI.Combat
             // (상태창이 화면 절반을 넘지 않는 선 · ⚠️ 가정)으로 잡아 배율을 곱한다.
             float hudLeft = UiLayout.StatusPanelOrigin.x * hudScale;
             float hudW = Mathf.Min(760f * hudScale, Screen.width - hudLeft * 2f);
+
+            // ⚠️⚠️ **글자 크기를 높이로만 정하고 있었다**(2026-09-15 · 사용자 육안 7차).
+            //
+            // `hudPx` 는 `32 × Scale(화면 높이)` 다. **좁고 긴 창**에서는 높이가 커서 글자가
+            // 커지는데 **폭은 창을 따라 좁아진다** — 그래서 「창고 0/40」이 한 글자씩
+            // 세로로 쌓였다. 큰 글자가 좁은 칸에 들어가면 줄바꿈이 **글자 단위**가 된다.
+            //
+            // 📌 **같은 병을 오늘 세 번째 고친다** — 카테고리 탭(가로가 좁다) ·
+            // 마운트 이름표(폭 측정) · 여기. **크기는 두 변에서 잡아야 한다.**
+            //
+            // 가장 긴 줄이 한 줄에 들어갈 만큼으로 상한을 둔다 — 넘치면 줄바꿈이 나되
+            // **글자 단위로는 안 쪼개진다.**
+            {
+                int byWidth = Mathf.RoundToInt(hudW / 22f);   // 대략 22 글자가 한 줄
+                int capped = Mathf.Max(11, Mathf.Min(hudPx, byWidth));
+                if (capped < hudPx)
+                {
+                    hudPx = KoreanFont.Snap(capped);
+                    style.fontSize = hudPx;
+                    _hudSmall.fontSize = hudPx;
+                }
+            }
             float need = HudTextHeight(style, hudW - 10f,
                              lineTitle, lineOutput, lineAmmo, lineStore, lineEnemy, lineTag,
                              lineElapsed, lineWallet, lineHelp)
