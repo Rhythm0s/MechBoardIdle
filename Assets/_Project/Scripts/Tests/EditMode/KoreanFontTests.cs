@@ -63,15 +63,28 @@ namespace MBI.Tests
         }
 
         /// <summary>
-        /// 폰트가 **동적 폰트**여야 임의의 한글이 다 그려진다. 정적 아틀라스로 바뀌면
-        /// 문구를 바꾸는 순간 그 글자만 안 나온다 — 이번 주에 문구가 계속 바뀐다.
+        /// ⚠️ **폐기 — 동적에서 정적으로 갈았다**(2026-09-15 · 「다리L」 결함).
+        ///
+        /// 구 시험은 「동적이어야 임의의 한글이 다 그려진다 · 정적으로 바꾸면 문구를 바꾸는
+        /// 순간 그 글자만 안 나온다」였다. **그 걱정은 옳다.** 그런데 실측이 반대를 보였다 —
+        /// **동적인 채로도 라틴 대문자가 안 그려졌다**(한글은 전부 나오는데 「다리R」의 R 만
+        /// 빠졌다 · WebGL 엔 시스템 폰트 폴백이 없다).
+        ///
+        /// 즉 동적 굽기는 **「다 그려진다」를 지켜 주지 못했다.** 그래서 정적으로 가되,
+        /// 구 시험이 걱정한 위험은 **다른 장치가 맡는다** —
+        /// `KoreanFontSnapTests.소스의_모든_글자가_폰트에_구워져_있다` 가 소스의 문자열을
+        /// 다시 훑어 **안 구워진 글자가 하나라도 있으면 빨개진다.** 문구를 바꾸고 폰트를
+        /// 다시 안 구우면 그 시험이 잡고, 메뉴 `MBI/Reimport Korean Font` 가 고친다.
+        ///
+        /// **걱정을 버린 것이 아니라 지키는 자리를 옮겼다.**
         /// </summary>
         [Test]
-        public void FontIsDynamic_SoAnyKoreanRenders()
+        public void FontIsStatic_AndEveryUsedGlyphIsBaked()
         {
             var font = Resources.Load<Font>("Fonts/NotoSansKR-Regular");
             Assert.NotNull(font);
-            Assert.IsTrue(font.dynamic, "동적 폰트여야 새 글자가 그려진다");
+            Assert.IsFalse(font.dynamic,
+                "정적으로 구워야 WebGL 에서 라틴이 안 빠진다 — 09-15 「다리L」");
         }
     }
 }

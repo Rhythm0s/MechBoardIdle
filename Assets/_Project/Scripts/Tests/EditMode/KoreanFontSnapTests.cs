@@ -1,8 +1,10 @@
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Text.RegularExpressions;
 using MBI.UI;
 using NUnit.Framework;
+using UnityEditor;
 
 namespace MBI.Tests
 {
@@ -69,6 +71,32 @@ namespace MBI.Tests
             Assert.That(needed, Is.LessThan(budget),
                 $"글자 {glyphs}자 × 사다리 {KoreanFont.Ladder.Length}단계 = {needed / 1e6:F2}M px 로 "
                 + $"아틀라스 {budget / 1e6:F2}M 을 넘는다 — 넘으면 에러 없이 글자가 사라진다");
+        }
+
+        [Test]
+        public void 소스의_모든_글자가_폰트에_구워져_있다()
+        {
+            // ⚠️ **이것이 「다리L」을 막는다**(2026-09-15).
+            //
+            // 폰트를 **정적으로** 굽는다(`FontImportRules`) — 쓰는 글자를 임포트 시점에
+            // 전부 넣어 두면 런타임에 빠질 자리가 없다. 그런데 후처리기는 **폰트가
+            // 임포트될 때만** 돌아서, **문자열을 늘리고 폰트를 안 다시 구우면 조용히 빠진다.**
+            // 그 순간을 여기서 잡는다.
+            var importer = (TrueTypeFontImporter)AssetImporter.GetAtPath(
+                MBI.Editor.FontImportRules.FontPath);
+            if (importer == null) Assert.Ignore("폰트 자산이 없다 — 자산 전 클론");
+
+            Assert.That(importer.fontTextureCase, Is.EqualTo(FontTextureCase.CustomSet),
+                "동적 굽기는 WebGL 에서 라틴 글리프를 놓쳤다 — 09-15 「다리L」");
+
+            var baked = new HashSet<char>(importer.customCharacters);
+            var missing = new List<char>();
+            foreach (char ch in MBI.Editor.ScreenGlyphs.Collect())
+                if (!baked.Contains(ch)) missing.Add(ch);
+
+            Assert.That(missing, Is.Empty,
+                "안 구워진 글자가 있다 — 메뉴 `MBI/Reimport Korean Font` 를 돌린다: "
+                + new string(missing.ToArray()));
         }
 
         [Test]
