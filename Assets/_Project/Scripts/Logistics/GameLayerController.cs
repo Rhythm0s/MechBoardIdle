@@ -185,12 +185,20 @@ namespace MBI.Logistics
             // **임시 가림**이다. 보드 뷰포트를 UI 9-4 의 768~2098 로 자르는 구조 정리가
             // 남아 있고 그것은 **구현 재량**이다(촬영 뒤 · `BoardController` 같은 자리 주석).
             // 전투 화면에서는 안 깐다: 거기 막대는 **레이어 1** 이라 띠가 없다.
+            // ⚠️ **그릇을 걷었다**(2026-09-15 사용자 확정 · 「전투로 버튼 아래 패널 제거」).
+            //
+            // 위 문단은 **임시 가림**이었다 — 보드 뷰포트를 띠 안으로 자르지 못해서
+            // 다리가 비치는 것을 판으로 덮고 있었다. 09-15 에 보드 글자를 `GUI.BeginClip` 으로
+            // 띠 안에 가두면서 **덮을 이유가 줄었고**, 판만 남아 버튼 좌우로 빈 그릇이
+            // 넓게 깔렸다 — 화면에서는 **누를 수 없는 큰 판 가운데 버튼 하나**로 보인다.
+            //
+            // ⚠️ **막는 것은 그대로 둔다**(`UiBlockers`) — 그릇을 안 그려도 그 줄은
+            // 보드가 아니다. 안 막으면 띠를 눌렀을 때 **밑의 칸이 눌린다.**
             if (_boardView)
             {
                 Rect bar = MBI.UI.UiLayout.BandRect(
                     MBI.UI.UiLayout.Band.ActionBar, Screen.width, Screen.height);
                 MBI.UI.UiBlockers.Add(bar);
-                MBI.UI.UiSkin.DrawPlate(bar);   // 9-슬라이스(육안 4차 ④)
             }
 
             MBI.UI.UiBlockers.Add(rect); // 보드가 누르는 순간 판정한다 — UiBlockers 주석

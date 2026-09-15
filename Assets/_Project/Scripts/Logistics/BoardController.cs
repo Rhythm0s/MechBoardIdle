@@ -2623,10 +2623,40 @@ namespace MBI.Logistics
 
             // 「방향」은 어느 탭에서나 뜬다 — 놓기 전 방향은 종류와 무관한 손버릇이다.
             int slots = visibleNodes + 1 + elementSlots + visibleModules;
-            float step = side + pad;
             var view = new Rect(band.x + pad, band.y + pad,
                 band.width - pad * 2f, band.height - pad * 2f);
+
+            // ⚠️ **한 줄에 여섯은 보인다**(2026-09-15 사용자 확정 · 「노드 리스트를 6개까지」).
+            //
+            // 종전에는 변의 상한이 **띠 높이 하나**였다(216). 그런데 창이 좁으면 216 이
+            // 가로로 서너 개밖에 안 들어가고, 나머지는 **스크롤 밖**으로 밀린다 —
+            // 무엇이 더 있는지조차 안 보인다. 가로에서도 상한을 잡아 **둘 중 작은 쪽**을 쓴다.
+            //
+            // 📌 **216 은 그대로 상한이다** — 넓은 창에서 버튼이 더 커지지는 않는다.
+            const int WantVisible = 6;
+            float byWidth = (view.width - pad * (WantVisible - 1)) / WantVisible;
+            side = Mathf.Max(1f, Mathf.Min(side, byWidth));
+
+            float step = side + pad;
             var content = new Rect(0f, 0f, slots * step, side);
+
+            // ⚠️ **휠·트랙패드로도 밀린다**(2026-09-15 사용자 확정 · 「좌우로 스크롤 되지 않음」).
+            //
+            // 가로 스크롤바는 띠 아래쪽에 **몇 픽셀**로 깔려서 손가락으로도 마우스로도
+            // 잡기 어렵다 — 있는데 못 쓰는 것은 **없는 것과 같다.**
+            // IMGUI 스크롤뷰는 휠을 **세로로만** 먹으므로 여기서 직접 가로로 돌린다.
+            //
+            // ⚠️ **보드 확대·축소와 안 겹친다** — 저쪽은 보드 위에서만 듣고, 이 띠는
+            // `UiBlockers` 에 들어 있어 보드가 아니다.
+            if (Event.current != null && Event.current.type == EventType.ScrollWheel
+                && view.Contains(Event.current.mousePosition))
+            {
+                float d = Event.current.delta.y + Event.current.delta.x;
+                _paletteScroll.x = Mathf.Clamp(
+                    _paletteScroll.x + d * step * 0.5f,
+                    0f, Mathf.Max(0f, content.width - view.width));
+                Event.current.Use();
+            }
 
             // 이동 모드에서는 팔레트를 흐리게 — 지금은 놓을 수 없다는 것을 버튼 상태로 알린다.
             GUI.enabled = _mode == BoardMode.Build;
