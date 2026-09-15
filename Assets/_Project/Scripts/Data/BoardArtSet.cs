@@ -33,6 +33,22 @@ namespace MBI.Data
         {
             public FlowKind kind;
             public Sprite sprite;
+
+            /// <summary>
+            /// **그림이 캔버스에서 실제로 차지하는 비율** (2026-09-15 · 육안 4차 ⑥ · 실측).
+            ///
+            /// ⚠️ **이것이 없어서 탄약이 점만 하게 그려졌다.** 크기를 맞출 때
+            /// `Sprite.bounds` 를 썼는데 그건 **캔버스**(64×64)이지 **그림**이 아니다.
+            /// `ammo_standard` 는 64 안에 40×20 만 그려져 있어서, 캔버스를 한 칸의 0.26 에
+            /// 맞추면 **보이는 것은 0.16×0.08 칸**이 된다 — 한 칸이 80픽셀이면 13×6픽셀,
+            /// 즉 **주황 얼룩**이다. `core_energy` 는 54×52 로 캔버스를 거의 채워서
+            /// 같은 셈에도 제 크기로 나왔다 — **그래서 한 품목만 이상해 보였다.**
+            ///
+            /// 여기 든 값은 긴 변 기준(= max(그림폭, 그림높이) / 캔버스변)이고,
+            /// <see cref="MBI.Editor.ItemArtSpanGenerator"/> 가 PNG 알파에서 재서 넣는다.
+            /// **0 이면 「안 쟀다」**는 뜻이고 부르는 쪽이 1 로 본다(구 동작 그대로).
+            /// </summary>
+            [Range(0f, 1f)] public float contentSpan;
         }
 
         [Header("노드 — 종류마다 한 장")]
@@ -104,6 +120,20 @@ namespace MBI.Data
             for (int i = 0; i < items.Count; i++)
                 if (items[i].kind == kind) return items[i].sprite;
             return null;
+        }
+
+        /// <summary>
+        /// 그 품목 그림이 캔버스에서 차지하는 비율. 안 쟀으면 <b>1</b>(= 캔버스를 다 쓴다)로 본다.
+        ///
+        /// ⚠️ **1 로 떨어지는 것이 구 동작이다** — 못 잰 그림 때문에 크기가 갑자기
+        /// 달라지지 않는다. 대신 시험이 「전부 쟀는가」를 지킨다.
+        /// </summary>
+        public float ItemContentSpan(FlowKind kind)
+        {
+            for (int i = 0; i < items.Count; i++)
+                if (items[i].kind == kind)
+                    return items[i].contentSpan > 0.0001f ? items[i].contentSpan : 1f;
+            return 1f;
         }
 
         /// <summary>

@@ -100,6 +100,23 @@ namespace MBI.Editor
             art.mountGunA = LoadBoard("mount_gun_a");
             art.mountDronebayB = LoadBoard("mount_dronebay_b");
 
+            // ⚠️⚠️ **다시 지을 때 잰 값을 버리지 않는다**(2026-09-15 · 육안 4차 ⑥ · 네 번째 소유 사고).
+            //
+            // 여기는 **배선**(어느 종이 어느 그림인가)의 주인이다. 그런데 `contentSpan` 은
+            // **실측값**이고 주인이 다르다(`ItemArtSpanGenerator`). 종전처럼 통째로 비우면
+            // 배선을 새로 깔면서 **남의 값까지 0 으로 지운다** — 실제로
+            // `BoardArtWiringTests` 가 이 함수를 부르는 바람에 **시험을 한 번 돌릴 때마다
+            // 품목 크기가 초기화**됐고, 그러면 그 뒤 빌드에서 품목이 다시 작아진다.
+            //
+            // 📌 **에러가 안 난다.** 0 은 「안 쟀다」로 읽혀 조용히 구 동작으로 떨어진다.
+            // 09-14·09-15 의 사운드 배선 소멸과 **같은 모양**이고, 이번이 네 번째다.
+            //
+            // **비우기 전에 들고 있다가 되꽂는다.** 그림이 바뀌었으면 값도 틀렸겠지만,
+            // 그것은 `ItemArtSpanTests` 가 **다시 재서** 잡는다.
+            var keptSpans = new System.Collections.Generic.Dictionary<FlowKind, float>();
+            foreach (BoardArtSet.ItemArt old in art.items)
+                if (old.contentSpan > 0f) keptSpans[old.kind] = old.contentSpan;
+
             art.items.Clear();
             AddItem(art, FlowKind.CoreEnergy, "core_energy");
             AddItem(art, FlowKind.BasicParts, "basic_parts");
@@ -121,6 +138,17 @@ namespace MBI.Editor
             // ⚠️ **15-2 6장의 승인본 그림 설명 둘은 이것과 반대로 붙어 있다** — 자리만 회신문에 올린다.
             AddUnitItem(art, FlowKind.StackDrone, "drone_n");
             AddUnitItem(art, FlowKind.AoeDrone, "drone_w");
+
+            // 들고 있던 실측값을 되꽂는다 — 위 주석의 그 자리다.
+            for (int i = 0; i < art.items.Count; i++)
+            {
+                BoardArtSet.ItemArt it = art.items[i];
+                if (keptSpans.TryGetValue(it.kind, out float span))
+                {
+                    it.contentSpan = span;
+                    art.items[i] = it;
+                }
+            }
 
             EditorUtility.SetDirty(art);
             return art;

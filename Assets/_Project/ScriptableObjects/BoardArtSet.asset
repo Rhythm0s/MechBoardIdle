@@ -44,25 +44,37 @@ MonoBehaviour:
   items:
   - kind: 7
     sprite: {fileID: 21300000, guid: 5a402666c4ec9134f839808f261fca3a, type: 3}
+    contentSpan: 0.84375
   - kind: 8
     sprite: {fileID: 21300000, guid: 339a978900d2c9d42a8849d1b1af644d, type: 3}
+    contentSpan: 0.78125
   - kind: 9
     sprite: {fileID: 21300000, guid: 72b20e3380c8aed4abb1025a713d3908, type: 3}
+    contentSpan: 0.65625
   - kind: 10
     sprite: {fileID: 21300000, guid: 720e6018580d5864b9c52479c7f13d70, type: 3}
+    contentSpan: 0.90625
   - kind: 11
     sprite: {fileID: 21300000, guid: f162cec4232f1e641a1e25b1bc2064dd, type: 3}
+    contentSpan: 0.625
   - kind: 12
     sprite: {fileID: 21300000, guid: fb51abbbdfef0c04c8ca4df0d1929f95, type: 3}
+    contentSpan: 0.9375
   - kind: 13
     sprite: {fileID: 21300000, guid: 0841c56b88349ac4ebfb335176955624, type: 3}
+    contentSpan: 0.96875
   - kind: 14
     sprite: {fileID: 21300000, guid: ef20c6058eded2944a6d8f9cc9274a20, type: 3}
+    contentSpan: 0.875
   - kind: 15
     sprite: {fileID: 21300000, guid: 42e97a2695f728046b9ff4099b4d5a1d, type: 3}
+    contentSpan: 1
   - kind: 5
     sprite: {fileID: 21300000, guid: 62167b2b9c5bea448b8821a87798bca7, type: 3}
+    contentSpan: 0.8125
   - kind: 16
     sprite: {fileID: 21300000, guid: 13ca7213fc01dc8488790a7f830323cb, type: 3}
+    contentSpan: 0.96875
   - kind: 17
     sprite: {fileID: 21300000, guid: ea655ac4f45681247afdcbc38aca5c5f, type: 3}
+    contentSpan: 0.828125
