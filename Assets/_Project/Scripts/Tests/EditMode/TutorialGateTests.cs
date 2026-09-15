@@ -160,5 +160,61 @@ namespace MBI.Tests
             Assert.IsTrue(TutorialGate.Allows(TutorialGate.Control.Zoom));
             Assert.IsTrue(TutorialGate.Allows(TutorialGate.Control.MiniMap));
         }
+        [Test]
+        public void 보드에_들어간_뒤에는_들어가라_국면이_아니다()
+        {
+            // ⚠️⚠️ **이 한 줄이 없어서 보드가 통째로 잠겼다**(2026-09-15 · 사용자 육안).
+            //
+            // 「조립 버튼을 눌러라」 신호는 **켜는 곳만 있고 끄는 곳이 없었다.** 그래서
+            // 눌러서 들어가도 국면이 `EnterBoard` 에 머물렀고, 그 국면은 **조립 버튼
+            // 하나만** 허락하므로 모드 버튼·팔레트·탭·칸 탭이 전부 잠겼다.
+            //
+            // 📌 **그래서 튜토리얼이 끝날 수 없었다** — 벨트를 깔려면 조립 모드로 바꿔야
+            // 하는데 그 버튼이 잠겨 있으니 첫 줄이 영영 안 선다. 보드·물류·마운트를
+            // 다 재고도 못 찾았던 까닭은 **그 셋이 다 멀쩡했기** 때문이다.
+            TutorialSignals.Reset();
+            TutorialSignals.HighlightBoardButton = true;
+            TutorialSignals.HighlightBuildMode = true;
+            TutorialSignals.GhostCell = new Vector2Int(6, 5);
+
+            TutorialSignals.BoardViewOpen = false;
+            Assert.AreEqual(TutorialGate.Phase.EnterBoard, TutorialGate.Current,
+                "아직 안 들어갔으면 들어가라고 한다");
+
+            TutorialSignals.BoardViewOpen = true;
+            Assert.AreNotEqual(TutorialGate.Phase.EnterBoard, TutorialGate.Current,
+                "들어간 뒤에는 다음 국면으로 넘어가야 한다 — 안 넘어가면 보드가 잠긴다");
+            Assert.IsTrue(TutorialGate.Allows(TutorialGate.Control.ModeToggle),
+                "이동 모드에서 조립 모드로 바꿀 수 있어야 한다 — 이것이 막히면 벨트를 못 깐다");
+
+            TutorialSignals.Reset();
+        }
+
+        [Test]
+        public void 보드_안에서_손이_아주_막히지는_않는다()
+        {
+            // 국면이 무엇이든 **할 수 있는 일이 하나는 있어야 한다.**
+            // 아무것도 못 하는 국면은 강제가 아니라 **정지**다(09-11 에 한 번 겪었다).
+            TutorialSignals.Reset();
+            TutorialSignals.HighlightBoardButton = true;
+            TutorialSignals.HighlightBuildMode = true;
+            TutorialSignals.GhostCell = new Vector2Int(6, 5);
+            TutorialSignals.BoardViewOpen = true;
+
+            foreach (bool inBuild in new[] { false, true })
+            {
+                TutorialSignals.BoardInBuildMode = inBuild;
+
+                bool any = TutorialGate.AllowsBoardTap;
+                foreach (TutorialGate.Control c in
+                         System.Enum.GetValues(typeof(TutorialGate.Control)))
+                    if (TutorialGate.Allows(c)) any = true;
+
+                Assert.IsTrue(any,
+                    $"조립 모드={inBuild} 에서 할 수 있는 일이 하나도 없다 — 막다른 국면이다");
+            }
+
+            TutorialSignals.Reset();
+        }
     }
 }

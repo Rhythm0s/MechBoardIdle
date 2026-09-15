@@ -102,6 +102,27 @@ namespace MBI.Core
         /// </summary>
         public static bool BoardInBuildMode;
 
+        /// <summary>
+        /// 조립 보드가 **지금 열려 있는가** — <b>레이어가 쓰고 튜토리얼 게이트가 읽는다.</b>
+        /// (2026-09-15 · 「이동 모드 (바꾸기) 버튼이 안 먹는다」 · 09-11 결함과 같은 모양)
+        ///
+        /// ⚠️⚠️ **이것이 없어서 보드가 통째로 잠겼다.** 게이트의 첫 국면은
+        /// 「조립 버튼을 눌러라」(<see cref="HighlightBoardButton"/>)인데, 그 신호를
+        /// <b>켜는 곳만 있고 끄는 곳이 없었다</b> — 눌러서 보드에 들어가도 국면이
+        /// `EnterBoard` 에 머물렀고, 그 국면은 **조립 버튼 하나만** 허락한다.
+        /// 그래서 보드 안에서 <b>모드 버튼·팔레트·탭·칸 탭이 전부 잠겼다.</b>
+        ///
+        /// 📌 **튜토리얼이 끝날 수 없었다** — 벨트를 깔려면 조립 모드로 바꿔야 하는데
+        /// 그 버튼이 잠겨 있으니 첫 줄(「끊긴 자리를 잇는다」)이 영영 안 선다.
+        /// 09-15 「목표 달성 불가」의 뿌리가 이것이다. 보드·물류·마운트를 다 재고도
+        /// 못 찾았던 까닭은 **그 셋이 다 멀쩡했기** 때문이다 — 막힌 것은 <b>손</b>이었다.
+        ///
+        /// ⚠️ **끄는 것이 아니라 상태를 읽는다.** 신호를 눌릴 때 끄면 전투로 돌아갔을 때
+        /// 다시 켜 줄 곳이 필요해지고, 그 자리를 또 빠뜨린다(09-11 에 같은 이유로
+        /// <see cref="BoardInBuildMode"/> 를 들여놓았다).
+        /// </summary>
+        public static bool BoardViewOpen;
+
         /// <summary>도메인 리로드 비활성 시 이전 Play의 값이 남는 것을 막는다.</summary>
         public static void Reset()
         {
@@ -113,6 +134,7 @@ namespace MBI.Core
             ClearEmptySlotRequested = false;
             FillEmptySlotRequested = false;
             BoardInBuildMode = false;
+            BoardViewOpen = false;
         }
     }
 }

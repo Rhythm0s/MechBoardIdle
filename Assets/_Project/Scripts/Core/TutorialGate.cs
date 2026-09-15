@@ -57,7 +57,11 @@ namespace MBI.Core
         /// 이제 고스트가 떠 있어도 **이동 모드면 모드 국면**이다 — 먼저 조립 모드로 바꾸게 한다.
         /// </summary>
         public static Phase Current =>
-            Resolve(TutorialSignals.HighlightBoardButton,
+            // ⚠️ **보드가 이미 열려 있으면 「들어가라」 국면이 아니다**
+            // (2026-09-15 · 「이동 모드 버튼이 안 먹는다」).
+            // 신호를 켜는 곳만 있고 끄는 곳이 없어 **들어간 뒤에도 그 국면에 머물렀고**,
+            // 그 국면은 조립 버튼 하나만 허락하므로 **보드가 통째로 잠겼다.**
+            Resolve(TutorialSignals.HighlightBoardButton && !TutorialSignals.BoardViewOpen,
                     TutorialSignals.HighlightBuildMode,
                     TutorialSignals.GhostCell.HasValue && !TutorialSignals.GhostCellFilled,
                     TutorialSignals.BoardInBuildMode);
