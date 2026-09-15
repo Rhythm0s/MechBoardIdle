@@ -217,7 +217,7 @@ namespace MBI.Logistics
             }
 
             // ⚠️ **어둠막은 버튼 뒤에** — 앞에 그리면 버튼이 제 바탕으로 덮는다(2026-09-11).
-            if (!allowed) GUI.DrawTexture(rect, MBI.UI.UiSkin.DisabledTexture);
+            if (!allowed) MBI.UI.UiSkin.DrawLockVeil(rect);
             GUI.enabled = wasEnabled;
         }
     }

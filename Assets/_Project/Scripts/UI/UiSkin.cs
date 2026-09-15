@@ -203,6 +203,32 @@ namespace MBI.UI
         /// <summary>잠긴 버튼 바탕. IMGUI 에 꺼진 상태 칸이 없어 **호출부가 직접 깐다**.</summary>
         public static Texture2D DisabledTexture { get { EnsureTextures(); return _off; } }
 
+        /// <summary>
+        /// **잠금막을 깐다** — 버튼 위에 얹어 「지금은 못 누른다」를 말한다
+        /// (2026-09-15 · 촬영 차단 결함 수정).
+        ///
+        /// ⚠️ **종전에는 호출부가 `DisabledTexture` 를 그대로 깔았다.** 그것은 **잠긴 버튼
+        /// 바탕**이라 **불투명**이고, 버튼 위에 덮으면 **글자까지 통째로 가린다** —
+        /// 09-15 조립 화면에서 탭·노드 버튼·모드 판이 **빈 판으로** 보인 것이 그것이다.
+        /// 「글자가 사라졌다」로 읽혔지만 **글자는 그려져 있었고 막이 덮고 있었다.**
+        ///
+        /// ⚠️ 같은 날 아침 삭제 컨펌에서 **같은 오용**이 있었다(화면 전체를 덮었다).
+        /// 한 텍스처를 두 뜻으로 쓰면 이런 일이 반복된다 — **막은 막이어야 한다.**
+        ///
+        /// 반투명이라 **아래 글자가 비친다**: 무엇이 잠겼는지 읽고 나서 못 누르는 것과,
+        /// 무엇인지도 모르고 못 누르는 것은 다르다.
+        /// </summary>
+        public static void DrawLockVeil(Rect rect)
+        {
+            Color prev = GUI.color;
+            GUI.color = LockVeil;
+            GUI.DrawTexture(rect, Texture2D.whiteTexture);
+            GUI.color = prev;
+        }
+
+        /// <summary>잠금막 색. ⚠️ **알파는 가정**(튜토리얼 어둠막 0.55 와 같은 눈금에서 더 옅게).</summary>
+        public static readonly Color LockVeil = new Color(0.02f, 0.03f, 0.05f, 0.45f);
+
         private static void Ensure()
         {
             if (_skin != null) return;

@@ -2570,7 +2570,7 @@ namespace MBI.Logistics
                 // ⚠️ **어둠막은 버튼 뒤에 그린다**(2026-09-11 재육안 · IMGUI 는 뒤에 그리는
                 // 쪽이 위로 온다). 앞에 그렸더니 **버튼이 제 바탕으로 덮어** 막이 한 번도
                 // 안 보였다 — 화면에서는 팔레트가 전부 밝았다. 그림도 함께 덮는다.
-                if (!allowed) GUI.DrawTexture(rect, UiSkin.DisabledTexture);
+                if (!allowed) UiSkin.DrawLockVeil(rect);
 
                 GUI.enabled = wasEnabled;
                 bx += step;
@@ -2616,7 +2616,7 @@ namespace MBI.Logistics
                     _elementMode = on ? (BeltElementKind?)null : e;
                     _selectedModule = -1;
                 }
-                if (!elementAllowed) GUI.DrawTexture(eRect, UiSkin.DisabledTexture);
+                if (!elementAllowed) UiSkin.DrawLockVeil(eRect);
                 GUI.enabled = wasE;
                 bx += step;
             }
@@ -2641,7 +2641,7 @@ namespace MBI.Logistics
                         _selectedModule = on ? -1 : m;
                         _elementMode = null;
                     }
-                    if (!moduleAllowed) GUI.DrawTexture(mRect, UiSkin.DisabledTexture);
+                    if (!moduleAllowed) UiSkin.DrawLockVeil(mRect);
                     GUI.enabled = wasM;
                     bx += step;
                 }
@@ -3528,7 +3528,7 @@ namespace MBI.Logistics
                     _tab = order[i];
                     _paletteScroll = Vector2.zero;   // 탭을 바꾸면 줄이 달라진다 — 앞에서 본다
                 }
-                if (!allowed) GUI.DrawTexture(rect, UiSkin.DisabledTexture);
+                if (!allowed) UiSkin.DrawLockVeil(rect);
             }
 
             GUI.enabled = was;
@@ -3570,7 +3570,7 @@ namespace MBI.Logistics
             if (GUI.Button(rect, label, style)) ToggleMode();
 
             GUI.color = prev;
-            if (!allowed) GUI.DrawTexture(rect, UiSkin.DisabledTexture);
+            if (!allowed) UiSkin.DrawLockVeil(rect);
             GUI.enabled = was;
         }
 
@@ -3624,7 +3624,7 @@ namespace MBI.Logistics
             if (GUI.Button(rect, label, style)) ToggleMode();
 
             GUI.color = prev;
-            if (!modeAllowed) GUI.DrawTexture(rect, UiSkin.DisabledTexture);
+            if (!modeAllowed) UiSkin.DrawLockVeil(rect);
             GUI.enabled = wasMode;
         }
 
