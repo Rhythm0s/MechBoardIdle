@@ -65,8 +65,6 @@ MonoBehaviour:
     - {fileID: 21300000, guid: 28ff4da926252e748bdfb7c339c4ee13, type: 3}
     - {fileID: 21300000, guid: 53b300f862d689643bb4fe8dd83f6df3, type: 3}
     - {fileID: 21300000, guid: 09f1c7d2b5a1ddf42b50c220acc1a254, type: 3}
-    - {fileID: 21300000, guid: 819c343580e25de45a80a0af6832b74e, type: 3}
-    - {fileID: 21300000, guid: a4b4f6ea40395194da908477056f883a, type: 3}
     targetSeconds: 1
     pingPong: 0
     dwellCells: 
