@@ -1414,9 +1414,14 @@ namespace MBI.Logistics
         // 값은 **아트 픽셀** 기준이고 한 칸이 192픽셀이다. 월드 단위로 쓰려면 cellSize를 곱한다 —
         // 칸 크기가 바뀌어도 화면에서 보이는 비율이 그대로 유지된다.
         private const float ZonePx = 192f;      // 격자 한 칸 = 192 아트 픽셀
-        private const float ZoneLineThickPx = 4f;   // 점선 굵기
+        // ⚠️ **점선 → 실선 · 굵게**(2026-09-15 사용자 확정 · 육안 ⑦).
+        //
+        // 점선은 흙 배경 위에서 **끊긴 자국처럼** 보여 파츠 경계가 안 읽혔다.
+        // 끊는 길이를 0 으로 두면 같은 코드가 실선을 그린다 — 그리는 길이만 남는다.
+        // ⚠️ **값 셋 다 가정이다**(설계 역기입). 구 4 / 16 / 16 은 폐기 표기.
+        private const float ZoneLineThickPx = 7f;   // 선 굵기 (구 4)
         private const float ZoneDashPx = 16f;       // 그리는 길이
-        private const float ZoneGapPx = 16f;        // 띄우는 길이
+        private const float ZoneGapPx = 0f;         // 띄우는 길이 — 0 = 실선 (구 16)
         private const float ZoneLabelInsetPx = 8f;  // 이름표를 구역 왼윗모서리 안쪽으로 들이는 양
         // 이름표 글자 높이 — **아트 픽셀**이다 (2026-09-07 · `260906_W05` 2-2).
         //
@@ -2755,10 +2760,14 @@ namespace MBI.Logistics
                 // ⚠️ **군수는 「군수」만 적는다**(사용자 확정). 종전 「군수:관통」은 탄종까지
                 // 적었는데, 그것은 이제 **출력 품목 아이콘**이 말한다(개편 ⑦).
                 NodeInstance nodeHere = _grid.GetAt(kv.Key);
-                DrawNodeNamePlate(cam, kv.Value.transform.position, NodeLabel(nodeHere), cellPx);
 
-                // ⚠️ **무엇을 내는가는 그림이 말한다**(2026-09-15 · 하단 개편 ⑦).
+                // ⚠️ **아이콘을 먼저, 이름판을 나중에**(2026-09-15 · 육안 ②).
+                //
+                // 코어는 **출력이 네 면**이라 북면 아이콘이 이름판 자리에 겹쳤다 —
+                // 화면에서는 「코어」가 아이콘에 가려 안 읽혔다. IMGUI 는 뒤에 그리는 쪽이
+                // 위이므로 **이름이 이긴다.** 무엇을 내는가는 나머지 세 면이 말한다.
                 DrawOutputItemIcon(cam, kv.Value.transform.position, nodeHere, cellPx);
+                DrawNodeNamePlate(cam, kv.Value.transform.position, NodeLabel(nodeHere), cellPx);
 
                 // 일감률 0 = 이 노드는 지금 아무것도 안 하고 있다(260831_V07 표시 규칙).
                 // 초과분을 몰아서 0으로 두었으므로 **뺄 노드가 그대로 지목된다** —
@@ -2813,7 +2822,12 @@ namespace MBI.Logistics
             Camera cam = boardCamera != null ? boardCamera : Camera.main;
             if (cam == null) return;
 
-            Vector2 o = _grid.Origin;
+            // ⚠️ **스크롤을 더한다**(2026-09-15 · 육안 ③).
+            //
+            // `_grid.Origin` 만 쓰고 있었다 — 보드를 끌면 칸은 움직이는데 **구역 이름표만
+            // 제자리에 남았다.** 다른 마커는 전부 `CellWorld`(= Origin + PanOffset)를 쓰는데
+            // 여기만 빠져 있었다. 화면에서는 「팔」이 잘려 보였다.
+            Vector2 o = _grid.Origin + PanOffset;
             float inset = ZoneLabelInsetPx * (config.cellSize / ZonePx);
 
             // 글자 높이도 **아트 픽셀**이다 (2026-09-06 확정 · `260906_W05` 2-2).
@@ -2877,47 +2891,60 @@ namespace MBI.Logistics
 
             DrawStatusIcons(cam);
 
+            // ══════════ 구역 이름 = 파츠 **한가운데 큰 워터마크** ══════════
+            //
+            // ⚠️ **왼윗 작은 이름표를 걷었다**(2026-09-15 사용자 확정 · 육안 ⑦ · 파츠 구분 (다)).
+            //
+            // 작은 이름표는 **모서리에 붙어** 있어서 파츠가 겹쳐 보이는 화면에서 「이 이름이
+            // 어느 덩어리 것인가」가 안 섰다 — 「팔R」이 옆 구역 노드 이름판과 겹치기까지 했다.
+            // 한가운데 큰 글자는 **덩어리 자체를 물들이므로** 그 물음이 생기지 않는다.
+            //
+            // ⚠️ **둘 다 두지 않는다.** 같은 말을 두 번 하면 보드가 시끄러워진다.
+            //
+            // ⚠️ **글리프는 사다리 최대(44)로 굽고 화면에서 키운다.** 사다리를 늘리면
+            // 아틀라스 예산을 넘는다(`KoreanFont.Ladder` 주석) — 워터마크는 반투명이라
+            // 확대로 흐려지는 것이 문제가 안 된다.
+            //
+            // ⚠️ **값 둘은 가정이다**(설계 역기입) — 알파 0.16 · 파츠 짧은 변의 0.5.
+            var mark = new GUIStyle(GUI.skin.label)
+            {
+                fontSize = KoreanFont.Ladder[KoreanFont.Ladder.Length - 1],
+                alignment = TextAnchor.MiddleCenter,
+            };
+
             foreach (PartRect p in PartLayout.Parts)
             {
                 string text = PartLayout.LabelOf(p.part);
                 if (string.IsNullOrEmpty(text)) continue;
 
-                // 구역의 왼윗모서리(격자는 좌하단 원점이라 y는 origin + size).
-                var corner = new Vector3(
-                    o.x + p.origin.x * config.cellSize + inset,
-                    o.y + (p.origin.y + p.size.y) * config.cellSize - inset,
-                    0f);
+                // 파츠의 화면 사각 — 네 귀퉁이 중 둘이면 정해진다.
+                Vector3 lo = cam.WorldToScreenPoint(new Vector3(
+                    o.x + p.origin.x * config.cellSize,
+                    o.y + p.origin.y * config.cellSize, 0f));
+                Vector3 hi = cam.WorldToScreenPoint(new Vector3(
+                    o.x + (p.origin.x + p.size.x) * config.cellSize,
+                    o.y + (p.origin.y + p.size.y) * config.cellSize, 0f));
+                if (lo.z <= 0f || hi.z <= 0f) continue;
 
-                // 글자마다 폭이 다르다(`몸통` 두 자 · `다리L` 세 자). 스타일에 물어본다.
-                float boxW = style.CalcSize(new GUIContent(text)).x;
-
-                Vector3 sp = cam.WorldToScreenPoint(corner);
-                if (sp.z <= 0f) continue;
-                float y = Screen.height - sp.y;
-                if (sp.x < -boxW || sp.x > Screen.width + boxW || y < -boxH || y > Screen.height + boxH) continue;
+                var area = new Rect(Mathf.Min(lo.x, hi.x), Screen.height - Mathf.Max(lo.y, hi.y),
+                    Mathf.Abs(hi.x - lo.x), Mathf.Abs(hi.y - lo.y));
+                if (area.width < 8f || area.height < 8f) continue;
 
                 // ⚠️ **인셋 전투 자리에는 안 그린다**(2026-09-10 · 리허설 2차 결함 2).
-                // 이름표는 구역의 왼윗모서리를 따라가므로 보드를 위로 밀면 **화면 위쪽까지 올라간다.**
-                // 그런데 그 자리는 전투가 덮고 있어 **보드는 안 보이는데 이름표만 뜬다** —
-                // 사용자에게는 「이름표가 파츠에 안 붙고 따로 논다」로 보였다.
-                //
-                // 자리를 옮기지 않는다. 구역 모서리에 붙는 것이 규정이고, 보이지 않는 구역의
-                // 이름표는 **안 그리는 것이 맞다.**
-                if (y + boxH < CombatInsetView.BottomPixels(Screen.height)) continue;
+                // 보드가 안 보이는데 이름만 뜨면 「이름표가 따로 논다」로 읽힌다.
+                if (area.yMax < CombatInsetView.BottomPixels(Screen.height)) continue;
 
-                // ⚠️ **구역 밖으로 안 나간다**(2026-09-11 재육안 2 · 규격).
-                // 글자 상자가 구역보다 크면(좁은 파츠 · 큰 배율) 옆 구역 위로 넘어가
-                // **어느 구역의 이름인지**가 갈리지 않는다. 구역의 화면 사각 안으로 민다.
-                Vector3 farCorner = cam.WorldToScreenPoint(new Vector3(
-                    o.x + (p.origin.x + p.size.x) * config.cellSize - inset,
-                    o.y + p.origin.y * config.cellSize + inset, 0f));
-                float maxX = Mathf.Max(sp.x, farCorner.x - boxW);
-                float maxY = Mathf.Max(y, (Screen.height - farCorner.y) - boxH);
+                // 짧은 변의 절반을 글자 높이로 — 긴 구역에서도 글자가 구역을 안 넘는다.
+                float target = Mathf.Min(area.width / Mathf.Max(1, text.Length), area.height) * 0.5f;
+                float zoom = Mathf.Max(0.1f, target / mark.fontSize);
 
-                Color prev = GUI.color;
-                GUI.color = ZoneLabelColor; // 경계선과 같은 미색이되 70% — 글자는 더 진해야 읽힌다
-                GUI.Label(new Rect(Mathf.Min(sp.x, maxX), Mathf.Min(y, maxY), boxW, boxH), text, style);
-                GUI.color = prev;
+                Color prevMark = GUI.color;
+                Matrix4x4 prevMatrix = GUI.matrix;
+                GUI.color = ZoneWatermarkColor;
+                GUIUtility.ScaleAroundPivot(new Vector2(zoom, zoom), area.center);
+                GUI.Label(area, text, mark);
+                GUI.matrix = prevMatrix;
+                GUI.color = prevMark;
             }
         }
 
@@ -2934,6 +2961,12 @@ namespace MBI.Logistics
         /// 삭제 컨펌 뒤에 까는 DIM. ⚠️ **알파는 가정**(튜토리얼 어둠막 0.55 와 같은 눈금).
         /// 불투명하면 「팝업」이 아니라 「화면이 덮였다」가 된다(2026-09-15 육안 ②).
         /// </summary>
+        /// <summary>
+        /// 구역 워터마크 색 — ⚠️ **알파 0.16 은 가정**(2026-09-15 · 육안 ⑦).
+        /// 덩어리를 물들이되 **그 위 노드·벨트를 안 가려야** 한다.
+        /// </summary>
+        private static readonly Color ZoneWatermarkColor = new Color(0.93f, 0.90f, 0.82f, 0.16f);
+
         private static readonly Color RemovalDimColor = new Color(0.02f, 0.03f, 0.05f, 0.55f);
 
         /// <summary>노드 이름 판 — 타일 **위쪽** 어두운 판 + 미색 글자. ⚠️ 알파·높이는 가정.</summary>

@@ -65,18 +65,26 @@ namespace MBI.Data
         /// 안쪽 변과 같은 40% 로 두었더니 **파츠 덩어리의 테두리가 안 섰다** —
         /// 바깥은 「여기까지가 로봇이다」를 말하는 선이라 안쪽보다 진해야 한다.
         /// </summary>
-        public const float OuterLineAlpha = 0.85f;
+        /// ⚠️ **0.85 → 1.00**(2026-09-15 사용자 확정 · 육안 ⑦ · 파츠 구분 (다)).
+        /// 흙 배경 위에서는 0.85 도 덜 섰다 — 바깥선은 **가장 진해야 하는 선**이다.
+        public const float OuterLineAlpha = 1.00f;
 
-        /// <summary>바깥 경계선 굵기 배수. ⚠️ **가정 1.6** — 색만으로는 덜 서서 굵기도 올린다.</summary>
-        public const float OuterLineThickness = 1.6f;
+        /// <summary>
+        /// 바깥 경계선 굵기 배수. ⚠️ **가정 1.6 → 2.2**(2026-09-15 · 육안 ⑦).
+        /// 색만으로는 덜 서서 굵기도 올린다 — 같은 까닭으로 한 번 더 올렸다.
+        /// </summary>
+        public const float OuterLineThickness = 2.2f;
 
         /// <summary>
         /// 바닥 틴트 불투명도. ⚠️ **가정 0.45** (2026-09-11 재육안 2 · 구 0.22 폐기).
         ///
         /// 0.22 는 **화면에서 거의 안 보였다** — 타일 무늬를 살리려다 색을 잃었다.
-        /// 0.45 는 색이 서면서도 무늬가 남는 자리다. 진하면 타일이 사라지고 옅으면 안 읽힌다.
+        ///
+        /// ⚠️ **0.45 → 0.70**(2026-09-15 사용자 확정 · 육안 ⑦ · 파츠 구분 (다)).
+        /// 0.45 로도 파츠가 서로 안 갈렸다 — 흙 배경 위에서는 색이 더 진해야 덩어리가 읽힌다.
+        /// 구 0.45·0.22 는 폐기 표기. **값은 가정**이고 타일 무늬가 사라지면 다시 내린다.
         /// </summary>
-        public const float FloorAlpha = 0.45f;
+        public const float FloorAlpha = 0.70f;
 
         /// <summary>경계 점선 색 — 파츠끼리 맞닿은 **안쪽** 변.</summary>
         public static Color LineOf(RobotPart part) => WithAlpha(Of(part), LineAlpha);

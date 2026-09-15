@@ -69,10 +69,25 @@ namespace MBI.Idle
             // 기준 캔버스(1440×2560) 값으로 적고 배율을 곱한다 — 구 420×300 은 폐기 표기.
             // ⚠️ **크기는 가정이다**(설계 역기입) — 문서에 방치 보상 창 절이 없다.
             float boxScale = MBI.UI.UiLayout.Scale(Screen.height);
-            // ⚠️ **1040×740 은 과했다**(2026-09-15 재실측) — 세로 창에서 화면 절반을 먹었다.
-            // 세로 창(720×1280)에서 **1/4 안**에 들도록 줄인다. 값은 여전히 가정이다.
+            // ⚠️ **높이를 내용에서 잰다**(2026-09-15 · 육안 ① 결함).
+            //
+            // 760×520 **고정**이었더니 본문 마지막 줄이 잘리고 **「확인」 버튼이 상자 밖으로
+            // 밀려 아예 안 보였다** — **창을 닫을 수가 없었다.** 09-06 에 같은 일로
+            // 232→300 을 올린 적이 있다(아래 구 주석): **고정 높이는 글이 늘면 또 터진다.**
+            //
+            // 이제 줄을 먼저 짓고 그 높이로 상자를 잡는다. 글이 늘어도 버튼이 안 밀린다.
             float w = Mathf.Min(760f * boxScale, Screen.width - 48f * boxScale);
-            float h = 520f * boxScale;
+            float inset = 36f * boxScale;
+            float btnH = 72f * boxScale;
+
+            string[] lines = BodyLines(r);
+            float bodyH = _head.CalcHeight(new GUIContent("돌아왔다"), w - inset * 2f)
+                          + _head.CalcHeight(new GUIContent($"받은 고철 {r.scrap:N0}"), w - inset * 2f);
+            foreach (string line in lines)
+                bodyH += _body.CalcHeight(new GUIContent(line), w - inset * 2f);
+
+            float h = Mathf.Min(bodyH + inset * 2.4f + btnH + 24f * boxScale,
+                Screen.height - 48f * boxScale);
             var box = new Rect((Screen.width - w) * 0.5f, (Screen.height - h) * 0.5f, w, h);
 
             // 창 뒤로 클릭이 새면 안 된다 — 창을 닫으려다 그 아래 칸에 노드가 놓인다.
@@ -86,30 +101,50 @@ namespace MBI.Idle
             GUI.color = prevBg;
 
             GUI.Box(box, GUIContent.none);
-            float inset = 36f * boxScale;
-            GUILayout.BeginArea(new Rect(box.x + inset, box.y + inset * 0.8f,
-                box.width - inset * 2f, box.height - inset * 1.6f));
+
+            // ⚠️ **버튼은 GUILayout 밖에서 상자 하단에 앉힌다**(2026-09-15 · 육안 ①).
+            // 흐름 배치에 맡기면 글이 길어질 때 **버튼부터 밖으로 밀린다** — 그러면 창을
+            // 닫을 수가 없다. 자리를 먼저 떼어 두고 나머지를 글이 쓴다.
+            var bodyArea = new Rect(box.x + inset, box.y + inset * 0.8f,
+                box.width - inset * 2f, box.height - inset * 1.6f - btnH);
+            GUILayout.BeginArea(bodyArea);
 
             GUILayout.Label("돌아왔다", _head);
-            GUILayout.Space(6f);
-            GUILayout.Label($"꺼 둔 시간 {Hours(r.creditedHours)}" + (r.capped ? "  (상한까지만 인정)" : ""), _body);
-            GUILayout.Label($"파밍 시급 {r.hourlyRate:N1} 고철/시간" + (r.usedDefaultRate ? "  (기록 없음 → 기본값)" : ""), _body);
-            GUILayout.Space(4f);
+            foreach (string line in lines) GUILayout.Label(line, _body);
             GUILayout.Label($"받은 고철 {r.scrap:N0}", _head);
 
-            if (r.scrap <= 0d)
-            {
-                GUILayout.Space(2f);
-                // 왜 0인지를 적는다. 안 적으면 미구현으로 읽힌다.
-                GUILayout.Label(r.usedDefaultRate
-                    ? "상주 스테이지 파밍 기록이 없고 기본 시급이 아직 미확정(TBD)이라 0이다."
-                    : "오프라인 계수가 아직 미확정(TBD)이라 0이다.", _body);
-            }
-
-            GUILayout.FlexibleSpace();
-            if (GUILayout.Button("확인", _button, GUILayout.Height(34f))) _dismissed = true;
-
             GUILayout.EndArea();
+
+            var btn = new Rect(box.x + inset, box.yMax - inset * 0.6f - btnH,
+                box.width - inset * 2f, btnH);
+            if (GUI.Button(btn, "확인", _button)) _dismissed = true;
+
+            // ⚠️ **바깥을 눌러도 닫힌다**(2026-09-15 사용자 확정 · 육안 ①).
+            // 닫는 길이 하나뿐이면 그 하나가 안 보이는 순간 **갇힌다** — 오늘이 그랬다.
+            if (Event.current.type == EventType.MouseDown && !box.Contains(Event.current.mousePosition))
+            {
+                _dismissed = true;
+                Event.current.Use();
+            }
+        }
+
+        /// <summary>
+        /// 본문 줄 — **재는 곳과 그리는 곳이 같은 목록을 쓴다**(2026-09-15).
+        /// 둘이 갈리면 높이 셈이 화면과 어긋나 또 잘린다.
+        /// </summary>
+        private static string[] BodyLines(OfflineRewardResult r)
+        {
+            string time = $"꺼 둔 시간 {Hours(r.creditedHours)}" + (r.capped ? "  (상한까지만 인정)" : "");
+            string rate = $"파밍 시급 {r.hourlyRate:N1} 고철/시간"
+                          + (r.usedDefaultRate ? "  (기록 없음 → 기본값)" : "");
+
+            if (r.scrap > 0d) return new[] { time, rate };
+
+            // 왜 0인지를 적는다. 안 적으면 미구현으로 읽힌다.
+            string why = r.usedDefaultRate
+                ? "상주 스테이지 파밍 기록이 없고 기본 시급이 아직 미확정(TBD)이라 0이다."
+                : "오프라인 계수가 아직 미확정(TBD)이라 0이다.";
+            return new[] { time, rate, why };
         }
 
         /// <summary>한 시간이 안 되면 분으로 적는다 — 「0.3시간」은 읽고 다시 곱해야 한다.</summary>

@@ -88,8 +88,15 @@ namespace MBI.Tests
         [Test]
         public void 바닥_틴트가_화면에서_보일_만큼_진하다()
         {
-            // ⚠️ **0.22 는 화면에서 거의 안 보였다**(2026-09-11 재육안 2) — 0.45 로 올렸다.
-            Assert.AreEqual(0.45f, PartPalette.FloorAlpha, 0.0001f);
+            // ⚠️ **값을 옮겨 적지 않는다**(2026-09-15 정정). 종전에는 `0.45f` 를 그대로
+            // 박아 두어, 09-15 에 사용자가 0.70 으로 올리자 **뜻은 맞는데 시험이 깨졌다** —
+            // 값을 베낀 시험은 코드가 아니라 **자기 자신을 지킨다**(같은 날 `AudioRuleTests`
+            // 에서 반대 얼굴을 봤다: 값을 베껴 둬서 버튼이 안 보여도 안 깨졌다).
+            //
+            // 지키려는 뜻은 **범위**다 — 0.22 는 화면에서 거의 안 보였고(2026-09-11 재육안 2),
+            // 1.0 이면 타일 무늬가 통째로 덮인다.
+            Assert.Greater(PartPalette.FloorAlpha, 0.30f, "0.22 는 화면에서 거의 안 보였다");
+            Assert.Less(PartPalette.FloorAlpha, 0.90f, "너무 진하면 타일 무늬가 사라진다");
 
             // 그래도 흰 쪽에 남아 타일 무늬가 산다 — 원색을 그대로 곱하면 무늬가 사라진다.
             Assert.Greater(PartPalette.FloorOf(RobotPart.Head).r, PartPalette.Of(RobotPart.Head).r);
