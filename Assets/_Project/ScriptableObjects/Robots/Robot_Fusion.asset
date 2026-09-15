@@ -15,7 +15,7 @@ MonoBehaviour:
   robotId: fusion
   displayName: "\uD569\uCCB4\uCCB4"
   weapons: []
-  consumptionCap: 6
+  consumptionCap: 12
   mountCoef: 1
   enhancedMountCoef: 1.45
   moduleMult: 1

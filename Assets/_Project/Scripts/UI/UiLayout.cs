@@ -255,6 +255,18 @@ namespace MBI.UI
         /// </summary>
         public const float MinButton = 150f;
 
+        /// <summary>
+        /// 팔레트 노드 버튼 한 변 (2026-09-15 사용자 확정 · C안 · 육안 6차 ⑥).
+        ///
+        /// **부유 띠 312 − 카테고리 탭 줄 96 = 216.** 띠 안에서 가질 수 있는 **최대**이고
+        /// 정사각이라 그림과 글자가 둘 다 들어간다. 기준 캔버스 1440 에서 **한 줄 여섯 개**가
+        /// 서고 나머지는 종전처럼 가로로 스크롤한다.
+        ///
+        /// ⚠️ **문서 최소 150 과 다른 값이다.** 150 은 「이보다 작으면 손이 안 닿는다」는
+        /// **하한**이고, 이것은 「띠가 허락하는 최대」다 — 두 수는 같은 물음의 답이 아니다.
+        /// </summary>
+        public const float PaletteButtonSize = 216f;
+
         /// <summary>이 변이 최소를 지키는가 (기준 캔버스 단위). 시험·진단용.</summary>
         public static bool MeetsMinButton(float designSide) => designSide >= MinButton - 0.001f;
 

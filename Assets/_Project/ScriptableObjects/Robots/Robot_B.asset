@@ -15,7 +15,7 @@ MonoBehaviour:
   robotId: robotB
   displayName: "\uB85C\uBD07B"
   weapons: []
-  consumptionCap: 6
+  consumptionCap: 12
   mountCoef: 1
   enhancedMountCoef: 1.45
   moduleMult: 1

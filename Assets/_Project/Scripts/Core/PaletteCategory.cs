@@ -62,8 +62,16 @@ namespace MBI.Core
             {
                 case PaletteCategory.All: return "전체";
                 case PaletteCategory.Logistics: return "물류";
-                case PaletteCategory.Basic: return "기초 가공";
-                case PaletteCategory.Complex: return "복합 가공";
+                // ⚠️ **두 글자로 줄였다**(2026-09-15 사용자 확정 · 육안 6차 ⑥).
+                //
+                // 「기초 가공」·「복합 가공」은 다섯 글자라 여섯 칸으로 나눈 탭 줄에서
+                // **잘렸다** — 화면에는 「초 기」·「합 기」로 찍혔다. 나머지 넷은 두 글자라
+                // 멀쩡했고, **두 칸만 길어서 그 둘만 깨진 것**이다.
+                //
+                // 「가공」은 **여섯 중 둘에만 붙는 꼬리**라 구별에 보태는 것이 없다 —
+                // 기초/복합이 이미 둘을 가른다. 문서 문안이 서면 그때 이 줄이 바뀐다.
+                case PaletteCategory.Basic: return "기초";
+                case PaletteCategory.Complex: return "복합";
                 case PaletteCategory.Power: return "전력";
                 case PaletteCategory.Module: return "모듈";
                 default: return "";

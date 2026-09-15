@@ -24,7 +24,7 @@ MonoBehaviour:
   storeCapacity: 40
   mountStackLimit: 10
   muniPerNode: 1
-  lineSpecShots: {x: 5, y: 6, z: 2}
+  lineSpecShots: {x: 10, y: 12, z: 4}
   nodeProductionPower: 10
   droneSlots: 3
   droneReleaseRate: 1

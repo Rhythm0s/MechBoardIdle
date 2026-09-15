@@ -43,7 +43,18 @@ namespace MBI.EditorTools
         public static string Run()
         {
             var sb = new StringBuilder();
-            sb.AppendLine("=== 튜토리얼 만충 사슬 실측 (2026-09-15 · 육안 4차 5) ===");
+            sb.AppendLine("=== 만충 사슬 실측 (2026-09-15 · 밸런스 (가) 확인) ===");
+            sb.AppendLine();
+            sb.AppendLine("[ㄱ] 안 쏠 때 (적 0)");
+            sb.AppendLine(Measure(false));
+            sb.AppendLine("[ㄴ] 쏠 때 (적 120 · 사거리 안)");
+            sb.AppendLine(Measure(true));
+            return sb.ToString();
+        }
+
+        private static string Measure(bool withEnemies)
+        {
+            var sb = new StringBuilder();
 
             RobotDefinition robot = AssetDatabase.LoadAssetAtPath<RobotDefinition>(
                 ROBOT_PATH);
@@ -84,9 +95,21 @@ namespace MBI.EditorTools
                 mount = mount,
             };
 
-            // 튜토리얼은 적이 없다.
-            var sim = new CombatSimulation(setup, new List<EnemySpawn>(), 999f, 999f, 0.8f);
+            // ⚠️ **적 유무로 두 판을 잰다**(2026-09-15 · 밸런스 판정 (가) 확인).
+            // (ㄱ) 안 쏠 때 = 적 0 → 마운트가 얼마 만에 차는가
+            // (ㄴ) 쏠 때  = 적 있음 → 소비가 공급을 넘으면 마운트가 비는가
+            var spawns = new List<EnemySpawn>();
+            if (withEnemies)
+                for (int e = 0; e < 120; e++)
+                    spawns.Add(new EnemySpawn
+                    {
+                        hp = 30f, def = 0f, atk = 1f, moveSpeed = 0.5f,
+                        attackRange = 1f, attackInterval = 1f, radius = 0.4f,
+                    });
+
+            var sim = new CombatSimulation(setup, spawns, 999f, 999f, 0.8f);
             sim.Endless = true;
+            if (withEnemies) sim.SetSpawnBand(2f, 5f);
 
             float nominal = RobotOutput.Nominal(robot.weapons, 1f, robot.moduleMult);
             sb.AppendLine("  만공급 출력(분모) = " + nominal.ToString("F2"));
@@ -157,6 +180,15 @@ namespace MBI.EditorTools
             sb.AppendLine("  끝 상태 — 라인 " + lineBuffer.Count + "줄 · 창고 "
                           + store.Total.ToString("F1") + "/" + cap.ToString("F0")
                           + " · 마운트 " + mount.Total.ToString("F1"));
+
+            // ⚠️ **소비와 공급을 나란히 적는다** — 판정 (가) 의 핵심이 그 대소다.
+            float consume = 0f;
+            for (int i2 = 0; i2 < lineBuffer.Count; i2++) consume += lineBuffer[i2].shotsPerSec;
+            sb.AppendLine("  소비(라인 합) " + consume.ToString("F2")
+                          + " 발/초  vs  공급(도착률) "
+                          + SupplySignals.ArrivalRateOf(AmmoKind.Standard).ToString("F2") + " 발/초"
+                          + (consume > SupplySignals.ArrivalRateOf(AmmoKind.Standard)
+                              ? "  <- 소비가 크다: 전투 중 마운트가 안 찬다" : ""));
             return sb.ToString();
         }
 

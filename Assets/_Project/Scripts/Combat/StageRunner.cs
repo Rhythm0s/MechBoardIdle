@@ -1512,7 +1512,22 @@ namespace MBI.Combat
             //
             // 줄 수는 로봇B 유무·줄바꿈에 따라 변하므로 **고정값을 다시 박을 수 없다** —
             // 스타일에 물어 `CalcHeight` 로 재고 막대 둘을 더한다.
-            string lineTitle = $"{StageTitle()}  ·  {stage.topic}";
+            // ⚠️ **첫 줄이 「지금 무엇을 해야 하는가」를 말한다**
+            // (2026-09-15 사용자 확정 · 육안 6차 ③ — 「할 일이 없으면 할 일을 만들어야지,
+            //  그래서 목표가 뭐냐」).
+            //
+            // 종전 첫 줄은 **「스테이지 1 · 벨트 연결(온보딩)」** 이었다. 어디에 있는지는
+            // 말하지만 **무엇을 하면 끝나는지는 안 말한다.** 튜토리얼은 두 줄로 그것을
+            // 말하는데(「끊긴 자리를 잇는다」·「마운트가 가득 찬다」), 튜토리얼을 벗어나면
+            // 그 안내가 **통째로 사라졌다** — 그래서 할 일이 없어 보인다.
+            //
+            // ⚠️ **값은 지어내지 않는다** — 주제와 요구치 둘 다 `balance_v4.json` 의
+            // `stages[].topic` · `stages[].req` 다. 요구치가 없는 스테이지(튜토리얼)에서는
+            // 그 꼬리를 안 붙인다 — 0 을 「넘기라」고 적으면 거짓이 된다.
+            // 문안 자리는 설계 역기입 대상이다.
+            string lineTitle = HasRequirement
+                ? $"{StageTitle()} 목표: {stage.topic}  ·  출력 {stage.req:F0} 넘기기"
+                : $"{StageTitle()}  ·  {stage.topic}";
             string lineOutput = OutputLine();
             string lineAmmo = AmmoLine();
             string lineStore = $"저장고(군수 생산) {LogisticsOutputBridge.AmmoProduce:F1} 발/초";

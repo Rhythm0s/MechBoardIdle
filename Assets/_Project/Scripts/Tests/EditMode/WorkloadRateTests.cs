@@ -127,6 +127,18 @@ namespace MBI.Tests
                 "스택이 차면 논다");
         }
 
+        /// <summary>
+        /// 그 탄종이 **몇 대까지 일하는가** — 값을 시험에 박지 않고 자산에서 끌어 쓴다
+        /// (2026-09-15 · 밸런스 (가) 로 라인 스펙이 바뀌며 이 시험 넷이 깨졌다).
+        ///
+        /// ⚠️ **여기서 지키는 것은 규칙이지 값이 아니다** — 「초과분은 노는 것으로 몰린다」가
+        /// 규칙이고, 5 냐 10 이냐는 **밸런스가 정하는 값**이다. 값을 박아 두면
+        /// 밸런스를 조정할 때마다 **뜻은 맞는데 빨개지는** 시험이 된다
+        /// (09-15 `PartPaletteTests` 가 `0.45f` 를 박아 두고 같은 일을 겪었다).
+        /// </summary>
+        private int CapNodes(AmmoKind kind) =>
+            AmmoLineProduction.NodesForFullLine(_bal.LineSpecOf(kind), _bal.muniPerNode);
+
         // ---- 군수: 초과분을 몰아서 0 ----
 
         /// <summary>스펙 안쪽이면 전원 1이다. 관통 스펙 5 → 3대는 전부 일한다.</summary>
@@ -151,19 +163,21 @@ namespace MBI.Tests
         public void Munitions_OverSpec_ExcessNodesGoIdle_NotSpreadEvenly()
         {
             BoardGrid g = Grid();
-            for (int i = 0; i < 7; i++) PlaceMuni(g, 1, i, AmmoKind.Pierce);
+            int cap = CapNodes(AmmoKind.Pierce);
+            int placed = cap + 2;                 // 상한보다 두 대 많게 — 둘이 놀아야 한다
+            for (int i = 0; i < placed; i++) PlaceMuni(g, 1, i, AmmoKind.Pierce);
 
             WorkloadRate.Result w = All(g);
 
             int working = 0, idle = 0;
-            for (int i = 0; i < 7; i++)
+            for (int i = 0; i < placed; i++)
             {
                 float r = w.perNode[new Vector2Int(1, i)];
                 Assert.IsTrue(r == 0f || r == 1f, $"{i}번은 0 아니면 1이다 — 나눠 주지 않는다 ({r})");
                 if (r > 0f) working++; else idle++;
             }
 
-            Assert.AreEqual(5, working, "관통 스펙 5대까지 일한다");
+            Assert.AreEqual(cap, working, $"관통 스펙 {cap}대까지 일한다");
             Assert.AreEqual(2, idle, "나머지는 논다");
         }
 
@@ -172,9 +186,11 @@ namespace MBI.Tests
         public void Average_IsTheMeanAcrossNodes()
         {
             BoardGrid g = Grid();
-            for (int i = 0; i < 7; i++) PlaceMuni(g, 1, i, AmmoKind.Pierce);
+            int cap = CapNodes(AmmoKind.Pierce);
+            int placed = cap + 2;
+            for (int i = 0; i < placed; i++) PlaceMuni(g, 1, i, AmmoKind.Pierce);
 
-            Assert.AreEqual(5f / 7f, All(g).average, D);
+            Assert.AreEqual((float)cap / placed, All(g).average, D);
         }
 
         /// <summary>
@@ -185,17 +201,19 @@ namespace MBI.Tests
         public void EachAmmoKind_HasItsOwnCap()
         {
             BoardGrid g = Grid();
-            for (int i = 0; i < 6; i++) PlaceMuni(g, 1, i, AmmoKind.Pierce);   // 스펙 5 → 1대 논다
-            for (int i = 0; i < 3; i++) PlaceMuni(g, 2, i, AmmoKind.Explosive); // 스펙 2 → 1대 논다
+            int pCap = CapNodes(AmmoKind.Pierce), eCap = CapNodes(AmmoKind.Explosive);
+            int pPlaced = pCap + 1, ePlaced = eCap + 1;   // 각자 한 대씩 남게 박는다
+            for (int i = 0; i < pPlaced; i++) PlaceMuni(g, 1, i, AmmoKind.Pierce);
+            for (int i = 0; i < ePlaced; i++) PlaceMuni(g, 2, i, AmmoKind.Explosive);
 
             WorkloadRate.Result w = All(g);
 
             int pierceWorking = 0, explWorking = 0;
-            for (int i = 0; i < 6; i++) if (w.perNode[new Vector2Int(1, i)] > 0f) pierceWorking++;
-            for (int i = 0; i < 3; i++) if (w.perNode[new Vector2Int(2, i)] > 0f) explWorking++;
+            for (int i = 0; i < pPlaced; i++) if (w.perNode[new Vector2Int(1, i)] > 0f) pierceWorking++;
+            for (int i = 0; i < ePlaced; i++) if (w.perNode[new Vector2Int(2, i)] > 0f) explWorking++;
 
-            Assert.AreEqual(5, pierceWorking, "관통 스펙 5");
-            Assert.AreEqual(2, explWorking, "폭발 스펙 2 — 관통을 넘겼다고 같이 놀지 않는다");
+            Assert.AreEqual(pCap, pierceWorking, $"관통 스펙 {pCap}");
+            Assert.AreEqual(eCap, explWorking, "폭발 — 관통을 넘겼다고 같이 놀지 않는다");
         }
 
         /// <summary>안 이어진 군수는 스펙 안쪽이어도 0이다 — 연결성이 먼저 곱해진다.</summary>
@@ -234,7 +252,11 @@ namespace MBI.Tests
         public void Power_IsVariable_IdleNodesDrawNothing()
         {
             BoardGrid g = Grid();
-            for (int i = 0; i < 7; i++) PlaceMuni(g, 1, i, AmmoKind.Pierce);
+            // ⚠️ **상한보다 많이 박아야 노는 노드가 생긴다** — 7 을 박아 두었더니
+            // 라인 스펙이 올라가며 **일곱이 전부 일하게 되어** 「논다」가 사라졌다
+            // (2026-09-15 · 밸런스 (가)). 수를 박지 말고 상한에서 잡는다.
+            int placed = CapNodes(AmmoKind.Pierce) + 2;
+            for (int i = 0; i < placed; i++) PlaceMuni(g, 1, i, AmmoKind.Pierce);
 
             HashSet<Vector2Int> all = Everything(g);
             NetworkAggregate fixedCost = LogisticsNetwork.Aggregate(g, all);
@@ -243,8 +265,9 @@ namespace MBI.Tests
             if (fixedCost.powerDraw <= 0f) Assert.Ignore("군수 대당 전력이 TBD(0) — 비교할 값이 없다");
 
             Assert.Less(variable.powerDraw, fixedCost.powerDraw, "노는 2대만큼 수요가 줄었다");
-            Assert.AreEqual(fixedCost.powerDraw * 5f / 7f, variable.powerDraw, 0.01f,
-                "7대 중 5대분 — 나머지는 0 센티넬");
+            int cap = CapNodes(AmmoKind.Pierce);
+            Assert.AreEqual(fixedCost.powerDraw * cap / (float)placed, variable.powerDraw, 0.01f,
+                $"{placed}대 중 {cap}대분 — 나머지는 0 센티넬");
         }
 
         /// <summary>일감률을 **안 주면** 종전대로 전부 만가동이다(비파괴).</summary>

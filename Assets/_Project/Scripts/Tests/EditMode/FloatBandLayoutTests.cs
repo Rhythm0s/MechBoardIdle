@@ -12,6 +12,28 @@ namespace MBI.Tests
     /// </summary>
     public sealed class FloatBandLayoutTests
     {
+        [Test]
+        public void 팔레트_버튼은_띠에서_남는_높이를_다_쓴다()
+        {
+            // 2026-09-15 사용자 확정 C안 — 부유 띠 312 − 카테고리 탭 줄 96 = 216.
+            Assert.That(UiLayout.PaletteButtonSize,
+                Is.EqualTo(UiLayout.FloatBandHeight - UiLayout.CategoryTabHeight).Within(0.01f),
+                "띠에서 탭 줄을 뺀 나머지가 버튼 한 변이다 — 한쪽만 고치면 버튼이 띠를 넘거나 남긴다");
+
+            Assert.That(UiLayout.MeetsMinButton(UiLayout.PaletteButtonSize), Is.True,
+                "문서 최소 150 을 넘어야 한다");
+        }
+
+        [Test]
+        public void 기준_캔버스에서_한_줄에_여섯_개가_선다()
+        {
+            // 1440 기준 · 좌우 여백과 버튼 사이 여백을 넉넉히 12 씩 잡아도 여섯은 든다.
+            const float canvas = 1440f;
+            int fit = Mathf.FloorToInt(canvas / (UiLayout.PaletteButtonSize + 12f));
+            Assert.That(fit, Is.GreaterThanOrEqualTo(6),
+                $"한 줄에 {fit} 개만 선다 — 여섯이 안 서면 스크롤이 곧바로 필요해진다");
+        }
+
         private const float W = 1440f, H = 2560f;
 
         [Test]

@@ -544,6 +544,9 @@ namespace MBI.Logistics
         private readonly List<MountOwner> _mountBodyOwners = new List<MountOwner>();
         private readonly List<bool> _mountBodyHasArt = new List<bool>();
 
+        /// <summary>쉴 때의 색 — **파츠 틴트**. 점멸이 끝나면 여기로 돌아온다(육안 6차 ④).</summary>
+        private readonly List<Color> _mountBodyRest = new List<Color>();
+
         /// <summary>슬롯 칸 하나의 채움 막대 — 매 프레임 높이와 색이 바뀐다.</summary>
         private readonly List<SpriteRenderer> _mountSlotFills = new List<SpriteRenderer>();
         private readonly List<int> _mountSlotIndex = new List<int>();
@@ -926,7 +929,15 @@ namespace MBI.Logistics
 
                 // 그림이 없어 색 사각으로 선 것은 **제 색**으로 돌아간다 — 흰색으로 되돌리면
                 // 폴백 사각이 흰 덩어리가 되어 노드와 구분되지 않는다.
-                Color rest = _mountBodyHasArt[i] ? Color.white : MountFallbackColor;
+                // ⚠️⚠️ **여기가 파츠 틴트를 매 프레임 지우고 있었다**
+                // (2026-09-15 · 육안 6차 ④ — 「틴트 안 들어갔는데?」).
+                //
+                // 틴트는 `BuildMountBodies` 에서 **한 번** 넣었는데, 점멸을 되돌리는 이 줄이
+                // **매 프레임 흰색으로 덮었다.** 한 프레임도 안 보였으니 「안 들어갔다」가 맞다.
+                //
+                // 📌 **짓는 곳과 되돌리는 곳이 다르면 되돌리는 쪽이 이긴다** — 짓는 쪽에만
+                // 넣고 끝내면 안 된다. 쉴 때 색을 **들고 있다가** 그것으로 되돌린다.
+                Color rest = _mountBodyHasArt[i] ? _mountBodyRest[i] : MountFallbackColor;
                 sr.color = on ? MountEmptyColor : rest;
             }
 
@@ -1063,6 +1074,7 @@ namespace MBI.Logistics
             _mountBodyCells.Clear();
             _mountBodyOwners.Clear();
             _mountBodyHasArt.Clear();
+            _mountBodyRest.Clear();
 
             float cell = _grid.CellSize;
             int tall = MountDisplay.GroupHeightCells;
@@ -1110,6 +1122,10 @@ namespace MBI.Logistics
                 _mountBodyCells.Add(bottom);
                 _mountBodyOwners.Add(mp.owner);
                 _mountBodyHasArt.Add(body != null);
+                // 매 프레임 점멸을 되돌리는 쪽이 이 값을 쓴다 — 안 들고 있으면 흰색으로 덮인다.
+                _mountBodyRest.Add(body != null
+                    ? PartPalette.FloorOf(PartLayout.PartAt(bottom))
+                    : MountFallbackColor);
             }
         }
 
@@ -1166,7 +1182,13 @@ namespace MBI.Logistics
                     icon.transform.SetParent(parent, false);
                     icon.transform.position = w;
                     var iconSr = icon.AddComponent<SpriteRenderer>();
-                    iconSr.sortingOrder = MarkerOrder - 1;   // 그림 위 · 틴트 아래
+                    // ⚠️ **틴트 위로 올린다**(2026-09-15 사용자 확정 · 육안 6차 ⑤).
+                    //
+                    // 종전에는 틴트 아래였다 — 「얼마나 찼나」(색)를 위에 두고 「무엇이
+                    // 실렸나」(그림)를 아래에 깔았는데, **차오를수록 그림이 묻혔다.**
+                    // 무엇이 실렸는지는 언제나 읽혀야 하므로 그림이 위다.
+                    // 이름표는 IMGUI 라 이보다 위에 있다 — 가리지 않는다.
+                    iconSr.sortingOrder = MarkerOrder + 1;   // 틴트 위 · 이름표 아래
                     iconSr.enabled = false;                  // 실린 것이 없으면 안 그린다
                     _mountSlotIcons.Add(iconSr);
 
@@ -2558,12 +2580,16 @@ namespace MBI.Logistics
             Rect band = UiLayout.PaletteRect(Screen.width, Screen.height);
 
             float pad = 12f * sc;
-            float side = Mathf.Min(UiLayout.MinButton * sc, band.height - pad * 2f);
+            // ⚠️ **216 은 띠가 허락하는 최대다**(2026-09-15 사용자 확정 C안 · 육안 6차 ⑥).
+            // 부유 띠 312 − 탭 줄 96 = 216. 띠보다 커질 수는 없으므로 아래 `Min` 은 남긴다.
+            float side = Mathf.Min(UiLayout.PaletteButtonSize * sc, band.height - pad * 2f);
             var style = new GUIStyle(GUI.skin.button)
             {
                 fontSize = KoreanFont.Snap(Mathf.Max(9, Mathf.RoundToInt(side * 0.13f))),
                 wordWrap = true,
+                // ⚠️ **가로 가운데**(사용자 확정) — 그림 위 · 글자 아래로 묶어 세로도 가운데에 둔다.
                 alignment = TextAnchor.LowerCenter,
+                clipping = TextClipping.Overflow,
             };
             // 글자를 **아래로** 민다 — 위쪽은 노드 그림이 쓴다(`DrawPaletteThumb`).
             style.padding = new RectOffset(2, 2, Mathf.RoundToInt(side * 0.56f), 2);
@@ -3632,8 +3658,16 @@ namespace MBI.Logistics
 
             var style = new GUIStyle(GUI.skin.button)
             {
-                fontSize = KoreanFont.Snap(Mathf.Max(9, Mathf.RoundToInt(row.height * 0.36f))),
+                fontSize = KoreanFont.Snap(Mathf.Max(9,
+                    // ⚠️⚠️ **글자 크기를 높이만으로 정하면 안 된다**(2026-09-15 · 육안 6차 ⑥).
+                    // 탭은 **여섯으로 나뉜 가로**가 더 좁다 — 높이는 넉넉한데 폭이 모자라
+                    // 글자가 옆으로 잘렸다. 두 글자가 들어갈 폭에서 거꾸로 잡고 작은 쪽을 쓴다.
+                    Mathf.Min(Mathf.RoundToInt(row.height * 0.36f),
+                              Mathf.RoundToInt(w / 2.6f)))),
                 wordWrap = false,
+                // 측정이 몇 픽셀 틀려도 글자를 안 자른다 — 동적 폰트는 안 구운 크기의
+                // 폭을 모른다(「마운트」→「마우」와 같은 병 · 육안 4차 ⑧).
+                clipping = TextClipping.Overflow,
             };
 
             // 튜토리얼 동안에는 탭도 잠근다 — 팔레트가 잠겼는데 탭만 살아 있으면
@@ -3646,7 +3680,20 @@ namespace MBI.Logistics
             {
                 var rect = new Rect(row.x + i * (w + pad), row.y, w, row.height);
                 bool on = _tab == order[i];
-                if (UiSkin.Button(rect, (on ? "● " : "") + PaletteCategories.LabelOf(order[i]), style))
+                // ⚠️ **고른 표시를 글자로 붙이지 않는다**(육안 6차 ⑥).
+                // 「● 」는 **두 글자만큼 폭을 먹어** 고른 탭이 유독 더 잘렸다.
+                // 표시는 아래 밑줄이 맡는다 — 폭을 안 먹는다.
+                if (on)
+                {
+                    float th = Mathf.Max(2f, rect.height * 0.08f);
+                    Color prevC = GUI.color;
+                    GUI.color = UiSkin.Accent;
+                    GUI.DrawTexture(new Rect(rect.x, rect.yMax - th, rect.width, th),
+                        Texture2D.whiteTexture);
+                    GUI.color = prevC;
+                }
+
+                if (UiSkin.Button(rect, PaletteCategories.LabelOf(order[i]), style))
                 {
                     _tab = order[i];
                     _paletteScroll = Vector2.zero;   // 탭을 바꾸면 줄이 달라진다 — 앞에서 본다
