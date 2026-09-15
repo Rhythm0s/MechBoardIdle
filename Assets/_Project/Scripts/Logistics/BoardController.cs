@@ -2146,6 +2146,23 @@ namespace MBI.Logistics
         /// 품목 그림 10종은 시점 실패로 재생성 대기 중이고(`260905_W01` 3-4), 임포트도
         /// 아직 금지라(같은 문서 8장) 여기서 참조를 걸 자리만 남겨 둔다.
         /// </summary>
+        /// <summary>
+        /// 표준탄이 벨트 위에서 **아무것도 안 그린다** — 임시 (2026-09-15 오후 · 사용자 지시).
+        ///
+        /// ⚠️⚠️ **표시만 끈다. 값도 논리도 안 건드린다.** 흐름·인계·병합기 「합」 글자는 그대로고,
+        /// 다른 품목 그림도 그대로다. 표준탄 하나만 **안 보이게** 한다.
+        ///
+        /// 왜 — `ammo_standard.png` 가 벨트 위에서 **주황 정사각**으로 읽힌다.
+        /// 실측: 실루엣 40×20 (캔버스 64 중 800px² · 열두 품목 중 가장 작다) · 외곽 채움 94% ·
+        /// 색 덩이 열셋이 전부 주황-갈색. 크기 셈은 09-15 에 고쳤는데도 **그림 자체가**
+        /// 그 크기에서 사각으로 보인다. 폴백 사각으로 떨어뜨리면 더 나빠지므로 둘 다 끈다.
+        ///
+        /// 📌 **되돌리는 법은 이 값을 `false` 로 두는 것 하나다.** 새 자산이 오면 그렇게 한다 —
+        /// 「자산이 기준을 넘는가」를 코드가 재게 하지 않는다(재는 규칙을 또 하나 만들면
+        /// 그것이 다음 결함이 된다). 사람이 보고 끈다.
+        /// </summary>
+        private const bool HideStandardAmmoItemArt = true;
+
         private void RefreshBeltItems()
         {
             if (_grid == null) return;
@@ -2164,6 +2181,10 @@ namespace MBI.Logistics
                 Vector3 centre = CellWorld(cell);
                 for (int i = 0; i < items.Count; i++)
                 {
+                    // 표준탄은 지금 안 그린다 — 위 `HideStandardAmmoItemArt` 참고.
+                    // ⚠️ `used` 를 안 올린다 — 올리면 빈 자리가 풀에 생겨 다음 것이 밀린다.
+                    if (HideStandardAmmoItemArt && items[i].kind == FlowKind.StandardAmmo) continue;
+
                     // 코너에서 꺾이는 경로는 `BeltItemPose`가 안다 — 여기서 다시 풀지 않는다.
                     Vector2 off = BeltItemPose.LocalOffset(
                         belt.InFace, belt.OutFace, items[i].progress);
