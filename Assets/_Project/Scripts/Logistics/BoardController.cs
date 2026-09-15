@@ -1560,6 +1560,62 @@ namespace MBI.Logistics
         ///
         /// ⚠️ **판정은 `NodeStatusIcon` 이 한다** — 여기는 고르지 않고 그리기만 한다(§3).
         /// </summary>
+        /// <summary>
+        /// 고스트 칸 위에 **무엇을 놓는지와 어떻게 놓는지**를 쓴다
+        /// (2026-09-15 사용자 확정 · 설계 사후 · W09 0908 「안내 문구를 넣지 않는다」를 뒤집는다).
+        ///
+        /// ⚠️⚠️ **왜 뒤집혔나.** 고스트는 「여기」만 말하고 「무엇을」과 「어떻게」는 말하지 않았다.
+        /// 판을 처음 보는 사람에게 베이지 정사각 하나는 **누르라는 뜻으로도 안 읽힌다** —
+        /// 팔레트에서 무엇을 골라야 하는지도 화면 어디에도 없었다.
+        ///
+        /// ⚠️ **문안은 가정이다**(설계 역기입 자리). 첫 플레이어 기준으로 짧게 두 줄만 쓴다.
+        ///
+        /// ⚠️ **화면 좌표로 굳히지 않는다** — 매 프레임 다시 잰다. 보드를 끌면 따라와야 한다
+        /// (고스트 자신이 09-11 에 같은 이유로 월드 스프라이트가 됐다).
+        /// </summary>
+        private void DrawGhostHint(Camera cam, GUIStyle style, float fontScale)
+        {
+            Vector2Int? cell = TutorialSignals.GhostCell;
+            if (!cell.HasValue || TutorialSignals.GhostCellFilled) return;
+
+            // 칸의 **위**에 앉힌다 — 칸 안에 쓰면 고스트 색과 겹쳐 글자가 묻힌다.
+            Vector3 c = CellWorld(cell.Value);
+            Vector3 top = new Vector3(c.x, c.y + config.cellSize * 0.5f, 0f);
+            Vector3 sp = cam.WorldToScreenPoint(top);
+            if (sp.z <= 0f) return;
+
+            // 칸 한 변이 화면에서 몇 픽셀인가 — 줌을 따라간다.
+            Vector3 edge = cam.WorldToScreenPoint(top + new Vector3(config.cellSize, 0f, 0f));
+            float cellPx = Mathf.Abs(edge.x - sp.x);
+            if (cellPx < 24f) return;   // 너무 작으면 글자가 뭉갠다 — 안 그린다
+
+            const string what = "벨트";
+            const string how = "빈 칸을 터치";
+
+            var st = new GUIStyle(style)
+            {
+                alignment = TextAnchor.MiddleCenter,
+                clipping = TextClipping.Overflow,   // 재기 전에 잘리는 함정을 피한다
+                fontStyle = FontStyle.Bold,
+            };
+            // ⚠️ 크기는 **두 변**에서 잡는다 — 칸 폭도 한계다(오늘 네 번 고친 병이다).
+            int byCell = Mathf.RoundToInt(cellPx * 0.26f);
+            st.fontSize = KoreanFont.Snap(Mathf.Max(10, Mathf.Min(byCell, Mathf.RoundToInt(28f * fontScale))));
+            st.normal.textColor = Color.white;
+
+            float lineH = st.fontSize * 1.35f;
+            float w = cellPx * 2.4f;
+            float x = sp.x - w * 0.5f;
+            float y = Screen.height - sp.y - lineH * 2f - cellPx * 0.12f;
+
+            var plate = new Rect(x, y, w, lineH * 2f);
+            UiPlate.Draw(plate);
+            UiBlockers.Add(plate);   // 판 밑의 칸이 눌리지 않게 — 안내가 설치를 막으면 본말전도다
+
+            GUI.Label(new Rect(x, y, w, lineH), what, st);
+            GUI.Label(new Rect(x, y + lineH, w, lineH), how, st);
+        }
+
         private void DrawStatusIcons(Camera cam)
         {
             if (_lastDiagnostics == null || _lastDiagnostics.Count == 0) return;
@@ -3011,6 +3067,8 @@ namespace MBI.Logistics
             DrawMountLabels(cam, o, style, fontScale);
 
             DrawStatusIcons(cam);
+
+            DrawGhostHint(cam, style, fontScale);
 
             // ══════════ 구역 이름 = 파츠 **한가운데 큰 워터마크** ══════════
             //
