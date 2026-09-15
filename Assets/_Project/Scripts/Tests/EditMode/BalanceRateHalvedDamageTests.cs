@@ -88,15 +88,23 @@ namespace MBI.Tests
         }
 
         [Test]
-        public void 라인_스펙도_두_배로_따라갔다()
+        public void 라인_스펙은_안_건드렸다()
         {
             var bal = AssetDatabase.LoadAssetAtPath<BalanceConfig>(BalancePath);
             if (bal == null) Assert.Ignore("BalanceConfig 가 없다");
 
-            // 구 (관통 5 · 표준 6 · 폭발 2) → 두 배.
-            Assert.That(bal.lineSpecShots.x, Is.EqualTo(10f).Within(0.001f), "관통 라인 스펙");
-            Assert.That(bal.lineSpecShots.y, Is.EqualTo(12f).Within(0.001f), "표준 라인 스펙");
-            Assert.That(bal.lineSpecShots.z, Is.EqualTo(4f).Within(0.001f), "폭발 라인 스펙");
+            // ⚠️⚠️ **한 번 올렸다가 되돌린 값이다**(2026-09-15 · 같은 날 안에서).
+            //
+            // 「발사율 ×2」를 이 값으로 알고 두 배(10·12·4)로 올렸는데, **이 필드는
+            // 발사율이 아니다** — `LineSpecOf` 를 거쳐 `WorkloadRate` 가 읽고,
+            // **군수 노드 몇 대까지 일하는가**(생산 상한)를 정한다.
+            // 즉 **사용자가 정한 적 없는 축**을 두 배로 연 셈이었다.
+            //
+            // 발사율의 진짜 자리는 `RobotDefinition.weapons[].shotsPerSec` 이고 그쪽은
+            // 제대로 두 배가 됐다(위 시험 둘이 그것을 지킨다).
+            Assert.That(bal.lineSpecShots.x, Is.EqualTo(5f).Within(0.001f), "관통 라인 스펙");
+            Assert.That(bal.lineSpecShots.y, Is.EqualTo(6f).Within(0.001f), "표준 라인 스펙");
+            Assert.That(bal.lineSpecShots.z, Is.EqualTo(2f).Within(0.001f), "폭발 라인 스펙");
         }
 
         [Test]
@@ -109,11 +117,16 @@ namespace MBI.Tests
             // ⚠️⚠️ **이 시험은 「같다」가 아니라 「다르다」를 못 박는다** — 고칠 자리를
             // 잊지 않으려는 표식이다(2026-09-15 · 육안 6차 ② 이행 중 발견).
             //
-            // `BalanceConfig.lineSpecShots`(문서 쪽 · 표준 12)와
-            // `RobotDefinition.weapons[].shotsPerSec`(코드가 실제로 쓰는 값 · 표준 2)가
-            // **여섯 배 어긋나 있다.** 둘 다 「표준탄 발사수(발/초)」라고 불리는데
-            // **`ShotAllocator` 가 읽는 것은 뒤쪽 하나뿐**이고 `SpecShotsOf` 는
-            // **부르는 곳이 0건**이다.
+            // `BalanceConfig.lineSpecShots`(문서 쪽 · 표준 **6**)와
+            // `RobotDefinition.weapons[].shotsPerSec`(표준 **2** · 09-15 에 1→2)가
+            // **세 배 어긋나 있다.** 둘 다 「표준탄 발사수(발/초)」라고 불리는데
+            // **읽는 곳이 다르다** —
+            // · `ShotAllocator`(발사) → `weapons[].shotsPerSec`
+            // · `WorkloadRate`(생산 · 군수 노드 몇 대까지 일하는가) → `LineSpecOf`
+            //
+            // ⚠️ **「아무도 안 읽는다」고 적었던 것은 틀렸다**(같은 날 정정). `SpecShotsOf` 는
+            // 부르는 곳이 0건이 맞지만 **같은 필드를 `LineSpecOf` 가 읽는다** —
+            // 메서드 이름만 보고 죽은 값으로 판단했다.
             //
             // 📌 **어느 쪽이 맞는지는 구현이 정할 것이 아니다**(등가선이 걸린다).
             // 설계가 정하면 이 시험을 「같다」로 뒤집고 죽은 쪽을 지운다.
