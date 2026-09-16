@@ -1044,12 +1044,22 @@ namespace MBI.Core
             if (wasActive && !Merge.IsActive && Tag != null) Tag.Locked = false;
         }
 
+        /// <summary>
+        /// **자동 교대를 켤 것인가** (2026-09-16 · 사용자 확정 · `MBI.Core.TagAutoMode`).
+        ///
+        /// ⚠️ **여기 기본값은 참이다** — 이 클래스의 구 거동이고, 하네스와 시험이
+        /// 그 판을 잰다. **게임의 기본값은 꺼짐**이며 그것은 `TagAutoMode` 가 들고
+        /// 러너가 매 프레임 넣는다. 둘은 다른 물음이다 —
+        /// 「시뮬이 무엇을 할 수 있는가」와 「플레이어가 무엇을 골랐는가」.
+        /// </summary>
+        public bool AutoTagEnabled { get; set; } = true;
+
         /// <summary>교대 판정 → 발동. 교대하면 활성 인덱스가 바뀐다.</summary>
         private void TagTick(float dt)
         {
             if (Tag == null) return;
 
-            bool tagged = Tag.TickAuto(dt);
+            bool tagged = Tag.TickAuto(dt, AutoTagEnabled);
             if (tagged) _active = Tag.ActiveIndex;
 
             // 태그 스킬은 **진입 클립이 다 돈 뒤에** 터진다 (260908_W06 2장 · (가) 0.75초).

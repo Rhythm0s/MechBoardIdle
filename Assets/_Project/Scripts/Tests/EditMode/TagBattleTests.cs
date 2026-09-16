@@ -49,6 +49,77 @@ namespace MBI.Tests
             Assert.AreEqual(1, battle.ActiveIndex, "B가 나간다");
         }
 
+        // ---- 자동 교대 스위치 (2026-09-16 · 사용자 확정 · 플랜 §74-16 ③) ----
+
+        /// <summary>
+        /// **꺼 두면 자동으로 안 바뀐다.** 이것이 스위치의 전부이자, 안 지키면
+        /// 「수동만」을 고른 사람의 손에서 로봇이 멋대로 바뀐다.
+        /// </summary>
+        [Test]
+        public void 자동이_꺼져_있으면_소진해도_안_바뀐다()
+        {
+            MountLoad a = Unknown(), b = Unknown();
+            b.Load(MountItem.Pierce, 20f);
+            var battle = new TagBattle(a, b);
+
+            Assert.IsFalse(battle.TickAuto(0.1f, autoEnabled: false), "꺼져 있는데 교대했다");
+            Assert.AreEqual(0, battle.ActiveIndex, "A 가 그대로 나가 있어야 한다");
+
+            // 같은 판에서 켜면 그때는 바뀐다 — 막는 것은 **자동 판정**이지 교대 자체가 아니다.
+            Assert.IsTrue(battle.TickAuto(0.1f, autoEnabled: true), "켰는데 안 바뀐다");
+            Assert.AreEqual(1, battle.ActiveIndex);
+        }
+
+        /// <summary>
+        /// **꺼져 있어도 손으로는 바뀐다.** 스위치가 막는 것은 자동뿐이다 —
+        /// 수동까지 막으면 「수동만」이라는 말이 뒤집힌다.
+        /// </summary>
+        [Test]
+        public void 자동이_꺼져_있어도_수동_교대는_된다()
+        {
+            MountLoad a = Unknown(), b = Unknown();
+            b.Load(MountItem.Pierce, 20f);
+            var battle = new TagBattle(a, b);
+
+            battle.TickAuto(0.1f, autoEnabled: false);
+            Assert.IsTrue(battle.TryManualTag(), "손으로도 안 바뀐다");
+            Assert.AreEqual(1, battle.ActiveIndex);
+        }
+
+        /// <summary>
+        /// ⚠️⚠️ **꺼져 있어도 쿨다운은 흐른다.** 안 흐르면 **수동 교대가 영영 안 풀린다** —
+        /// 자동을 껐더니 손으로도 못 바꾸게 되는, 스위치가 만드는 최악의 꼴이다.
+        /// </summary>
+        [Test]
+        public void 자동이_꺼져_있어도_쿨다운은_흐른다()
+        {
+            MountLoad a = Unknown(), b = Unknown();
+            a.Load(MountItem.Pierce, 20f);
+            b.Load(MountItem.Pierce, 20f);
+            var battle = new TagBattle(a, b);
+
+            Assert.IsTrue(battle.TryManualTag(), "첫 수동 교대가 안 된다");
+            float before = battle.Tag.CooldownRemaining;
+            Assert.Greater(before, 0f, "교대 뒤 쿨다운이 안 걸렸다 — 시험 전제가 깨졌다");
+
+            battle.TickAuto(0.5f, autoEnabled: false);
+            Assert.Less(battle.Tag.CooldownRemaining, before, "꺼 두니 쿨다운이 멈췄다");
+        }
+
+        /// <summary>
+        /// 인자 없는 옛 길은 **켜진 것으로** 돈다 — 구 거동이고, 하네스가 그 판을 잰다.
+        /// 게임의 기본값(꺼짐)은 `TagAutoMode` 가 들고 러너가 넣는다.
+        /// </summary>
+        [Test]
+        public void 인자_없는_옛_길은_켜진_것으로_돈다()
+        {
+            MountLoad a = Unknown(), b = Unknown();
+            b.Load(MountItem.Pierce, 20f);
+            var battle = new TagBattle(a, b);
+
+            Assert.IsTrue(battle.TickAuto(0.1f), "옛 길의 기본값이 바뀌었다 — 하네스가 다른 판을 잰다");
+        }
+
         /// <summary>만충 트리거는 스택이 없으면 안 켜진다 — 그러나 그것이 교대를 막지는 않는다.</summary>
         [Test]
         public void FullTrigger_NeedsStacks_ButDoesNotBlockTagging()

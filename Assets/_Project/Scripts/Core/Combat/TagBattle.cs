@@ -120,9 +120,24 @@ namespace MBI.Core
         /// 만충 트리거는 대기 로봇의 마운트를, 소진 트리거는 활성 로봇의 마운트를 본다 —
         /// 「대기가 다 찼으니 화려하게 등장」과 「활성이 말랐으니 어쩔 수 없이 교대」는 다른 사건이다.
         /// </summary>
-        public bool TickAuto(float dt)
+        public bool TickAuto(float dt) => TickAuto(dt, autoEnabled: true);
+
+        /// <summary>
+        /// 자동 교대 판정 — <paramref name="autoEnabled"/> 가 거짓이면 **안 본다**
+        /// (2026-09-16 · 사용자 확정 · 플랜 §74-16 ③ · `TagAutoMode`).
+        ///
+        /// ⚠️ **꺼져 있어도 `Tick` 은 돈다.** 쿨다운은 시간이 지우는 것이라,
+        /// 자동을 껐다고 멈추면 **수동 교대가 영영 안 풀린다.**
+        ///
+        /// ⚠️ 인자 없는 옛 길의 기본값이 **참**인 것은 지어낸 값이 아니다 —
+        /// 이 클래스의 구 거동이 그것이고, 하네스·시험이 그 판을 재고 있다.
+        /// 게임의 기본값(꺼짐)은 `TagAutoMode` 가 들고 러너가 넣는다.
+        /// </summary>
+        public bool TickAuto(float dt, bool autoEnabled)
         {
             Tick(dt);
+
+            if (!autoEnabled) return false;
 
             // 소진 트리거는 **갈 곳이 있을 때만** 성립한다. 대기도 비었으면 교대해 봐야 똑같고,
             // 그 헛교대가 5초 쿨다운을 먹어 정작 대기가 찼을 때 못 나가게 만든다.

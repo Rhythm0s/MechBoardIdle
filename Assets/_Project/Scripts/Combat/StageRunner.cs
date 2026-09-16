@@ -1076,6 +1076,11 @@ namespace MBI.Combat
             // 곁눈질 방향을 붙드는 시간 — 값은 조율 SO 가 든다(⚠️ 가정 · §74-12 B).
             _sim.SetSideStepHold(tuning != null ? tuning.enemySideStepHoldTbd : 0f);
 
+            // ⚠️ **매 프레임 넣는다**(2026-09-16 · 사용자 확정 §74-16 ③).
+            //    설정은 `PlayerPrefs` 에 살고 버튼이 그것을 바꾸므로, 한 번만 넣으면
+            //    켜고 끈 것이 이번 판에 안 먹는다. 캐지 않는 까닭도 같다(지침 §7).
+            _sim.AutoTagEnabled = TagAutoMode.Enabled;
+
             _sim.Tick(Time.deltaTime);
 
             // ⚠️ **못 닿는 적을 로봇 쪽 링으로 되돌린다**(§71-28 2). 이동 클램프를 걷어 내면
@@ -1960,7 +1965,13 @@ namespace MBI.Combat
 
             // 태그 — 쿨다운 중이거나 합체로 잠겨 있으면 비활성. 누르면 시뮬이 활성 인덱스까지 맞춘다.
             GUI.enabled = _sim.Tag.Tag.CanTag;
-            if (UiSkin.Button(tagRect, TagButtonLabel(), round) && _sim.TryManualTag())
+
+            // ⚠️⚠️ **길게 누르면 자동 교대가 켜진다**(2026-09-16 사용자 확정 · §74-16 ③).
+            //    버튼을 그리기 **전에** 눌린 시간을 잰다 — 그래야 길게 누른 프레임에
+            //    짧은 눌림(교대)이 같이 나가지 않는다.
+            bool longPressed = TrackTagLongPress(tagRect);
+
+            if (UiSkin.Button(tagRect, TagButtonLabel(), round) && !longPressed && _sim.TryManualTag())
             {
                 // ⚠️ **여기서 뷰를 바로 다시 묶는다**(2026-09-14 · 「교대가 한 박자 느리다」).
                 //
@@ -1989,6 +2000,102 @@ namespace MBI.Combat
             }
 
             GUI.enabled = true;
+
+            DrawTagAutoToggle(tagRect);
+        }
+
+        /// <summary>
+        /// 태그 버튼을 **길게 눌렀는가** (2026-09-16 · 사용자 확정 「탭 = 교대 · 길게 = 자동」).
+        ///
+        /// ⚠️ **IMGUI 에는 길게 누르기가 없다** — 눌린 순간과 뗀 순간만 온다.
+        /// 그래서 누른 시각을 들고 있다가 **뗄 때** 얼마나 지났는지로 가른다.
+        ///
+        /// ⚠️ **길게 누른 프레임에는 교대가 안 나가야 한다.** 둘 다 나가면
+        /// 「자동을 켜려다 교대까지 해 버리는」 손이 된다 — 부르는 쪽이 이 값으로 막는다.
+        ///
+        /// 📌 **켜기만 한다.** 끄는 것은 아래 토글이 맡는다 — 길게 눌러 켜고 길게 눌러
+        /// 끄면 **지금 어느 쪽인지 모른 채** 누르게 되고, 그때 교대도 같이 막힌다.
+        /// </summary>
+        private bool TrackTagLongPress(Rect tagRect)
+        {
+            Event e = Event.current;
+            if (e == null) return false;
+
+            if (e.type == EventType.MouseDown && tagRect.Contains(e.mousePosition))
+            {
+                _tagPressAt = Time.unscaledTime;
+                return false;
+            }
+
+            if (e.type != EventType.MouseUp || _tagPressAt < 0f) return false;
+
+            float held = Time.unscaledTime - _tagPressAt;
+            _tagPressAt = -1f;
+
+            // 뗀 자리가 버튼 밖이면 **아무 일도 없다** — 끌어서 취소하는 길을 남긴다.
+            if (!tagRect.Contains(e.mousePosition)) return false;
+            if (held < TagAutoMode.LongPressSeconds) return false;
+
+            if (!TagAutoMode.Enabled)
+            {
+                TagAutoMode.Enabled = true;
+                AudioSignals.Play(SoundIds.UiClick, SoundIds.KindOf(SoundIds.UiClick));
+            }
+            return true;
+        }
+
+        /// <summary>태그 버튼을 누르기 시작한 시각. 음수면 안 눌린 상태다.</summary>
+        private float _tagPressAt = -1f;
+
+        /// <summary>
+        /// **자동 교대 토글 + 안내 한 줄** — 태그 원형 **위에** 붙는다
+        /// (2026-09-16 · 사용자 확정 · 자리는 가정 · UI 역기입 자리).
+        ///
+        /// ⚠️ **끄는 길이 여기 하나뿐이다.** 길게 누르기는 **켜기만** 하므로,
+        /// 이 토글이 없으면 한 번 켠 자동을 못 끈다.
+        ///
+        /// ⚠️ **합체 중에는 안 그린다** — 태그 자체가 잠겨 있어 켜 봐야 아무 일도 없다.
+        /// </summary>
+        private void DrawTagAutoToggle(Rect tagRect)
+        {
+            float s = UiLayout.Scale(Screen.height);
+            float h = 56f * s;
+            float gap = 8f * s;
+
+            // 원형 **위**. 띠 밖으로 나가면 안 그린다 — 화면 밖 버튼은 눌 수 없다.
+            var toggle = new Rect(tagRect.x, tagRect.y - gap - h, tagRect.width, h);
+            if (toggle.y < 0f) return;
+            UiBlockers.Add(toggle);
+
+            bool on = TagAutoMode.Enabled;
+            var style = new GUIStyle(GUI.skin.button)
+            {
+                fontSize = KoreanFont.Snap(Mathf.Max(9,
+                    Mathf.Min(Mathf.RoundToInt(h * 0.42f),
+                              Mathf.RoundToInt(toggle.width / 5.5f)))),
+                wordWrap = false,
+                clipping = TextClipping.Overflow,
+                fontStyle = on ? FontStyle.Bold : FontStyle.Normal,
+            };
+
+            Color prev = GUI.color;
+            if (!on) GUI.color = new Color(prev.r, prev.g, prev.b, prev.a * 0.55f);
+            bool hit = UiSkin.Button(toggle, on ? "자동 교대 켜짐" : "자동 교대 꺼짐", style);
+            GUI.color = prev;
+            if (hit) TagAutoMode.Enabled = !on;
+
+            // 안내 한 줄 — **문구는 사용자 확정 그대로**다(`TagAutoMode.Hint`).
+            var hint = new Rect(toggle.x, toggle.y - h * 0.62f, toggle.width, h * 0.58f);
+            if (hint.y < 0f) return;
+            GUI.Label(hint, TagAutoMode.Hint, new GUIStyle(GUI.skin.label)
+            {
+                fontSize = KoreanFont.Snap(Mathf.Max(8,
+                    Mathf.Min(Mathf.RoundToInt(h * 0.30f),
+                              Mathf.RoundToInt(hint.width / 8.5f)))),
+                alignment = TextAnchor.MiddleCenter,
+                wordWrap = false,
+                clipping = TextClipping.Overflow,
+            });
         }
 
         private string TagButtonLabel()
@@ -2121,8 +2228,56 @@ namespace MBI.Combat
                 // 심사자가 볼 화면에서 하는 말이 아니다. 스택이 확정되면 이 갈래 자체가 사라진다.
                 ? "만충 판정 대기"
                 : (standby.IsFull ? "만충" : "채우는 중");
-            return $"출전 {who}   ·   마운트 적재 {act.Total:F0}   ·   대기 마운트 {standby.Total:F0} ({fullness})" +
-                   $"   ·   드론 {_sim.Drones.Count}기";
+            return $"출전 {who}   ·   마운트 적재 {act.Total:F0}   ·   대기 마운트 {standby.Total:F0} ({fullness})"
+                   + MountItemBreakdown(standby)
+                   + $"   ·   드론 {_sim.Drones.Count}기";
+        }
+
+        /// <summary>
+        /// 마운트에 **무엇이** 실려 있는가 — 품목 칸 (2026-09-16 · 사용자 확정 · §74-16 ③).
+        ///
+        /// ⚠️⚠️ **합만으로는 교대를 못 정한다.** 「대기 마운트 40」은 가득이라는 말일 뿐,
+        /// 그것이 **쓸 수 있는 탄인지**는 말하지 않는다 — B 는 드론을 쓰는데 표준탄이
+        /// 40 실려 있으면 합은 만충이지만 교대해도 못 쏜다(⑤ 결함이 그 자리다).
+        ///
+        /// ⚠️ **빈 칸은 안 적는다** — 0 을 늘어놓으면 줄만 길어지고 읽히지 않는다.
+        /// 아무것도 없으면 통째로 빈 문자열이라 줄이 그대로 짧아진다.
+        ///
+        /// ⚠️ **글자다 — 칸 그림이 아니다**(가정 · UI 역기입 자리). 전투 HUD 는 글자 줄로
+        /// 서 있고, 여기만 그림을 넣으면 줄 높이가 혼자 달라진다.
+        /// </summary>
+        private static string MountItemBreakdown(MountLoad mount)
+        {
+            if (mount == null || mount.Total <= 0f) return "";
+
+            var sb = new System.Text.StringBuilder();
+            foreach (MountItem item in MountItemsShown)
+            {
+                float amount = mount.AmountOf(item);
+                if (amount <= 0f) continue;
+                sb.Append(sb.Length == 0 ? " [" : " · ");
+                sb.Append($"{MountItemLabel(item)} {amount:F0}");
+            }
+            if (sb.Length > 0) sb.Append(']');
+            return sb.ToString();
+        }
+
+        /// <summary>줄에 적는 품목과 그 차례. ⚠️ 차례는 가정이다(탄 셋 → 드론).</summary>
+        private static readonly MountItem[] MountItemsShown =
+        {
+            MountItem.Pierce, MountItem.Standard, MountItem.Explosive, MountItem.Drone,
+        };
+
+        private static string MountItemLabel(MountItem item)
+        {
+            switch (item)
+            {
+                case MountItem.Pierce: return "관통";
+                case MountItem.Standard: return "표준";
+                case MountItem.Explosive: return "폭발";
+                case MountItem.Drone: return "드론";
+                default: return item.ToString();
+            }
         }
 
         /// <summary>물류 출력 이중표시(예상/실제/갭) + 전역 원인(전력/발열) 점멸(§L4-R #1·#5 변수패널 1차 표시자).</summary>
