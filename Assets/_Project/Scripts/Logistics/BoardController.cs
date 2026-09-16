@@ -3653,6 +3653,9 @@ namespace MBI.Logistics
         /// ⚠️ **배율을 따라가고 스냅한다** — 구역 이름표와 같은 처리다. 날 픽셀로 두면
         /// 줌을 넣었을 때 점이 되고, 스냅을 빼면 줌마다 새 글리프를 구워 아틀라스가 찬다.
         /// </summary>
+        /// <summary>이름판이 쓸 수 있는 줄 수. ⚠️ **사용자 확정 둘** — 세 줄이면 타일이 덮인다.</summary>
+        private const int MaxNamePlateLines = 2;
+
         private static void DrawNodeNamePlate(Camera cam, Vector3 world, string text, float cellPx)
         {
             if (string.IsNullOrEmpty(text) || cellPx < 24f) return;   // 너무 작으면 못 읽는다
@@ -3660,9 +3663,45 @@ namespace MBI.Logistics
             Vector3 sp = cam.WorldToScreenPoint(world);
             if (sp.z <= 0f) return;
 
+            // ⚠️⚠️ **높이만 보고 크기를 정하면 이름이 칸 밖으로 넘친다**
+            //    (2026-09-16 사용자 육안 — 「노드 라벨이 그리드를 넘어간다」).
+            //
+            // 종전 글자 크기는 `h * 0.76` 하나로 정해졌다 — **폭을 아예 안 봤다.**
+            // 「복합 군수」처럼 긴 이름은 한 칸 폭(0.92칸)을 넘어 **이웃 칸 위로** 삐져나왔다.
+            // 오늘만 네 번째 같은 병이다(탭 줄 · 팔레트 · 원형 버튼 · 여기) —
+            // **크기는 두 변에서 잡아야 한다.**
             float w = cellPx * 0.92f;
-            float h = cellPx * 0.26f;
             float x = sp.x - w * 0.5f;
+
+            var style = new GUIStyle(GUI.skin.label)
+            {
+                alignment = TextAnchor.MiddleCenter,
+                // Bold 없음 — 구역 이름표와 같은 이유(합성 굵기가 라틴을 놓친다).
+                wordWrap = true,
+            };
+
+            // 사다리를 큰 쪽부터 내려오며 **두 줄 안에 드는 첫 크기**를 고른다.
+            // ⚠️ **최대 두 줄**(사용자 확정) — 세 줄이면 타일이 글자로 덮인다.
+            float lineH = cellPx * 0.26f;
+            float maxH = lineH * MaxNamePlateLines;
+            float h = lineH;
+
+            // ⚠️ **사다리를 큰 쪽부터 내려온다** — 작은 쪽부터 올라가면 **맨 처음 드는
+            //    가장 작은 크기**를 골라 늘 깨알같이 찍힌다. 우리가 원하는 것은
+            //    **두 줄 안에 드는 가장 큰 크기**다.
+            //    ⚠️ 사다리 밖 크기는 안 쓴다 — 동적 폰트 아틀라스가 크기마다 굽는다
+            //    (`KoreanFont.Snap` 의 까닭 · 09-15 촬영 차단 결함).
+            style.fontSize = KoreanFont.Ladder[0];
+            for (int i = KoreanFont.Ladder.Length - 1; i >= 0; i--)
+            {
+                style.fontSize = KoreanFont.Ladder[i];
+                float need = style.CalcHeight(new GUIContent(text), w - 4f);
+                if (need <= maxH) { h = Mathf.Max(lineH, need); break; }
+                // 맨 아래까지 안 들면 **자르지 않고 두 줄 높이로 둔다** —
+                // `GUILayout` 과 달리 `GUI.Label` 은 넘쳐도 안 지우고 그린다.
+                if (i == 0) h = maxH;
+            }
+
             float y = Screen.height - sp.y - cellPx * 0.5f + cellPx * 0.04f;   // 타일 위쪽 안쪽
             if (x + w < 0f || x > Screen.width || y + h < 0f || y > Screen.height) return;
 
@@ -3671,12 +3710,7 @@ namespace MBI.Logistics
             GUI.color = NamePlateColor;
             GUI.DrawTexture(box, Texture2D.whiteTexture);
             GUI.color = NameTextColor;
-            GUI.Label(box, text, new GUIStyle(GUI.skin.label)
-            {
-                fontSize = KoreanFont.Snap(Mathf.Max(9, Mathf.RoundToInt(h * 0.76f))),
-                alignment = TextAnchor.MiddleCenter,
-                // Bold 없음 — 구역 이름표와 같은 이유(합성 굵기가 라틴을 놓친다).
-            });
+            GUI.Label(box, text, style);
             GUI.color = prev;
         }
 
@@ -3702,16 +3736,20 @@ namespace MBI.Logistics
             Sprite sp = art != null ? art.ItemSprite(kind) : null;
             if (sp == null || sp.texture == null) return;   // 그림이 없으면 안 그린다(§10)
 
-            // 출력 면 쪽으로 붙인다 — 면이 돌면 아이콘도 따라 돈다(회전한 노드).
-            PortFace face = OutputFaceOf(inst);
-            Vector2 dir = FaceDirection(face);
-
+            // ⚠️⚠️ **칸 가운데에 둔다**(2026-09-16 사용자 육안 · 면 화살표와 겹쳤다).
+            //
+            // 🗑️ 구 자리는 **출력 면 쪽 0.30칸**이었다. 09-16 에 면 화살표가 같은 면에
+            // 서면서 **둘이 겹쳐 둘 다 안 읽혔다** — 아이콘은 「무엇을 내는가」, 화살표는
+            // 「어느 쪽으로 내는가」라 **다른 말인데 한 자리를 다퉜다.**
+            //
+            // 📌 **가운데면 면과 안 다툰다.** 어느 쪽으로 나가는지는 화살표와 포트 탭이
+            // 이미 말하므로, 아이콘까지 면에 붙을 이유가 없다. 회전해도 자리가 안 변한다.
             Vector3 c = cam.WorldToScreenPoint(world);
             if (c.z <= 0f) return;
 
             float d = cellPx * 0.30f;
-            float cx = c.x + dir.x * cellPx * 0.30f;
-            float cy = Screen.height - c.y - dir.y * cellPx * 0.30f;
+            float cx = c.x;
+            float cy = Screen.height - c.y;
 
             // ⚠️⚠️ **여기가 「주황 정사각」의 진짜 자리였다**(2026-09-15 · 육안 5차 ③).
             //
@@ -3734,7 +3772,13 @@ namespace MBI.Logistics
                 sp.texture, uv);
         }
 
-        /// <summary>그 노드가 지금 내는 면. 없으면 동면(자산 기본)으로 둔다.</summary>
+        /// <summary>
+        /// 그 노드가 지금 내는 면. 없으면 동면(자산 기본)으로 둔다.
+        ///
+        /// 🗑️ **부르는 곳이 없어졌다**(2026-09-16 · 출력 아이콘이 칸 가운데로 갔다).
+        /// 지우지 않고 남기는 것은 「출력 면이 어디인가」가 **다시 필요해질 물음**이기
+        /// 때문이다 — 지웠다가 다시 짓느니 폐기 표기로 둔다.
+        /// </summary>
         private static PortFace OutputFaceOf(NodeInstance inst)
         {
             IReadOnlyList<NodePort> ports = inst.Ports();
