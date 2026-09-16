@@ -1016,6 +1016,9 @@ namespace MBI.Combat
             // 수동 회피(화면 플릭). 이동 명령이 아니라 **즉시 회피**라 이동 처리와 섞지 않는다.
             if (running) PollFlick();
 
+            // PC 단축키 — 플릭과 **나란히** 산다(2026-09-16 · `260915_W01` 판정 5).
+            if (running) PollDodgeKey();
+
             // 이동: 수동 입력이 있으면 수동이 우선, 없으면 유예 후 자동 조종이 맡는다.
             // 영상 시나리오의 수동 카이팅 연출과 방치 진행이 한 빌드에서 공존해야 하므로 둘 다 살린다.
             if (running)
@@ -1253,6 +1256,31 @@ namespace MBI.Combat
         }
 
         // ---- 입력(InputSystem, 프로젝트 컨벤션) ----
+        /// <summary>
+        /// 회피 단축키. ⚠️ **키는 가정이다** — 문서에 키 배치 절이 없다(설계 역기입 자리).
+        /// 이동이 WASD/화살표라 손가락이 그 위에 있고, 스페이스는 **둘 다 닿는** 자리다.
+        /// </summary>
+        private const Key DodgeKey = Key.Space;
+
+        /// <summary>
+        /// 키로 한 번 피한다 — **촬영본에 입력이 남게** 하려는 것이 이 기능의 이유다.
+        ///
+        /// ⚠️ 누른 프레임에만 반응한다(`wasPressedThisFrame`) — 누르고 있는 동안
+        /// 매 프레임 피하면 **스택이 한 순간에 비운다.**
+        ///
+        /// ⚠️ 방향을 여기서 정하지 않는다 — `DodgeShortcut` 이 정한다(§3).
+        /// 피할 근거가 없으면 `null` 이고, 그때는 **스택을 안 쓴다.**
+        /// </summary>
+        private void PollDodgeKey()
+        {
+            Keyboard k = Keyboard.current;
+            if (k == null || _sim == null) return;
+            if (!k[DodgeKey].wasPressedThisFrame) return;
+
+            Vector2? dir = DodgeShortcut.Direction(MoveInput(), _sim.AimDirection);
+            if (dir.HasValue) _sim.RequestDodge(dir.Value);
+        }
+
         private static Vector2 MoveInput()
         {
             Keyboard k = Keyboard.current;
@@ -1550,7 +1578,7 @@ namespace MBI.Combat
             string lineTag = robotB != null ? TagLine() : null;
             string lineElapsed = $"경과 {_sim.Elapsed:F1}s / {stage.challengeTime:F0}s";
             string lineWallet = $"고철 {IdleSignals.WalletScrap:N0}   ·   강화재료 {IdleSignals.WalletEnhMaterial:N0}";
-            const string lineHelp = "이동 WASD / 화살표   ·   회피 = 화면 플릭";
+            const string lineHelp = "이동 WASD / 화살표   ·   회피 = 스페이스 / 화면 플릭";
 
             // ⚠️ **진단 한 줄**(2026-09-15 · 육안 8차 ① — 「쏘는 쪽을 안 본다」).
             //

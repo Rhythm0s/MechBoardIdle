@@ -108,31 +108,34 @@ namespace MBI.Tests
         }
 
         [Test]
-        public void 라인_스펙과_무기_발사율이_다른_값이라는_것을_남긴다()
+        public void 발사수는_두_칸이다()
         {
             var bal = AssetDatabase.LoadAssetAtPath<BalanceConfig>(BalancePath);
             RobotDefinition r = Robot();
             if (bal == null) Assert.Ignore("BalanceConfig 가 없다");
 
-            // ⚠️⚠️ **이 시험은 「같다」가 아니라 「다르다」를 못 박는다** — 고칠 자리를
-            // 잊지 않으려는 표식이다(2026-09-15 · 육안 6차 ② 이행 중 발견).
+            // ✅ **설계 판정이다**(2026-09-16 · `260915_W01` 판정 1). 종전 이 시험은
+            //    「지금 둘이 다르다」를 못 박아 **고칠 자리를 잊지 않으려는 표식**이었다.
+            //    설계가 답했으므로 이제 단언이 바뀐다 — **합칠 것이 아니라 두 칸이다.**
             //
-            // `BalanceConfig.lineSpecShots`(문서 쪽 · 표준 **6**)와
-            // `RobotDefinition.weapons[].shotsPerSec`(표준 **2** · 09-15 에 1→2)가
-            // **세 배 어긋나 있다.** 둘 다 「표준탄 발사수(발/초)」라고 불리는데
-            // **읽는 곳이 다르다** —
-            // · `ShotAllocator`(발사) → `weapons[].shotsPerSec`
-            // · `WorkloadRate`(생산 · 군수 노드 몇 대까지 일하는가) → `LineSpecOf`
+            // · `BalanceConfig.lineSpecShots` = **생산 상한** — 군수 노드 몇 대까지 일하는가.
+            //   `LineSpecOf` 를 거쳐 `WorkloadRate` 가 읽는다.
+            // · `RobotDefinition.weapons[].shotsPerSec` = **발사율** — 초당 몇 발 쏘는가.
+            //   `ShotAllocator` 가 읽는다.
             //
-            // ⚠️ **「아무도 안 읽는다」고 적었던 것은 틀렸다**(같은 날 정정). `SpecShotsOf` 는
-            // 부르는 곳이 0건이 맞지만 **같은 필드를 `LineSpecOf` 가 읽는다** —
-            // 메서드 이름만 보고 죽은 값으로 판단했다.
-            //
-            // 📌 **어느 쪽이 맞는지는 구현이 정할 것이 아니다**(등가선이 걸린다).
-            // 설계가 정하면 이 시험을 「같다」로 뒤집고 죽은 쪽을 지운다.
-            Assert.That(bal.lineSpecShots.y, Is.Not.EqualTo(r.weapons[1].shotsPerSec),
-                "둘이 같아졌다면 설계가 하나로 합친 것이다 — 이 시험을 「같다」로 바꾸고 "
-                + "`SpecShotsOf` 의 죽은 갈래를 지운다");
+            // ⚠️ 문서가 둘을 **한 이름**으로 불러서 「세 배 어긋남」처럼 보였다. 어긋난 것이
+            //    아니라 **다른 축**이었다. 등가선과 대표 조합 140·180 은 발사율 × 피해로
+            //    재산출한다(설계 몫 · 09-17).
+            Assert.That(bal.lineSpecShots.x, Is.EqualTo(5f).Within(0.001f), "관통 생산 상한");
+            Assert.That(bal.lineSpecShots.y, Is.EqualTo(6f).Within(0.001f), "표준 생산 상한");
+            Assert.That(bal.lineSpecShots.z, Is.EqualTo(2f).Within(0.001f), "폭발 생산 상한");
+
+            Assert.That(r.weapons[0].shotsPerSec, Is.EqualTo(2f).Within(0.001f), "관통 발사율");
+            Assert.That(r.weapons[1].shotsPerSec, Is.EqualTo(2f).Within(0.001f), "표준 발사율");
+            Assert.That(r.weapons[2].shotsPerSec, Is.EqualTo(4f).Within(0.001f), "폭발 발사율");
+
+            // 📌 **둘을 같은 값으로 맞추지 않는다.** 같게 만들면 두 축이 다시 한 칸으로
+            //    접히고, 생산을 건드릴 때마다 발사가 같이 움직인다.
         }
     }
 }
