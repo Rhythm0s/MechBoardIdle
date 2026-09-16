@@ -165,3 +165,35 @@ RENDERING: chunky pixel art, hard-edged shapes, a small number of value steps, r
 
 **결과** — 세로 10 → **20** ✅ · 관통탄과의 구분 8×20 대 5×20 ⚠️ · 채움 94% → **90.0%** ⚠️(거의 안 내려갔다).
 ③ 이 목표에 못 미친 것이 그대로 보인다 — **다음에 고칠 자리는 여기다.**
+
+---
+
+## 6. `vfx_enemy_shell` — `create_1_direction_object` · 64 · 후보 **16장** · 20 생성 · job `2cd273cf`
+
+포격 몬스터 투사체가 **코드가 그린 흰 사각**이었다. 자산이 없던 자리다.
+
+```
+A single short fat artillery shell flying through the air, pointing to the RIGHT.
+
+DIRECTION: the nose of the shell points squarely to the right edge of the picture and the flat base faces the left edge. The shell lies along a level horizontal line, wider than it is tall, and does not tilt up or down.
+
+SHAPE: short and stubby, a fat little shell - a blunt rounded nose at the right, a plain cylindrical body, and a flat base with a narrow driving band stepping out around it near the tail. The nose step and the band step are both plainly visible as changes in height, so the outline is a stack of distinct blocks rather than one smooth tube.
+
+CAMERA: seen from in front and slightly above, the same angle a machine standing on the ground is seen from, so a sliver of the shell's upper surface is visible along its top.
+
+COLOR: greyscale only - white, pale grey and dark grey, with a dark outline all around. No colour anywhere, not a trace of any hue.
+
+FRAMING: one single shell alone in the middle of the picture on a fully transparent background, small and compact, with clear empty space on all four sides and nothing else in the frame.
+
+RENDERING: chunky pixel art, hard-edged shapes, a small number of value steps, readable as a shell even when shrunk very small, no glow and no soft blur, no motion trail and no smoke.
+```
+
+**기준 방향을 집 관례에 맞추었다** — `Board/arrow.png` 가 「**오른쪽을 향하는 삼각형 한 장뿐**」이고
+코드가 돌린다(09-14 사용자 확정). 그래서 `DIRECTION` 을 **문안의 첫 절로** 올렸다.
+
+**꼬리 연기·잔상을 막은 까닭** — 코드가 회전시킬 자산이라
+**방향이 붙은 잔상이 있으면 돌릴 때 어긋난다.** `no motion trail and no smoke` 를 마지막에 넣은 자리다.
+
+**결과** — 설치본 `c00` · 56 × 24 · **0.25배** · 무채색(채도 최대 0.13).
+⚠️ 플랜 가정 「실루에 ≈24~32」을 넘었으나 **투사체 승인본 `vfx_tagbullet` 의 0.22배와 거의 같다.**
+사실을 그대로 올렸고 사용자가 이 크기로 확정했다.
