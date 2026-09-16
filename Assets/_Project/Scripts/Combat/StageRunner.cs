@@ -148,7 +148,8 @@ namespace MBI.Combat
         /// 코드가 2 배로 키운다(2026-09-10 사용자 확정). 숫자(2.667칸)는 우연히 같지만
         /// **나오는 길이 다르다** — 512 벌이 오는 날 배율은 1 로 돌아간다.
         /// </summary>
-        private static float EnemySize(float maxHp) => maxHp >= 1000f ? ArtSpec.BossViewSize : ArtSpec.MonsterSize;
+        /// <summary>몸 크기 규칙은 <see cref="StageSpawnFactory"/> 가 들고 있다 — 값이 두 곳에 살면 안 된다.</summary>
+        private static float EnemySize(float maxHp) => StageSpawnFactory.EnemySize(maxHp);
 
         /// <summary>
         /// 표시명 → 화면 배율. **값은 SO 에서 온다**(<see cref="EnemyDefinition.viewScale"/>) —
@@ -926,66 +927,24 @@ namespace MBI.Combat
         /// <summary>
         /// 앞의 것이 0 이 아니면 그것을 쓴다. **0 은 「안 정했다」는 뜻**이지 0 이라는 값이 아니다.
         /// </summary>
-        private static float Pick(float fromAsset, float fromRule, float fallback)
-        {
-            if (fromAsset > 0f) return fromAsset;
-            if (fromRule > 0f) return fromRule;
-            return fallback;
-        }
-
-        private static float RoleRange(EnemyDefinition def) =>
-            def != null ? EnemyAttackRule.RangeOrZero(def.role) : 0f;
-
-        private static float RoleProjectile(EnemyDefinition def) =>
-            def != null ? EnemyAttackRule.ProjectileSpeedOrZero(def.role) : 0f;
-
         /// <summary>적 포탄 자리표시의 한 변(월드 유닛). ⚠️ 가정 — 연출 문서에 절이 없다.</summary>
         private const float ProjectileViewUnits = 0.25f;
 
         private readonly List<SpriteRenderer> _projectileViews = new List<SpriteRenderer>();
 
+        /// <summary>
+        /// 이 스테이지의 적 목록. **짓는 규칙은 <see cref="StageSpawnFactory"/> 한 곳에 있다**
+        /// (2026-09-16 · S1 하네스가 같은 판을 재려면 같은 함수를 불러야 한다).
+        ///
+        /// ⚠️ 여기서는 **화면의 값만** 받아 둔다 — 배율과 그림은 시뮬에 안 들어간다.
+        /// </summary>
         private List<EnemySpawn> BuildSpawns()
-        {
-            var byKey = new Dictionary<string, EnemyDefinition>();
-            foreach (EnemyDefinition e in enemyCatalog)
-                if (e != null && !string.IsNullOrEmpty(e.enemyKey)) byKey[e.enemyKey] = e;
-
-            var spawns = new List<EnemySpawn>();
-            foreach (StageComposition c in stage.composition)
+            => StageSpawnFactory.Build(stage, enemyCatalog, tuning, (label, def) =>
             {
-                byKey.TryGetValue(c.enemyKey, out EnemyDefinition def);
-                float atk = def != null ? def.atk : 0f;
-                string label = def != null ? def.displayName : c.enemyKey;
-                // 배율은 여기서 한 번 적어 둔다. 없거나 0 이면 1 로 본다 — 낡은 자산이
-                // 적을 통째로 사라지게 만들면 안 된다.
+                // 배율은 없거나 0 이면 1 로 본다 — 낡은 자산이 적을 통째로 사라지게 하면 안 된다.
                 _viewScaleByLabel[label] = def != null && def.viewScale > 0 ? def.viewScale : 1;
-                // 그림도 여기서 한 번 잡아 둔다 — 뷰는 CombatEntity 만 들고 있어 정의를 못 찾는다.
                 _artByLabel[label] = def;
-                for (int i = 0; i < c.count; i++)
-                {
-                    spawns.Add(new EnemySpawn
-                    {
-                        label = label,
-                        hp = c.hp,
-                        def = c.def,
-                        atk = atk,
-                        // ⚠️ **셋 다 「칸 → 병종 규칙 → 튜닝」 순이다**(2026-09-11 · §71-33 ②).
-                        // 종전에는 넷이 튜닝 하나를 똑같이 써서 **보병과 포격이 같이 움직였다.**
-                        moveSpeed = Pick(def != null ? def.moveSpeed : 0f, 0f,
-                            tuning.enemyMoveSpeedTbd),
-                        attackRange = Pick(def != null ? def.attackRange : 0f,
-                            RoleRange(def), tuning.enemyAttackRangeTbd),
-                        attackInterval = Pick(def != null ? def.attackInterval : 0f, 0f,
-                            tuning.enemyAttackIntervalTbd),
-                        // ⚠️ 투사체만 마지막 단이 **0**이다 — 즉발이 현행이라 폴백이 따로 없다.
-                        projectileSpeed = Pick(def != null ? def.projectileSpeed : 0f,
-                            RoleProjectile(def), 0f),
-                        radius = EnemySize(c.hp) * 0.5f,
-                    });
-                }
-            }
-            return spawns;
-        }
+            });
 
         private void Update()
         {
