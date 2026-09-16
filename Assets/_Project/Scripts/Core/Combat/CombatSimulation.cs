@@ -1387,8 +1387,13 @@ namespace MBI.Core
                     : NearestLivingEnemyWithin(d.Position, d.AttackRange);
                 if (target == null || !target.IsAlive) continue;
 
+                // ⚠️ **타격 간격**(2026-09-16 사용자 육안 3차). 갓 사출된 기체는
+                //    시계가 0 이라 **바로 한 방** 나가고, 그 뒤부터 간격이 걸린다.
+                if (d.HitCooldown > 0f) continue;
+
                 float dealt = d.Fire();
                 if (dealt <= 0f) continue;
+                d.HitCooldown = DroneHitInterval;
 
                 // 판정식을 다시 만들지 않는다 — 본체 사격과 같은 식을 탄다.
                 float applied = DamageFormula.PerHit(dealt, Act.setup.mountCoef, Act.setup.moduleMult, target.def);
@@ -1449,6 +1454,10 @@ namespace MBI.Core
 
             foreach (DroneUnit d in Act.drones)
             {
+                // ⚠️ **시계는 이동과 함께 돈다** — 사격 단계보다 먼저 줄어야
+                //    간격이 정확히 이 값이 된다. 사격 뒤에 줄이면 한 틱씩 늘어난다.
+                if (d.HitCooldown > 0f) d.HitCooldown = Mathf.Max(0f, d.HitCooldown - dt);
+
                 if (d.Kind == DroneKind.Aoe)
                 {
                     d.OrbitAngle += DroneOrbitSpeed * dt;
@@ -1495,6 +1504,14 @@ namespace MBI.Core
 
         /// <summary>누적형이 붙었다고 보는 거리 — ⚠️ 가정.</summary>
         public float DroneAttachDistance { get; set; } = 0.35f;
+
+        /// <summary>
+        /// 드론 **타격 간격**(초) — ⚠️ 가정 0.5 (2026-09-16 사용자 육안 3차).
+        ///
+        /// 기당 피해가 충전량의 1/10 이므로 이 간격이면 **한 기가 약 5초** 붙어 있다.
+        /// ⚠️ **누적형·광역형 같은 간격**이다 — 두 종을 가르는 것은 이동과 표적이다.
+        /// </summary>
+        public float DroneHitInterval { get; set; } = 0.5f;
 
         /// <summary>
         /// **광역형이 차지하는 몫**(0~1) — 보드의 복합 군수가 무엇을 돌리는가.

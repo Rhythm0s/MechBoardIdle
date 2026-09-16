@@ -1115,6 +1115,7 @@ namespace MBI.Combat
                 _sim.DroneOrbitSpeed = tuning.droneOrbitSpeedTbd;
                 _sim.DroneFlySpeed = tuning.droneFlySpeedTbd;
                 _sim.DroneAttachDistance = tuning.droneAttachDistanceTbd;
+                _sim.DroneHitInterval = tuning.droneHitIntervalTbd;
             }
             // 종을 가르는 몫 — 보드가 정한다.
             _sim.AoeDroneShare = LogisticsOutputBridge.AoeDroneShare;

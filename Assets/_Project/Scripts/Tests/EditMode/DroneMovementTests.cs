@@ -150,6 +150,44 @@ namespace MBI.Tests
             Assert.AreEqual(25f, total, 0.001f, "총 피해가 충전량을 넘었다");
         }
 
+        [Test]
+        public void 타격_간격이_있어야_붙어_있는_시간이_생긴다()
+        {
+            // **사용자가 잡은 결함 그 자체** — 기당 피해만 1/10 로 나누고 간격을 안 두면
+            // **열 번을 한 틱에 쏟는다.** 10틱(0.17초)에 끝나 한 방과 사실상 같다.
+            CombatSimulation sim = Sim(enemies: 1, enemyHp: 1e9f, aoeShare: 0f);
+            sim.DroneHitInterval = 0.5f;
+
+            // 한 기만 보도록 유입을 끊는다 — 계속 나면 누가 얼마나 살았는지 못 센다.
+            for (int i = 0; i < 12; i++) sim.Tick(Dt);
+            Assert.Greater(sim.Drones.Count, 0, "드론이 안 떴다");
+            sim.DroneInflowRate = 0f;
+
+            DroneUnit watched = sim.Drones[0];
+            float charge0 = watched.Charge;
+
+            // 붙을 때까지 돌린 뒤, **한 간격 안에 한 방만** 나가는지 본다.
+            for (int i = 0; i < 300 && !watched.Attached; i++) sim.Tick(Dt);
+            Assert.IsTrue(watched.Attached, "안 붙었다 — 시험 전제가 깨졌다");
+
+            float before = watched.Charge;
+            for (int i = 0; i < 12; i++) sim.Tick(Dt);   // 0.2초 — 간격(0.5)보다 짧다
+            float spent = before - watched.Charge;
+
+            Assert.LessOrEqual(spent, watched.DamagePerHit + 0.001f,
+                $"간격보다 짧은 동안 {spent} 나갔다 — 한 방을 넘겼다");
+            Assert.Less(charge0 - watched.Charge, charge0,
+                "아무것도 안 나갔다 — 간격이 사격을 통째로 막았다");
+        }
+
+        [Test]
+        public void 간격이_0이면_구_거동이다()
+        {
+            // 값이 서기 전으로 되돌릴 길을 남긴다 — 0 은 「매 틱」이다.
+            var d = new DroneUnit(Vector2.zero, 100f, 10f, 1f, DroneKind.Stack, 0f);
+            Assert.AreEqual(0f, d.HitCooldown, "갓 난 기체는 바로 한 방 쏠 수 있어야 한다");
+        }
+
         // ── 광역형: 따라 돈다 ────────────────────────────────────────────
 
         [Test]
