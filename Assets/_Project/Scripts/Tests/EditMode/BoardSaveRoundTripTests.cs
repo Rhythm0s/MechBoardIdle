@@ -241,6 +241,66 @@ namespace MBI.Tests
             }
         }
 
+        // ── 6-2. 시작 보드 세대 ────────────────────────────────────────────────
+
+        [Test]
+        public void 옛_세대의_저장은_버린다()
+        {
+            // ⚠️⚠️ **격자 크기만으로는 못 거른다.** 09-15 에 시작 보드가 네 줄 → 두 줄로
+            //    바뀌었는데 크기는 그대로 12x14 였다 — 옛 배치가 새 규격 위에 **조용히**
+            //    올라와 「벨트를 이었는데 마운트 적재 0」이 됐다(육안 9차 ⑦).
+            BoardGrid before = Grid();
+            before.TryPlace(new Vector2Int(2, 2), Node("N_old"), out _);
+            BoardStateV1 saved = BoardStateCodec.Capture(before);
+
+            saved.generation = "deadbeef";   // 옛 세대인 척한다
+
+            BoardGrid after = Grid();
+            Assert.That(BoardStateCodec.Fits(saved, after), Is.False, "옛 세대를 받아들였다");
+            Assert.That(BoardStateCodec.Restore(saved, after, NodeLookup()), Is.EqualTo(-1));
+            Assert.That(Count(after.Nodes), Is.EqualTo(0), "하나라도 놓았으면 안 된다");
+
+            // 왜 버리는지 말할 수 있어야 한다 — 조용히 사라지면 플레이어가 이유를 못 본다.
+            Assert.That(BoardStateCodec.WhyNotFit(saved, after), Does.Contain("세대"));
+        }
+
+        [Test]
+        public void 같은_세대의_저장은_되살린다()
+        {
+            BoardGrid before = Grid();
+            before.TryPlace(new Vector2Int(2, 2), Node("N_now"), out _);
+            BoardStateV1 saved = BoardStateCodec.Capture(before);
+
+            Assert.That(saved.generation, Is.EqualTo(StartingBoard.Generation),
+                "새길 때 지금 세대를 안 찍었다");
+
+            BoardGrid after = Grid();
+            Assert.That(BoardStateCodec.Fits(saved, after), Is.True, "같은 세대인데 버렸다");
+            Assert.That(BoardStateCodec.Restore(saved, after, NodeLookup()), Is.EqualTo(0));
+            Assert.That(after.GetAt(new Vector2Int(2, 2)), Is.Not.Null);
+            Assert.That(BoardStateCodec.WhyNotFit(saved, after), Is.Null, "맞는데 이유를 냈다");
+        }
+
+        [Test]
+        public void 세대_표식이_없던_저장도_버린다()
+        {
+            // 이 기능 **전에** 쓰인 저장 — 필드가 비어 있다. 그것도 옛 것이다.
+            BoardGrid before = Grid();
+            BoardStateV1 saved = BoardStateCodec.Capture(before);
+            saved.generation = null;
+
+            Assert.That(BoardStateCodec.Fits(saved, Grid()), Is.False, "표식 없는 저장을 받아들였다");
+        }
+
+        [Test]
+        public void 세대는_내용에서_나온다()
+        {
+            // 📌 손으로 올리는 버전 번호가 아니다 — 올리는 것을 잊으면 표식이 거짓말을 하고,
+            //    그것은 표식이 없는 것보다 나쁘다. 배치가 바뀌면 해시가 저절로 바뀐다.
+            Assert.That(StartingBoard.Generation, Is.Not.Null.And.Not.Empty);
+            Assert.That(StartingBoard.Generation, Is.EqualTo(StartingBoard.Generation), "값이 흔들린다");
+        }
+
         // ── 7. 왕복한 판이 실제로 나르는가 ──────────────────────────────────────
 
         /// <summary>

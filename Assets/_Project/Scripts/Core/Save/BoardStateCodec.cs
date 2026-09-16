@@ -49,7 +49,12 @@ namespace MBI.Core
         {
             if (grid == null) return null;
 
-            var state = new BoardStateV1 { columns = grid.Columns, rows = grid.Rows };
+            var state = new BoardStateV1
+            {
+                columns = grid.Columns,
+                rows = grid.Rows,
+                generation = StartingBoard.Generation,
+            };
 
             foreach (NodeInstance n in grid.Nodes)
             {
@@ -91,7 +96,25 @@ namespace MBI.Core
         /// </summary>
         public static bool Fits(BoardStateV1 state, BoardGrid grid)
             => state != null && grid != null
-               && state.columns == grid.Columns && state.rows == grid.Rows;
+               && state.columns == grid.Columns && state.rows == grid.Rows
+               && state.generation == StartingBoard.Generation;
+
+        /// <summary>
+        /// 왜 안 맞는지 한 줄로 — 로그에 찍는다. 맞으면 <c>null</c>.
+        ///
+        /// ⚠️ **조용히 버리지 않는다.** 저장이 사라지는 것은 플레이어에게 큰 일이라
+        /// 적어도 이유는 남긴다.
+        /// </summary>
+        public static string WhyNotFit(BoardStateV1 state, BoardGrid grid)
+        {
+            if (state == null) return "저장된 판이 없다";
+            if (grid == null) return "격자가 없다";
+            if (state.columns != grid.Columns || state.rows != grid.Rows)
+                return $"격자 크기가 다르다 — 저장 {state.columns}x{state.rows} · 지금 {grid.Columns}x{grid.Rows}";
+            if (state.generation != StartingBoard.Generation)
+                return $"시작 보드 세대가 다르다 — 저장 '{state.generation ?? "(없음)"}' · 지금 '{StartingBoard.Generation}'";
+            return null;
+        }
 
         /// <summary>
         /// 저장을 빈 격자에 푼다. 놓인 것만 <paramref name="onNode"/>·<paramref name="onBelt"/> 로 알린다.

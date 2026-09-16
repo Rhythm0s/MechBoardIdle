@@ -249,5 +249,60 @@ namespace MBI.Core
             new Run(1, 5, PortFace.North, PortFace.South),
             new Run(1, 4, PortFace.North, PortFace.South),  // 남쪽 면이 마운트 고정 포트다
         };
+
+        /// <summary>
+        /// 이 시작 보드의 **세대 표식** — 내용에서 뽑은 해시 (2026-09-16 사용자 결정 §74-9).
+        ///
+        /// ⚠️⚠️ **왜 필요했나.** 저장은 격자 크기만 보고 받아들였다. 그런데 09-15 에
+        /// 시작 보드가 **네 줄 → 두 줄**로 바뀌었는데 **크기는 그대로 12x14** 라,
+        /// 옛 배치가 새 규격 위에 **조용히** 올라왔다 — 에러도 경고도 없다.
+        /// 화면에서는 「벨트를 이었는데 마운트 적재 0」으로 보였다(육안 9차 ⑦).
+        ///
+        /// 📌 **손으로 올리는 버전 번호를 안 쓴다.** 올리는 것을 잊으면 표식이 거짓말을 하고,
+        /// 그것은 표식이 없는 것보다 나쁘다. 배치가 바뀌면 해시가 저절로 바뀐다.
+        ///
+        /// ⚠️ **사람이 읽을 값이 아니다** — 로그에 찍어 견주기만 한다.
+        /// </summary>
+        public static string Generation
+        {
+            get
+            {
+                if (_generation != null) return _generation;
+
+                // FNV-1a 32 비트. 암호용이 아니라 **달라졌는가**만 보면 되므로 짧게 둔다.
+                unchecked
+                {
+                    uint h = 2166136261u;
+                    void Mix(int v)
+                    {
+                        for (int b = 0; b < 4; b++)
+                        {
+                            h ^= (uint)((v >> (b * 8)) & 0xFF);
+                            h *= 16777619u;
+                        }
+                    }
+
+                    Mix(PartLayout.Columns);
+                    Mix(PartLayout.Rows);
+
+                    foreach (Slot n in Nodes)
+                    {
+                        foreach (char c in n.nodeId ?? string.Empty) Mix(c);
+                        Mix(n.cell.x); Mix(n.cell.y);
+                    }
+                    foreach (Run r in Belts)
+                    {
+                        Mix(r.cell.x); Mix(r.cell.y);
+                        Mix((int)r.inFace); Mix((int)r.outFace);
+                        Mix(r.merger ? 1 : 0);
+                    }
+
+                    _generation = h.ToString("x8");
+                }
+                return _generation;
+            }
+        }
+
+        private static string _generation;
     }
 }

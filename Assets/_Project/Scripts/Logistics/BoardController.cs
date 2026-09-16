@@ -698,7 +698,18 @@ namespace MBI.Logistics
         private bool TryRestoreSavedBoard()
         {
             BoardStateV1 saved = IdleSignals.BoardState;
-            if (!BoardStateCodec.Fits(saved, _grid)) return false;
+            if (!BoardStateCodec.Fits(saved, _grid))
+            {
+                // ⚠️ **왜 버리는지 남긴다**(2026-09-16 · 육안 ⑦). 저장이 조용히 사라지면
+                //    플레이어는 「내가 놓은 것이 없어졌다」만 겪고 이유를 못 본다.
+                if (saved != null)
+                {
+                    Debug.LogWarning("[MBI] 저장된 보드를 버린다 — " + BoardStateCodec.WhyNotFit(saved, _grid)
+                                     + ". 시작 보드로 시작한다(플레이어 배치도 함께 사라진다).");
+                    IdleSignals.BoardState = null;
+                }
+                return false;
+            }
 
             int missed = BoardStateCodec.Restore(
                 saved, _grid, FindStartingNode, FindModuleById, SpawnNodeMarker, SpawnBeltMarker);
