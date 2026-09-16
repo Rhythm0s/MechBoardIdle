@@ -911,6 +911,35 @@ namespace MBI.Logistics
                 grid.TryPlaceBelt(run.cell, run.inFace, run.outFace, FlowKind.None, out _);
         }
 
+        /// <summary>
+        /// **편집 탭을 활성 로봇에 맞춘다** (2026-09-16 사용자 육안 · 플랜 §74-21 ②).
+        ///
+        /// 🗑️ **구 가정 「편집 축과 전투 축은 따로」 폐기.** 규칙으로는 깨끗했지만
+        /// 써 보니 틀렸다 — B 로 교대해도 조립 화면은 A 판을 보여 주어
+        /// **지금 싸우는 로봇의 줄을 못 봤다.**
+        ///
+        /// 맞추는 때는 **교대**와 **조립 진입** 둘뿐이다(규칙은 `BoardTabFollow`).
+        /// 그 사이에 손으로 옮긴 탭은 **다음 교대까지 그대로 둔다** — 매 프레임 맞추면
+        /// 손으로 B 를 열어 둔 채 A 로 싸울 수가 없다.
+        /// </summary>
+        private void FollowActiveRobotTab()
+        {
+            MountOwner active = SupplySignals.ActiveOwner;
+            bool open = GameLayerController.BoardViewActive;
+
+            if (BoardTabFollow.ShouldFollow(active, _lastSeenActiveOwner, open, _wasBoardOpen))
+                SetEditing(active);
+
+            _lastSeenActiveOwner = active;
+            _wasBoardOpen = open;
+        }
+
+        /// <summary>직전 프레임에 본 활성 로봇 — 바뀌면 교대가 일어난 것이다.</summary>
+        private MountOwner _lastSeenActiveOwner = MountOwner.RobotA;
+
+        /// <summary>직전 프레임에 조립 화면이 열려 있었는가 — 닫힘 → 열림이 진입이다.</summary>
+        private bool _wasBoardOpen;
+
         /// <summary>복원이 부르는 빈 통보 — 그림은 판을 읽어 따로 짓는다.</summary>
         private static void NoMarker(Vector2Int cell) { }
         private static void NoBeltMarker(Vector2Int cell, PortFace outFace) { }
@@ -2276,6 +2305,8 @@ namespace MBI.Logistics
         private void Update()
         {
             if (BoardDumpSignals.Requested) FulfilBoardDump();
+
+            FollowActiveRobotTab();
 
             // ⚠️ **게이트가 이것을 읽는다**(2026-09-11 · §71-19 ①). 국면은 신호만으로
             // 안 정해진다 — 이동 모드인 채로 고스트가 뜨면 할 수 있는 일은

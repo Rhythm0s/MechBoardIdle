@@ -2013,8 +2013,13 @@ namespace MBI.Combat
         /// ⚠️ **길게 누른 프레임에는 교대가 안 나가야 한다.** 둘 다 나가면
         /// 「자동을 켜려다 교대까지 해 버리는」 손이 된다 — 부르는 쪽이 이 값으로 막는다.
         ///
-        /// 📌 **켜기만 한다.** 끄는 것은 아래 토글이 맡는다 — 길게 눌러 켜고 길게 눌러
-        /// 끄면 **지금 어느 쪽인지 모른 채** 누르게 되고, 그때 교대도 같이 막힌다.
+        /// 🗑️ **구 규칙 「켜기만 한다」 폐기**(2026-09-16 사용자 육안 · 플랜 §74-21 ①).
+        /// 내가 「길게 눌러 켜고 길게 눌러 끄면 지금 어느 쪽인지 모른 채 누르게 된다」고
+        /// 적었는데, **써 보니 그 반대였다** — 켠 뒤 다시 길게 눌러도 안 꺼지니
+        /// **끄는 길이 없는 것처럼** 느껴진다. 지금 상태는 **위 토글 버튼이 글자로 말한다.**
+        ///
+        /// 📌 **켬↔끔 한 손짓이다.** 위 토글과 **같은 값**을 뒤집는다 —
+        /// 둘이 다른 값을 만지면 화면이 두 답을 갖는다(지침 §7).
         /// </summary>
         private bool TrackTagLongPress(Rect tagRect)
         {
@@ -2036,11 +2041,8 @@ namespace MBI.Combat
             if (!tagRect.Contains(e.mousePosition)) return false;
             if (held < TagAutoMode.LongPressSeconds) return false;
 
-            if (!TagAutoMode.Enabled)
-            {
-                TagAutoMode.Enabled = true;
-                AudioSignals.Play(SoundIds.UiClick, SoundIds.KindOf(SoundIds.UiClick));
-            }
+            TagAutoMode.Toggle();   // 뒤집는 자리는 한 곳이다
+            AudioSignals.Play(SoundIds.UiClick, SoundIds.KindOf(SoundIds.UiClick));
             return true;
         }
 
@@ -2082,7 +2084,7 @@ namespace MBI.Combat
             if (!on) GUI.color = new Color(prev.r, prev.g, prev.b, prev.a * 0.55f);
             bool hit = UiSkin.Button(toggle, on ? "자동 교대 켜짐" : "자동 교대 꺼짐", style);
             GUI.color = prev;
-            if (hit) TagAutoMode.Enabled = !on;
+            if (hit) TagAutoMode.Toggle();   // 길게 누르기와 **같은 값**을 뒤집는다
 
             // 안내 한 줄 — **문구는 사용자 확정 그대로**다(`TagAutoMode.Hint`).
             var hint = new Rect(toggle.x, toggle.y - h * 0.62f, toggle.width, h * 0.58f);

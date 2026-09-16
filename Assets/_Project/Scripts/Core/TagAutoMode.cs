@@ -39,8 +39,14 @@ namespace MBI.Core
             }
         }
 
-        /// <summary>버튼 밑에 다는 안내 — 사용자 확정 문구 그대로다.</summary>
-        public const string Hint = "탭 = 교대 · 길게 = 자동";
+        /// <summary>
+        /// 버튼 밑에 다는 안내.
+        ///
+        /// ⚠️ **「켬/끔」이 붙었다**(2026-09-16 사용자 육안 · 플랜 §74-21 ①) —
+        /// 길게 누르기가 **켜기만** 하던 것이 **토글**로 바뀌었기 때문이다.
+        /// 문구가 손짓과 다르면 화면이 거짓말을 한다. ⚠️ 뒷말은 **가정**이다.
+        /// </summary>
+        public const string Hint = "탭 = 교대 · 길게 = 자동 켬/끔";
 
         /// <summary>
         /// 길게 누른 것으로 볼 시간(초). ⚠️ **가정 0.6** — 문서에 길게 누르기 절이 없다.
@@ -48,6 +54,17 @@ namespace MBI.Core
         /// 너무 짧으면 **교대하려던 손이 자동을 켜고**, 너무 길면 눌러도 안 켜진 줄 안다.
         /// </summary>
         public const float LongPressSeconds = 0.6f;
+
+        /// <summary>
+        /// 켜져 있으면 끄고, 꺼져 있으면 켠다 — **길게 누르기와 토글 버튼이 같이 쓴다.**
+        ///
+        /// 📌 뒤집는 자리를 한 곳에 둔다. 두 곳에서 각자 뒤집으면 한쪽만 고쳐지는 날이 온다.
+        /// </summary>
+        public static bool Toggle()
+        {
+            Enabled = !Enabled;
+            return Enabled;
+        }
 
         /// <summary>시험·초기화용 — 기본값으로 되돌린다.</summary>
         public static void Reset()
