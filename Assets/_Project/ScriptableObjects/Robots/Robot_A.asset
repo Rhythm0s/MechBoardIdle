@@ -16,13 +16,13 @@ MonoBehaviour:
   displayName: "\uB85C\uBD07A"
   weapons:
   - kind: 0
-    damagePerShot: 10
+    damagePerShot: 20
     shotsPerSec: 2
   - kind: 1
-    damagePerShot: 5
+    damagePerShot: 10
     shotsPerSec: 2
   - kind: 2
-    damagePerShot: 25
+    damagePerShot: 50
     shotsPerSec: 4
   consumptionCap: 12
   mountCoef: 1

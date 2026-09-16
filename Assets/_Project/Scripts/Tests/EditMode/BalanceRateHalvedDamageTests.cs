@@ -5,10 +5,14 @@ using UnityEditor;
 namespace MBI.Tests
 {
     /// <summary>
-    /// 발사율 ×2 · 발당 피해 ÷2 (2026-09-15 사용자 확정 (가) · 육안 6차 ②).
+    /// 발사율 ×2 · **피해는 되돌렸다** (2026-09-16 사용자 확정 · 육안 9차 ④).
     ///
-    /// 사용자가 고른 것은 「마운트에서 **탄환 소비량을 늘리고** 대미지를 그만큼 **줄인다**」였다.
-    /// 그래서 **초당 피해(DPS)는 그대로이고 탄약 회전만 빨라진다** — 그것이 이 판정의 뜻이다.
+    /// 09-15 에는 「소비를 늘리고 피해를 그만큼 줄인다」였다(DPS 130 그대로 · 회전만 두 배).
+    /// 09-16 에 사용자가 **피해 ÷2 를 되돌렸다** — 발사율 두 배는 그대로 두고 피해만 제자리로
+    /// 올린다. 그래서 **DPS 가 130 → 260 으로 두 배**가 된다.
+    ///
+    /// ⚠️ 두 축을 한 시험에서 함께 보는 이유는 그대로다 — 한쪽만 고치면 밸런스가
+    /// **에러 없이** 두 배 또는 절반이 된다.
     ///
     /// ⚠️ **DPS 가 안 변한다는 것을 시험이 지킨다.** 한쪽만 고치면(발사율만 올리거나
     /// 피해만 내리면) 밸런스가 조용히 두 배 또는 절반이 된다. 값을 손으로 옮기다
@@ -38,7 +42,7 @@ namespace MBI.Tests
         }
 
         [Test]
-        public void 발사율은_두_배_피해는_절반이다()
+        public void 발사율은_두_배_피해는_제자리다()
         {
             RobotDefinition r = Robot();
             Assert.That(r.weapons.Count, Is.EqualTo(Before.Length), "무기 수가 달라졌다");
@@ -49,13 +53,14 @@ namespace MBI.Tests
                 Assert.That(w.kind, Is.EqualTo(Before[i].kind), $"{i}번째 탄종이 바뀌었다");
                 Assert.That(w.shotsPerSec, Is.EqualTo(Before[i].rate * 2f).Within(0.001f),
                     $"{w.kind} 발사율 — 구 {Before[i].rate} 의 두 배여야 한다");
-                Assert.That(w.damagePerShot, Is.EqualTo(Before[i].dmg / 2f).Within(0.001f),
-                    $"{w.kind} 발당 피해 — 구 {Before[i].dmg} 의 절반이어야 한다");
+                // ⚠️ **09-16 에 되돌아왔다** — 09-15 의 ÷2 를 사용자가 걷었다.
+                Assert.That(w.damagePerShot, Is.EqualTo(Before[i].dmg).Within(0.001f),
+                    $"{w.kind} 발당 피해 — 구 {Before[i].dmg} 로 되돌아와야 한다");
             }
         }
 
         [Test]
-        public void 초당_피해는_그대로다()
+        public void 초당_피해는_두_배다()
         {
             RobotDefinition r = Robot();
 
@@ -66,9 +71,10 @@ namespace MBI.Tests
                 now += r.weapons[i].damagePerShot * r.weapons[i].shotsPerSec;
             }
 
-            Assert.That(now, Is.EqualTo(before).Within(0.001f),
-                $"초당 피해가 {before} → {now} 로 달라졌다. "
-                + "이 판정은 **회전만 빨라지고 세기는 그대로**여야 한다 — "
+            // 09-15 = 회전만 두 배(DPS 130 유지) → 09-16 = 피해도 제자리(DPS 260).
+            Assert.That(now, Is.EqualTo(before * 2f).Within(0.001f),
+                $"초당 피해가 {before * 2f} 이어야 하는데 {now} 다. "
+                + "발사율 두 배는 두고 피해만 되돌린 것이므로 DPS 는 정확히 두 배다 — "
                 + "한 축만 고쳤는지 본다");
         }
 

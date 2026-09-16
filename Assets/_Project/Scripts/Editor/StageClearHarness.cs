@@ -179,6 +179,11 @@ namespace MBI.EditorTools
             float elapsed = 0f;
             float firstShotAt = -1f, firstArrivalAt = -1f;
             float peakArrival = 0f;
+            // ① 육안 9차 — 「3.2초에 로봇 바로 옆에 스폰」을 가른다.
+            //    **나타난 순간의 거리**를 찍는다 — 나중에 걸어온 거리와 섞으면 구분이 안 된다.
+            var spawnLog = new List<string>();
+            int seenEnemies = 0;
+
             LogisticsResult lastResult = default;
             float peakActual = 0f;
 
@@ -247,6 +252,23 @@ namespace MBI.EditorTools
                 float rolled = roll.Average(0);
                 if (rolled > peakRolled) peakRolled = rolled;
 
+                if (sim.TotalEnemies > 0 && spawnLog.Count < 10)
+                {
+                    int live = 0;
+                    foreach (CombatEntity e in sim.Enemies) live++;
+                    if (live > seenEnemies)
+                    {
+                        int idx = 0;
+                        foreach (CombatEntity e in sim.Enemies)
+                        {
+                            if (idx >= seenEnemies && spawnLog.Count < 10)
+                                spawnLog.Add($"    #{idx} {elapsed:F2}초 · 거리 {(e.position - sim.RobotPosition).magnitude:F2}");
+                            idx++;
+                        }
+                        seenEnemies = live;
+                    }
+                }
+
                 result = sim.Result;
                 if (result != CombatResult.InProgress) break;
             }
@@ -268,6 +290,11 @@ namespace MBI.EditorTools
                 : "  첫 발사 **없음**");
 
             sb.AppendLine($"  마운트 최고 도착률 {peakArrival:F2} 발/초");
+
+            sb.AppendLine();
+            sb.AppendLine($"[스폰 거리 — 띄 {tuning.spawnRingMinTbd:F1}~{tuning.spawnRingMaxTbd:F1}]");
+            foreach (string line in spawnLog) sb.AppendLine(line);
+            sb.AppendLine("  ⚠️ 이것은 **나타난 순간**의 거리다 — 적은 그 뒤 로봇 쪽으로 걸어온다.");
 
             sb.AppendLine();
             sb.AppendLine("[출력 축 — 요구치 " + stage.req.ToString("F0") + "]");
