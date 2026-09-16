@@ -56,10 +56,20 @@ namespace MBI.Idle
             // 저장된 보드를 물류 쪽에 내놓는다. **Awake 에서 한다** —
             // `BoardController` 가 자기 `Start` 에서 이것을 읽어 판을 세우므로,
             // 실행 순서(-100 → 기본)가 뒤집히면 **매번 시작 보드로 돌아간다.**
-            IdleSignals.BoardState = Data.board;
+            // ⚠️ **구 저장의 한 판을 목록으로 옮긴 뒤 내놓는다**(2026-09-16 · 판이 둘이 됐다).
+            // 이주를 안 하면 이미 나간 저장의 A 판이 **조용히 사라진다.**
+            Data.MigrateLegacyBoard();
+            foreach (MountOwner o in BoardOwners)
+                IdleSignals.SetBoardState(o, Data.BoardOf(o));
 
             SettleOffline();
         }
+
+        /// <summary>
+        /// 판을 가진 로봇들 — **한 곳에만 적는다**(2026-09-16). 불러오기·저장·초기화 셋이
+        /// 같은 목록을 돌아야 한다. 따로 적으면 한 군데에서 B 를 빠뜨려도 신호가 없다.
+        /// </summary>
+        private static readonly MountOwner[] BoardOwners = { MountOwner.RobotA, MountOwner.RobotB };
 
         private void Update()
         {
@@ -146,7 +156,11 @@ namespace MBI.Idle
             // 보드 한 판. ⚠️ 물류가 아직 안 섬으면 `null` 이고, 그때는
             //    **새로 쓰지 않고 불러온 것을 그대로 다시 싣는다** — 그러지 않으면
             //    판이 서기 전에 도는 자동저장이 저장된 판을 지운다.
-            if (IdleSignals.BoardState != null) Data.board = IdleSignals.BoardState;
+            foreach (MountOwner o in BoardOwners)
+            {
+                BoardStateV1 live = IdleSignals.BoardStateOf(o);
+                if (live != null) Data.SetBoard(o, live);
+            }
             _store.Save(Data);
         }
 
@@ -155,7 +169,8 @@ namespace MBI.Idle
         {
             _store.Delete();
             Data = new SaveDataV1();
-            IdleSignals.BoardState = null;   // 저장을 지웠으면 보드도 같이 지운다
+            // 저장을 지웠으면 보드도 **둘 다** 같이 지운다
+            foreach (MountOwner o in BoardOwners) IdleSignals.SetBoardState(o, null);
             Wallet = new CurrencyWallet();
         }
     }

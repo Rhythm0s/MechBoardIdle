@@ -34,18 +34,44 @@ namespace MBI.Core
         /// </summary>
         private readonly HashSet<Vector2Int> _validCells;
 
+        /// <summary>
+        /// **이 판은 누구의 것인가** (2026-09-16 신설 · 사용자 확정 · 플랜 §74-16 ①).
+        ///
+        /// 보드가 로봇별로 갈렸다 — 실루엣은 같은 12×14 이지만 **자기 로봇의 마운트 포트만**
+        /// 살아 있다(A 는 (1,4) 남면 하나 · B 는 어깨 안쪽 둘). 그래야 A 판에 깐 운반로가
+        /// B 마운트로 흘러드는 일이 안 생긴다.
+        ///
+        /// 📌 **주인을 판이 든다.** `BeltItemFlow`·`BeltRouting`·`LogisticsReach` 는 셋 다
+        /// 이미 판을 받고 있으므로, 여기 한 곳에 두면 **아무 함수의 서명도 안 바뀌고**
+        /// 값이 두 곳에 살지도 않는다(지침 §7). 밖에서 따로 들고 다니면 판과 주인이
+        /// 어긋난 조합이 만들어질 수 있다.
+        /// </summary>
+        public MountOwner Owner { get; }
+
         public BoardGrid(int columns, int rows, float cellSize, Vector2 origin)
             : this(columns, rows, cellSize, origin, null)
         {
         }
 
+        /// <summary>
+        /// ⚠️ **주인을 안 주면 로봇 A 다.** 지어낸 기본값이 아니라 **시작 보드가 A 의 것**이기
+        /// 때문이다 — 하네스·프로브·구 시험이 세우는 판이 전부 그 판이다.
+        /// B 판을 세우는 자리는 **반드시 주인을 적는다.**
+        /// </summary>
         public BoardGrid(int columns, int rows, float cellSize, Vector2 origin, HashSet<Vector2Int> validCells)
+            : this(columns, rows, cellSize, origin, validCells, MountOwner.RobotA)
+        {
+        }
+
+        public BoardGrid(int columns, int rows, float cellSize, Vector2 origin,
+            HashSet<Vector2Int> validCells, MountOwner owner)
         {
             Columns = Mathf.Max(1, columns);
             Rows = Mathf.Max(1, rows);
             CellSize = Mathf.Max(0.0001f, cellSize);
             Origin = origin;
             _validCells = validCells != null && validCells.Count > 0 ? validCells : null;
+            Owner = owner;
         }
 
         /// <summary>배치 가능한 칸 수. 마스크가 없으면 Columns × Rows.</summary>

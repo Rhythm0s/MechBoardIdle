@@ -81,6 +81,35 @@ namespace MBI.Logistics
         private Vector2 _paletteScroll;
         // 버튼 자리는 MBI.UI.UiBlockers가 모은다 — 다른 어셈블리가 그린 패널까지 함께 막기 위해서다.
 
+        // ── 보드 둘 (2026-09-16 · 사용자 확정 · 플랜 §74-16 ①) ──────────────────
+        //
+        // **로봇마다 자기 판을 갖는다.** 실루엣은 같은 12×14 이고 마스크도 같지만,
+        // 살아 있는 마운트 포트가 다르다(A 하나 · B 둘) — 주인은 `BoardGrid.Owner` 가 든다.
+        //
+        // 📌 **판은 둘, 그림은 하나다.** 둘 다 매 틱 돌지만(대기 로봇 보드도 채워야 한다),
+        //    화면에 서는 마커는 **탭이 고른 쪽 하나**뿐이다. 마커 사전 아홉 벌을 둘로
+        //    늘리는 대신 탭을 누를 때 **다시 짓는다** — 짓는 비용은 Awake 가 이미
+        //    한 번 치르는 그 비용이고(칸 117), 사전이 둘이면 **같은 일을 하는 자리가
+        //    아홉 쌍** 생긴다(지침 §7 이 제일 자주 깨지는 꼴).
+
+        /// <summary>판 둘. 차례는 <see cref="MountOwner"/> 값 그대로다(A 0 · B 1).</summary>
+        private readonly BoardGrid[] _boards = new BoardGrid[2];
+        private readonly BeltItemFlow[] _flows = { new BeltItemFlow(), new BeltItemFlow() };
+
+        /// <summary>지금 **편집 중인** 판의 주인 — 조립 화면 로봇 탭이 정한다.</summary>
+        private MountOwner _editing = MountOwner.RobotA;
+
+        /// <summary>지금 편집 중인 판의 주인. 탭이 읽는다.</summary>
+        public MountOwner Editing => _editing;
+
+        private static int Index(MountOwner owner) => owner == MountOwner.RobotB ? 1 : 0;
+
+        /// <summary>그 로봇의 판. Awake 전에는 <c>null</c>.</summary>
+        public BoardGrid BoardOf(MountOwner owner) => _boards[Index(owner)];
+
+        /// <summary>그 로봇 판의 벨트 흐름.</summary>
+        public BeltItemFlow FlowOf(MountOwner owner) => _flows[Index(owner)];
+
         /// <summary>배치 상태 격자(§5-5 출력 집계용). Awake 후 유효.</summary>
         public BoardGrid Grid => _grid;
 
@@ -89,10 +118,18 @@ namespace MBI.Logistics
         ///
         /// **보드가 소유한다.** 도는 것은 <see cref="LogisticsOutputProvider"/>이고 그리는 것은
         /// 벨트 흐름 애니메이션이라, 둘이 같은 객체를 봐야 화면과 숫자가 갈리지 않는다.
+        ///
+        /// ⚠️ **편집 중인 판의 것이다**(2026-09-16). 둘 다 도는 것은
+        /// <see cref="LogisticsOutputProvider"/> 가 <see cref="FlowOf"/> 로 각각 부른다.
         /// </summary>
-        public BeltItemFlow ItemFlow { get; } = new BeltItemFlow();
+        public BeltItemFlow ItemFlow => _flows[Index(_editing)];
 
-        private BoardGrid _grid;
+        /// <summary>
+        /// 편집 중인 판. ⚠️ **이름을 안 바꿨다** — 이 파일 안 백 군데가 이것을 읽고 있고,
+        /// 그 전부가 **편집 중인 판**을 뜻한다. 이름을 바꾸면 그 백 줄이 전부 diff 에 서서
+        /// **무엇이 실제로 달라졌는지가 묻힌다.**
+        /// </summary>
+        private BoardGrid _grid => _boards[Index(_editing)];
         private InputAction _press;
         private readonly Dictionary<Vector2Int, GameObject> _markers = new Dictionary<Vector2Int, GameObject>();
         private readonly Dictionary<Vector2Int, Color> _nodeColors = new Dictionary<Vector2Int, Color>(); // 현재 상태색(선택 복원용)
@@ -632,8 +669,17 @@ namespace MBI.Logistics
 
             Vector2 origin = ComputeOrigin(config, transform.position);
             // 실루엣 마스크: 팔·다리 사이 빈칸을 배치 불가로 만든다(조립 문서 11장, 유효 117칸).
-            _grid = new BoardGrid(config.columns, config.rows, config.cellSize, origin,
-                config.usePartLayout ? PartLayout.BuildMask() : null);
+            //
+            // ⚠️ **판 둘을 같은 자리에 겹쳐 세운다**(2026-09-16). 원점도 마스크도 같다 —
+            // 다른 것은 **주인**뿐이고, 주인이 살아 있는 마운트 포트를 가른다.
+            // 겹쳐 세우므로 좌표·스크롤·배경은 한 벌로 족하다.
+            // 마스크는 판마다 따로 짓는다 — 한 벌을 나눠 쓰면 한쪽을 고칠 때 둘이 같이 바뀐다.
+            _boards[Index(MountOwner.RobotA)] = new BoardGrid(config.columns, config.rows,
+                config.cellSize, origin,
+                config.usePartLayout ? PartLayout.BuildMask() : null, MountOwner.RobotA);
+            _boards[Index(MountOwner.RobotB)] = new BoardGrid(config.columns, config.rows,
+                config.cellSize, origin, config.usePartLayout ? PartLayout.BuildMask() : null,
+                MountOwner.RobotB);
 
             _baseWorldPosition = transform.position;
             // ⚠️ **가로 여유가 없어졌다**(2026-09-14 · A 묶음도 격자 안으로 들어왔다).
@@ -650,7 +696,10 @@ namespace MBI.Logistics
             BuildGridVisual(); // §C-4 설치 가능 그리드 영역 표시(런타임).
             BuildDimOverlay(); // 이동 모드 표시(UI 문서 9-2)
             ApplyModeVisual();
-            ApplyInitialLayout();
+            // 판 둘을 다 세운다 — **대기 로봇 판도 돈다**(사용자 확정). 그림은 그 뒤 한 번.
+            ApplyInitialLayout(_boards[Index(MountOwner.RobotA)]);
+            ApplyInitialLayout(_boards[Index(MountOwner.RobotB)]);
+            RespawnMarkersFromGrid();
         }
 
         // 시작 배치를 깐다. 배치 경로는 플레이어 조작과 동일(TryPlace + 마커) — 별도 경로를 만들지 않는다.
@@ -662,13 +711,16 @@ namespace MBI.Logistics
         /// 병합기는 합칠 갈래가 없어졌고, 기초 군수는 나머지 세 줄이 흘러 0 이 안 됐다.
         /// 합류 뒤 외길의 벨트 한 칸이 그 조건을 만족한다.
         /// </summary>
-        private void PlaceTutorialFill()
+        private void PlaceTutorialFill(BoardGrid grid)
         {
-            StartingBoard.Run run = StartingBoard.FillsEmptySlot;
-            if (_grid.HasBelt(run.cell) || _grid.IsOccupied(run.cell)) return;
+            // ⚠️ **튜토리얼은 A 만이다**(2026-09-16 사용자 확정) — B 판에 채우면
+            //    배운 적 없는 칸이 메워져 있다.
+            if (grid.Owner != MountOwner.RobotA) return;
 
-            if (_grid.TryPlaceBelt(run.cell, run.inFace, run.outFace, FlowKind.None, out _))
-                SpawnBeltMarker(run.cell, run.outFace);
+            StartingBoard.Run run = StartingBoard.FillsEmptySlot;
+            if (grid.HasBelt(run.cell) || grid.IsOccupied(run.cell)) return;
+
+            grid.TryPlaceBelt(run.cell, run.inFace, run.outFace, FlowKind.None, out _);
         }
 
         // 시작 배치가 쓰는 노드 자산을 인스펙터 목록에서 찾는다. 시작 보드는 id로만 적고
@@ -695,31 +747,142 @@ namespace MBI.Logistics
         /// ⚠️ 못 놓은 것이 있어도 **통째로 버리지 않는다** — 자산 하나가 없어졌다고
         /// 나머지 판까지 날리는 편이 더 나쁘다. 다만 몇 개를 못 놓았는지는 남긴다.
         /// </summary>
-        private bool TryRestoreSavedBoard()
+        private bool TryRestoreSavedBoard(BoardGrid grid)
         {
-            BoardStateV1 saved = IdleSignals.BoardState;
-            if (!BoardStateCodec.Fits(saved, _grid))
+            BoardStateV1 saved = IdleSignals.BoardStateOf(grid.Owner);
+            if (!BoardStateCodec.Fits(saved, grid))
             {
                 // ⚠️ **왜 버리는지 남긴다**(2026-09-16 · 육안 ⑦). 저장이 조용히 사라지면
                 //    플레이어는 「내가 놓은 것이 없어졌다」만 겪고 이유를 못 본다.
                 if (saved != null)
                 {
-                    Debug.LogWarning("[MBI] 저장된 보드를 버린다 — " + BoardStateCodec.WhyNotFit(saved, _grid)
+                    Debug.LogWarning($"[MBI] 저장된 보드({grid.Owner})를 버린다 — "
+                                     + BoardStateCodec.WhyNotFit(saved, grid)
                                      + ". 시작 보드로 시작한다(플레이어 배치도 함께 사라진다).");
-                    IdleSignals.BoardState = null;
+                    IdleSignals.SetBoardState(grid.Owner, null);
                 }
                 return false;
             }
 
+            // ⚠️ **마커는 안 짓는다**(2026-09-16). 그림은 `RespawnMarkersFromGrid` 한 곳이
+            //    판을 읽어 짓는다 — 안 보이는 판에까지 마커를 세우지 않기 위해서다.
             int missed = BoardStateCodec.Restore(
-                saved, _grid, FindStartingNode, FindModuleById, SpawnNodeMarker, SpawnBeltMarker);
+                saved, grid, FindStartingNode, FindModuleById, NoMarker, NoBeltMarker);
 
             if (missed > 0)
-                Debug.LogWarning($"[MBI] 저장된 보드에서 {missed} 개를 못 놓았다 — "
+                Debug.LogWarning($"[MBI] 저장된 보드({grid.Owner})에서 {missed} 개를 못 놓았다 — "
                                  + "자산 id 가 바뀜었거나 칸이 막혔다. 나머지는 그대로 섬.");
 
             return true;
         }
+
+        /// <summary>
+        /// **편집 중인 판을 읽어 마커를 통째로 다시 짓는다** (2026-09-16 신설 · 보드 둘).
+        ///
+        /// 📌 **그림을 짓는 자리는 여기 하나다.** 시작 배치 · 저장 복원 · 탭 전환이
+        /// 전부 이 길로 온다 — 놓는 곳마다 마커를 붙이던 구 방식은 판이 둘이 되는 순간
+        /// **안 보이는 판에도 마커를 세운다**(지침 §7).
+        ///
+        /// ⚠️ **한 판 통째로 다시 짓는 것이 비싸지 않다.** 유효 칸이 117 이고 Awake 가
+        /// 이미 같은 일을 한 번 한다. 탭은 프레임마다 눌리지 않는다.
+        /// </summary>
+        private void RespawnMarkersFromGrid()
+        {
+            ClearMarkers();
+
+            BoardGrid grid = _grid;
+            if (grid == null) return;
+
+            for (int x = 0; x < grid.Columns; x++)
+            for (int y = 0; y < grid.Rows; y++)
+            {
+                var cell = new Vector2Int(x, y);
+                if (grid.GetAt(cell) != null) { SpawnNodeMarker(cell); continue; }
+
+                BeltInstance belt = grid.GetBeltAt(cell);
+                if (belt == null) continue;
+                // 출력면이 여럿일 수 있다(분류기) — 마커는 **첫 면**으로 세운다.
+                // 그림의 배향은 `BeltArtOf` 가 벨트 자체를 보고 다시 정한다.
+                PortFace outFace = belt.OutFaces != null && belt.OutFaces.Length > 0
+                    ? belt.OutFaces[0] : PortFace.East;
+                SpawnBeltMarker(cell, outFace);
+            }
+
+            RefreshConnections();
+        }
+
+        /// <summary>마커를 전부 지운다 — 탭을 옮기기 전에 부른다.</summary>
+        private void ClearMarkers()
+        {
+            foreach (KeyValuePair<Vector2Int, GameObject> kv in _markers)
+                if (kv.Value != null) Destroy(kv.Value);
+            foreach (KeyValuePair<Vector2Int, GameObject> kv in _beltMarkers)
+                if (kv.Value != null) Destroy(kv.Value);
+
+            // ⚠️ **자식으로 달린 것은 목록만 비운다** — 포트 탭·모듈 기호·몸통·화살표·경고·무늬는
+            //    전부 위 두 마커의 자식이라 부모와 함께 사라진다. 여기서 또 Destroy 하면
+            //    이미 죽은 것을 건드린다.
+            _markers.Clear();
+            _nodeColors.Clear();
+            _portMarkers.Clear();
+            _moduleSymbols.Clear();
+            _beltMarkers.Clear();
+            _beltBodies.Clear();
+            _beltArrows.Clear();
+            _beltWarnings.Clear();
+            _beltFlows.Clear();
+
+            // 고른 칸은 판마다 다르다 — 옮기면 테두리를 내린다.
+            _selected = null;
+            if (_selectRing != null) _selectRing.SetActive(false);
+        }
+
+        /// <summary>
+        /// **편집할 판을 고른다** — 조립 화면 로봇 탭이 부른다 (2026-09-16 · 사용자 확정).
+        ///
+        /// 판을 바꾸는 것은 **그림과 편집 대상**뿐이다 — 둘 다 매 틱 돌고 있고,
+        /// 그 틱은 <see cref="LogisticsOutputProvider"/> 가 판별로 따로 돌린다.
+        /// </summary>
+        public void SetEditing(MountOwner owner)
+        {
+            if (_editing == owner) return;
+            _editing = owner;
+            RespawnMarkersFromGrid();
+        }
+
+        /// <summary>
+        /// **로봇 B 의 시작 보드를 세운다** (2026-09-16 · 사용자 확정 · 플랜 §74-16 ②).
+        ///
+        /// A 와 달리 **완성본**이다 — 튜토리얼 대상이 아니라 비워 둘 칸이 없다.
+        /// 자리는 <see cref="StartingBoardB"/> 가 든다(가정 · 설계 사후 역기입).
+        ///
+        /// ⚠️ 조합표를 **같이 넣는다.** 안 넣으면 가공 노드가 기본 조합표로 돌아
+        /// 배터리 줄이 통째로 죽는다 — 에러 없이 도착만 0 이 된다.
+        /// </summary>
+        private void ApplyStartingBoardB(BoardGrid grid)
+        {
+            foreach (StartingBoardB.Slot slot in StartingBoardB.Nodes)
+            {
+                NodeDefinition def = FindStartingNode(slot.nodeId);
+                if (def == null)
+                {
+                    Debug.LogWarning($"[MBI] B 시작 보드: 노드 '{slot.nodeId}' 를 못 찾았다 — "
+                                     + "팔레트에 없다. 그 칸은 빈다.");
+                    continue;
+                }
+                if (!grid.TryPlace(slot.cell, def, out NodeInstance placed)) continue;
+                if (slot.recipe != RecipeKind.None && !placed.SelectRecipe(slot.recipe))
+                    Debug.LogWarning($"[MBI] B 시작 보드: {slot.nodeId} 가 조합표 "
+                                     + $"{slot.recipe} 를 못 받는다 — 기본값으로 선다.");
+            }
+
+            foreach (StartingBoard.Run run in StartingBoardB.Belts)
+                grid.TryPlaceBelt(run.cell, run.inFace, run.outFace, FlowKind.None, out _);
+        }
+
+        /// <summary>복원이 부르는 빈 통보 — 그림은 판을 읽어 따로 짓는다.</summary>
+        private static void NoMarker(Vector2Int cell) { }
+        private static void NoBeltMarker(Vector2Int cell, PortFace outFace) { }
 
         /// <summary>모듈 id 로 자산을 찾는다 — 복원이 쓴다. 없으면 null.</summary>
         private ModuleDefinition FindModuleById(string moduleId)
@@ -730,26 +893,33 @@ namespace MBI.Logistics
             return null;
         }
 
-        private void ApplyInitialLayout()
+        /// <summary>
+        /// 시작 배치(또는 저장된 판)를 **격자에만** 세운다 (2026-09-16 · 보드 둘로 갈리며 바뀜).
+        ///
+        /// 🗑️ **구 규칙 「놓으면서 마커도 같이 짓는다」는 폐기.** 판이 둘이 되면
+        /// **안 보이는 판에도 마커를 짓게** 되고, 탭을 누를 때마다 지우고 다시 지어야 한다.
+        /// 그림은 <see cref="RespawnMarkersFromGrid"/> 한 곳이 **판을 읽어** 짓는다 —
+        /// 시작 배치든 저장 복원이든 탭 전환이든 **같은 길**이다(지침 §7).
+        /// </summary>
+        private void ApplyInitialLayout(BoardGrid grid)
         {
             // ⚠️⚠️ **저장된 판이 있으면 그것이 진실이다**(2026-09-16 · `Docs/board_save_design.md`).
             //
             // 종전엔 재입장할 때마다 **시작 보드를 다시 깔았다.** 플레이어가 늘린 판이
             // 통째로 사라졌고, 이 파일의 아래쪽 주석이 그것을 「진짜 구멍」이라고 적어 둔
             // 그 자리다. 이제 메운다.
-            if (TryRestoreSavedBoard())
-            {
-                RefreshConnections();
-                return;
-            }
+            if (TryRestoreSavedBoard(grid)) return;
+
+            // ⚠️⚠️ **씬에 적힌 시작 배치는 로봇 A 의 것이다.** B 의 시작 보드는 코드가 든다
+            //    (`StartingBoardB`) — 씬 목록이 하나뿐이라 둘을 못 담는다.
+            if (grid.Owner == MountOwner.RobotB) { ApplyStartingBoardB(grid); return; }
 
             if (initialLayout != null)
                 foreach (InitialNode item in initialLayout)
                 {
                     if (item.node == null) continue;
-                    if (!_grid.TryPlace(item.cell, item.node, out NodeInstance placed)) continue;
+                    if (!grid.TryPlace(item.cell, item.node, out NodeInstance placed)) continue;
                     placed.AmmoKind = item.ammoKind; // 군수 노드가 만드는 탄종(§1). 다른 타입에서는 읽히지 않는다.
-                    SpawnNodeMarker(item.cell);
                 }
 
             if (initialBelts != null)
@@ -758,12 +928,12 @@ namespace MBI.Logistics
                     // ⚠️ **선언한 면을 쓴다**(2026-09-11). 종전에는 병합기를 **서→동으로 박아**
                     // 시작 보드가 적어 둔 면을 통째로 버렸다 — 네 줄 배치의 합류가 전부
                     // 엉뚱한 쪽으로 흘렀다. 받는 면은 출력면을 뺀 나머지 셋이다.
-                    bool ok = b.merger
-                        ? _grid.TryPlaceBeltElement(b.cell, BeltElementKind.Merger,
+                    if (b.merger)
+                        grid.TryPlaceBeltElement(b.cell, BeltElementKind.Merger,
                             StartingBoard.MergerInFaces(b.outFace), new[] { b.outFace },
-                            FlowKind.None, out _)
-                        : _grid.TryPlaceBelt(b.cell, b.inFace, b.outFace, FlowKind.None, out _);
-                    if (ok) SpawnBeltMarker(b.cell, b.outFace);
+                            FlowKind.None, out _);
+                    else
+                        grid.TryPlaceBelt(b.cell, b.inFace, b.outFace, FlowKind.None, out _);
                 }
 
             // 튜토리얼을 이미 끝냈으면 **비워 둔 칸이 채워진 채로 시작한다**(260902_W09 §1-1 안 A).
@@ -773,9 +943,7 @@ namespace MBI.Logistics
             //
             // ⚠️ 이것은 **근본 해결이 아니다.** 진짜 구멍은 보드 배치가 저장되지 않는 것이고,
             // 플레이어가 확장한 보드는 여전히 사라진다(불일치 목록 등재분).
-            if (IdleSignals.TutorialCleared) PlaceTutorialFill();
-
-            RefreshConnections();
+            if (IdleSignals.TutorialCleared) PlaceTutorialFill(grid);
         }
 
         // §C-4: 노드/벨트 설치 가능 영역을 런타임에 표시 — 배경 + 셀 경계선 + 바깥 테두리(최초 1회).
@@ -1102,7 +1270,16 @@ namespace MBI.Logistics
         /// 그림·그리드·이름표·점멸이 **같은 판정 하나**를 읽는다. 따로 재면 셋 중 하나가
         /// 남아 어긋난다(오늘 점멸에서 이미 한 번 그랬다).
         /// </summary>
-        private static bool ShowsMount(MountOwner owner) => owner == SupplySignals.ActiveOwner;
+        /// <summary>
+        /// 이 마운트를 **지금 보여 주는가** (2026-09-16 · 보드 로봇별 분리로 기준이 바뀌었다).
+        ///
+        /// 🗑️ **구 기준 「싸우는 로봇」(`SupplySignals.ActiveOwner`)은 폐기.**
+        /// 조립 화면에 로봇 탭이 생기면서 **보는 판과 싸우는 로봇이 갈라졌다** —
+        /// 옛 기준이면 B 판을 편집하는 내내 **A 의 마운트가 B 판 위에 떠 있다.**
+        ///
+        /// 📌 마운트는 **그 판의 것**이다(사용자 확정 — 「마운트 표시 = 그 로봇 것」).
+        /// </summary>
+        private bool ShowsMount(MountOwner owner) => owner == _editing;
 
         private static bool MountBlinkOn =>
             MountDisplay.Blinks(SupplySignals.HasCombat, SupplySignals.MountTotal)
@@ -2024,7 +2201,9 @@ namespace MBI.Logistics
             if (TutorialSignals.FillEmptySlotRequested)
             {
                 TutorialSignals.FillEmptySlotRequested = false;
-                PlaceTutorialFill();
+                // 튜토리얼 칸은 **A 판**의 것이다 — 지금 B 를 보고 있어도 A 에 채운다.
+                PlaceTutorialFill(_boards[Index(MountOwner.RobotA)]);
+                if (_editing == MountOwner.RobotA) RespawnMarkersFromGrid();
                 RefreshConnections();   // 벨트 한 칸이 라인을 잇는다 — 안 다시 풀면 안 흐른다
             }
 

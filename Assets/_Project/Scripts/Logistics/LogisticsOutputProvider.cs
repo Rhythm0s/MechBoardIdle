@@ -74,14 +74,45 @@ namespace MBI.Logistics
         {
             LogisticsOutputBridge.Reset(); // 도메인 리로드 비활성 시 이전 Play 값이 남는 것 방지
             _roll = new RollingWindow(5, rollingWindow);
-            _delivery.Reset();
+            for (int i = 0; i < _deliveries.Length; i++) _deliveries[i].Reset();
         }
+
+        /// <summary>판을 가진 로봇들 — 한 곳에만 적는다(2026-09-16 · 보드 로봇별 분리).</summary>
+        private static readonly MountOwner[] Owners = { MountOwner.RobotA, MountOwner.RobotB };
+
+        /// <summary>
+        /// **판마다 하나씩** — 도착을 섞으면 안 된다. 차례는 <see cref="MountOwner"/> 값 그대로.
+        /// </summary>
+        private readonly MountDelivery[] _deliveries = { new MountDelivery(), new MountDelivery() };
+
+        private static int Index(MountOwner owner) => owner == MountOwner.RobotB ? 1 : 0;
 
         private void Update()
         {
             if (board == null || robot == null) return;
-            BoardGrid grid = board.Grid;
-            if (grid == null) return;
+
+            // ⚠️⚠️ **판 둘이 다 돈다**(2026-09-16 사용자 확정 · 플랜 §74-16 ①).
+            //
+            // 대기 중인 로봇의 판도 돌아야 **교대한 순간 빈손이 아니다.** 안 돌리면
+            // 태그를 누른 뒤 창고·마운트가 비어 있어 「교대하면 한동안 못 쏜다」가 된다.
+            // 비용은 쟀다 — 두 판 한 틱 **80 마이크로초**(프레임 예산의 0.48%).
+            //
+            // 📌 **축이 둘이다** — 지금 **싸우는** 로봇과 지금 **편집 중인** 로봇.
+            //    · 전투로 나가는 출력·도착률은 **싸우는 쪽** 판의 것이다.
+            //    · 노드 상태색은 **편집 중인** 쪽 판의 것이다(플레이어가 보는 판).
+            //    둘을 한 축으로 묶으면 B 를 편집하는 동안 A 의 색이 B 진단으로 칠해진다.
+            foreach (MountOwner owner in Owners)
+                TickBoard(owner,
+                    publishCombat: owner == SupplySignals.ActiveOwner,
+                    publishDiagnostics: owner == board.Editing);
+        }
+
+        private void TickBoard(MountOwner owner, bool publishCombat, bool publishDiagnostics)
+        {
+            BoardGrid grid = board.BoardOf(owner);
+            BeltItemFlow flow = board.FlowOf(owner);
+            if (grid == null || flow == null) return;
+            MountDelivery delivery = _deliveries[Index(owner)];
 
             // 100은 인스펙터 리터럴이 아니라 원천에서 온다(§3 수치 하드코딩 금지).
             // 브릿지는 물류 단위 = 마운트계수 미적용(마운트계수는 판정식 내부 항 = 전투 측).
@@ -96,6 +127,11 @@ namespace MBI.Logistics
             WorkloadRate.Result work = WorkloadRate.Compute(grid, connected, robot.balanceRef);
 
             NetworkAggregate agg = LogisticsNetwork.Aggregate(grid, connected, work);
+
+            // ⚠️ **브릿지는 싸우는 판의 것만 싣는다**(2026-09-16). 둘 다 실으면 나중에
+            //    도는 판이 앞의 것을 덮어 **대기 로봇의 보드가 전투 HUD 에 뜬다.**
+            if (publishCombat)
+            {
             LogisticsOutputBridge.Workload = work; // 보드가 「노는 중」을 그리는 근거
             LogisticsOutputBridge.AmmoProduce = agg.ammoProduce; // 전투 HUD 저장고/탄약 표시(§C-2)
 
@@ -110,14 +146,18 @@ namespace MBI.Logistics
             // 코어 유무와 무관하게 게시한다: 발전소만 놓고 벨트를 안 이어도 막대는 읽혀야 한다.
             LogisticsOutputBridge.PowerSupply = agg.powerSupply;
             LogisticsOutputBridge.PowerDraw = agg.powerDraw;
+            }
 
             if (!agg.hasCore)
             {
-                LogisticsOutputBridge.Result = default; // 물류 허브(코어) 없음 → 전투로 나가는 출력 없음
-                LogisticsOutputBridge.GlobalCause = ConstraintCause.None;
-                board.ClearDiagnostics();
-                _roll.Reset();
-                _delivery.Reset(); // 모으던 구간을 버린다 — 코어가 돌아왔을 때 옛 도착이 섞이면 안 된다
+                if (publishCombat)
+                {
+                    LogisticsOutputBridge.Result = default; // 물류 허브(코어) 없음 → 전투로 나가는 출력 없음
+                    LogisticsOutputBridge.GlobalCause = ConstraintCause.None;
+                    _roll.Reset();
+                }
+                if (publishDiagnostics) board.ClearDiagnostics();
+                delivery.Reset(); // 모으던 구간을 버린다 — 코어가 돌아왔을 때 옛 도착이 섞이면 안 된다
                 return;
             }
 
@@ -146,21 +186,27 @@ namespace MBI.Logistics
             // **전력·발열을 여기서 곱한다.** 둘이 모자라면 노드가 덜 만들고, 덜 만들면 덜
             // 도착한다(`260903_W02` 2-2). 도착량을 출력으로 쓰는 이상 그 인과는 생산 단계에만
             // 있어야 하며, 조립에서 또 곱하면 제곱이 된다.
-            BoardItemTick.Step(grid, board.ItemFlow, Time.deltaTime, throttle.Scale);
+            BoardItemTick.Step(grid, flow, Time.deltaTime, throttle.Scale);
 
             // ③ 마운트에 닿은 것을 센다. 읽고 나면 비운다 — 안 비우면 같은 도착이 계속 세어진다.
-            _delivery.Observe(board.ItemFlow.PendingMountArrivals, DamageOf, Time.deltaTime,
-                SupplySignals.ActiveOwner);
-            board.ItemFlow.ClearPendingMountArrivals();
-            _delivery.TryDrain(DeliverySampleSeconds, out float deliveredRate);
+            // ⚠️ **도착의 주인은 판의 주인이다**(2026-09-16). 종전에는 `ActiveOwner` 를
+            //    넘겼는데, 판이 둘이 된 지금 그러면 **B 판의 도착이 A 것으로 세어진다.**
+            delivery.Observe(flow.PendingMountArrivals, DamageOf, Time.deltaTime, owner);
+            flow.ClearPendingMountArrivals();
+            delivery.TryDrain(DeliverySampleSeconds, out float deliveredRate);
 
             // **탄종별 도착률을 전투로 나른다**(2026-09-15 사용자 확정) — 발사율이 이것으로
             // 배분된다. 안 나르면 전투가 「명목 대비 전역 비율」로 되돌아간다.
-            for (int i = 0; i < SupplySignals.MountArrivalRate.Length; i++)
-                SupplySignals.MountArrivalRate[i] = _delivery.RateOf((AmmoKind)i);
+            if (publishCombat)
+                for (int i = 0; i < SupplySignals.MountArrivalRate.Length; i++)
+                    SupplySignals.MountArrivalRate[i] = delivery.RateOf((AmmoKind)i);
 
             // ④ 조립. actual은 계산이 아니라 위에서 잰 값이다.
             LogisticsResult r = LogisticsSimulation.Compute(baseEff, throttle, deliveredRate, origin);
+
+            // 노드 상태색은 **편집 중인 판**의 것이다 — 플레이어가 보고 있는 판이라서다.
+            if (publishDiagnostics) board.ApplyDiagnostics(LogisticsDiagnostics.Evaluate(grid, r));
+            if (!publishCombat) return;
 
             // 크기값(예상·실제·갭 분해)은 전부 같은 창으로 굴린다 → 분해합 == 총갭이 유지된다.
             // 배율·플래그(powerEfficiency/heatThrottle/beltThrottle/multiple)는 즉시값 그대로 —
@@ -189,7 +235,6 @@ namespace MBI.Logistics
             ReportBottleneck(cause);
             LogisticsOutputBridge.GlobalCause = cause;
 
-            board.ApplyDiagnostics(LogisticsDiagnostics.Evaluate(grid, r)); // 노드 상태색
         }
 
         /// <summary>직전 틱의 병목 원인. 「상태가 바뀔 때」를 가르는 유일한 기준이다.</summary>

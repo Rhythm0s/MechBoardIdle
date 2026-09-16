@@ -76,6 +76,18 @@ namespace MBI.Core
         /// </summary>
         public string generation;
 
+        /// <summary>
+        /// **이 판은 누구의 것인가** — `MountOwner` 값 (2026-09-16 · 보드 로봇별 분리).
+        ///
+        /// ⚠️ **자기가 누구 것인지를 판이 들고 있어야 한다.** 목록의 차례로만 가리면
+        /// 한 칸이 밀렸을 때 **A 판이 B 자리에 조용히 들어앉는다** — 에러 없이
+        /// 마운트가 엉뚱한 로봇에게 붙는 꼴이다.
+        ///
+        /// ⚠️ 0 은 `MountOwner.RobotA` 이므로 **세대 표식이 있던 구 저장(필드 없음)은
+        /// A 로 읽힌다** — 그 시절 판이 실제로 A 의 것이라 맞다.
+        /// </summary>
+        public int owner;
+
         public int columns;
         public int rows;
 

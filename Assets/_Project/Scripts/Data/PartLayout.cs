@@ -292,14 +292,54 @@ namespace MBI.Data
             new MountPort(new Vector2Int(9, 10), PortFace.West, MountOwner.RobotB),   // 어깨L 안쪽
         };
 
+        /// <summary>
+        /// 포트 **전부**. ⚠️ 판 하나를 볼 때는 쓰지 말 것 — 보드가 로봇별로 갈린 뒤
+        /// (2026-09-16) 한 판에는 **자기 주인의 포트만** 있다. 이 목록은 그림을 깔거나
+        /// 「어디에 마운트가 있나」를 통째로 셀 때만 쓴다.
+        /// </summary>
         public static IReadOnlyList<MountPort> MountPorts => Mounts;
 
-        /// <summary>이 칸의 이 면에 마운트 고정 포트가 붙어 있는가.</summary>
+        /// <summary>그 로봇의 포트만. A 는 하나 · B 는 둘이다.</summary>
+        public static IEnumerable<MountPort> MountPortsFor(MountOwner owner)
+        {
+            for (int i = 0; i < Mounts.Length; i++)
+                if (Mounts[i].owner == owner) yield return Mounts[i];
+        }
+
+        /// <summary>
+        /// 이 칸의 이 면에 **누구든** 마운트 고정 포트가 붙어 있는가.
+        ///
+        /// ⚠️ **판 하나를 읽는 자리에서는 주인을 같이 물을 것**
+        /// (<see cref="TryGetMountPort(Vector2Int,PortFace,MountOwner,out MountPort)"/>).
+        /// 주인을 안 물으면 **A 판에 깐 운반로가 B 포트로 흘러드는 것으로 읽힌다** —
+        /// 그림은 멀쩡한데 도착이 엉뚱한 로봇에게 세어지는, 신호 없는 결함이 된다.
+        /// </summary>
         public static bool TryGetMountPort(Vector2Int cell, PortFace face, out MountPort port)
         {
             for (int i = 0; i < Mounts.Length; i++)
             {
                 if (Mounts[i].cell != cell || Mounts[i].face != face) continue;
+                port = Mounts[i];
+                return true;
+            }
+            port = default;
+            return false;
+        }
+
+        /// <summary>
+        /// 이 칸의 이 면에 **그 로봇의** 마운트 고정 포트가 붙어 있는가
+        /// (2026-09-16 신설 · 보드 로봇별 분리).
+        ///
+        /// 판이 자기 주인을 들고 있으므로(`BoardGrid.Owner`) 판을 받는 함수는 전부
+        /// 이쪽을 부른다 — 서명이 안 바뀌고 주인이 두 곳에 안 산다.
+        /// </summary>
+        public static bool TryGetMountPort(Vector2Int cell, PortFace face, MountOwner owner,
+            out MountPort port)
+        {
+            for (int i = 0; i < Mounts.Length; i++)
+            {
+                if (Mounts[i].cell != cell || Mounts[i].face != face) continue;
+                if (Mounts[i].owner != owner) continue;
                 port = Mounts[i];
                 return true;
             }

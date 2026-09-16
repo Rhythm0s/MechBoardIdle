@@ -107,6 +107,18 @@ namespace MBI.Core
         private readonly Dictionary<Vector2Int, MountOwner> _mountExits =
             new Dictionary<Vector2Int, MountOwner>();
 
+        /// <summary>
+        /// 이 칸이 **마운트로 나가는 자리**인가 (2026-09-16 · 보드 로봇별 분리 시험용).
+        ///
+        /// 판이 자기 주인의 포트만 보므로, 같은 칸·같은 면이라도 **판의 주인에 따라
+        /// 답이 갈린다** — 그것을 밖에서 확인할 길이 없어 자리를 냈다.
+        /// </summary>
+        public bool HasMountExit(Vector2Int cell) => _mountExits.ContainsKey(cell);
+
+        /// <summary>그 칸이 나가는 마운트의 주인. 도착지가 아니면 <c>false</c>.</summary>
+        public bool TryGetMountExitOwner(Vector2Int cell, out MountOwner owner) =>
+            _mountExits.TryGetValue(cell, out owner);
+
         // 마운트로 나간 누적 개수와 이번 틱분.
         private readonly Dictionary<FlowKind, int> _mountArrived = new Dictionary<FlowKind, int>();
         private readonly List<MountArrival> _pendingMount = new List<MountArrival>();
@@ -203,7 +215,10 @@ namespace MBI.Core
                 // 포트는 격자 밖을 향하므로 `BuildLinks`가 링크를 만들지 않는다 — 여기서 잡는다.
                 foreach (PortFace outFace in belt.OutFaces)
                 {
-                    if (!PartLayout.TryGetMountPort(c, outFace, out MountPort port)) continue;
+                    // ⚠️ **주인을 같이 묻는다**(2026-09-16 · 보드 로봇별 분리).
+                    // 안 물으면 A 판의 운반로가 B 포트로 흘러드는 것으로 읽힌다 —
+                    // 그림은 멀쩡한데 도착이 엉뚱한 로봇에게 세어진다.
+                    if (!PartLayout.TryGetMountPort(c, outFace, grid.Owner, out MountPort port)) continue;
                     _mountExits[c] = port.owner;
                     break;
                 }

@@ -193,14 +193,15 @@ namespace MBI.Core
             {
                 if (node.Definition == null || node.Definition.ports == null) return false;
                 foreach (NodePort p in node.Ports())
-                    if (p.io == PortIO.Output && PartLayout.TryGetMountPort(cell, p.face, out _)) return true;
+                    if (p.io == PortIO.Output &&
+                        PartLayout.TryGetMountPort(cell, p.face, grid.Owner, out _)) return true;
                 return false;
             }
 
             BeltInstance belt = grid.GetBeltAt(cell);
             if (belt == null || belt.OutFaces == null) return false;
             foreach (PortFace f in belt.OutFaces)
-                if (PartLayout.TryGetMountPort(cell, f, out _)) return true;
+                if (PartLayout.TryGetMountPort(cell, f, grid.Owner, out _)) return true;
             return false;
         }
 

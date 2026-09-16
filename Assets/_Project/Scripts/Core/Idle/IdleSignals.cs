@@ -48,7 +48,27 @@ namespace MBI.Core
         /// ⚠️ `null` 은 **「저장된 판이 없다」**이며 그때 보드는 시작 보드로 간다 —
         /// **빈 판과 다르다.** 빈 판은 플레이어가 지운 결과라 그대로 되살려야 한다.
         /// </summary>
-        public static BoardStateV1 BoardState;
+        /// <remarks>
+        /// 🗑️ **폐기 — 판이 둘이 됐다**(2026-09-16). 남은 뜻은 **로봇 A 의 판** 하나이며,
+        /// <see cref="BoardStateOf"/> 와 **같은 칸을 가리킨다**(지침 §7 — 값이 둘이 되면 안 된다).
+        /// 새로 쓰는 자리는 <see cref="BoardStateOf"/>·<see cref="SetBoardState"/> 를 쓸 것.
+        /// </remarks>
+        public static BoardStateV1 BoardState
+        {
+            get => _boardStates[0];
+            set => _boardStates[0] = value;
+        }
+
+        /// <summary>판 둘 — 차례는 <see cref="MBI.Data.MountOwner"/> 값 그대로다(A 0 · B 1).</summary>
+        private static readonly BoardStateV1[] _boardStates = new BoardStateV1[2];
+
+        /// <summary>그 로봇의 저장된 판. <c>null</c> 이면 시작 보드로 간다.</summary>
+        public static BoardStateV1 BoardStateOf(MBI.Data.MountOwner owner)
+            => _boardStates[owner == MBI.Data.MountOwner.RobotB ? 1 : 0];
+
+        /// <summary>그 로봇의 판을 올린다.</summary>
+        public static void SetBoardState(MBI.Data.MountOwner owner, BoardStateV1 state)
+            => _boardStates[owner == MBI.Data.MountOwner.RobotB ? 1 : 0] = state;
 
         /// <summary>
         /// 지갑 잔액 게시 — **방치 런타임이 쓰고 전투 HUD가 읽는다.** 고철.
@@ -123,7 +143,7 @@ namespace MBI.Core
             _hasClear = false;
             _resetSave = false;
             TutorialCleared = false;
-            BoardState = null;
+            for (int i = 0; i < _boardStates.Length; i++) _boardStates[i] = null;
             WalletScrap = 0d;
             WalletEnhMaterial = 0d;
         }

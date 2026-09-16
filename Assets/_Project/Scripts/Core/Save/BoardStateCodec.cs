@@ -54,6 +54,7 @@ namespace MBI.Core
                 columns = grid.Columns,
                 rows = grid.Rows,
                 generation = StartingBoard.Generation,
+                owner = (int)grid.Owner,   // 판이 자기 주인을 들고 간다(2026-09-16)
             };
 
             foreach (NodeInstance n in grid.Nodes)
@@ -97,7 +98,8 @@ namespace MBI.Core
         public static bool Fits(BoardStateV1 state, BoardGrid grid)
             => state != null && grid != null
                && state.columns == grid.Columns && state.rows == grid.Rows
-               && state.generation == StartingBoard.Generation;
+               && state.generation == StartingBoard.Generation
+               && state.owner == (int)grid.Owner;
 
         /// <summary>
         /// 왜 안 맞는지 한 줄로 — 로그에 찍는다. 맞으면 <c>null</c>.
@@ -113,6 +115,10 @@ namespace MBI.Core
                 return $"격자 크기가 다르다 — 저장 {state.columns}x{state.rows} · 지금 {grid.Columns}x{grid.Rows}";
             if (state.generation != StartingBoard.Generation)
                 return $"시작 보드 세대가 다르다 — 저장 '{state.generation ?? "(없음)"}' · 지금 '{StartingBoard.Generation}'";
+            // ⚠️ 주인이 어긋나면 **판이 통째로 남의 것**이다 — 크기도 세대도 같으므로
+            //    이것을 안 보면 A 판이 B 자리에 조용히 들어앉는다.
+            if (state.owner != (int)grid.Owner)
+                return $"판의 주인이 다르다 — 저장 {(MountOwner)state.owner} · 지금 {grid.Owner}";
             return null;
         }
 

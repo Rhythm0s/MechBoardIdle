@@ -252,7 +252,9 @@ namespace MBI.Core
             //
             // ⚠️ **진실이 둘이면 둘 다 고쳐야 하는 것이 아니라, 하나를 없애야 한다**(지침 §7).
             // 출구를 아는 쪽은 `PartLayout` 이므로 여기서도 그것에 묻는다.
-            if (!isInFace && PartLayout.TryGetMountPort(cell, face, out _)) { nodeSides++; return; }
+            // ⚠️ **주인을 같이 묻는다**(2026-09-16 · 보드 로봇별 분리) — 판이 주인을 든다.
+            if (!isInFace && PartLayout.TryGetMountPort(cell, face, grid.Owner, out _))
+            { nodeSides++; return; }
 
             // ⚠️⚠️ **비어 있는 입력면은 「새는 곳」이 아니다**
             // (2026-09-15 · 육안 6차 ⑦ 재조사 · 시작 보드를 두 줄로 줄이며 드러났다).
