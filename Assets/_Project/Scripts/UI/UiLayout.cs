@@ -410,7 +410,20 @@ namespace MBI.UI
             float s = Scale(screenHeight);
             float gap = 16f * s;
             float left = FloatBandSlot(false, screenWidth, screenHeight).xMax + gap;
-            float right = ZoomBarRect(screenWidth, screenHeight).x - gap;
+
+            // ⚠️⚠️ **줌바 자리를 더 이상 비워 두지 않는다** (2026-09-16 · 육안 9차 ②).
+            //
+            // 종전에는 `ZoomBarRect(...).x - gap` 이었다. 그런데 **배율 버튼은 09-15 에
+            // 핀치·휠로 대체됐고**(보드 개편 ⑦), 그리는 코드는 지웠는데 **자리는 안 걷었다** —
+            // 전수 검색으로 `ZoomBarRect` 를 그리는 곳이 **0 건**임을 확인했다(시험만 참조한다).
+            //
+            // 그 빈 자리가 기준 폭 **560**(+ 여백 40)이라, 팔레트에 1440 중 **600** 밖에 안
+            // 남았다. 여섯을 한 줄에 넣으라는 요구와 곱해져 버튼 한 변이 **기준 100**
+            // 남짓으로 깎였다 — 화면에서 **40px**(사용자 실측)이다.
+            //
+            // 📌 **폐기는 한쪽만 하면 안 된다.** 그리는 쪽만 지우고 자리를 남기면,
+            // 남은 자리가 **아무 일도 안 하면서 다른 것을 굶긴다.**
+            float right = screenWidth - 24f * s;
             return new Rect(left, band.y, Mathf.Max(0f, right - left), CategoryTabHeight * s);
         }
 
@@ -429,7 +442,11 @@ namespace MBI.UI
             float s = Scale(screenHeight);
             float gap = 16f * s;
             float left = FloatBandSlot(false, screenWidth, screenHeight).xMax + gap;
-            float right = ZoomBarRect(screenWidth, screenHeight).x - gap;
+
+            // ⚠️ **줌바 자리를 안 비운다** — 까닭은 `CategoryTabRect` 에 적었다(폐기된 위젯).
+            //    탭 줄과 버튼 줄은 **같은 폭**을 써야 한다. 한쪽만 넓히면 탭이 버튼 줄보다
+            //    길어져 「어느 탭이 어느 칸을 여는가」가 화면에서 어긋난다.
+            float right = screenWidth - 24f * s;
 
             float top = band.y + CategoryTabHeight * s;
             return new Rect(left, top, Mathf.Max(0f, right - left),
@@ -516,6 +533,9 @@ namespace MBI.UI
         /// 버튼 둘(각 <see cref="MinButton"/>)과 「보드 배율 ×1.00」 한 줄이 들어가는 크기다.
         /// 실제 글자 폭은 그리는 쪽이 재고, 여기서는 **팔레트가 물러설 만큼**만 잡는다.
         /// </summary>
+        /// 🗑️ **폐기(2026-09-16)** — 배율 버튼이 09-15 에 핀치·휠로 대체되면서 그리는 곳이
+        /// 0 건이 됐다. 지우지 않고 표기로 남기는 것은 시험이 아직 이 자리를 견주기
+        /// 때문이다. **`PaletteRect` 는 더 이상 이 폭을 비워 두지 않는다.**
         public const float ZoomBarWidth = 560f;
 
         /// <summary>

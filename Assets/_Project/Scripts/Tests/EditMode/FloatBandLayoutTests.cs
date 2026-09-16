@@ -70,12 +70,53 @@ namespace MBI.Tests
             Assert.That(row.yMax, Is.LessThanOrEqualTo(band.yMax + 0.5f), "띠 밖으로 넘치면 안 된다");
         }
 
+        /// <summary>
+        /// 🗑️ **구 「두 줄이 배율 막대와 안 겹친다」는 폐기됐다** (2026-09-16 · 육안 9차 ②).
+        ///
+        /// 배율 버튼은 09-15 에 **핀치·휠로 대체**됐다(보드 개편 ⑦). 그리는 코드는 지웠는데
+        /// **자리는 안 걷어서**, 아무도 안 그리는 사각이 기준 폭 560 을 계속 잡고 있었다.
+        /// 그 탓에 팔레트에 1440 중 600 만 남았고, 「여섯을 한 줄에」와 곱해져 버튼이
+        /// **화면에서 40px** 로 깎였다(사용자 실측).
+        ///
+        /// 📌 이제 지키는 것은 반대다 — **두 줄이 그 자리를 실제로 쓴다.**
+        /// 다시 좁아지면 같은 증상이 돌아온다.
+        /// </summary>
         [Test]
-        public void 두_줄이_배율_막대와_안_겹친다()
+        public void 두_줄이_폐기된_배율_막대_자리까지_쓴다()
         {
             Rect zoom = UiLayout.ZoomBarRect(W, H);
-            Assert.That(UiLayout.CategoryTabRect(W, H).xMax, Is.LessThanOrEqualTo(zoom.x + 0.5f));
-            Assert.That(UiLayout.PaletteRect(W, H).xMax, Is.LessThanOrEqualTo(zoom.x + 0.5f));
+            Rect tabs = UiLayout.CategoryTabRect(W, H);
+            Rect row = UiLayout.PaletteRect(W, H);
+
+            Assert.That(row.xMax, Is.GreaterThan(zoom.x),
+                "팔레트가 폐기된 줌바 자리를 아직 비워 두고 있다");
+            Assert.That(tabs.xMax, Is.EqualTo(row.xMax).Within(0.5f),
+                "탭 줄과 버튼 줄의 오른변이 다르다 — 같은 폭이어야 한다");
+        }
+
+        /// <summary>
+        /// 되찾은 폭으로 버튼이 **얼마나 커지는가** — 수로 남긴다.
+        ///
+        /// ⚠️ **216 은 아직 못 채운다.** 여섯을 한 줄에 넣는 한 폭이 모자란다
+        /// (기준 1440 에서 왼쪽 원형 240 을 빼면 1176 이고, 여섯으로 나누면 182 다).
+        /// 「216 이냐 여섯이냐」는 **값 판정**이라 코드가 고르지 않는다 — 수만 남긴다.
+        /// </summary>
+        [Test]
+        public void 되찾은_폭에서_버튼_한_변을_수로_남긴다()
+        {
+            Rect row = UiLayout.PaletteRect(W, H);
+            const int wantVisible = 6;
+            float pad = 12f;                     // 기준 캔버스에서의 여백
+
+            float byWidth = (row.width - pad * 2f - pad * (wantVisible - 1)) / wantVisible;
+
+            TestContext.WriteLine($"[재현] 팔레트 폭 {row.width:F0} · 여섯 기준 한 변 {byWidth:F0}"
+                                  + $" · 상한 {UiLayout.PaletteButtonSize:F0}");
+
+            Assert.That(byWidth, Is.GreaterThan(150f),
+                "되찾은 폭에서도 버튼이 150 미만이면 폭 말고 다른 것이 자르고 있다");
+            Assert.That(byWidth, Is.LessThan(UiLayout.PaletteButtonSize),
+                "216 을 넘겼다면 상한이 안 걸린 것이다 — 이 시험의 설명을 고친다");
         }
 
         [Test]

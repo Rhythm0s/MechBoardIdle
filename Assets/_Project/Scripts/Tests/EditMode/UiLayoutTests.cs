@@ -212,7 +212,7 @@ namespace MBI.Tests
         /// 겹쳐 둘 다 안 읽혔던 것이 이 자리를 옮긴 이유다(2차 스크린샷 1장).
         /// </summary>
         [Test]
-        public void 배율_막대는_부유_띠_안이고_경고_띠와_안_겹친다()
+        public void 폐기된_배율_막대_자리를_팔레트가_쓴다()
         {
             Rect zoom = UiLayout.ZoomBarRect(1440f, 2560f);
             Rect band = UiLayout.BandRect(UiLayout.Band.FloatBand, 1440f, 2560f);
@@ -223,13 +223,22 @@ namespace MBI.Tests
             var warn = new Rect(0f, UiLayout.DesignTop(UiLayout.Band.Board), 1440f, 96f);
             Assert.IsFalse(zoom.Overlaps(warn), "경고 띠와 겹치면 안 된다");
 
-            // 같은 띠를 쓰는 셋과도 안 겹친다.
-            Assert.IsFalse(zoom.Overlaps(UiLayout.PaletteRect(1440f, 2560f)),
-                "팔레트와 겹치면 안 된다");
+            // 🗑️ **「팔레트와 겹치면 안 된다」는 폐기됐다** (2026-09-16 · 육안 9차 ②).
+            //
+            // 배율 버튼이 09-15 에 핀치·휠로 대체되면서(보드 개편 ⑦) 이 사각을 **그리는
+            // 곳이 0 건**이 됐다. 그런데 팔레트가 계속 이 자리를 비워 두어, 1440 중 600 만
+            // 쓰고 버튼이 화면에서 **40px** 로 깎였다(사용자 실측).
+            //
+            // 이제 팔레트가 이 자리를 **쓴다** — 그러므로 겹치는 것이 정상이다.
+            // 겹침을 다시 막으면 버튼이 도로 작아진다.
+            Assert.IsTrue(zoom.Overlaps(UiLayout.PaletteRect(1440f, 2560f)),
+                "팔레트가 폐기된 줌바 자리를 아직 비워 두고 있다");
+
+            // 미니맵(왼쪽 원형)과는 여전히 안 겹친다 — 그쪽은 살아 있는 위젯이다.
             Assert.IsFalse(zoom.Overlaps(UiLayout.FloatBandSlot(right: false, 1440f, 2560f)),
                 "미니맵과 겹치면 안 된다");
             Assert.Greater(UiLayout.PaletteRect(1440f, 2560f).width, 0f,
-                "물러서도 팔레트 자리가 남는다");
+                "팔레트 자리가 남는다");
         }
 
         [Test]

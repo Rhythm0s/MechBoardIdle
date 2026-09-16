@@ -1934,6 +1934,36 @@ namespace MBI.Logistics
         /// 매 프레임 계층을 도는 것은 낭비라, `hierarchyCount`(손자까지 포함한 수)가
         /// 바뀜었을 때만 다시 입힌다 — 평소에는 정수 비교 하나다.
         /// </summary>
+        /// <summary>팔레트 크기 진단 한 줄 — ⚠️ **임시물**(2026-09-16 · 육안 9차 ②).</summary>
+        private string _paletteDiag;
+
+        /// <summary>
+        /// 팔레트 크기 진단을 띠 **위**에 한 줄로 쓴다 — ⚠️ **임시물이다.**
+        ///
+        /// ⚠️ **팔레트 안에 쓰지 않는다** — 재려는 대상 안에 자를 놓으면 자가 같이 줄어든다.
+        /// 오늘 진단 줄을 HUD 안에 뒀다가 HUD 와 함께 사라진 적이 있다(육안 8차 ①).
+        ///
+        /// 크기는 화면 높이에서 바로 뽑는다(배율을 안 탄다) — **진단이 진단 대상에
+        /// 기대면 안 된다.**
+        /// </summary>
+        private void DrawPaletteDiagnostic(Rect band)
+        {
+            if (string.IsNullOrEmpty(_paletteDiag)) return;
+
+            float h = Mathf.Max(14f, Screen.height * 0.018f);
+            var r = new Rect(band.x, Mathf.Max(0f, band.y - h - 2f), band.width, h);
+
+            UiPlate.Draw(r);
+            var st = new GUIStyle(GUI.skin.label)
+            {
+                fontSize = KoreanFont.Snap(Mathf.Max(9, Mathf.RoundToInt(h * 0.72f))),
+                alignment = TextAnchor.MiddleLeft,
+                clipping = TextClipping.Overflow,
+            };
+            st.normal.textColor = Color.white;
+            GUI.Label(new Rect(r.x + 4f, r.y, r.width - 8f, r.height), _paletteDiag, st);
+        }
+
         private void KeepBoardOnItsLayer()
         {
             int count = transform.hierarchyCount;
@@ -2750,6 +2780,16 @@ namespace MBI.Logistics
             // ⚠️ **216 은 띠가 허락하는 최대다**(2026-09-15 사용자 확정 C안 · 육안 6차 ⑥).
             // 부유 띠 312 − 탭 줄 96 = 216. 띠보다 커질 수는 없으므로 아래 `Min` 은 남긴다.
             float side = Mathf.Min(UiLayout.PaletteButtonSize * sc, band.height - pad * 2f);
+
+            // ⚠️ **진단 한 줄**(2026-09-16 · 육안 9차 ② — 「하단 버튼이 40px」).
+            //
+            // 코드 셈으로는 216 x 배율이 나와야 하는데 화면에서는 그 절반 이하로 보인다.
+            // 어느 상한이 자르는지 **눈대중 자로는 못 가른다** — 화면이 답하게 한다.
+            // 오늘 얼굴 방향을 이 방법으로 갈랐다(진단 줄이 「마지막 조준 없음」을 찍었다).
+            //
+            // 📌 자리가 잡히면 이 줄과 `_paletteDiag` 를 통째로 걷는다.
+            _paletteDiag = $"화면 {Screen.width}x{Screen.height} · 배율 {sc:F3}"
+                           + $" · 띠 {band.height:F0} · 여백 {pad:F0} · 변 {side:F0}";
             var style = new GUIStyle(GUI.skin.button)
             {
                 fontSize = KoreanFont.Snap(Mathf.Max(9, Mathf.RoundToInt(side * 0.13f))),
@@ -2803,6 +2843,9 @@ namespace MBI.Logistics
             const int WantVisible = 6;
             float byWidth = (view.width - pad * (WantVisible - 1)) / WantVisible;
             side = Mathf.Max(1f, Mathf.Min(side, byWidth));
+            _paletteDiag += $" · 폭상한 {byWidth:F0} · 최종 {side:F0}";
+
+            DrawPaletteDiagnostic(band);
 
             float step = side + pad;
             var content = new Rect(0f, 0f, slots * step, side);
