@@ -15,6 +15,7 @@ MonoBehaviour:
   enemyKey: boss
   displayName: "\uAC15\uC801(\uBCF4\uC2A4)"
   role: 3
+  projectileSprite: {fileID: 0}
   atk: 20
   atkConfirmed: 0
   moveSpeed: 0

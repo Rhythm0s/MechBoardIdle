@@ -897,6 +897,24 @@ namespace MBI.Combat
         /// 빌려 쓰지 않는다: 그건 **로봇이 쏘는 것**이라, 같은 그림이면 화면에서
         /// 「내가 쏜 것」과 「나에게 오는 것」이 구분되지 않는다.
         /// </summary>
+        /// <summary>
+        /// 적 포탄 그림 — **이 스테이지가 쓰는 것 하나** (2026-09-16 · 자리 준비).
+        ///
+        /// ⚠️⚠️ **시뮬의 포탄은 누가 쐈는지를 안 들고 있다.** 그래서 병종별로 못 고른다 —
+        /// 지금은 **포격 계열 중 그림이 걸린 첫 정의**의 것을 쓴다(⚠️ 가정).
+        /// 병종마다 다른 포탄이 필요해지면 그때 `EnemyProjectile` 이 정체를 들어야 하고,
+        /// **그것은 이 한 줄보다 큰 일**이라 값이 설 때 하기로 미룬다.
+        ///
+        /// 📌 아트 요청은 **무채색 한 장**이다 — 색은 코드가 틴트한다.
+        /// </summary>
+        private Sprite EnemyProjectileSprite()
+        {
+            if (enemyCatalog == null) return null;
+            foreach (EnemyDefinition d in enemyCatalog)
+                if (d != null && d.projectileSprite != null) return d.projectileSprite;
+            return null;
+        }
+
         private void SyncEnemyProjectileViews()
         {
             var live = _sim.EnemyProjectiles;
@@ -906,7 +924,10 @@ namespace MBI.Combat
                 var go = new GameObject($"EnemyProjectile{_projectileViews.Count}");
                 go.transform.SetParent(transform, false);
                 var sr = go.AddComponent<SpriteRenderer>();
-                sr.sprite = PlaceholderSprite.White();
+                // ⚠️ **자산이 있으면 그것을 쓴다**(2026-09-16 · 사용자 육안 「흰 사각」).
+                //    없으면 종전대로 흰 사각으로 떨어진다 — 안 보이는 것보다 낫다.
+                Sprite shell = EnemyProjectileSprite();
+                sr.sprite = shell != null ? shell : PlaceholderSprite.White();
                 sr.sortingOrder = SortingLayers.EffectOver;
                 // ⚠️ **크기는 가정 0.25 유닛**(격자 한 칸의 1/4). 연출 문서에 적 포탄 절이 없다.
                 go.transform.localScale = Vector3.one * ProjectileViewUnits;
@@ -1977,6 +1998,10 @@ namespace MBI.Combat
             //    ⚠️ 밝기 값은 **가정**이다(UI 12장 역기입 자리).
             bool skillReady = TagSystem.SkillReady(
                 _sim.Tag.Tag.CanTag, _sim.Tag.StandbyMount != null && _sim.Tag.StandbyMount.IsFull);
+            // ⚠️ **밝기만으로는 사용자 눈에 안 보였다**(2026-09-16 육안 2차 ③) —
+            //    원형 버튼은 이미 밝은 판이라 1.45배가 묻힌다. **테두리를 같이 두른다.**
+            if (skillReady) DrawTagSkillRing(tagRect);
+
             Color tagPrev = GUI.color;
             if (skillReady) GUI.color = TagSkillReadyTint;
 
@@ -2118,7 +2143,34 @@ namespace MBI.Combat
         /// 색을 바꾸지 않고 **밝기만** 올린다 — 색을 바꾸면 그 색이 무엇을 뜻하는지
         /// 또 하나 외워야 하고, 조립 층의 색 축(빨강 = 못 쓴다)과 섞인다.
         /// </summary>
-        private static readonly Color TagSkillReadyTint = new Color(1.45f, 1.45f, 1.15f, 1f);
+        private static readonly Color TagSkillReadyTint = new Color(1.7f, 1.7f, 1.2f, 1f);
+
+        /// <summary>강조 테두리 색·굵기 — ⚠️ **가정**(UI 12장 역기입 자리).</summary>
+        private static readonly Color TagSkillRingColor = new Color(1f, 0.82f, 0.25f, 0.95f);
+
+        /// <summary>테두리 굵기(기준 캔버스 px). 얇으면 12.2mm 에서 사라진다.</summary>
+        private const float TagSkillRingThickness = 10f;
+
+        /// <summary>
+        /// 태그 버튼 둘레에 **강조 테두리**를 두른다 (2026-09-16 육안 2차 ③).
+        ///
+        /// ⚠️ **사각 테두리다** — 버튼은 원형 그림이지만 IMGUI 로 원을 그리려면 그림이
+        /// 하나 더 있어야 한다. 없는 자산을 지어내지 않고, **버튼 바깥을 둘러싸는 네 변**으로
+        /// 둔다(안쪽이 비어 있어 원형 그림을 가리지 않는다).
+        ///
+        /// 📌 색을 **하나만** 쓴다 — 조립 층의 빨강(못 쓴다)과 겹치지 않는 노랑 계열이고,
+        /// 뜻은 「지금 누르면 더 좋다」 하나다.
+        /// </summary>
+        private void DrawTagSkillRing(Rect r)
+        {
+            float t = Mathf.Max(2f, TagSkillRingThickness * UiLayout.Scale(Screen.height));
+            var outer = new Rect(r.x - t, r.y - t, r.width + t * 2f, r.height + t * 2f);
+
+            HudBars.Fill(new Rect(outer.x, outer.y, outer.width, t), TagSkillRingColor);
+            HudBars.Fill(new Rect(outer.x, outer.yMax - t, outer.width, t), TagSkillRingColor);
+            HudBars.Fill(new Rect(outer.x, outer.y + t, t, outer.height - t * 2f), TagSkillRingColor);
+            HudBars.Fill(new Rect(outer.xMax - t, outer.y + t, t, outer.height - t * 2f), TagSkillRingColor);
+        }
 
         private string TagButtonLabel()
         {

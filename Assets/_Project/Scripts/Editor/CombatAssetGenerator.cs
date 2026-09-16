@@ -236,6 +236,10 @@ namespace MBI.Editor
         /// 한쪽만 고치게 된다** — 지침 §7 ［09-07］「한 값이 두 곳에 살면 답이 둘이 된다」.
         /// 그래서 읽는 함수는 하나이고 부르는 곳이 둘이다.
         /// </summary>
+        /// <summary>VFX 폴더의 **낱장** 그림 하나. 없으면 null — 지어내지 않는다.</summary>
+        private static Sprite LoadVfxStill(string fileName)
+            => AssetDatabase.LoadAssetAtPath<Sprite>($"Assets/_Project/Art/VFX/{fileName}.png");
+
         internal static Sprite LoadBackground(string fileName)
             => AssetDatabase.LoadAssetAtPath<Sprite>($"Assets/_Project/Art/Backgrounds/{fileName}.png");
 
@@ -438,6 +442,12 @@ namespace MBI.Editor
                 // 화면 배율 — 보스만 2다(2026-09-10 사용자 확정). 값의 원천은 상수 하나이며
                 // 여기서 SO 로 옮긴다. 코드가 배율을 직접 들고 있지 않게 하려는 것이다(§3).
                 d.viewScale = d.role == EnemyRole.Boss ? ArtSpec.BossViewScale : 1;
+
+                // ⚠️ **적 포탄 그림 — 자산이 오면 여기서 들어간다**(2026-09-16 · 육안 2차 ②).
+                //    지금은 없어 `null` 이고 러너가 흰 사각으로 떨어진다. 파일만 놓으면
+                //    다음 생성에서 저절로 걸린다 — 배선을 나중에 또 찾지 않게 미리 판다.
+                //    ⚠️ 이름 `vfx_enemy_shell` 은 **아트 요청 가정**이다.
+                d.projectileSprite = LoadVfxStill("vfx_enemy_shell");
                 EditorUtility.SetDirty(d);
                 n++;
             }

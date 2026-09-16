@@ -32,7 +32,7 @@
     },
     {
       "key": "moduleMult",
-      "label": "모듈 배율(M/R/F 합성)",
+      "label": "모듈 배율(M/R 합성)",
       "group": "원점·곡선",
       "value": 1.0,
       "confirmed": true,
@@ -408,7 +408,7 @@
     },
     {
       "id": "S2",
-      "topic": "모듈 배치(M/R/F)",
+      "topic": "모듈 배치(M/R)",
       "reqType": "fixed",
       "req": 18,
       "reqConfirmed": true,

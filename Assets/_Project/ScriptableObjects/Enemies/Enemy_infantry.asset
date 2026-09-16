@@ -15,6 +15,7 @@ MonoBehaviour:
   enemyKey: infantry
   displayName: "\uBCF4\uBCD1"
   role: 0
+  projectileSprite: {fileID: 0}
   atk: 6
   atkConfirmed: 0
   moveSpeed: 0

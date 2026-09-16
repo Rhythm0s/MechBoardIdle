@@ -30,6 +30,18 @@ namespace MBI.Data
         [Tooltip("병종 구분.")]
         public EnemyRole role;
 
+        [Header("그림")]
+        // ⚠️ **적 포탄이 흰 사각으로 날아간다**(2026-09-16 사용자 육안). 자산이 없어
+        //    `PlaceholderSprite.White()` 로 떨어지던 자리다(§71-33 (가) 코드 드로잉).
+        //
+        // 📌 **자리를 먼저 만든다.** 아트가 오면 이 칸만 채우면 되고, 없으면 지금처럼
+        //    폴백한다 — 「없어서 못 그린다」와 「배선이 없다」는 다른 일이다.
+        //
+        // ⚠️ **무채색으로 받아 코드가 틴트한다**(아트 요청 가정 · 32~64px) — 병종마다
+        //    색을 따로 그리면 자산이 넷으로 늘고, 색은 연출 축이라 코드가 쥐는 편이 낫다.
+        [Tooltip("적 포탄 그림(무채색 32~64px). 비면 흰 사각 플레이스홀더. 포격 계열만 쓴다.")]
+        public Sprite projectileSprite;
+
         [Header("공격력 (⚠️ 미확정 — confirmed:false)")]
         [Tooltip("공격력. enemies[].atk = 보병6/포격10/장갑8/보스20. balance_v4에서 confirmed:false.")]
         public float atk;
