@@ -53,18 +53,43 @@ namespace MBI.EditorTools
         private const float ProviderRollingSeconds = 60f;
 
         [MenuItem("MBI/Harness S1 Clear")]
-        public static void RunMenu() => Debug.Log(Run("S1"));
+        public static void RunMenu() => Debug.Log(RunBoth("S1"));
 
         public static void RunBatch()
         {
-            Debug.Log(Run("S1"));
+            Debug.Log(RunBoth("S1"));
             if (Application.isBatchMode) EditorApplication.Exit(0);
         }
 
-        public static string Run(string stageId)
+        /// <summary>
+        /// **시작 조건 둘을 각각 돌린다** (2026-09-16 · 설계 요청 · `260916_W03` 2장).
+        ///
+        /// ⚠️⚠️ **여태 잰 것은 「빈손」 하나뿐이었다.** 그런데 플레이어가 S1 에 들어서는
+        /// 정상 경로는 **튜토리얼을 끝낸 상태**이며, 그때 마운트는 이미 차 있다.
+        /// 빈손만 재면 **첫 6초를 못 쏘는 판**을 정상 판으로 착각하게 된다.
+        ///
+        /// 📌 **둘을 다 남긴다** — 심사자 바로가기(S1 점프)는 실제로 빈손으로 들어가므로
+        /// 그 조건도 여전히 재야 한다. 어느 쪽 수인지를 표에 적는 것이 이 함수의 일이다.
+        /// </summary>
+        public static string RunBoth(string stageId)
+        {
+            var sb = new StringBuilder();
+            sb.AppendLine(Run(stageId, preloadMount: true));
+            sb.AppendLine();
+            sb.AppendLine(Run(stageId, preloadMount: false));
+            return sb.ToString();
+        }
+
+        /// <summary>⚠️ 인자 없는 옛 길 — **튜토리얼 종료 조건**으로 돈다(정상 경로).</summary>
+        public static string Run(string stageId) => Run(stageId, preloadMount: true);
+
+        public static string Run(string stageId, bool preloadMount)
         {
             var sb = new StringBuilder();
             sb.AppendLine($"=== 스테이지 {stageId} 클리어 하네스 (2026-09-16) ===");
+            sb.AppendLine(preloadMount
+                ? "[시작 조건] **튜토리얼 종료** — 마운트 적재 참(정상 경로) · 창고 빈손"
+                : "[시작 조건] **심사자 S1 점프** — 빈 칸 자동 채움 · 창고·마운트 **빈손**");
 
             var stage = AssetDatabase.LoadAssetAtPath<StageDefinition>($"{SoRoot}/Stages/Stage_{stageId}.asset");
             var robot = AssetDatabase.LoadAssetAtPath<RobotDefinition>($"{SoRoot}/Robots/Robot_A.asset");
@@ -120,8 +145,23 @@ namespace MBI.EditorTools
                 mount = mount,
             };
 
-            // ⚠️ **빈손으로 시작한다.** 창고와 마운트를 미리 채우면 「보드가 대는가」가 안 재진다 —
-            //    이 하네스의 물음이 바로 그것이다(2줄 보드로 18 을 넘기는가).
+            // ⚠️⚠️ **시작 조건이 둘이다**(2026-09-16 · 설계 요청 · `260916_W03` 2장).
+            //
+            // · `preloadMount: true` — **튜토리얼 종료 상태**. 플레이어가 S1 에 들어서는
+            //   정상 경로다. 튜토리얼이 마운트를 채우고 끝나므로 **빈손이 아니다.**
+            // · `preloadMount: false` — **심사자 S1 점프**. 빈 칸이 자동으로 채워지고
+            //   창고·마운트는 빈손이다(`ReviewerShortcuts`).
+            //
+            // 🗑️ 구 주석 「빈손으로 시작한다 — 보드가 대는가를 재려면」은 **반만 맞았다.**
+            //    빈손 판은 「0 에서 대는가」를 재고, 적재 판은 「이미 찬 뒤 유지되는가」를
+            //    잰다. 둘은 다른 물음이고 **정상 경로는 뒤쪽**이다.
+            if (preloadMount)
+            {
+                // 마운트를 표준탄으로 가득 채운다 — 용량 그대로(A 4칸 × 스택 10 = 40).
+                // ⚠️ 창고는 **안 채운다.** 튜토리얼은 마운트까지 나르고 끝나며,
+                //    창고 재고는 그 뒤 보드가 대는 것이다 — 지어 넣으면 판이 물러진다.
+                mount.Load(MountItem.Standard, mount.SlotCount * stack);
+            }
             List<EnemySpawn> spawns = StageSpawnFactory.Build(stage, catalog, tuning);
 
             var sim = new CombatSimulation(setup, spawns,
@@ -145,7 +185,10 @@ namespace MBI.EditorTools
             sb.AppendLine($"  요구치 {stage.req:F0} · 제한 {stage.challengeTime:F0}s · 적 {spawns.Count} 기");
             sb.AppendLine($"  로봇 HP {tuning.robotHpTbd:F0} · 사거리 {tuning.robotAttackRangeTbd:F1}"
                           + $" · 마운트계수 {mountCoef:F2} · 소비 상한 {robot.consumptionCap:F1}");
-            sb.AppendLine($"  보드 = 시작 배치 + 튜토리얼 칸(운반로 이어진 판) · 창고·마운트 **빈손 시작**");
+            // ⚠️ 시작 적재는 조건마다 다르다 — 머리의 [시작 조건] 줄과 **같은 말을 해야 한다**.
+            //    한쪽만 고치면 표가 거짓말을 한다(2026-09-16).
+            sb.AppendLine("  보드 = 시작 배치 + 튜토리얼 칸(운반로 이어진 판) · "
+                          + (preloadMount ? "마운트 **가득**(40) · 창고 빈손" : "창고·마운트 **빈손**"));
 
             // ── 보드가 내는 값 — **게임과 같은 순수 함수로 낸다** ────────────
             //
@@ -217,6 +260,17 @@ namespace MBI.EditorTools
             float nominalOutput = RobotOutput.Nominal(robot.weapons, 1f, robot.moduleMult);
             int reallocs = 0;
 
+            // ── 못 쏜 틱을 까닭별로 가른다 (2026-09-16 · 설계 요청 · `260916_W03` 2장 ②) ──
+            //
+            // **물음** — 쏜 발이 공급의 절반이다(48초에 43발 ≈ 0.9 발/초 vs 공급 2.0).
+            // 후보 셋 중 어느 것인가: 사거리 밖 대기 / 창고→마운트 이송 / 발사 게이트.
+            //
+            // 📌 **틱마다 하나씩만 센다** — 겹쳐 세면 합이 뜻을 잃는다. 차례가 곧 인과다:
+            //    표적이 없으면 재고를 봐도 소용없고, 재고가 없으면 게이트를 봐도 소용없다.
+            int tickNoTarget = 0, tickNoAmmo = 0, tickGated = 0, tickFired = 0;
+            float peakStore = 0f, peakMount = 0f, mountSum = 0f;
+            int mountSamples = 0;
+
             var roll = new RollingWindow(1, ProviderRollingSeconds);
             var sample = new float[1];
             float peakRolled = 0f;
@@ -276,6 +330,17 @@ namespace MBI.EditorTools
                     shots += fired;
                     if (firstShotAt < 0f) firstShotAt = elapsed;
                 }
+
+                // 못 쏜 까닭 — 차례가 인과다(표적 → 재고 → 게이트).
+                if (fired > 0) tickFired++;
+                else if (!sim.AimDirection.HasValue) tickNoTarget++;
+                else if (mount.Total <= 0f) tickNoAmmo++;
+                else tickGated++;
+
+                if (sim.AmmoStock > peakStore) peakStore = sim.AmmoStock;
+                if (mount.Total > peakMount) peakMount = mount.Total;
+                mountSum += mount.Total;
+                mountSamples++;
 
                 float arrival = 0f;
                 for (int k = 0; k < SupplySignals.MountArrivalRate.Length; k++)
@@ -356,6 +421,22 @@ namespace MBI.EditorTools
 
             sb.AppendLine($"  마운트 최고 도착률 {peakArrival:F2} 발/초");
             sb.AppendLine($"  재배분 {reallocs} 회 — 0 이면 라인이 시작값(빈 줄)으로 굳은 것이다");
+
+            sb.AppendLine();
+            sb.AppendLine("[못 쏜 까닭 — 틱마다 하나씩 · 차례가 인과다]");
+            int totalTicks = tickFired + tickNoTarget + tickNoAmmo + tickGated;
+            if (totalTicks <= 0) totalTicks = 1;
+            sb.AppendLine($"  쏜 틱             {tickFired,6} ({tickFired * 100f / totalTicks:F1}%)");
+            sb.AppendLine($"  표적 없음         {tickNoTarget,6} ({tickNoTarget * 100f / totalTicks:F1}%)"
+                          + "  ← 사거리 밖 대기");
+            sb.AppendLine($"  표적 있고 재고 0  {tickNoAmmo,6} ({tickNoAmmo * 100f / totalTicks:F1}%)"
+                          + "  ← 창고→마운트 이송");
+            sb.AppendLine($"  둘 다 있는데 안 쏨{tickGated,6} ({tickGated * 100f / totalTicks:F1}%)"
+                          + "  ← 발사 간격·게이트");
+            sb.AppendLine($"  창고 최고 {peakStore:F1} · 마운트 최고 {peakMount:F1}"
+                          + $" · 마운트 평균 {mountSum / Mathf.Max(1, mountSamples):F1}");
+            sb.AppendLine("  📌 **창고는 높은데 마운트가 낮으면 이송이 병목**이고,"
+                          + " 둘 다 높은데 안 쏘면 게이트다.");
 
             sb.AppendLine();
             sb.AppendLine("[굳은 적 — 10초마다 · 사거리 밖인데 안 움직인 수]");
