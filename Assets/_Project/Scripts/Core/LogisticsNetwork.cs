@@ -139,7 +139,19 @@ namespace MBI.Core
                 // 승인 범위 밖이다. 노드 대당 발열은 영상 이후로 연기된 항목이기도 하다.
                 a.heatGenerate += r.heatGenerate;
 
-                if (node.Definition.type != NodeType.MunitionsBasic)
+                // ⚠️⚠️ **복합 군수가 조합표를 안 보고 있었다**
+                //    (2026-09-16 · 사용자 육안 4차 ④ — 「조합표를 바꿔도 드론 종이 안 바뀐다」).
+                //
+                // 종전 조건은 <c>type != MunitionsBasic</c> 이라 **기초 군수만** 아래 갈래로 갔다.
+                // 복합 군수는 위로 떨어져 **무엇을 돌리든 언제나 탄약으로** 세어졌다 —
+                // 누적형이든 광역형이든 집계에 드론이 한 기도 안 잡혔고, 그래서
+                // 조합표를 바꿔도 화면이 안 바뀌었다.
+                //
+                // 📌 **「군수 노드는 조합표 하나를 돌린다」는 말이 둘 다에 걸린다.**
+                //    2026-08-27 에 그 모델로 바꾸면서 **기초에만** 걸어 둔 것이 오늘까지 왔다.
+                //    복합 군수는 관통탄·폭발탄도 돌리므로 아래 default(탄약)로 가면 된다.
+                if (node.Definition.type != NodeType.MunitionsBasic
+                    && node.Definition.type != NodeType.MunitionsComplex)
                 {
                     a.ammoProduce += r.ammoProduce * gain;
                 }

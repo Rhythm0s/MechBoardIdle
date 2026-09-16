@@ -128,6 +128,11 @@ namespace MBI.Data
         [Tooltip("TBD — 드론 타격 간격(초). 가정 0.5. 0이면 매 틱(구 거동).")]
         public float droneHitIntervalTbd = 0.5f;
 
+        // ⚠️ 사출 이펙트가 드론(64px)보다 커서 기체가 그림에 묻혔다
+        // (2026-09-16 사용자 육안 4차 ③). 1 = 자산 제 크기.
+        [Tooltip("TBD — 드론 사출 이펙트 배율. 가정 0.5(지금의 절반). 1이면 자산 제 크기.")]
+        public float droneLaunchScaleTbd = 0.5f;
+
         [Header("자동 전투 (⚠️ TBD — 밸런스 아님, 연출·조작감)")]
         // autoPilotDesiredGapTbd 삭제(260829_V03 승인) — 2026-08-26 카이팅 폐기로
         // 「후퇴 개시 거리」라는 개념 자체가 사라졌다. 읽는 곳도 0건이었다.

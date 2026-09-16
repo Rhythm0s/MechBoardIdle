@@ -703,10 +703,15 @@ namespace MBI.Combat
             bool bEntering = _sim.ActiveRobotIndex == 1;
             Color c = bEntering ? RobotBColor : RobotAColor;
 
+            // ⚠️ **적 무리 쪽으로 한 번 나간다**(2026-09-16 사용자 육안 4차 ①② · 회전 폐기).
+            float aim = TagSkillAimDegrees(origin, radius);
+
             if (bEntering)
             {
                 // 레이저는 자산이 없다 — 흰 사각을 늘여 그리는 것이 곧 완성형이다(연출 3-1).
-                TagSkillEffect.PlayLaser(transform, origin, radius, tuning, PlaceholderSprite.White(), c);
+                TagSkillEffect fx = TagSkillEffect.PlayLaser(
+                    transform, origin, radius, tuning, PlaceholderSprite.White(), c);
+                fx.AimDegrees = aim;
             }
             else
             {
@@ -716,8 +721,41 @@ namespace MBI.Combat
                 bool real = bullet != PlaceholderSprite.White();
                 // 자산에는 색이 이미 실려 있다 — 흰 사각일 때만 색을 입힌다.
                 Color tint = real ? Color.white : c;
-                TagSkillEffect.PlayBulletRain(transform, origin, radius, tuning, bullet, tint, real);
+                TagSkillEffect rain = TagSkillEffect.PlayBulletRain(
+                    transform, origin, radius, tuning, bullet, tint, real);
+                rain.AimDegrees = aim;
             }
+        }
+
+        /// <summary>
+        /// **적 무리가 어느 쪽인가**(도) — 태그 스킬이 나갈 방향
+        /// (2026-09-16 사용자 육안 4차 ①② · 회전 폐기와 한 쌍).
+        ///
+        /// 📌 **한 마리가 아니라 무리다.** 최근접 하나를 향하면 그 옆에 다섯이 서 있어도
+        /// 부채꼴이 한쪽으로 치우친다. 사거리 안 적들의 **가운데**를 향한다.
+        ///
+        /// ⚠️ 적이 하나도 없으면 **로봇이 보던 쪽**을 쓰고, 그것도 없으면 오른쪽(0°)이다 —
+        /// 스킬은 이미 터졌으므로 연출을 건너뛰지 않는다.
+        /// </summary>
+        private float TagSkillAimDegrees(Vector2 origin, float radius)
+        {
+            Vector2 sum = Vector2.zero;
+            int n = 0;
+            if (_sim != null && _sim.Enemies != null)
+                foreach (CombatEntity e in _sim.Enemies)
+                {
+                    if (!e.IsAlive) continue;
+                    if ((e.position - origin).sqrMagnitude > radius * radius) continue;
+                    sum += e.position;
+                    n++;
+                }
+
+            Vector2 dir = n > 0 ? (sum / n - origin) : Vector2.zero;
+            if (dir.sqrMagnitude <= 1e-6f && _sim != null && _sim.AimDirection.HasValue)
+                dir = _sim.AimDirection.Value;
+            if (dir.sqrMagnitude <= 1e-6f) return 0f;
+
+            return Mathf.Atan2(dir.y, dir.x) * Mathf.Rad2Deg;
         }
 
         /// <summary>마지막으로 본 회피 횟수 — 늘어난 프레임이 곧 회피 발동 순간이다.</summary>
@@ -750,9 +788,11 @@ namespace MBI.Combat
             for (int i = 0; i < _sim.DroneLaunchesThisTick.Count; i++)
                 AudioSignals.Play(SoundIds.DroneLaunch, SoundIds.KindOf(SoundIds.DroneLaunch));
 
+            // ⚠️ **사출 이펙트는 절반 크기다**(2026-09-16 사용자 육안 4차 ③ · 가정 0.5 · SO).
+            //    드론(64px)보다 이펙트가 커서 기체가 그림에 묻혔다.
             if (tuning.droneLaunchSprite != null)
                 foreach (Vector2 p in _sim.DroneLaunchesThisTick)
-                    SpawnOneShot(tuning.droneLaunchSprite, p, life);
+                    SpawnOneShot(tuning.droneLaunchSprite, p, life, tuning.droneLaunchScaleTbd);
 
             if (tuning.droneExpireSprite != null)
                 foreach (Vector2 p in _sim.DroneExpiriesThisTick)
@@ -934,7 +974,11 @@ namespace MBI.Combat
                 Sprite shell = EnemyProjectileSprite();
                 sr.sprite = shell != null ? shell : PlaceholderSprite.White();
                 sr.sortingOrder = SortingLayers.EffectOver;
+                // ⚠️ **자산은 무채색이다 — 색은 코드가 입힌다**(2026-09-16 아트 규약).
+                //    자리표시(흰 사각)일 때도 같은 색이라 **틴트를 갈래로 안 나눈다.**
+                sr.color = EnemyShellTint;
                 // ⚠️ **크기는 가정 0.25 유닛**(격자 한 칸의 1/4). 연출 문서에 적 포탄 절이 없다.
+                //    ⚠️ 자산이 64px 라 제 크기로 두면 격자 한 칸의 1/3 이다 — 그래도 가정을 지킨다.
                 go.transform.localScale = Vector3.one * ProjectileViewUnits;
                 _projectileViews.Add(sr);
             }
@@ -944,15 +988,26 @@ namespace MBI.Combat
                 SpriteRenderer sr = _projectileViews[i];
                 bool on = i < live.Count;
                 if (sr.gameObject.activeSelf != on) sr.gameObject.SetActive(on);
-                if (on) sr.transform.position = live[i].position;
+                if (!on) continue;
+
+                sr.transform.position = live[i].position;
+                // ⚠️ **자산은 오른쪽을 본다**(아트 규약) — 날아가는 쪽으로 돌린다.
+                //    방향이 없으면(속도 0) 돌리지 않는다 — 0 으로 나누지 않는다.
+                Vector2 dir = live[i].direction;
+                if (dir.sqrMagnitude > 1e-6f)
+                    sr.transform.rotation = Quaternion.Euler(0f, 0f,
+                        Mathf.Atan2(dir.y, dir.x) * Mathf.Rad2Deg);
             }
         }
 
-        private void SpawnOneShot(Sprite sprite, Vector2 position, float seconds)
+        private void SpawnOneShot(Sprite sprite, Vector2 position, float seconds, float scale = 1f)
         {
             var go = new GameObject("Vfx");
             go.transform.SetParent(transform, false);
             go.transform.position = new Vector3(position.x, position.y, 0f);
+            // ⚠️ 1 이면 **자산 제 크기**다 — 배율을 지어내지 않는다(2026-09-16).
+            if (!Mathf.Approximately(scale, 1f) && scale > 0f)
+                go.transform.localScale = new Vector3(scale, scale, 1f);
             var sr = go.AddComponent<SpriteRenderer>();
             sr.sprite = sprite;
             sr.sortingOrder = SortingLayers.EffectOver;
@@ -992,6 +1047,12 @@ namespace MBI.Combat
         /// </summary>
         /// <summary>적 포탄 자리표시의 한 변(월드 유닛). ⚠️ 가정 — 연출 문서에 절이 없다.</summary>
         private const float ProjectileViewUnits = 0.25f;
+
+        /// <summary>
+        /// 적 포탄 색 — ⚠️ **가정**(연출 문서에 적 포탄 절이 없다 · 2026-09-16).
+        /// 자산이 무채색으로 들어와 코드가 입힌다. 적 쪽 색 축(주황 계열)을 따른다.
+        /// </summary>
+        private static readonly Color EnemyShellTint = new Color(1f, 0.72f, 0.38f, 1f);
 
         private readonly List<SpriteRenderer> _projectileViews = new List<SpriteRenderer>();
 

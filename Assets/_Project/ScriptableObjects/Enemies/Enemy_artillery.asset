@@ -15,7 +15,7 @@ MonoBehaviour:
   enemyKey: artillery
   displayName: "\uD3EC\uACA9"
   role: 1
-  projectileSprite: {fileID: 0}
+  projectileSprite: {fileID: 21300000, guid: 8d1374397c1905c49bc8a5bae0ec9dd0, type: 3}
   atk: 10
   atkConfirmed: 0
   moveSpeed: 0

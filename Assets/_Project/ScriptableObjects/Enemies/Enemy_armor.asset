@@ -15,7 +15,7 @@ MonoBehaviour:
   enemyKey: armor
   displayName: "\uC7A5\uAC11"
   role: 2
-  projectileSprite: {fileID: 0}
+  projectileSprite: {fileID: 21300000, guid: 8d1374397c1905c49bc8a5bae0ec9dd0, type: 3}
   atk: 8
   atkConfirmed: 0
   moveSpeed: 0

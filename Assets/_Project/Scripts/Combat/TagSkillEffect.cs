@@ -118,13 +118,26 @@ namespace MBI.Combat
             return fx;
         }
 
+        /// <summary>
+        /// **어느 쪽으로 나갈 것인가**(도) — 2026-09-16 사용자 육안 4차 ①②.
+        ///
+        /// 🗑️ **한 바퀴 회전 폐기.** 종전에는 부채꼴도 레이저도 **360° 를 쓸고** 지나갔다
+        /// (09-08 확정). 사용자가 둘 다 「어색하다」로 뒤집었다 — 맵을 한 바퀴 도는 동안
+        /// **적이 없는 쪽에도 그림이 깔려** 무엇을 때리는 연출인지가 안 읽혔다.
+        ///
+        /// 지금은 **적 무리 쪽으로 한 번** 나간다. 각은 밖에서 재서 넣는다 —
+        /// 이 클래스는 적을 모르는 자리이고, 알게 만들면 연출이 전투를 물고 들어온다.
+        /// </summary>
+        public float AimDegrees { get; set; }
+
         private void Update()
         {
             _elapsed += Time.deltaTime;
             float turn = _sweepSeconds <= 0f ? 1f : Mathf.Clamp01(_elapsed / _sweepSeconds);
-            float angle = turn * FullTurn;
 
-            transform.rotation = Quaternion.Euler(0f, 0f, angle);
+            // 🗑️ **구 `angle = turn * FullTurn` 회전 폐기**(2026-09-16 사용자 육안 4차).
+            //    각은 **처음 정한 그대로** 선다 — 시간은 이제 「얼마나 오래 서 있는가」만 센다.
+            transform.rotation = Quaternion.Euler(0f, 0f, AimDegrees);
 
             if (!_isLaser && _bullets != null)
             {
@@ -142,7 +155,7 @@ namespace MBI.Combat
                 }
             }
 
-            // 한 바퀴만 돈다 — 다 돌면 사라진다(반복 없음).
+            // 한 번만 나간다 — 시간이 다 되면 사라진다(반복 없음).
             if (turn >= 1f) Destroy(gameObject);
         }
     }

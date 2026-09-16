@@ -28,6 +28,9 @@ MonoBehaviour:
   droneOrbitSpeedTbd: 1.6
   droneFlySpeedTbd: 6
   droneAttachDistanceTbd: 0.35
+  droneDamageFractionTbd: 0.1
+  droneHitIntervalTbd: 0.5
+  droneLaunchScaleTbd: 0.5
   manualOverrideGraceTbd: 2
   autoRestartDelayTbd: 1.5
   animCellSeconds: 0.0625
