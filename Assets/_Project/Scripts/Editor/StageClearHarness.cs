@@ -182,6 +182,14 @@ namespace MBI.EditorTools
             // ① 육안 9차 — 「3.2초에 로봇 바로 옆에 스폰」을 가른다.
             //    **나타난 순간의 거리**를 찍는다 — 나중에 걸어온 거리와 섞으면 구분이 안 된다.
             var spawnLog = new List<string>();
+
+            // ③ 육안 9차 — 「89.6초에 오른쪽 무리가 로봇 쪽으로 안 온다」.
+            // 10 초마다 **살아 있는 적이 굳었는가**를 센다. 굳음 = 사거리 밖인데
+            // 지난 표본 뒤로 **거의 안 움직였다**. 우회가 금지라(장갑형 길막) 막히면
+            // 그대로 서는 것이 규칙이지만, **몇이 그렇게 되는지**는 아무도 안 셌다.
+            var lastPos = new Dictionary<CombatEntity, Vector2>();
+            var stuckLog = new List<string>();
+            float nextStuckAt = 10f;
             int seenEnemies = 0;
 
             LogisticsResult lastResult = default;
@@ -288,6 +296,28 @@ namespace MBI.EditorTools
                     }
                 }
 
+                if (elapsed >= nextStuckAt && stuckLog.Count < 12)
+                {
+                    int alive = 0, stuck = 0, inReach = 0;
+                    foreach (CombatEntity e in sim.Enemies)
+                    {
+                        if (e == null || !e.IsAlive) continue;
+                        alive++;
+
+                        float d = (e.position - sim.RobotPosition).magnitude;
+                        float reach = e.attackRange + 0.5f + e.radius;   // 로봇 반경은 setup 과 같다
+                        if (d <= reach) { inReach++; lastPos[e] = e.position; continue; }
+
+                        if (lastPos.TryGetValue(e, out Vector2 was)
+                            && (e.position - was).magnitude < 0.05f) stuck++;
+                        lastPos[e] = e.position;
+                    }
+
+                    stuckLog.Add($"    {elapsed:F0}초 · 살아있음 {alive} · 사거리 안 {inReach}"
+                                 + $" · **굳음 {stuck}**");
+                    nextStuckAt += 10f;
+                }
+
                 result = sim.Result;
                 if (result != CombatResult.InProgress) break;
             }
@@ -310,6 +340,12 @@ namespace MBI.EditorTools
 
             sb.AppendLine($"  마운트 최고 도착률 {peakArrival:F2} 발/초");
             sb.AppendLine($"  재배분 {reallocs} 회 — 0 이면 라인이 시작값(빈 줄)으로 굳은 것이다");
+
+            sb.AppendLine();
+            sb.AppendLine("[굳은 적 — 10초마다 · 사거리 밖인데 안 움직인 수]");
+            foreach (string line in stuckLog) sb.AppendLine(line);
+            sb.AppendLine("  ⚠️ 우회는 금지다(장갑형 길막이 규칙) — 막히면 서는 것이 맞다.");
+            sb.AppendLine("     물음은 「서는가」가 아니라 **「몇이 영영 서는가」**다.");
 
             sb.AppendLine();
             sb.AppendLine($"[스폰 거리 — 띠 {tuning.spawnRingMinTbd:F1}~{tuning.spawnRingMaxTbd:F1}]");
