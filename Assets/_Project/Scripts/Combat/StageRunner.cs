@@ -270,9 +270,9 @@ namespace MBI.Combat
             _bgTile = bg.bounds.size;
             if (_bgTile.x <= 0.0001f || _bgTile.y <= 0.0001f) return;
 
-            // 시야를 덮는 장수 + 양쪽에 한 장씩 여유.
-            int cols = Mathf.CeilToInt(halfW * 2f / _bgTile.x) + 2;
-            int rows = Mathf.CeilToInt(halfH * 2f / _bgTile.y) + 2;
+            // 시야를 덮는 장수 + 여유 — 셈은 `BackgroundTiling` 이 한다(시험이 닿는 자리).
+            int cols = BackgroundTiling.Count(halfW, _bgTile.x);
+            int rows = BackgroundTiling.Count(halfH, _bgTile.y);
 
             for (int x = 0; x < cols; x++)
             for (int y = 0; y < rows; y++)
@@ -311,22 +311,32 @@ namespace MBI.Combat
             // 카메라 중심을 **타일 격자에 스냅한 자리**에 둔다 — 한 장 폭의 나머지만 쓰므로
             // 타일 수가 안 늘고, 격자가 자기 자신과 이어져 끝이 안 보인다.
             //
-            // ⚠️ **로봇 기준으로 되돌렸다**(2026-09-15 육안 ④ · 결함 수정).
+            // ⚠️⚠️ **기준은 「지금 전투를 비추는 카메라」다**(2026-09-16 · 육안 10차 ② 결함).
             //
-            // 09-15 오전에 「카메라 기준」으로 바꿨다가 **조립 화면 인셋이 검게 됐다.**
-            // 조립 화면의 전투는 **상단 인셋**이고 그것은 별개 카메라인데(`combatInsetCam`),
-            // 주 카메라는 그때 **보드**를 비춘다 — 주 카메라 기준으로 깔면 바닥이 보드 쪽에
-            // 가 버려 인셋에는 로봇과 적만 남는다.
+            // 09-15 에 「로봇 기준」으로 되돌린 까닭은 옳았다 — 조립 화면의 전투는
+            // **상단 인셋**(`combatInsetCam`)이고 그때 주 카메라는 **보드**를 비추므로,
+            // 주 카메라만 보고 깔면 바닥이 보드 쪽으로 가 인셋이 검어진다.
             //
-            // **로봇 기준이면 두 카메라 모두에서 맞다.** 카메라가 로봇을 따라가므로
-            // 로봇 자리가 곧 두 카메라의 목표 자리이고, 인셋은 언제나 로봇을 비춘다.
-            // 뒤따르는 lerp 차이는 **타일 한 장 안에서 흡수된다**(아래 나머지 셈).
-            Vector2 p = _sim != null && _sim.Robot != null ? _sim.Robot.position : Vector2.zero;
+            // 그런데 「로봇 기준이면 lerp 차이는 타일 한 장 안에서 흡수된다」는 **틀렸다.**
+            // 주 카메라는 로봇을 lerp 로 따라가므로 **늘 뒤처져 있고**, 아래로 걸을 때는
+            // 로봇보다 **위**에 남는다. 그 뒤처진 만큼 카메라 윗변이 격자 윗변을 넘어선다 —
+            // 사용자가 본 「아래로 이동할 때 상단 배경이 짧게 사라진다」가 그것이다.
+            //
+            // 📌 두 화면이 서로 다른 카메라를 쓰므로 **화면에 따라 기준도 갈린다** —
+            //    · 전투 화면: 주 카메라가 전투를 비춘다 → **주 카메라 자리**(뒤처짐 그대로 반영).
+            //    · 조립 화면: 인셋이 전투를 비추고 그것은 `CombatFocus`(=로봇) 에 **딱** 붙는다
+            //      → **로봇 자리**. 주 카메라를 쓰면 09-15 의 검은 인셋이 그대로 돌아온다.
+            // 거리 가정을 새로 적지 않는다 — **비추는 자리를 그대로 쓴다**(지침 §7).
+            Vector2 robot = _sim != null && _sim.Robot != null ? _sim.Robot.position : Vector2.zero;
+            Vector2 p = robot;
+            if (!GameViewSignals.BoardViewActive)
+            {
+                Camera main = Camera.main;
+                if (main != null) p = main.transform.position;
+            }
 
-            _bgRoot.position = new Vector3(
-                p.x - Mathf.Repeat(p.x, _bgTile.x),
-                p.y - Mathf.Repeat(p.y, _bgTile.y),
-                _bgRoot.position.z);
+            Vector2 origin = BackgroundTiling.SnapOrigin(p, _bgTile);
+            _bgRoot.position = new Vector3(origin.x, origin.y, _bgRoot.position.z);
         }
 
         /// <summary>깔아 둔 전제가 바뀌었는가 — 스테이지(보스)와 창 크기 둘뿐이다.</summary>

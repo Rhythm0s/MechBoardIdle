@@ -1,7 +1,9 @@
 using System.Collections.Generic;
 using MBI.Core;
 using MBI.Core.Combat;
+using MBI.Data;
 using NUnit.Framework;
+using UnityEditor;
 using UnityEngine;
 
 namespace MBI.Tests
@@ -33,6 +35,35 @@ namespace MBI.Tests
             lines = new List<AmmoLine>(),
             ammoCapacity = 0f,
         };
+
+        /// <summary>
+        /// **스폰 띠 안쪽은 8 이고, 코드 기본값과 자산 값이 같다**
+        /// (2026-09-16 사용자 확정 · 플랜 §74-15).
+        ///
+        /// ⚠️ **두 곳에 사는 값이다** — C# 기본값과 `CombatTuning.asset` 에 저장된 값.
+        /// 자산이 이기므로 코드만 고치면 **화면은 안 바뀌고 시험만 통과한다.**
+        /// 09-14 에 `spawnCadenceTbd` 가 정확히 그렇게 갈라져 있었다(기본 0.35 · 자산 0.15).
+        /// 그래서 값이 아니라 **둘이 같은가**를 먼저 박는다.
+        ///
+        /// 🗑️ 구 값 **4 는 폐기** — 로봇 바로 옆이라 시작 3.4초에 적이 겹쳐 났다(육안 10차).
+        /// </summary>
+        [Test]
+        public void 스폰_띠_안쪽은_8_이고_자산과_같다()
+        {
+            var defaults = ScriptableObject.CreateInstance<CombatTuning>();
+            Assert.AreEqual(8f, defaults.spawnRingMinTbd, D, "코드 기본값이 8 이 아니다");
+            Assert.AreEqual(14f, defaults.spawnRingMaxTbd, D, "바깥 14 는 그대로다");
+            Assert.Less(defaults.spawnRingMinTbd, defaults.robotAttackRangeTbd,
+                "띠 안쪽이 사거리를 넘으면 가까운 적이 없어져 로봇이 늘 걷는다");
+
+            var asset = AssetDatabase.LoadAssetAtPath<CombatTuning>(
+                "Assets/_Project/ScriptableObjects/CombatTuning.asset");
+            Assert.IsNotNull(asset, "CombatTuning.asset 이 없다 — 생성기를 먼저 돌린다");
+            Assert.AreEqual(defaults.spawnRingMinTbd, asset.spawnRingMinTbd, D,
+                "자산 값이 코드 기본값과 다르다 — 화면에 서는 것은 자산 쪽이다");
+            Assert.AreEqual(defaults.spawnRingMaxTbd, asset.spawnRingMaxTbd, D,
+                "자산 값이 코드 기본값과 다르다 — 화면에 서는 것은 자산 쪽이다");
+        }
 
         [Test]
         public void 링은_로봇을_따라간다()

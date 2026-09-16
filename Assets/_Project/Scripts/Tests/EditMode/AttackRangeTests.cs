@@ -24,9 +24,19 @@ namespace MBI.Tests
 
         private const float Dt = 0.05f;
 
-        /// <summary>스폰 띠 — 사용자 확정 4~14(가정). 사거리 9.2 를 **가운데서 가른다**.</summary>
-        private const float BandMin = 4f;
-        private const float BandMax = 14f;
+        /// <summary>
+        /// 스폰 띠 — **값을 여기 안 적는다.** `CombatTuning` 의 기본값을 그대로 읽는다.
+        ///
+        /// ⚠️ **09-16 에 여기서 걸렸다.** 안쪽이 4 → 8 로 바뀌었는데(사용자 확정 · §74-15)
+        /// 이 시험은 `4f` 를 손으로 적어 두고 있었다 — 게임과 **다른 판**을 재면서
+        /// 통과했을 것이다(지침 §7 「한 값이 두 곳에 살면 답이 둘이 된다」).
+        ///
+        /// 🗑️ 구 상수 `BandMin = 4f` · `BandMax = 14f` 폐기.
+        /// </summary>
+        private static CombatTuning TuningDefaults() => ScriptableObject.CreateInstance<CombatTuning>();
+
+        private static readonly float BandMin = TuningDefaults().spawnRingMinTbd;
+        private static readonly float BandMax = TuningDefaults().spawnRingMaxTbd;
 
         /// <summary>사거리 안 적이 이 수를 넘으면 제자리 — 사용자 확정 가정 **1**(구 3 폐기).</summary>
         private const int Hold = 1;
@@ -137,6 +147,7 @@ namespace MBI.Tests
         public void TheBandStraddlesTheRange()
         {
             Assert.Less(BandMin, Range, "띠 안쪽은 사거리 안 — 제자리 사격");
+            Assert.Greater(BandMin, 0f, "0 이면 러너가 띠를 안 넣는다 — 링 한 점이 된다");
             Assert.Greater(BandMax, Range, "띠 바깥은 사거리 밖 — 걸어간다");
 
             var ctx = new AutoPilotContext

@@ -21,7 +21,7 @@ MonoBehaviour:
   enemyAttackIntervalTbd: 1
   spawnCadenceTbd: 0.8
   arenaRadiusTbd: 6
-  spawnRingMinTbd: 4
+  spawnRingMinTbd: 8
   spawnRingMaxTbd: 14
   spawnRingRadiusTbd: 0
   manualOverrideGraceTbd: 2
