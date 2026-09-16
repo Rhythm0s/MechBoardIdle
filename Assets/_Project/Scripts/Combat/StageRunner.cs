@@ -550,6 +550,11 @@ namespace MBI.Combat
                 droneSlots = bal != null ? bal.droneSlots : 3,
                 droneReleaseRate = bal != null ? bal.droneReleaseRate : 1f,
                 droneCharge = bal != null ? bal.droneCharge : 100f,
+                // ⚠️ **기당 피해는 충전량의 몫이다**(2026-09-16 사용자 확정 · 가정 1/10).
+                //    총 피해와 수명은 안 바뀐다 — 나눠 쓰는 횟수만 바뀐다.
+                //    값 자체를 여기 안 적는다: 충전량도 몫도 SO 에서 온다(§3).
+                droneDamagePerHit = (bal != null ? bal.droneCharge : 100f)
+                                    * (tuning != null ? tuning.droneDamageFractionTbd : 0.1f),
                 droneAttackRange = tuning.robotAttackRangeTbd, // 본체와 동일(C-3 확정)
                 mountStackLimit = bal != null ? bal.mountStackLimit : 10f,
             };

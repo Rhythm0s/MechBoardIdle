@@ -108,6 +108,48 @@ namespace MBI.Tests
             Assert.AreEqual(0f, none.AoeShare, 0.0001f, "안 만들면 누적형 쪽이 기본이다");
         }
 
+        // ── 기당 피해 = 충전량의 1/10 (사용자 확정 §74-3 #31) ────────────
+
+        [Test]
+        public void 열_번에_나눠_쓰고_소진된다()
+        {
+            // 🗑️ **구 거동은 한 방이었다** — 기당 피해 = 충전량 전량이라 드론이
+            //    **붙는 그 틱에** 사라졌다. 붙어 있는 시간이 0 이라 「붙어서 다 쓴다」가
+            //    화면에도 시험에도 안 보였다.
+            //
+            // 📌 **총 피해와 수명은 안 바뀐다** — 나눠 쓰는 횟수만 바뀐다.
+            var d = new DroneUnit(Vector2.zero, charge: 100f, damagePerHit: 10f,
+                attackRange: 9.2f, kind: DroneKind.Stack, orbitAngle: 0f);
+
+            float total = 0f;
+            int hits = 0;
+            while (d.IsAlive && hits < 100)
+            {
+                float dealt = d.Fire();
+                if (dealt <= 0f) break;
+                total += dealt;
+                hits++;
+            }
+
+            Assert.AreEqual(10, hits, "열 번에 못 나눴다");
+            Assert.AreEqual(100f, total, 0.001f, "총 피해가 충전량과 다르다 — 규칙이 깨졌다");
+            Assert.IsFalse(d.IsAlive, "다 쓰고도 안 사라졌다");
+        }
+
+        [Test]
+        public void 마지막_한_방은_남은_만큼만_나간다()
+        {
+            // 충전량이 기당 피해로 안 나눠떨어지는 경우 — 넘치게 쏘면 총 피해가
+            // 충전량을 넘어 「충전량 = 피해 총량」이 깨진다.
+            var d = new DroneUnit(Vector2.zero, charge: 25f, damagePerHit: 10f,
+                attackRange: 1f, kind: DroneKind.Stack, orbitAngle: 0f);
+
+            float total = 0f;
+            while (d.IsAlive) total += d.Fire();
+
+            Assert.AreEqual(25f, total, 0.001f, "총 피해가 충전량을 넘었다");
+        }
+
         // ── 광역형: 따라 돈다 ────────────────────────────────────────────
 
         [Test]
