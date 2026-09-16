@@ -241,6 +241,125 @@ namespace MBI.Tests
             }
         }
 
+        // ── 7. 왕복한 판이 실제로 나르는가 ──────────────────────────────────────
+
+        /// <summary>
+        /// 왕복 뒤에도 **물건이 흐르는가** (2026-09-16 · 육안 9차 ⑦ 「벨트를 이었는데 적재 0」).
+        ///
+        /// ⚠️⚠️ **수가 같은 것과 흐르는 것은 다른 일이다.** 앞의 시험들은 노드 수·벨트 수·면을
+        /// 봤는데, 그것이 다 맞아도 **링크가 안 서면 한 알도 안 간다.** 면은 배치에서 다시
+        /// 나오므로(`BeltAutoOrient` → `BeltFlow`) 부르는 쪽이 그것을 빠뜨리면 조용히 죽는다.
+        ///
+        /// 📌 그래서 여기서는 **링크 수**를 견준다 — 왕복 전과 후가 같아야 한다.
+        /// </summary>
+        [Test]
+        public void 왕복한_판도_같은_링크를_만든다()
+        {
+            BoardGrid before = RealBoard();   // 튜토리얼을 마친 판
+
+            int linksBefore = BeltRouting.BuildLinks(before).Count;
+            Assert.That(linksBefore, Is.GreaterThan(0), "시험 전제가 깨졌다 — 원본에 링크가 없다");
+
+            BoardGrid after = EmptyRealBoard();
+            int missed = BoardStateCodec.Restore(
+                BoardStateCodec.Capture(before), after, RealNodeLookup(), ModuleLookup());
+            Assert.That(missed, Is.EqualTo(0), "왕복에서 못 놓은 것이 있다");
+
+            // ⚠️ **부르는 쪽이 해야 하는 일**(설계 규칙 3) — 저장은 면·품목을 안 싣는다.
+            BeltAutoOrient.Resolve(after);
+            BeltFlow.Resolve(after);
+
+            Assert.That(BeltRouting.BuildLinks(after).Count, Is.EqualTo(linksBefore),
+                "왕복 뒤 링크 수가 달라졌다 — 판은 같아 보여도 **한 알도 안 간다**");
+        }
+
+        /// <summary>
+        /// 왕복한 판에서도 **마운트에 닿는다** — 링크보다 한 단 더 간다.
+        ///
+        /// ⚠️ 링크가 서도 품목이 안 정해지면 안 흐른다. 실제로 틱을 돌려 도착을 센다.
+        /// </summary>
+        [Test]
+        public void 왕복한_판도_마운트에_닿는다()
+        {
+            BoardGrid before = RealBoard();
+
+            BoardGrid after = EmptyRealBoard();
+            BoardStateCodec.Restore(BoardStateCodec.Capture(before), after, RealNodeLookup(), ModuleLookup());
+            BeltAutoOrient.Resolve(after);
+            BeltFlow.Resolve(after);
+
+            Assert.That(ArrivalsIn(before), Is.GreaterThan(0), "원본이 안 나른다 — 전제가 깨졌다");
+            Assert.That(ArrivalsIn(after), Is.GreaterThan(0),
+                "왕복한 판이 마운트에 한 알도 안 보낸다 — 육안 ⑦ 의 모양이다");
+        }
+
+        /// <summary>
+        /// **진짜 보드**를 짓는다 — 칸 수와 마스크가 `PartLayout` 에서 온다.
+        ///
+        /// ⚠️⚠️ 앞의 왕복 시험들은 14x14 짜리 맨 격자를 썼다. 앞뒤를 견주기만 하면
+        /// 그것으로 되지만, **나르는지 보려면 안 된다** — 마운트 포트가 `PartLayout` 에
+        /// 있어서 맨 격자에서는 **한 알도 안 닿는다.** 첫 판이 「원본이 안 나른다」로
+        /// 떨어진 것이 그것이었고, 그것은 제품이 아니라 **이 시험의 결함**이었다.
+        /// </summary>
+        /// <summary>
+        /// 시작 보드가 쓰는 **진짜 노드 자산**. 없으면 <c>null</c>.
+        ///
+        /// ⚠️⚠️ **가짜 노드로는 안 나른다.** 앞의 왕복 시험들은 `nodeId` 만 채운 빈
+        /// `NodeDefinition` 을 쓴다 — 앞뒤를 견주기만 하면 그것으로 되지만, **포트도**
+        /// **조합표도 없으므로 한 알도 안 만든다.** 09-16 첫 판이 「원본이 안 나른다」로
+        /// 떨어진 진짜 이유였다(전투 신호는 그 다음 이유였다).
+        /// </summary>
+        private static NodeDefinition RealNode(string id)
+            => UnityEditor.AssetDatabase.LoadAssetAtPath<NodeDefinition>(
+                "Assets/_Project/ScriptableObjects/Nodes/Node_" + id + ".asset");
+
+        private static System.Func<string, NodeDefinition> RealNodeLookup() => RealNode;
+
+        private BoardGrid RealBoard()
+        {
+            var g = new BoardGrid(PartLayout.Columns, PartLayout.Rows, 1f,
+                Vector2.zero, PartLayout.BuildMask());
+            foreach (StartingBoard.Slot s in StartingBoard.Nodes)
+            {
+                NodeDefinition def = RealNode(s.nodeId);
+                if (def == null) Assert.Ignore($"노드 자산이 없다({s.nodeId}) — 'MBI/Generate' 먼저");
+                g.TryPlace(s.cell, def, out _);
+            }
+            foreach (StartingBoard.Run r in StartingBoard.Belts) Place(g, r);
+            Place(g, StartingBoard.FillsEmptySlot);
+            BeltAutoOrient.Resolve(g);
+            BeltFlow.Resolve(g);
+            return g;
+        }
+
+        /// <summary>같은 규격의 빈 판 — 복원을 받을 자리.</summary>
+        private static BoardGrid EmptyRealBoard()
+            => new BoardGrid(PartLayout.Columns, PartLayout.Rows, 1f,
+                Vector2.zero, PartLayout.BuildMask());
+
+        /// <summary>40초 동안 마운트에 닿은 횟수. 화면을 안 거친다.</summary>
+        private static int ArrivalsIn(BoardGrid grid)
+        {
+            // ⚠️⚠️ **전투 신호를 켜야 마운트로 넘어간다.** 안 켜면 `PendingMountArrivals` 가
+            //    영영 비고, 그러면 **제품이 아니라 이 시험이 0 을 만든다.**
+            //    09-16 첫 판이 「원본이 안 나른다」로 떨어진 두 번째 이유였다.
+            SupplySignals.Reset();
+            SupplySignals.HasCombat = true;
+            SupplySignals.ActiveOwner = MountOwner.RobotA;
+
+            var flow = new BeltItemFlow();
+            flow.Rebuild(grid);
+
+            int arrivals = 0;
+            for (int i = 0; i < 800; i++)   // 0.05초 x 800 = 40초
+            {
+                BoardItemTick.Step(grid, flow, 0.05f, 1f);
+                arrivals += flow.PendingMountArrivals.Count;
+                flow.ClearPendingMountArrivals();
+            }
+            return arrivals;
+        }
+
         // ── 거들 ───────────────────────────────────────────────────────────────
 
         private static int Count<T>(IEnumerable<T> items)

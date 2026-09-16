@@ -80,13 +80,13 @@ MonoBehaviour:
       height: 0.90625
   - kind: 11
     sprite: {fileID: 21300000, guid: f162cec4232f1e641a1e25b1bc2064dd, type: 3}
-    contentSpan: 0.625
+    contentSpan: 0.859375
     contentRect:
       serializedVersion: 2
-      x: 0.1875
-      y: 0.34375
-      width: 0.625
-      height: 0.3125
+      x: 0.328125
+      y: 0.078125
+      width: 0.34375
+      height: 0.859375
   - kind: 12
     sprite: {fileID: 21300000, guid: fb51abbbdfef0c04c8ca4df0d1929f95, type: 3}
     contentSpan: 0.9375

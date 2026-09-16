@@ -2231,7 +2231,11 @@ namespace MBI.Logistics
         /// 「자산이 기준을 넘는가」를 코드가 재게 하지 않는다(재는 규칙을 또 하나 만들면
         /// 그것이 다음 결함이 된다). 사람이 보고 끈다.
         /// </summary>
-        private const bool HideStandardAmmoItemArt = true;
+        /// ✅ **되돌렸다(2026-09-16)** — 아트가 표준탄을 새로 냈다(`ed1e7c6` 「표준탄 세우기」).
+        /// 실측: 실루엣 40x20(800px²) → **22x55(1089px²)** · 캔버스 64 중 span 0.86.
+        /// 사용자 지시가 「**새 자산이 올 때까지** 안 그린다」였으므로 조건이 풀렸다.
+        /// 다시 끄려면 이 값을 `true` 로 두는 것 하나다.
+        private const bool HideStandardAmmoItemArt = false;
 
         private void RefreshBeltItems()
         {
