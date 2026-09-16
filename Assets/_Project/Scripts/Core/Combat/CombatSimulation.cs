@@ -651,9 +651,36 @@ namespace MBI.Core
         /// </summary>
         public bool TryManualTag()
         {
-            if (Tag == null || !Tag.TryManualTag()) return false;
+            if (Tag == null) return false;
+
+            Vector2 where = RobotPosition;
+            if (!Tag.TryManualTag()) return false;
             _active = Tag.ActiveIndex;
+            PlaceIncomingRobot(where);
             return true;
+        }
+
+        /// <summary>
+        /// **들어오는 로봇을 나가는 로봇이 서 있던 자리에 세운다**
+        /// (2026-09-16 · 사용자 보고 ⑤ — 「합체 뒤 태그 시 로봇 스폰 위치 다름」).
+        ///
+        /// ⚠️⚠️ **몸은 둘이고, 움직이는 것은 나선 쪽 하나뿐이다.** 대기 로봇의 몸은
+        /// 전투가 시작된 자리(원점)에 그대로 서 있다 — 자동 조종이 `Act.body` 만 옮기기
+        /// 때문이다. 그 상태로 교대하면 로봇이 **원점으로 순간이동**한다.
+        ///
+        /// 사용자가 합체 뒤에 알아챈 것은 우연이 아니다 — 합체 전에는 대개 로봇이
+        /// 아직 원점 근처에 있어 차이가 안 보이고, 한 판을 걸어 다닌 뒤에야 벌어진다.
+        ///
+        /// 📌 **교대는 자리를 바꾸는 일이 아니다.** 같은 자리에서 선수만 바뀐다 —
+        /// 진입 연출(`PlayTagIn`)이 오른쪽에서 미끄러져 들어오는 것은 **그림**이고,
+        /// 그 그림도 끝나면 이 자리로 수렴한다.
+        ///
+        /// ⚠️ **나가는 로봇은 안 옮긴다.** 다음 교대 때 이 함수가 다시 세우므로,
+        /// 두 몸을 늘 붙여 두면 같은 일을 두 곳에서 하게 된다.
+        /// </summary>
+        private void PlaceIncomingRobot(Vector2 where)
+        {
+            if (Act.body != null) Act.body.position = where;
         }
 
         /// <summary>이번 전투에서 드론이 낸 누적 피해(검산용).</summary>
@@ -1010,10 +1037,20 @@ namespace MBI.Core
             if (!HasTagPartner) return;
 
             RobotSide s = Standby;
-            if (s.ammoSupplyRate > 0f)
+
+            // 🗑️⚠️ **구 「과도 규칙」 폐기**(2026-09-16 · 사용자 보고 ⑤ · 플랜 §74-17 ⑤).
+            //
+            // 구 주석: 「탄종 배정이 아직 물류에 없으므로 활성과 같은 과도 규칙을 쓴다.」
+            // 그 임시 규칙이 **로봇 B 창고에 탄약을 쌓았고**, 그것이 `RefillMount` 를 타고
+            // **B 마운트에 표준탄으로 실렸다** — 문서는 B 마운트를 **드론만**으로 정한다.
+            // 사용자 스크린샷이 그 자리를 잡았다.
+            //
+            // 📌 **전제가 사라졌다.** 2026-09-16 에 보드가 로봇별로 갈리면서
+            //    탄종 배정이 물류에 생겼다 — A 판이 탄약을, B 판이 드론을 만든다.
+            //    임시 규칙을 떠받치던 「아직 없다」가 없어졌으므로 규칙도 걷는다.
+            if (s.ammoSupplyRate > 0f && !UsesDroneMount(s))
             {
                 // 대기 로봇은 소비가 0이라 생산 전량이 쌓인다(조립 문서「소비까지의 흐름」).
-                // 탄종 배정이 아직 물류에 없으므로 활성과 같은 과도 규칙을 쓴다.
                 ProduceAmmoInto(s, dt);
             }
 
@@ -1059,8 +1096,15 @@ namespace MBI.Core
         {
             if (Tag == null) return;
 
+            // ⚠️ **교대 전 자리를 먼저 잡아 둔다** — 교대한 뒤에는 `RobotPosition` 이
+            //    이미 들어온 로봇(원점)을 가리킨다(2026-09-16 · 사용자 보고 ⑤).
+            Vector2 where = RobotPosition;
             bool tagged = Tag.TickAuto(dt, AutoTagEnabled);
-            if (tagged) _active = Tag.ActiveIndex;
+            if (tagged)
+            {
+                _active = Tag.ActiveIndex;
+                PlaceIncomingRobot(where);
+            }
 
             // 태그 스킬은 **진입 클립이 다 돈 뒤에** 터진다 (260908_W06 2장 · (가) 0.75초).
             // 교대한 틱에 시계를 0으로 놓고, 지연이 0이면 그 틱에 바로 터진다(종전 거동).
@@ -1076,12 +1120,30 @@ namespace MBI.Core
         }
 
         /// <summary>
+        /// **이 로봇은 드론을 모는가** (2026-09-16 · 사용자 보고 ⑤).
+        ///
+        /// 📌 **판정을 새로 만들지 않는다** — 마운트 슬롯 수를 고를 때 이미 같은 물음을
+        /// 같은 방법으로 묻고 있다(`r.droneSlots > 0 ? SlotsRobotB : SlotsRobotA`).
+        /// 여기서 다른 잣대를 쓰면 **슬롯은 B 인데 적재 규칙은 A** 인 로봇이 생긴다
+        /// (지침 §7 — 한 값이 두 곳에 살면 답이 둘이 된다).
+        /// </summary>
+        private static bool UsesDroneMount(RobotSide s) => s.setup.droneSlots > 0;
+
+        /// <summary>
         /// 창고 → 마운트 이송. 탄종별로 실을 수 있는 만큼만 실린다.
         /// **마운트가 만충 판정 주체**이므로(V03 §2) 이 이송이 태그 트리거를 만든다.
         /// </summary>
         private void RefillMount(RobotSide s)
         {
             if (s.mount == null || s.mount.SlotCount <= 0) return;
+
+            // ⚠️⚠️ **드론을 모는 로봇의 마운트에는 탄약이 안 실린다**
+            //    (2026-09-16 · 사용자 보고 ⑤ — 「B 마운트에 표준탄이 실림」).
+            //
+            // 실리면 **드론이 들어갈 칸을 탄약이 차지한다** — B 는 그 탄을 못 쏘므로
+            // 마운트는 「만충」인데 **교대해도 아무것도 안 나가는** 상태가 된다.
+            // 대기 마운트 합만 보던 태그 트리거가 그 거짓 만충에 걸리던 자리이기도 하다.
+            if (UsesDroneMount(s)) return;
 
             for (int k = 0; k < 3; k++)
             {
