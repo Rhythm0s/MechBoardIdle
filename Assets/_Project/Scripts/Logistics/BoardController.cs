@@ -115,27 +115,6 @@ namespace MBI.Logistics
 
         private static int Index(MountOwner owner) => owner == MountOwner.RobotB ? 1 : 0;
 
-        /// <summary>판에 놓인 노드 수 — ⚠️ **임시 진단용**(2026-09-16 · 탭 확인).</summary>
-        private static int CountNodes(BoardGrid g)
-        {
-            if (g == null) return -1;
-            int n = 0;
-            for (int x = 0; x < g.Columns; x++)
-            for (int y = 0; y < g.Rows; y++)
-                if (g.GetAt(new Vector2Int(x, y)) != null) n++;
-            return n;
-        }
-
-        /// <summary>판에 깔린 벨트 수 — ⚠️ **임시 진단용**.</summary>
-        private static int CountBelts(BoardGrid g)
-        {
-            if (g == null) return -1;
-            int n = 0;
-            for (int x = 0; x < g.Columns; x++)
-            for (int y = 0; y < g.Rows; y++)
-                if (g.GetBeltAt(new Vector2Int(x, y)) != null) n++;
-            return n;
-        }
 
         /// <summary>그 로봇의 판. Awake 전에는 <c>null</c>.</summary>
         public BoardGrid BoardOf(MountOwner owner) => _boards[Index(owner)];
@@ -4265,14 +4244,11 @@ namespace MBI.Logistics
                 bool hit = UiSkin.Button(r, labels[i], style);   // 클릭음은 UiSkin 이 낸다
                 GUI.color = prev;
 
-                if (hit)
-                {
-                    SetEditing(owners[i]);
-                    // ⚠️ **임시 진단**(2026-09-16 · 플랜 확인 ② — 「B 를 눌렀는데 A 판으로 보인다」).
-                    //    탭이 안 먹은 것인지, 먹었는데 판이 A 처럼 선 것인지를 가른다.
-                    //    자리가 닫히면 걷는다.
-                    Debug.Log($"[MBI] 로봇 탭 → {_editing} · 판 노드 {CountNodes(_grid)} · 벨트 {CountBelts(_grid)}");
-                }
+                // 🗑️ **임시 진단 걷음**(2026-09-16 · 자리가 닫혔다). 그 줄이 답한 것:
+                //    심사자 S1 점프 뒤 「로봇 탭 → RobotB · 판 노드 9 · 벨트 8」 —
+                //    **탭도 그림도 먹는다.** 튜토리얼 화면에서 안 눌린 것은 결함이 아니라
+                //    잠금이다(튜토리얼은 A 판만 가르치므로 탭 줄과 같은 문에 걸려 있다).
+                if (hit) SetEditing(owners[i]);
             }
 
             GUI.enabled = was;
