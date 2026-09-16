@@ -75,7 +75,30 @@ namespace MBI.Core
         /// 띠가 뜻을 잃는다(0차 표시 위계 · UI 문서 12-4).
         /// </summary>
         public static bool ProductionIsStopped(bool hasCombat, float ammoProduce) =>
-            hasCombat && ammoProduce <= 0f;
+            ProductionIsStopped(hasCombat, ammoProduce, stockOnHand: 0f);
+
+        /// <summary>
+        /// **만재는 경고가 아니다** (2026-09-16 사용자 확정 · 플랜 §74-21 ③).
+        ///
+        /// ⚠️⚠️ **생산이 0 인 까닭이 둘이다.**
+        /// · **댈 것이 없다** — 줄이 끊겼거나 재료가 없다. 이것은 **사건**이다.
+        /// · **받을 데가 없다** — 마운트·창고가 가득이라 상류가 스스로 멈췄다.
+        ///   이것은 **잘 돌아가는 판의 정상 상태**다.
+        ///
+        /// 종전 판은 둘을 안 갈라, 보드가 **가득 차 있을수록** 붉은 띠가 떴다 —
+        /// 09-16 실측에서 마운트 평균이 39.9/40 이었으니 사실상 상주하는 셈이다.
+        /// 사용자가 「만재는 경고가 아니다」로 자른 자리다.
+        ///
+        /// 📌 **가르는 잣대는 손에 든 것**이다 — 창고든 마운트든 **남아 있으면**
+        /// 지금 쏠 것이 있다는 뜻이고, 그때 멈춘 생산은 고칠 거리가 아니다.
+        /// ⚠️ **가정** — 문서에 「만재 정체」 절이 없다(설계 역기입 자리).
+        ///
+        /// ⚠️ **대기 로봇 보드는 애초에 여기 안 온다** — 띠가 읽는 다리
+        /// (`LogisticsOutputBridge`)는 2026-09-16 부터 **싸우는 판의 것만** 싣는다.
+        /// 그래도 이 잣대가 필요한 것은, **싸우는 판도 가득 찰 수 있기** 때문이다.
+        /// </summary>
+        public static bool ProductionIsStopped(bool hasCombat, float ammoProduce, float stockOnHand) =>
+            hasCombat && ammoProduce <= 0f && stockOnHand <= 0f;
 
         /// <summary>
         /// 전력이 모자란가. **사용률이 100%를 넘은 자리**이며 변수 패널의 빨간 점멸과 같은 판정이다

@@ -4140,8 +4140,13 @@ namespace MBI.Logistics
             // ② **운반로만 끊긴 판**(노드는 만들고 있는데 못 닿는다)에서 거짓말을 했다.
             // 끊긴 것은 「나가는 곳이 없다」가 이미 따로 말한다 — 두 띠가 서로 다른 것을 말해야
             // 읽는 사람이 고칠 자리를 안다.
+            // ⚠️ **만재는 경고가 아니다**(2026-09-16 사용자 확정 · §74-21 ③).
+            //    손에 든 것(창고 + 마운트)이 남아 있으면 멈춘 생산은 고칠 거리가 아니다 —
+            //    받을 데가 없어 상류가 스스로 멈춘, **잘 돌아가는 판의 정상 상태**다.
+            //    ⚠️ 둘 다 **싸우는 로봇의 것**이다(`SupplySignals` 가 그렇게 싣는다).
+            float stockOnHand = SupplySignals.StorageStock + SupplySignals.MountTotal;
             bool stopped = SupplyStopRules.ProductionIsStopped(
-                SupplySignals.HasCombat, LogisticsOutputBridge.AmmoProduce);
+                SupplySignals.HasCombat, LogisticsOutputBridge.AmmoProduce, stockOnHand);
             bool powerShort = SupplyStopRules.PowerIsShort(
                 LogisticsOutputBridge.PowerSupply, LogisticsOutputBridge.PowerDraw);
 

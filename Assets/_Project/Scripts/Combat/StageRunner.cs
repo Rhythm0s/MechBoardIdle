@@ -1971,7 +1971,19 @@ namespace MBI.Combat
             //    짧은 눌림(교대)이 같이 나가지 않는다.
             bool longPressed = TrackTagLongPress(tagRect);
 
-            if (UiSkin.Button(tagRect, TagButtonLabel(), round) && !longPressed && _sim.TryManualTag())
+            // ⚠️ **태그 스킬이 나갈 수 있으면 버튼을 밝힌다**(2026-09-16 사용자 확정 · §74-21 ④).
+            //    대기 마운트가 만충일 때만이며, 판정은 `TagSystem.SkillReady` 하나가 낸다 —
+            //    다른 잣대를 쓰면 **빛나는데 안 나가는** 버튼이 생긴다.
+            //    ⚠️ 밝기 값은 **가정**이다(UI 12장 역기입 자리).
+            bool skillReady = TagSystem.SkillReady(
+                _sim.Tag.Tag.CanTag, _sim.Tag.StandbyMount != null && _sim.Tag.StandbyMount.IsFull);
+            Color tagPrev = GUI.color;
+            if (skillReady) GUI.color = TagSkillReadyTint;
+
+            bool tagHit = UiSkin.Button(tagRect, TagButtonLabel(), round);
+            GUI.color = tagPrev;
+
+            if (tagHit && !longPressed && _sim.TryManualTag())
             {
                 // ⚠️ **여기서 뷰를 바로 다시 묶는다**(2026-09-14 · 「교대가 한 박자 느리다」).
                 //
@@ -2100,11 +2112,25 @@ namespace MBI.Combat
             });
         }
 
+        /// <summary>
+        /// 태그 스킬이 나갈 수 있을 때 버튼에 얹는 밝기. ⚠️ **가정**(UI 12장 역기입 자리).
+        ///
+        /// 색을 바꾸지 않고 **밝기만** 올린다 — 색을 바꾸면 그 색이 무엇을 뜻하는지
+        /// 또 하나 외워야 하고, 조립 층의 색 축(빨강 = 못 쓴다)과 섞인다.
+        /// </summary>
+        private static readonly Color TagSkillReadyTint = new Color(1.45f, 1.45f, 1.15f, 1f);
+
         private string TagButtonLabel()
         {
             if (_sim.Tag.Locked) return "태그 (합체 중 잠금)";
             float cd = _sim.Tag.Tag.CooldownRemaining;
-            return cd > 0f ? $"태그 (쿨다운 {cd:F1}s)" : "태그 — 교대";
+            if (cd > 0f) return $"태그 (쿨다운 {cd:F1}s)";
+
+            // 밝기만으로는 **왜** 밝은지가 안 읽힌다 — 한 마디를 붙인다(문구 가정).
+            return TagSystem.SkillReady(true,
+                _sim.Tag.StandbyMount != null && _sim.Tag.StandbyMount.IsFull)
+                ? "태그 — 교대 (스킬)"
+                : "태그 — 교대";
         }
 
         private string MergeButtonLabel()

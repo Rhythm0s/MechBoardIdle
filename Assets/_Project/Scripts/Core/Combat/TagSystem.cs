@@ -108,6 +108,21 @@ namespace MBI.Core
         /// ⚠️ **피해 계산식은 여기 없다.** 태그 전용이 아니라 합체 발동에서도 같은 식으로
         /// 나가므로 식은 GrandEntrance에 독립으로 두었다. 여기는 **태그 경로의 발동 조건**만 본다.
         /// </summary>
+        /// <summary>
+        /// **지금 누르면 태그 스킬이 나가는가** (2026-09-16 사용자 확정 · 플랜 §74-21 ④).
+        ///
+        /// 화면이 강조할 근거다 — 버튼에 적재율이 이미 있으므로 **만충일 때만** 밝힌다.
+        ///
+        /// 📌 **판정을 새로 만들지 않는다** — 실제로 스킬이 나가는 조건
+        /// (<see cref="HasTagSkill"/> · 수동 교대)을 그대로 묻는다. 다른 잣대를 쓰면
+        /// **빛나는데 안 나가는** 버튼이 생긴다(지침 §7).
+        ///
+        /// ⚠️ 못 누르는 동안에는 거짓이다(쿨다운·합체 잠금) — 눌 수 없는 것을 밝히면
+        /// 「왜 눌러도 안 되지」가 된다.
+        /// </summary>
+        public static bool SkillReady(bool canTag, bool standbyMountFull) =>
+            canTag && HasTagSkill(TagEntry.Manual, standbyMountFull);
+
         public static bool HasTagSkill(TagEntry reason, bool mountFull) =>
             mountFull && (reason == TagEntry.Full || reason == TagEntry.Manual);
     }

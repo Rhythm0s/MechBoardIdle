@@ -1,4 +1,5 @@
 using MBI.Core;
+using MBI.Core.Combat;
 using MBI.Data;
 using NUnit.Framework;
 
@@ -99,6 +100,72 @@ namespace MBI.Tests
             // 전투 화면에서는 맞출 이유가 없다 — 다음 진입에서 맞춘다.
             Assert.IsFalse(BoardTabFollow.ShouldFollow(
                 MountOwner.RobotA, MountOwner.RobotA, boardOpen: false, wasBoardOpen: false));
+        }
+
+        // ── ③ 만재는 경고가 아니다 (사용자 확정 §74-21 ③) ──────────────
+
+        [Test]
+        public void 손에_든_것이_있으면_띠를_안_띄운다()
+        {
+            // **사용자가 자른 자리** — 생산 0 의 까닭이 둘이다.
+            // 받을 데가 없어 상류가 스스로 멈춘 것은 **잘 돌아가는 판**이다.
+            Assert.IsFalse(SupplyStopRules.ProductionIsStopped(
+                hasCombat: true, ammoProduce: 0f, stockOnHand: 40f),
+                "마운트가 가득인데 「생산이 멈췄습니다」를 띄웠다");
+        }
+
+        [Test]
+        public void 손에_든_것이_없으면_띄운다()
+        {
+            // 댈 것이 없어 멈춘 것은 **사건**이다 — 이쪽까지 막으면 띠가 죽는다.
+            Assert.IsTrue(SupplyStopRules.ProductionIsStopped(
+                hasCombat: true, ammoProduce: 0f, stockOnHand: 0f));
+        }
+
+        [Test]
+        public void 생산이_돌면_재고와_무관하게_안_띄운다()
+        {
+            Assert.IsFalse(SupplyStopRules.ProductionIsStopped(
+                hasCombat: true, ammoProduce: 2f, stockOnHand: 0f));
+        }
+
+        [Test]
+        public void 전투가_없으면_안_띄운다()
+        {
+            // 조립만 만지는 동안 붉은 띠가 상주하면 띠가 뜻을 잃는다.
+            Assert.IsFalse(SupplyStopRules.ProductionIsStopped(
+                hasCombat: false, ammoProduce: 0f, stockOnHand: 0f));
+        }
+
+        // ── ④ 태그 스킬 강조 (사용자 확정 §74-21 ④) ────────────────────
+
+        [Test]
+        public void 대기_마운트가_만충이면_강조한다()
+        {
+            Assert.IsTrue(TagSystem.SkillReady(canTag: true, standbyMountFull: true));
+        }
+
+        [Test]
+        public void 만충이_아니면_강조_안_한다()
+        {
+            Assert.IsFalse(TagSystem.SkillReady(canTag: true, standbyMountFull: false));
+        }
+
+        [Test]
+        public void 못_누르는_동안에는_강조_안_한다()
+        {
+            // 쿨다운·합체 잠금 — 눌 수 없는 것을 밝히면 「왜 눌러도 안 되지」가 된다.
+            Assert.IsFalse(TagSystem.SkillReady(canTag: false, standbyMountFull: true));
+        }
+
+        [Test]
+        public void 강조_판정은_실제_발동_조건과_같다()
+        {
+            // 다른 잣대를 쓰면 **빛나는데 안 나가는** 버튼이 생긴다(지침 §7).
+            foreach (bool full in new[] { true, false })
+                Assert.AreEqual(TagSystem.HasTagSkill(TagEntry.Manual, full),
+                    TagSystem.SkillReady(canTag: true, standbyMountFull: full),
+                    $"만충 {full} 에서 강조와 발동이 갈린다");
         }
 
         [Test]
