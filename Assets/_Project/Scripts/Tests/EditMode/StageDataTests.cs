@@ -68,7 +68,7 @@ namespace MBI.Tests
         /// 촬영 뒤 설계 역기입」). 여기 숫자를 고칠 때는 json 이 먼저다.
         /// </summary>
         [Test]
-        public void S1_Infantry120_Hp30_Def0()
+        public void S1_Infantry100_Hp20_Def0()
         {
             StageDefinition so = LoadStage("S1");
             if (so == null) Assert.Ignore("Stage SO 없음 — 메뉴 'MBI/Generate Combat Data' 실행.");
@@ -76,15 +76,30 @@ namespace MBI.Tests
             Assert.AreEqual(1, so.composition.Count);
             StageComposition c = so.composition[0];
             Assert.AreEqual("infantry", c.enemyKey);
-            Assert.AreEqual(120, c.count);
-            Assert.AreEqual(30f, c.hp, Delta);
+            // 🗑️ **구 120 기 x HP 30 은 폐기**(2026-09-16 · `260916_W02` 2-4 갈래 3).
+            //
+            // 120 x 30 으로는 **못 깼다** — 하네스 실측 LoseTimeout 120초 · 남은 83/120.
+            // 설계가 미리 정해 둔 갈래대로 **100 기 x HP 20** 으로 내려 다시 쟀다.
+            // ⚠️ `compConfirmed` 는 여전히 false 다 — 이것도 가정이며 구판은
+            //    `compositionPrev` 에 그대로 남아 있다.
+            Assert.AreEqual(100, c.count);
+            Assert.AreEqual(20f, c.hp, Delta);
             Assert.AreEqual(0f, c.def, Delta);
 
             // **총 HP ÷ 시작 보드 출력 = 제한 시간 안** — 이것이 이 값의 근거다.
+            //
+            // ⚠️ **나누는 수도 같이 바뀌었다.** 구 36 은 네 줄 보드의 출력이었고,
+            //    09-15 에 시작 보드가 **두 줄**이 되면서 도달이 20 이다(요구치 18 의 출처).
+            //    구 식(3600 / 36 = 100초)을 그대로 두면 **없는 보드로 나누는 셈**이 된다.
             float totalHp = c.count * c.hp;
-            Assert.AreEqual(3600f, totalHp, Delta, "총 HP");
-            Assert.LessOrEqual(totalHp / 36f, so.challengeTime,
-                "시작 보드 출력 36 으로 제한 시간 안에 못 깬다");
+            Assert.AreEqual(2000f, totalHp, Delta, "총 HP");
+            Assert.LessOrEqual(totalHp / 20f, so.challengeTime,
+                "두 줄 보드 도달 20 으로 제한 시간 안에 못 깬다");
+
+            // 📌 **산수는 산수다** — 이 시험이 지키는 것은 「제한 시간 안에 들 수 있는 값인가」
+            //    하나이고, **실제로 깨지는가는 하네스가 잰다.** 2026-09-16 실측으로는
+            //    이 구성에서도 **LoseDead 49.6초 · 남은 41/100** 으로 못 깬다 —
+            //    막는 것은 총 HP 가 아니라 로봇이 먼저 죽는 것이다(설계 판정 대기).
         }
 
         [Test]

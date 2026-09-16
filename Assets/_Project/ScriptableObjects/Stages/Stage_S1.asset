@@ -25,7 +25,7 @@ MonoBehaviour:
   spawnConfirmed: 0
   composition:
   - enemyKey: infantry
-    count: 120
-    hp: 30
+    count: 100
+    hp: 20
     def: 0
   bossHp: 0

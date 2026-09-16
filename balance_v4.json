@@ -390,8 +390,8 @@
       "composition": [
         {
           "enemy": "infantry",
-          "count": 120,
-          "hp": 30,
+          "count": 100,
+          "hp": 20,
           "def": 0
         }
       ],
@@ -404,7 +404,7 @@
         }
       ],
       "compositionPrevNote": "구판(0914 이전) · §72-14 로 대체 · 기록으로만 남긴다",
-      "compBasis": "가정 · §72-14 · 촬영 뒤 설계 역기입"
+      "compBasis": "가정 · 260916_W02 2-4 갈래 3(설계 판정) — 120기 x HP 30 으로는 못 깨서 100기 x HP 20 으로 한 번 더 잰다. compConfirmed false 유지 · 구판은 compositionPrev 에 그대로. §72-14 · 촬영 뒤 설계 역기입"
     },
     {
       "id": "S2",
