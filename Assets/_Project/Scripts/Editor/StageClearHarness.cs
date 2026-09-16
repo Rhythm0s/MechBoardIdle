@@ -191,6 +191,15 @@ namespace MBI.EditorTools
             //    0.1 초 창에서는 한 틱에 몰려 도착한 것이 순간 50.0 으로 읽힌다 — 명목 20.0 의
             //    2.5 배다. 그것을 「요구치 18 을 넘겼다」의 근거로 쓰면 **없는 성능을 보고**하게 된다.
             //    제공자는 같은 값을 롤링 창으로 굴려 화면에 낸다 — 여기서도 같은 창을 쓴다.
+            // ⚠️⚠️ **게임이 지나는 문을 그대로 지난다**(2026-09-16 · 사용자 보고 「도착은 하는데
+            //    발사를 안 한다」). 종전 하네스는 매 틱 `SetFireLines` 를 **무조건** 불렀다 —
+            //    그러면 `FireRateGate` 를 건너뛰므로 **게임과 다른 판을 재게 된다.**
+            //    09-15 §7 등재: 「재는 것과 보는 것은 다른 일 — 프로브는 사람이 지나는 문을 안 지난다」.
+            var fireGate = new FireRateGate();
+            fireGate.Reset(1f);
+            float nominalOutput = RobotOutput.Nominal(robot.weapons, 1f, robot.moduleMult);
+            int reallocs = 0;
+
             var roll = new RollingWindow(1, ProviderRollingSeconds);
             var sample = new float[1];
             float peakRolled = 0f;
@@ -218,10 +227,20 @@ namespace MBI.EditorTools
 
                 if (firstArrivalAt < 0f && mount.Total > 0f) firstArrivalAt = elapsed;
 
-                // 2) 배분 — 러너가 매 틱 하는 일과 같다
-                ShotAllocator.AllocateRates(robot.weapons, robot.consumptionCap,
-                    SupplySignals.ArrivalRateOf, SupplySignals.MountStockOf, lines);
-                sim.SetFireLines(lines);
+                // 2) 배분 — **러너의 `RefreshFireRate` 와 같은 순서·같은 문**이다.
+                //    배율은 굴린 출력을 명목으로 나눈 값이고, 그것이 게이트의 첫 입력이다.
+                if (nominalOutput > 0f)
+                {
+                    float fireScale = Mathf.Max(0f, lastResult.actual / nominalOutput);
+                    if (fireGate.ShouldReallocate(fireScale, SupplySignals.ArrivalRateOf,
+                            SupplySignals.MountStockOf, 0.01f))
+                    {
+                        ShotAllocator.AllocateRates(robot.weapons, robot.consumptionCap,
+                            SupplySignals.ArrivalRateOf, SupplySignals.MountStockOf, lines);
+                        sim.SetFireLines(lines);
+                        reallocs++;
+                    }
+                }
 
                 // 3) 창고 유입 — 러너가 매 틱 하는 일(`_sim.AmmoSupplyRate = AmmoProduce`).
                 //    이것이 있어야 도착분이 창고를 거쳐 마운트로 실린다.
@@ -290,6 +309,7 @@ namespace MBI.EditorTools
                 : "  첫 발사 **없음**");
 
             sb.AppendLine($"  마운트 최고 도착률 {peakArrival:F2} 발/초");
+            sb.AppendLine($"  재배분 {reallocs} 회 — 0 이면 라인이 시작값(빈 줄)으로 굳은 것이다");
 
             sb.AppendLine();
             sb.AppendLine($"[스폰 거리 — 띠 {tuning.spawnRingMinTbd:F1}~{tuning.spawnRingMaxTbd:F1}]");

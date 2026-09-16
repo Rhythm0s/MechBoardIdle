@@ -110,12 +110,21 @@ namespace MBI.Core
             switch (phase)
             {
                 case Phase.EnterBoard:
-                    return control == Control.EnterBoard;
+                    // ⚠️ **전투로는 여기서도 연다** — 예외를 두면 규칙이 「언제나」가 아니게 되고,
+                    //    그 예외가 어느 화면에 걸리는지를 다시 따져야 한다.
+                    //    이 국면은 전투 화면이라 그 버튼이 아예 안 그려진다 — 열어도 안 는다.
+                    return control == Control.EnterBoard || control == Control.ExitBoard;
 
                 case Phase.BuildMode:
-                    // ⚠️ **전투로 돌아가는 것도 막는다.** 여기서 나가면 국면이 EnterBoard 로
-                    // 되돌아가는 것이 아니라 **아무것도 빛나지 않는 화면**이 된다.
-                    return control == Control.ModeToggle;
+                    // ⚠️⚠️ **전투로는 언제나 열어 둔다**(2026-09-16 사용자 지시 ·
+                    //    「이동 모드·조립 모드와 관계 없이 활성화되어야 함」).
+                    //
+                    // 🗑️ 구 주석은 「전투로 돌아가는 것도 막는다 — 나가면 아무것도 빛나지
+                    //    않는 화면이 된다」였다. **그 걱정이 만든 것이 막다른 국면이다** —
+                    //    바로 아래 📌 가 이미 그렇게 적어 두었는데도 잠금은 남아 있었다.
+                    //    「빛날 것이 없다」는 안내가 약한 것이고, **나갈 수 없는 것은 갇힌 것**이다.
+                    //    둘 중 나중이 훨씬 나쁘다.
+                    return control == Control.ModeToggle || control == Control.ExitBoard;
 
                 case Phase.PlaceNode:
                     // ⚠️ **팔레트를 전부 막는다**(2026-09-11 설계 확정 (가)).
@@ -127,7 +136,12 @@ namespace MBI.Core
                     //
                     // ⚠️ 모드 버튼은 여전히 막는다 — 이동 모드로 돌아가면 드래그가 화면
                     // 이동이 되어 벨트가 안 깔린다.
-                    return control == Control.MiniMap || control == Control.Zoom;
+                    //
+                    // ⚠️⚠️ **전투로는 연다**(2026-09-16 사용자 지시). 튜토리얼 중에도
+                    //    나갈 길은 있어야 한다 — 막으면 「기다리는 것 말고 할 일이 없는」
+                    //    화면이 되고, 그것이 09-15·09-16 에 두 번 보고된 모양이다.
+                    return control == Control.MiniMap || control == Control.Zoom
+                           || control == Control.ExitBoard;
 
                 default:
                     return true;

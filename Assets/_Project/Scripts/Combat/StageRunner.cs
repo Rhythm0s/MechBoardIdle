@@ -903,6 +903,9 @@ namespace MBI.Combat
         /// 배율이 의미 있게 변했을 때만 재배분한다(매 프레임 재할당은 낭비).
         /// 전투를 재시작하지 않고 라인만 갈아끼운다 — 연속성 원칙(조립 중에도 전투는 안 멈춘다).
         /// </summary>
+        /// <summary>재배분이 몇 번 일어났는가 — ⚠️ **진단용 임시물**(2026-09-16 · 사용자 보고).</summary>
+        private int _reallocCount;
+
         private void RefreshFireRate()
         {
             if (_nominalOutput <= 0f) return;
@@ -916,6 +919,7 @@ namespace MBI.Combat
                     SupplySignals.MountStockOf, ScaleEpsilon)) return;
 
             _lastScale = scale;
+            _reallocCount++;
 
             // ⚠️ **재고가 있으면 스펙대로, 비면 공급이 상한**(2026-09-15 사용자 확정 · (가)).
             ShotAllocator.AllocateRates(robot.weapons, robot.consumptionCap,
@@ -1612,6 +1616,22 @@ namespace MBI.Combat
                   + $" · 마지막 조준 {(_lastAimAt > 0f ? (Time.time - _lastAimAt).ToString("F1") + "초 전" : "없음")}"
                   + $" · 수동유예 {Mathf.Max(0f, _manualHoldUntil - Time.time):F1}s";
 
+            // ⚠️⚠️ **발사 사슬 진단**(2026-09-16 · 사용자 보고 「도착은 하는데 발사를 안 한다」).
+            //
+            // 하네스는 같은 판에서 **첫 발사 6.1초 · 114 발**이 나온다 — 게이트를 지나게 해도
+            // 그렇다. 그러니 갈림은 **하네스가 제 손으로 낸 값**과 **게임이 제공자에게서
+            // 받는 값** 사이에 있다. 사슬을 통째로 찍어 어느 칸에서 0 이 되는지 본다.
+            //
+            // ⚠️ **임시물이다** — 자리가 잡히면 이 줄과 `_reallocCount` 를 통째로 걷는다.
+            string lineChain =
+                $"공급 {LogisticsOutputBridge.AmmoProduce:F2}"
+                + $" · 창고 {(_storeA != null ? _storeA.Total : 0f):F0}"
+                + $" · 마운트 {(_mountA != null ? _mountA.Total : 0f):F0}"
+                + $" · 라인 {_lineBuffer.Count}"
+                + $" · 재배분 {_reallocCount}"
+                + $" · 배율 {_lastScale:F2}"
+                + $" · 명목 {_nominalOutput:F1} · 출력 {LogisticsOutputBridge.Output:F1}";
+
             // ⚠️ **날 픽셀 폭 560 을 걷었다**(2026-09-15 · 육안 ②).
             //
             // 글자만 배율을 먹이고 **자리는 안 고쳤더니**, 720×1280 세로 창에서 HUD 가
@@ -1722,7 +1742,7 @@ namespace MBI.Combat
             // 그래서 HUD 첫 줄보다 **앞**에 오고, 아무것도 밀어내지 않는다.
             //
             // ⚠️ **임시물이다** — 얼굴 방향의 원인이 잡히면 이 메서드를 통째로 걷는다.
-            DrawFacingDiagnostic(combatBand, hudScale, hudLeft, hudW, lineFace);
+            DrawFacingDiagnostic(combatBand, hudScale, hudLeft, hudW, lineFace, lineChain);
 
             bool foldable = GameViewSignals.BoardViewActive;
             if (foldable)
@@ -1811,7 +1831,8 @@ namespace MBI.Combat
         /// ⚠️ 크기는 **두 변**에서 잡는다 — 높이로만 정하면 좁고 긴 창에서 글자가
         /// 한 자씩 쌓인다(오늘 네 번째 같은 병이다).
         /// </summary>
-        private void DrawFacingDiagnostic(Rect combatBand, float scale, float left, float width, string text)
+        private void DrawFacingDiagnostic(Rect combatBand, float scale, float left, float width,
+            string text, string second = null)
         {
             if (string.IsNullOrEmpty(text)) return;
 
@@ -1832,7 +1853,16 @@ namespace MBI.Combat
             };
             st.normal.textColor = Color.white;
 
-            GUI.Label(new Rect(r.x + pad, r.y, r.width - pad * 2f, r.height), text, st);
+            if (string.IsNullOrEmpty(second))
+            {
+                GUI.Label(new Rect(r.x + pad, r.y, r.width - pad * 2f, r.height), text, st);
+                return;
+            }
+
+            // 두 줄이면 판을 반씩 나눈다 — 글자를 겹치면 둘 다 못 읽는다.
+            float half = r.height * 0.5f;
+            GUI.Label(new Rect(r.x + pad, r.y, r.width - pad * 2f, half), text, st);
+            GUI.Label(new Rect(r.x + pad, r.y + half, r.width - pad * 2f, half), second, st);
         }
 
         private void DrawMergeCutscene()

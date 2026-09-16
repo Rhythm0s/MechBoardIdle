@@ -90,14 +90,18 @@ namespace MBI.Tests
         }
 
         [Test]
-        public void 모드_국면은_모드_버튼_하나만_켠다()
+        public void 모드_국면은_모드_버튼과_전투로만_켠다()
         {
             TutorialSignals.HighlightBuildMode = true;
             TutorialSignals.BoardInBuildMode = false;
 
             Assert.IsTrue(TutorialGate.Allows(TutorialGate.Control.ModeToggle));
-            // ⚠️ 전투로 돌아가는 것도 막는다 — 나가면 아무것도 빛나지 않는 화면이 된다.
-            Assert.IsFalse(TutorialGate.Allows(TutorialGate.Control.ExitBoard));
+            // 폐기(2026-09-16 사용자 지시) — 구 주석은 「전투로 돌아가는 것도 막는다」였다.
+            // 그 걱정이 만든 것이 **갇힌 화면**이고, 09-15·09-16 에 두 번 보고됐다.
+            // 「빛날 것이 없다」는 안내가 약한 것이고, 나갈 수 없는 것은 갇힌 것이다.
+            Assert.IsTrue(TutorialGate.Allows(TutorialGate.Phase.BuildMode,
+                    TutorialGate.Control.ExitBoard),
+                "전투로는 언제나 열려 있다 — 막으면 갇힌 화면이 된다");
             Assert.IsFalse(TutorialGate.Allows(TutorialGate.Control.PaletteMunitions));
         }
 
@@ -241,5 +245,28 @@ namespace MBI.Tests
 
             TutorialSignals.Reset();
         }
+
+        // ── 전투로는 언제나 열려 있다 (2026-09-16 사용자 지시) ─────────────────
+
+        /// <summary>
+        /// **어느 국면에서도 전투로 나갈 수 있다.**
+        ///
+        /// 사용자 지시 — 「이동 모드, 조립 모드와 관계 없이 활성화되어야 함」.
+        ///
+        /// 종전에는 `BuildMode` 와 `PlaceNode` 가 전투로를 막았다. 그 결과
+        /// 「기다리는 것 말고 할 일이 없는」 화면이 되었고 09-15 · 09-16 에 **두 번**
+        /// 보고됐다(육안 7차 · 오늘).
+        ///
+        /// 「빛날 것이 없다」는 안내가 약한 것이고, **나갈 수 없는 것은 갇힌 것**이다.
+        /// 둘 중 나중이 훨씬 나쁘다 — 그래서 이 규칙에는 예외를 안 둔다.
+        /// </summary>
+        [Test]
+        public void 전투로는_어느_국면에서도_열려_있다()
+        {
+            foreach (TutorialGate.Phase phase in System.Enum.GetValues(typeof(TutorialGate.Phase)))
+                Assert.IsTrue(TutorialGate.Allows(phase, TutorialGate.Control.ExitBoard),
+                    phase + " 에서 전투로가 잠겼다 — 갇힌 화면이 된다");
+        }
+
     }
 }
