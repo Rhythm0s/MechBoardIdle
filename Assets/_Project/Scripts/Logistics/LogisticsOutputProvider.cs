@@ -64,28 +64,11 @@ namespace MBI.Logistics
         }
 
         /// <summary>군수 노드 1개당 생산(발/초). 원천 = balance_v4 muniPerNode 확정치 1.</summary>
-        private float PerNodeRate => robot != null && robot.balanceRef != null ? robot.balanceRef.muniPerNode : 1f;
 
         /// <summary>
         /// 보드의 탄종별 군수 노드 수 → 생산 입력. 발당피해는 무기 스펙에서,
         /// 라인 스펙(5/4/2)은 밸런스 앵커에서 온다.
         /// </summary>
-        private void BuildMunitionsLines(NetworkAggregate agg)
-        {
-            _muniLines.Clear();
-            if (robot == null || robot.weapons == null) return;
-
-            BalanceConfig bal = robot.balanceRef;
-
-            for (int i = 0; i < robot.weapons.Count; i++)
-            {
-                WeaponSpec w = robot.weapons[i];
-                float spec = bal != null ? bal.LineSpecOf(w.kind) : 0f;
-                if (spec <= 0f) continue;
-
-                _muniLines.Add(new MunitionsLine(w.kind, spec, w.damagePerShot, agg.MuniCountOf(w.kind)));
-            }
-        }
 
         private void Awake()
         {
@@ -142,8 +125,9 @@ namespace MBI.Logistics
             // 종전에는 `무기 스펙 합(145) × clamp01(총 탄약생산 ÷ 소비상한)`이었는데,
             // 그 모델은 탄종 구분이 없어 "관통 노드를 늘렸는지 폭발 노드를 늘렸는지"가 출력에
             // 반영되지 않는다. 소비 상한(capA)은 생산이 아니라 소비 축이므로 여기서 쓰지 않는다.
-            BuildMunitionsLines(agg);
-            float baseEff = AmmoLineProduction.TotalOutput(_muniLines, PerNodeRate);
+            // 줄 짓기와 합계는 `MunitionsLineFactory` 한 곳에 있다 — **하네스가 같은 함수를**
+            // **부를 수 있어야** 출력 축(요구치 18)을 화면 없이도 잰다(2026-09-16 · §74-6 ②).
+            float baseEff = MunitionsLineFactory.BaseOutput(robot, agg, _muniLines);
 
             float heatThreshold = config != null ? config.heatThreshold : 12f;
 

@@ -38,6 +38,20 @@ namespace MBI.EditorTools
         /// <summary>안 끝나면 여기서 끊는다. ⚠️ **끊긴 것은 「졌다」가 아니다** — 따로 적는다.</summary>
         private const float HardCapSeconds = 600f;
 
+        /// <summary>도착률을 뽑는 창. **제공자와 같아야 한다** — 다르면 다른 수가 나온다.</summary>
+        private const float DeliverySampleSeconds = 0.1f;
+
+        /// <summary>
+        /// 제공자의 롤링 창 — **씬에서 읽은 값이다**(`Game.unity` · `rollingWindow: 60`).
+        ///
+        /// ⚠️⚠️ 처음에 0.5 초로 적었다가 고쳤다. 근거 없이 짧게 잡았던 것이고,
+        /// 그 값으로는 **화면이 내는 것과 다른 수**가 나온다. 창은 값이지 취향이 아니다.
+        ///
+        /// ⚠️ 60 초 창은 120 초 판의 절반이라 **초반 구간은 아직 안 찬 평균**이다 —
+        /// 그래서 「최고」로 본다(끝까지 간 판에서는 창이 찬 뒤의 값이 최고가 된다).
+        /// </summary>
+        private const float ProviderRollingSeconds = 60f;
+
         [MenuItem("MBI/Harness S1 Clear")]
         public static void RunMenu() => Debug.Log(Run("S1"));
 
@@ -149,6 +163,13 @@ namespace MBI.EditorTools
                 agg.powerSupply, agg.powerDraw,
                 agg.heatGenerate, config != null ? config.moduleCoolingTbd : 0f, heatThreshold);
 
+            // 출력 축 — **게임과 같은 함수**로 낸다(2026-09-16 · §74-6 ②).
+            // 종전에는 이 줄이 없어 「요구치 18 은 못 잰다」고 적어 두었다. 짓는 코드가
+            // 제공자 안에 private 으로 있었고, 이제 `MunitionsLineFactory` 로 나왔다.
+            var muniLines = new List<MunitionsLine>();
+            float origin = robot.balanceRef != null ? robot.balanceRef.origin : 100f;
+            float baseEff = MunitionsLineFactory.BaseOutput(robot, agg, muniLines);
+
             sb.AppendLine($"  이어진 노드 {connected.Count} · 탄약 생산 {agg.ammoProduce:F2} 발/초"
                           + $" · 생산 배율 {throttle.Scale:F2} · 코어 {(agg.hasCore ? "있음" : "**없음**")}");
             if (config == null) sb.AppendLine("  ⚠️ LogisticsConfig 가 없다 — 발열 문턱을 기본값으로 쓴다");
@@ -158,6 +179,16 @@ namespace MBI.EditorTools
             float elapsed = 0f;
             float firstShotAt = -1f, firstArrivalAt = -1f;
             float peakArrival = 0f;
+            LogisticsResult lastResult = default;
+            float peakActual = 0f;
+
+            // ⚠️⚠️ **굴리지 않은 최고값으로 판정하면 안 된다**(2026-09-16 · 첫 판에서 잡았다).
+            //    0.1 초 창에서는 한 틱에 몰려 도착한 것이 순간 50.0 으로 읽힌다 — 명목 20.0 의
+            //    2.5 배다. 그것을 「요구치 18 을 넘겼다」의 근거로 쓰면 **없는 성능을 보고**하게 된다.
+            //    제공자는 같은 값을 롤링 창으로 굴려 화면에 낸다 — 여기서도 같은 창을 쓴다.
+            var roll = new RollingWindow(1, ProviderRollingSeconds);
+            var sample = new float[1];
+            float peakRolled = 0f;
             int shots = 0;
             CombatResult result = CombatResult.InProgress;
 
@@ -167,7 +198,9 @@ namespace MBI.EditorTools
                 BoardItemTick.Step(grid, flow, Dt, throttle.Scale);
                 delivery.Observe(flow.PendingMountArrivals, DamageOf, Dt, MountOwner.RobotA);
                 flow.ClearPendingMountArrivals();
-                delivery.TryDrain(1f, out _);
+                // ⚠️ **제공자와 같은 창(0.1초)으로 뽑는다** — 창이 다르면 다른 수가 나온다.
+                if (delivery.TryDrain(DeliverySampleSeconds, out float deliveredRate))
+                    lastResult = LogisticsSimulation.Compute(baseEff, throttle, deliveredRate, origin);
                 for (int k = 0; k < SupplySignals.MountArrivalRate.Length; k++)
                     SupplySignals.MountArrivalRate[k] = delivery.RateOf((AmmoKind)k);
 
@@ -207,6 +240,12 @@ namespace MBI.EditorTools
                 for (int k = 0; k < SupplySignals.MountArrivalRate.Length; k++)
                     arrival += SupplySignals.MountArrivalRate[k];
                 if (arrival > peakArrival) peakArrival = arrival;
+                if (lastResult.actual > peakActual) peakActual = lastResult.actual;
+
+                sample[0] = lastResult.actual;
+                roll.TrySample(elapsed, sample);
+                float rolled = roll.Average(0);
+                if (rolled > peakRolled) peakRolled = rolled;
 
                 result = sim.Result;
                 if (result != CombatResult.InProgress) break;
@@ -231,13 +270,20 @@ namespace MBI.EditorTools
             sb.AppendLine($"  마운트 최고 도착률 {peakArrival:F2} 발/초");
 
             sb.AppendLine();
-            sb.AppendLine("[요구치 18 — 이 하네스는 못 잰다]");
-            sb.AppendLine($"  이 판의 요구치는 {stage.req:F0}(출력 축)이다.");
-            sb.AppendLine("  ⚠️ **출력은 여기서 안 잰다.** 그 값은 `LogisticsOutputProvider`(MonoBehaviour ·");
-            sb.AppendLine("     롤링 평균)가 내는 것이라 EditMode 에서 안 돈다. 0 을 적어 「못 미쳤다」고");
-            sb.AppendLine("     보고하면 **없는 측정을 한 것**이 된다 — 그래서 안 적는다.");
-            sb.AppendLine("  📌 여기서 나온 수는 **클리어 여부 · 소요 초 · 도착 · 발사**뿐이다.");
-
+            sb.AppendLine("[출력 축 — 요구치 " + stage.req.ToString("F0") + "]");
+            sb.AppendLine($"  명목 {baseEff:F1} · 배율 뒤 {(baseEff * throttle.Scale):F1}"
+                          + $" · 실제(도착 기준) 최고 {peakActual:F1} · 마지막 {lastResult.actual:F1}");
+            // ⚠️ 갭 분해는 **마지막 틱의 값**이다 — 판이 끝난 순간이라 도착이 0 이면
+            //    갭이 통째로 명목만큼 잡힌다. 「어느 축이 막았나」의 방향만 읽고 크기는 안 읽는다.
+            sb.AppendLine($"  갭 분해(마지막 틱) {lastResult.gap:F1} — 전력 {lastResult.gapPower:F1}"
+                          + $" · 발열 {lastResult.gapHeat:F1} · 벨트 {lastResult.gapBelt:F1}");
+            sb.AppendLine($"  굴린 값({ProviderRollingSeconds:F0}초 창 · 화면이 내는 것과 같은 방식) 최고 {peakRolled:F1}");
+            sb.AppendLine(stage.req > 0f && peakRolled >= stage.req
+                ? $"  ✅ 요구치 {stage.req:F0} 를 넘겼다 (굴린 최고 {peakRolled:F1})"
+                : $"  ❌ **요구치 {stage.req:F0} 에 못 미쳤다** (굴린 최고 {peakRolled:F1})"
+                  + " — 못 미치는 것 자체가 보고 내용이다");
+            sb.AppendLine("  ⚠️ 판정은 **굴린 값**으로 한다 — 굴리지 않은 최고는 한 틱에 몰려 도착한");
+            sb.AppendLine("     것이 스파이크로 읽힌 수라, 그것으로 판정하면 없는 성능을 보고하게 된다.");
             return sb.ToString();
         }
 
