@@ -54,20 +54,29 @@ namespace MBI.Editor
         /// ⚠️ **없으면 경고한다.** 그림이 안 가도 화면은 그냥 **검정**이라 —
         /// 안 된 것이 스스로 안 알려진다(오늘 여러 번 겪은 모양이다).
         /// </summary>
-        private static void CopyLetterboxTile()
+        /// <summary>
+        /// 격납고 벽 그림을 빌드 산출 폴더로 옮긴다 (2026-09-16 사용자 승인 · §74-7 ①).
+        ///
+        /// ⚠️ **CSS 만 넣고 그림을 안 옮기면 조용히 안 나온다** — 404 는 콘솔에만 남고
+        /// 화면에는 그냥 단색으로 보인다. 그래서 한 곳에서 같이 한다.
+        ///
+        /// 🗑️ **폐기(2026-09-16)** — 종전에는 `bg_combat.png`(흙 타일)를 `bg_letterbox.png` 로
+        /// 내보내 여백에 반복해 깔았다. 사용자가 「없어 보인다」고 판정해 벽으로 갈았다.
+        /// </summary>
+        private static void CopyLetterboxWall()
         {
-            const string src = "Assets/_Project/Art/Backgrounds/bg_combat.png";
-            string dst = System.IO.Path.Combine(OutputDir, "TemplateData", "bg_letterbox.png");
+            const string src = "Assets/_Project/Art/Backgrounds/letterbox_wall.png";
+            string dst = System.IO.Path.Combine(OutputDir, "TemplateData", "letterbox_wall.png");
 
             if (!System.IO.File.Exists(src))
             {
-                Debug.LogWarning("[MBI] 레터박스 타일 원본이 없다 — 여백이 검정으로 남는다: " + src);
+                Debug.LogWarning("[MBI] 격납고 벽 그림이 없다 — 여백이 단색 #13111B 로만 남는다: " + src);
                 return;
             }
 
             System.IO.Directory.CreateDirectory(System.IO.Path.GetDirectoryName(dst));
             System.IO.File.Copy(src, dst, true);
-            Debug.Log("[MBI] 레터박스 타일을 내보냈다 — " + dst);
+            Debug.Log("[MBI] 격납고 벽을 내보냈다 — " + dst);
         }
 
         private static void FitCanvasToWindow()
@@ -101,21 +110,34 @@ namespace MBI.Editor
                 "          document.documentElement.style.overflow = 'hidden';",
                 "          document.body.style.margin = '0';",
                 "          document.body.style.overflow = 'hidden';",
-                "          // ⚠️ **여백은 검정이 아니라 흙바닥이다**(2026-09-15 사용자 확정 · §73-42).",
-                "          //    전투 바닥과 같은 타일을 **페이지 층에서** 반복해 깔고 어둡게 덮는다 —",
-                "          //    캔버스 밖이라 유니티는 손을 못 대고, 그래서 CSS 가 맡는다.",
-                "          //    ⚠️ **정적이다**(스크롤 안 함) — 움직이면 여백이 내용처럼 읽힌다.",
-                "          //    어둠은 같은 배경 속성의 gradient 한 겹이다(검정 알파 0.5 · ⚠️ 가정).",
-                "          //    ⚠️⚠️ **까는 자리는 컨테이너 하나다.** body 에 깔았더니 보이지 않았다 —",
-                "          //    밑에 #unity-container 가 창 전체를 덮고 있어서다(같은 일을 하는 자리 둘).",
-                "          // 컨테이너를 화면 전체로 펴고 가운데 정렬 — 캔버스는 그 안에서 9:16 으로 앉는다.",
+                "          // 🗑️ **흰 타일은 폐기했다**(2026-09-16 사용자 판정) — 「없어 보인다」고 했다.",
+                "          //    여백은 이제 **격납고 벽**이다(`letterbox_wall.png` 256×512 · 아트 09-16).",
+                "          //    오른쪽 띠 = 원본 · 왼쪽 띠 = 미러 · 세로로만 반복 · 어둠 막은 없다",
+                "          //    (그림이 이미 어둡다 · 휘도 p50 66.5). 바깥은 그림 바깥 열과 같은 #13111B 단색이다.",
+                "          //",
+                "          // ⚠️⚠️ **배경 한 장으로는 못 한다** — CSS 배경은 **거울로 못 뒤집는다.**",
+                "          //    그래서 띠를 엘리먼트 둘로 두고 왼쪽에만 `scaleX(-1)` 을 건다.",
+                "          //    띠는 캔버스 **밑에** 깔린다(z-index) — 캔버스가 가운데를 덮는다.",
                 "          var box = document.querySelector('#unity-container');",
+                "          var wallL = null, wallR = null;",
                 "          if (box) {",
                 "            box.className = '';",
                 "            box.style.cssText = 'position:fixed;left:0;top:0;width:100%;height:100%;'",
                 "              + 'display:flex;align-items:center;justify-content:center;transform:none';",
-                "            box.style.background =",
-                "              'linear-gradient(rgba(0,0,0,0.5), rgba(0,0,0,0.5)), url(TemplateData/bg_letterbox.png) repeat';",
+                "            box.style.background = '#13111B';",
+                "            function band(mirror) {",
+                "              var d = document.createElement('div');",
+                "              // ⚠️ 그림은 **안쪽 변**에 붙인다. 오른쪽 띠는 왼쪽이 안쪽이고,",
+                "              //    왼쪽 띠는 뒤집힌 좌표라 같은 'left' 가 바로 안쪽이 된다.",
+                "              d.style.cssText = 'position:fixed;top:0;height:100%;z-index:0;pointer-events:none;'",
+                "                + 'background-image:url(TemplateData/letterbox_wall.png);'",
+                "                + 'background-repeat:repeat-y;background-position:left top;'",
+                "                + (mirror ? 'left:0;transform:scaleX(-1);' : 'right:0;');",
+                "              box.appendChild(d);",
+                "              return d;",
+                "            }",
+                "            wallL = band(true);",
+                "            wallR = band(false);",
                 "          }",
                 "          // ⚠️ 유니티 기본 템플릿은 좁은 화면에서 캔버스에 `unity-mobile` 을 붙이고",
                 "          //    그 규칙이 `width:100%` 다 — 레터박스를 덮는다. 클래스를 떼고 !important 로 못 박는다.",
@@ -131,6 +153,8 @@ namespace MBI.Editor
                 "          canvas.style.setProperty('left', '50%', 'important');",
                 "          canvas.style.setProperty('top', '50%', 'important');",
                 "          canvas.style.setProperty('transform', 'translate(-50%, -50%)', 'important');",
+                "          // 띠가 z-index 0 이라 캔버스를 그 위로 올린다 — 안 올리면 벽이 화면을 덮는다.",
+                "          canvas.style.setProperty('z-index', '1', 'important');",
                 "          function fit() {",
                 "            var vw = window.innerWidth || document.documentElement.clientWidth;",
                 "            var vh = window.innerHeight || document.documentElement.clientHeight;",
@@ -141,6 +165,16 @@ namespace MBI.Editor
                 "            lastW = w; lastH = h;",
                 "            canvas.style.setProperty('width', w + 'px', 'important');",
                 "            canvas.style.setProperty('height', h + 'px', 'important');",
+                "            // 띠 폭 = 캔버스 밖으로 남는 자리의 절반. 0 이면 띠가 없다(꽉 들어찬 창).",
+                "            var side = Math.max(0, Math.round((vw - w) / 2));",
+                "            // ⚠️ **그림을 게임과 같은 배율로 키운다** — 캔버스가 k 배로 서는데",
+                "            //    벽만 날 픽셀로 두면 둘의 픽셀 크기가 어긋난다. 새 값을 안 지어냈다 — 같은 k 다.",
+                "            var wallW = Math.max(1, Math.round(256 * k));",
+                "            [wallL, wallR].forEach(function (d) {",
+                "              if (!d) return;",
+                "              d.style.width = side + 'px';",
+                "              d.style.backgroundSize = wallW + 'px auto';",
+                "            });",
                 "          }",
                 "          fit();",
                 "          window.addEventListener('resize', fit);",
@@ -168,7 +202,7 @@ namespace MBI.Editor
 
             // ⚠️ **타일도 같이 내보낸다** — CSS 만 넣고 그림을 안 옮기면 **조용히 안 나온다**
             // (404 는 콘솔에만 남고 화면에는 그냥 검정으로 보인다). 한 곳에서 같이 한다.
-            CopyLetterboxTile();
+            CopyLetterboxWall();
             System.IO.File.WriteAllText(page, html);
             Debug.Log("[MBI] index.html 캔버스를 창에 맞췄다 — 1440x2560 고정을 걷었다");
         }
