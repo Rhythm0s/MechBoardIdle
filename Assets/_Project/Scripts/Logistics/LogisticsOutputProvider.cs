@@ -139,6 +139,8 @@ namespace MBI.Logistics
             // ⚠️ 코어가 없어도 게시한다 — 이 셋은 전투 출력이 아니라 **보드가 만든 물건**이라,
             // 코어 유무로 막으면 「부스터를 놓았는데 회피 칸이 안 늘어난다」가 된다.
             LogisticsOutputBridge.DroneProduce = agg.droneProduce;
+            // 종을 가르는 것은 보드다 — 전투는 이 몫만 읽는다(2026-09-16).
+            LogisticsOutputBridge.AoeDroneShare = agg.AoeShare;
             LogisticsOutputBridge.PropellantProduce = agg.propellantProduce;
             LogisticsOutputBridge.BoosterCount = agg.boosterCount;
 

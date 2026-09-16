@@ -87,6 +87,20 @@ namespace MBI.Data
         [Tooltip("TBD — 스폰 링 반경(유닛). 0 이면 카메라에서 잰다(화면 대각선 반 + 한 칸 가정). 값은 260911_W03.")]
         public float spawnRingRadiusTbd = 0f;
 
+        // ── 드론 이동 (2026-09-16 사용자 확정 · 플랜 §74-21 · ⚠️ 값 셋 전부 가정) ──
+        //
+        // **규칙은 확정, 값은 미정이다.** 사용자가 정한 것은 「광역형은 따라 돌고,
+        // 누적형은 붙는다」이고, 얼마나 멀리·얼마나 빨리는 **문서에 절이 없다**
+        // (설계 사후 역기입 자리 — 15-2 6장 · 전투 문서 「드론 운용」).
+        [Tooltip("TBD — 광역형 궤도 반경(유닛). 가정 1.6. 로봇 반지름보다 커야 겹치지 않는다.")]
+        public float droneOrbitRadiusTbd = 1.6f;
+        [Tooltip("TBD — 광역형 각속도(라디안/초). 가정 1.6 ≈ 4초에 한 바퀴.")]
+        public float droneOrbitSpeedTbd = 1.6f;
+        [Tooltip("TBD — 누적형 비행 속도(유닛/초). 가정 6.0. 로봇(4.5)보다 빨라야 따라잡는다.")]
+        public float droneFlySpeedTbd = 6f;
+        [Tooltip("TBD — 누적형이 붙었다고 보는 거리(유닛). 가정 0.35.")]
+        public float droneAttachDistanceTbd = 0.35f;
+
         [Header("자동 전투 (⚠️ TBD — 밸런스 아님, 연출·조작감)")]
         // autoPilotDesiredGapTbd 삭제(260829_V03 승인) — 2026-08-26 카이팅 폐기로
         // 「후퇴 개시 거리」라는 개념 자체가 사라졌다. 읽는 곳도 0건이었다.

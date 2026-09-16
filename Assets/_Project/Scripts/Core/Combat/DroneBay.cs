@@ -1,3 +1,4 @@
+using MBI.Core.Combat;
 using UnityEngine;
 
 namespace MBI.Core
@@ -111,12 +112,47 @@ namespace MBI.Core
     public sealed class DroneUnit
     {
         public DroneUnit(Vector2 position, float charge, float damagePerHit, float attackRange)
+            : this(position, charge, damagePerHit, attackRange, DroneKind.Stack, 0f)
+        {
+        }
+
+        public DroneUnit(Vector2 position, float charge, float damagePerHit, float attackRange,
+            DroneKind kind, float orbitAngle)
         {
             Position = position;
             Charge = Mathf.Max(0f, charge);
             DamagePerHit = Mathf.Max(0f, damagePerHit);
             AttackRange = Mathf.Max(0f, attackRange);
+            Kind = kind;
+            OrbitAngle = orbitAngle;
         }
+
+        /// <summary>
+        /// 누적형인가 광역형인가 (2026-09-16 · 사용자 확정 · 플랜 §74-21).
+        ///
+        /// ⚠️ **이동 규칙이 여기서 갈린다** — 광역형은 로봇을 따라 돌고,
+        /// 누적형은 한 적에게 날아가 붙는다.
+        /// </summary>
+        public DroneKind Kind { get; }
+
+        /// <summary>
+        /// 광역형이 지금 궤도의 어느 각에 있는가(라디안).
+        ///
+        /// ⚠️ **각을 들고 자리를 계산한다 — 자리를 들고 각을 되짚지 않는다.**
+        /// 되짚으면 로봇이 움직인 프레임마다 각이 흔들려 드론이 떤다.
+        /// </summary>
+        public float OrbitAngle { get; set; }
+
+        /// <summary>
+        /// 누적형이 붙어 있는 적. <c>null</c> 이면 아직 날아가는 중이거나 표적이 없다.
+        ///
+        /// ⚠️ **`object` 로 든다** — `DroneBay` 는 `CombatEntity` 를 모르는 자리이고,
+        /// 알게 만들면 드론 상자가 전투 전체를 물고 들어온다. 쓰는 쪽이 캐스팅한다.
+        /// </summary>
+        public object Target { get; set; }
+
+        /// <summary>표적에 **닿았는가** — 닿으면 그 자리에 붙어 따라다닌다.</summary>
+        public bool Attached { get; set; }
 
         public Vector2 Position { get; set; }
 

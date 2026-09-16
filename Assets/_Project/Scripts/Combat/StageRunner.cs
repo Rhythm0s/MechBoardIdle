@@ -1102,6 +1102,18 @@ namespace MBI.Combat
             //    켜고 끈 것이 이번 판에 안 먹는다. 캐지 않는 까닭도 같다(지침 §7).
             _sim.AutoTagEnabled = TagAutoMode.Enabled;
 
+            // ⚠️ **드론 이동 값 넷은 가정이다**(`CombatTuning` 의 `drone*Tbd`) —
+            //    코드가 숫자를 들지 않게 SO 에서 매 프레임 넣는다(§3).
+            if (tuning != null)
+            {
+                _sim.DroneOrbitRadius = tuning.droneOrbitRadiusTbd;
+                _sim.DroneOrbitSpeed = tuning.droneOrbitSpeedTbd;
+                _sim.DroneFlySpeed = tuning.droneFlySpeedTbd;
+                _sim.DroneAttachDistance = tuning.droneAttachDistanceTbd;
+            }
+            // 종을 가르는 몫 — 보드가 정한다.
+            _sim.AoeDroneShare = LogisticsOutputBridge.AoeDroneShare;
+
             _sim.Tick(Time.deltaTime);
 
             // ⚠️ **못 닿는 적을 로봇 쪽 링으로 되돌린다**(§71-28 2). 이동 클램프를 걷어 내면
@@ -1227,7 +1239,12 @@ namespace MBI.Combat
                     var go = new GameObject("Drone");
                     go.transform.SetParent(transform, false);
                     sr = go.AddComponent<SpriteRenderer>();
-                    Sprite art = robotB != null ? robotB.droneSprite : null;
+                    // ⚠️ **종마다 다른 그림이다**(2026-09-16) — 자산은 둘 다 있었는데
+                    //    (`drone_n` 누적형 · `drone_w` 광역형) **한 장만 걸려 있었다.**
+                    Sprite art = robotB == null ? null
+                        : (d.Kind == DroneKind.Aoe && robotB.droneAoeSprite != null
+                            ? robotB.droneAoeSprite
+                            : robotB.droneSprite);
                     sr.sprite = art != null ? art : PlaceholderSprite.SoftDisc();
                     sr.color = art != null ? Color.white : new Color(0.6f, 0.95f, 0.7f);
                     sr.sortingOrder = SortingLayers.Actor;

@@ -24,6 +24,10 @@ MonoBehaviour:
   spawnRingMinTbd: 8
   spawnRingMaxTbd: 14
   spawnRingRadiusTbd: 0
+  droneOrbitRadiusTbd: 1.6
+  droneOrbitSpeedTbd: 1.6
+  droneFlySpeedTbd: 6
+  droneAttachDistanceTbd: 0.35
   manualOverrideGraceTbd: 2
   autoRestartDelayTbd: 1.5
   animCellSeconds: 0.0625

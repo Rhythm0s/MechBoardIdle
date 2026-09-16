@@ -25,6 +25,12 @@ namespace MBI.Core
         /// <summary>라이브 드론 몸체 산출(기/초). 로봇 B가 사출대에 넣는 유입이다.</summary>
         public static float DroneProduce;
 
+        /// <summary>
+        /// 광역형 드론이 차지하는 몫(0~1) — **보드가 정하고 전투가 읽는다**
+        /// (2026-09-16 · 사용자 확정 · 플랜 §74-21).
+        /// </summary>
+        public static float AoeDroneShare;
+
         /// <summary>라이브 추진제 산출(개/초). 부스터가 받아 회피 스택으로 바꾼다.</summary>
         public static float PropellantProduce;
 

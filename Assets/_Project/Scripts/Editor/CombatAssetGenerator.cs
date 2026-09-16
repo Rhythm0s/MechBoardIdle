@@ -149,6 +149,9 @@ namespace MBI.Editor
             b.balanceRef = config;
             b.sprite = LoadArt("robot_b");
             b.droneSprite = LoadArt("drone_n"); // 누적형 = 기본 프리셋(params pB 1.0 × dB 100)
+            // ⚠️ **광역형 자산은 08-25 승인본인데 여태 안 걸려 있었다**(2026-09-16).
+            //    종 구분이 코드에 없어 걸 자리가 없었다 — 이제 생겼다.
+            b.droneAoeSprite = LoadArt("drone_w");
             b.animClips = LoadAnimClips("robot_b", tuning);
             // ⚠️ **꼬리 칸 3은 가정이다**(2026-09-09 · `260908_W09` 2-3). 로봇 B 문서(15-2) 5장은
             // 이 값을 **미정**으로 신설했고, 「화면을 보고 고른다」가 정해진 방식이다.

@@ -63,6 +63,19 @@ namespace MBI.Core
         // ---- 드론(로봇 B) ----
         // 실효 방출량 = min(유입, 슬롯 × 방출률). 유입은 보드의 「드론 몸체」 조합표가 만든다.
         public int droneSlots;          // params slot = 3 (강화 비대상 상수)
+
+        /// <summary>
+        /// 드론 **한 방**의 피해. 0 이면 <c>droneCharge</c> 전량 — **구 거동**이다.
+        ///
+        /// ⚠️⚠️ **여기가 갈리지 않으면 「붙어서 충전량을 다 쓸 때까지 때린다」가 안 보인다**
+        /// (2026-09-16 · 사용자 확정 §74-21 을 구현하다 드러났다).
+        /// 지금 값(params dB 100 = 충전량 100)이면 **한 방에 전량이 나가** 드론이
+        /// 붙는 그 틱에 사라진다 — 붙어 있는 시간이 0 이다.
+        ///
+        /// 📌 **값을 안 지어낸다.** 기본값 0 은 구 거동 그대로이고, 기당 피해를
+        ///    충전량보다 작게 잡을지는 **밸런스 판정**이다(설계 몫).
+        /// </summary>
+        public float droneDamagePerHit;
         public float droneReleaseRate;  // params r = 1.0 (기/초/슬롯)
         public float droneCharge;       // params dB = 100. **1기 = 1회 타격 = 충전량 전량**
 
@@ -1338,20 +1351,41 @@ namespace MBI.Core
 
             for (int i = 0; i < launched; i++)
             {
-                Vector2 station = DroneStation(Act.drones.Count);
-                Act.drones.Add(new DroneUnit(station,
-                    Act.setup.droneCharge, Act.setup.droneCharge, Act.setup.droneAttackRange));
-                // 사출 연출이 붙는 자리 — 판정은 위 두 줄에서 이미 끝났다.
-                _droneLaunches.Add(station);
+                // ⚠️ **사출구에서 난다**(15-2 9장 Unity 반영 규격) — 로봇 자리다.
+                //    나온 뒤 어디로 가는가는 **종이 정한다**(아래 `MoveDrones`).
+                DroneKind kind = _droneKind.Next(AoeDroneShare);
+
+                // 광역형은 궤도 각을 **고르게 흩어** 시작한다 — 전부 0 에서 나면
+                // 여러 기가 한 점에 겹쳐 한 기처럼 보인다. 난수가 아니라 **차례**다.
+                int slots = Mathf.Max(1, Act.setup.droneSlots);
+                float angle = Mathf.PI * 2f * (_droneSpawned % slots) / slots;
+                _droneSpawned++;
+
+                float perHit = Act.setup.droneDamagePerHit > 0f
+                    ? Act.setup.droneDamagePerHit
+                    : Act.setup.droneCharge;   // 0 = 전량(구 거동)
+                Act.drones.Add(new DroneUnit(Act.body.position,
+                    Act.setup.droneCharge, perHit, Act.setup.droneAttackRange,
+                    kind, angle));
+                // 사출 연출이 붙는 자리 — 판정은 위에서 이미 끝났다.
+                _droneLaunches.Add(Act.body.position);
             }
+
+            MoveDrones(dt);
 
             // 사격 — 표적은 본체와 같은 최근접 규칙이되 **기준점이 드론 자신**이라
             // 본체와 다른 적을 칠 수 있다(자동 전투 구현 사양).
             for (int i = Act.drones.Count - 1; i >= 0; i--)
             {
                 DroneUnit d = Act.drones[i];
-                CombatEntity target = NearestLivingEnemyWithin(d.Position, d.AttackRange);
-                if (target == null) continue;
+
+                // ⚠️⚠️ **누적형은 붙은 적만 친다**(2026-09-16 사용자 확정).
+                //    최근접을 다시 고르면 붙어 있는 뜻이 사라진다 — 옆에 더 가까운 적이
+                //    지나가는 순간 표적이 갈아타 「붙어서 다 쓴다」가 성립하지 않는다.
+                CombatEntity target = d.Kind == DroneKind.Stack
+                    ? (d.Attached ? d.Target as CombatEntity : null)
+                    : NearestLivingEnemyWithin(d.Position, d.AttackRange);
+                if (target == null || !target.IsAlive) continue;
 
                 float dealt = d.Fire();
                 if (dealt <= 0f) continue;
@@ -1361,11 +1395,25 @@ namespace MBI.Core
                 target.hp -= applied;
                 DroneDamageDealt += applied;
 
+                // ⚠️ **광역형은 주위 적 전부를 친다**(사용자 확정). 한 대상 피해를
+                //    그대로 다른 적에게도 얹는다 — 감쇠는 값이라 안 지어낸다.
+                if (d.Kind == DroneKind.Aoe)
+                    foreach (CombatEntity other in _enemies)
+                    {
+                        if (other == target || !other.IsAlive) continue;
+                        if ((other.position - d.Position).sqrMagnitude > d.AttackRange * d.AttackRange) continue;
+                        float more = DamageFormula.PerHit(dealt, Act.setup.mountCoef,
+                            Act.setup.moduleMult, other.def);
+                        other.hp -= more;
+                        DroneDamageDealt += more;
+                    }
+
                 _shots.Add(new ShotEvent
                 {
                     from = d.Position, to = target.position,
                     kind = AmmoKind.Pierce, // 드론 = 단발 고밀도(관통형)
-                    killed = target.hp <= 0f, aoeRadius = 0f,
+                    killed = target.hp <= 0f,
+                    aoeRadius = d.Kind == DroneKind.Aoe ? d.AttackRange : 0f,
                 });
 
                 // 충전량을 다 썼으면 소멸 — 슬롯은 즉시 빈다.
@@ -1378,14 +1426,88 @@ namespace MBI.Core
             }
         }
 
-        /// <summary>드론 정박 위치(로봇 주변 고정 오프셋). 결정론 — 난수 0.</summary>
-        private Vector2 DroneStation(int index)
+        /// <summary>
+        /// **드론을 옮긴다 — 종이 규칙을 가른다**
+        /// (2026-09-16 사용자 확정 · 플랜 §74-21 · §74-3 #30).
+        ///
+        /// 🗑️ **구 `DroneStation()` 정박 폐기.** 사출되는 순간 로봇 둘레 고정 오프셋에
+        /// 놓고 **그 뒤 아무도 위치를 안 바꿨다** — 로봇이 걸어가면 드론만 뒤에 남았다.
+        /// 문서에 이동 규칙이 없어 구현이 고른 가정이었고, 사용자가 화면을 보고 뒤집었다.
+        ///
+        /// · **광역형** — 로봇 주변 궤도. **로봇이 걸어도 따라온다**(자리를 각으로 들고
+        ///   매 틱 로봇 자리에서 다시 낸다 — 그래야 뒤처지지 않는다).
+        /// · **누적형** — 사거리 안 한 적에게 **날아가 붙는다.** 붙으면 그 적을 따라다니며
+        ///   충전량을 다 쓸 때까지 때리고, **그 적이 죽으면 다음 적으로 옮긴다**(가정).
+        ///
+        /// ⚠️ **값 넷은 전부 가정이다**(`CombatTuning` 의 `drone*Tbd` · 설계 역기입 자리).
+        /// ⚠️ **난수 0** — 궤도 각도 표적 고르기도 차례와 거리로만 정한다.
+        /// </summary>
+        private void MoveDrones(float dt)
         {
-            int slots = Mathf.Max(1, Act.setup.droneSlots);
-            float angle = Mathf.PI * 2f * (index % slots) / slots;
-            float ring = Mathf.Max(0.35f, Act.setup.radius * 1.5f);
-            return Act.body.position + new Vector2(Mathf.Cos(angle), Mathf.Sin(angle)) * ring;
+            if (dt <= 0f) return;
+            Vector2 robot = Act.body != null ? Act.body.position : Vector2.zero;
+
+            foreach (DroneUnit d in Act.drones)
+            {
+                if (d.Kind == DroneKind.Aoe)
+                {
+                    d.OrbitAngle += DroneOrbitSpeed * dt;
+                    d.Position = robot + new Vector2(Mathf.Cos(d.OrbitAngle),
+                        Mathf.Sin(d.OrbitAngle)) * DroneOrbitRadius;
+                    continue;
+                }
+
+                // ── 누적형 ────────────────────────────────────────────────
+                var target = d.Target as CombatEntity;
+                if (target == null || !target.IsAlive)
+                {
+                    // ⚠️ **표적은 드론 자신을 기준으로 고른다** — 로봇 기준으로 고르면
+                    //    멀리 날아간 드론이 등 뒤의 적으로 되돌아온다.
+                    target = NearestLivingEnemyWithin(d.Position, d.AttackRange);
+                    d.Target = target;
+                    d.Attached = false;
+                    if (target == null) continue;   // 칠 것이 없으면 제자리에 뜬다
+                }
+
+                Vector2 to = target.position - d.Position;
+                float dist = to.magnitude;
+                if (dist <= DroneAttachDistance)
+                {
+                    d.Attached = true;
+                    d.Position = target.position;   // 붙었다 — 적을 따라다닌다
+                    continue;
+                }
+
+                d.Attached = false;
+                float step = Mathf.Min(DroneFlySpeed * dt, dist);
+                d.Position += to / Mathf.Max(dist, 1e-5f) * step;
+            }
         }
+
+        /// <summary>광역형 궤도 반경 — ⚠️ 가정. 러너가 `CombatTuning` 에서 넣는다.</summary>
+        public float DroneOrbitRadius { get; set; } = 1.6f;
+
+        /// <summary>광역형 각속도(라디안/초) — ⚠️ 가정.</summary>
+        public float DroneOrbitSpeed { get; set; } = 1.6f;
+
+        /// <summary>누적형 비행 속도 — ⚠️ 가정.</summary>
+        public float DroneFlySpeed { get; set; } = 6f;
+
+        /// <summary>누적형이 붙었다고 보는 거리 — ⚠️ 가정.</summary>
+        public float DroneAttachDistance { get; set; } = 0.35f;
+
+        /// <summary>
+        /// **광역형이 차지하는 몫**(0~1) — 보드의 복합 군수가 무엇을 돌리는가.
+        ///
+        /// 📌 종을 가르는 것은 전투가 아니라 **보드**다. 0 이면 전부 누적형이다
+        /// (지금 시작 보드 B 가 누적형 조합표만 돌리므로 그 값이다).
+        /// </summary>
+        public float AoeDroneShare { get; set; }
+
+        private readonly DroneKindPicker _droneKind = new DroneKindPicker();
+
+        /// <summary>여태 사출한 수 — 궤도 각을 고르게 흩는 데만 쓴다(난수 아님).</summary>
+        private int _droneSpawned;
 
         /// <summary>주어진 기준점에서 사거리 안 최근접 생존 적. 동률은 먼저 등장한 쪽.</summary>
         private CombatEntity NearestLivingEnemyWithin(Vector2 origin, float range)

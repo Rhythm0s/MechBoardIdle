@@ -24,6 +24,30 @@ namespace MBI.Core
 
         // 군수 노드가 탄약 말고 다른 조합표를 돌리면 산출이 이쪽으로 간다(2026-08-27 레시피 선택형).
         public float droneProduce;      // Σ 드론 몸체(기/초) — 사출대 유입
+
+        // ── 드론 종별 산출 (2026-09-16 · 사용자 확정 · 플랜 §74-21) ────────────
+        //
+        // ⚠️⚠️ **복합 군수의 드론 조합표 둘이 여태 「탄약」으로 세어지고 있었다.**
+        // 아래 `switch` 의 `default` 가 `StackDrone`·`AoeDrone` 을 함께 받아
+        // `ammoProduce` 에 넣었다 — 드론을 만드는 보드가 **탄약을 만드는 것으로** 집계됐다.
+        // 종을 가르려고 파 보다가 드러난 자리다.
+        //
+        // 📌 **여기서는 세기만 한다.** 몫을 나누는 것은 전투가 아니라 보드이고,
+        //    나누는 셈은 `AoeShare` 한 곳에 둔다(값이 두 곳에 살면 안 된다).
+        public float droneStackProduce;  // Σ 누적형(기/초)
+        public float droneAoeProduce;    // Σ 광역형(기/초)
+
+        /// <summary>
+        /// 광역형이 차지하는 몫(0~1). 둘 다 0 이면 **0** — 안 만들면 누적형 쪽이 기본이다.
+        /// </summary>
+        public float AoeShare
+        {
+            get
+            {
+                float sum = droneStackProduce + droneAoeProduce;
+                return sum > 0f ? droneAoeProduce / sum : 0f;
+            }
+        }
         public float propellantProduce; // Σ 추진제(개/초) — 부스터가 받아 회피 스택으로 바꾼다
 
         /// <summary>부스터 대수. **회피 스택 상한 = 이 값 × 2**(260829_V02) — 상수가 아니다.</summary>
@@ -131,6 +155,15 @@ namespace MBI.Core
                             break;
                         case RecipeKind.Propellant:
                             a.propellantProduce += recipe.outputPerSec * gain;
+                            break;
+                        // ⚠️ **드론 둘은 탄약이 아니다**(2026-09-16). 여태 아래 `default` 로
+                        //    떨어져 `ammoProduce` 에 들어가고 있었다 — 노드 하나는 조합표
+                        //    하나라는 이 `switch` 의 전제를 그 둘만 어기고 있었다.
+                        case RecipeKind.StackDrone:
+                            a.droneStackProduce += recipe.outputPerSec * gain;
+                            break;
+                        case RecipeKind.AoeDrone:
+                            a.droneAoeProduce += recipe.outputPerSec * gain;
                             break;
                         default:
                             // 탄약(미선택 폴백 포함). 라인 생산량은 **노드 수**로 계산되므로

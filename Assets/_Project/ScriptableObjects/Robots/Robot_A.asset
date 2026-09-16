@@ -30,6 +30,7 @@ MonoBehaviour:
   moduleMult: 1
   sprite: {fileID: 21300000, guid: 1ec5f881b40e26a46a276539ad4f59ca, type: 3}
   droneSprite: {fileID: 0}
+  droneAoeSprite: {fileID: 0}
   animClips:
   - state: 0
     direction: 0
