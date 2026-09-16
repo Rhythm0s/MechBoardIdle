@@ -1821,7 +1821,24 @@ namespace MBI.Logistics
         private void DrawGhostHint(Camera cam, GUIStyle style, float fontScale)
         {
             Vector2Int? cell = TutorialSignals.GhostCell;
-            if (!cell.HasValue || TutorialSignals.GhostCellFilled) return;
+            if (!cell.HasValue) return;
+
+            // ⚠️⚠️ **채운 뒤에도 한 번 더 말한다**(2026-09-16 사용자 확정 · 플랜 §74-17 ④).
+            //
+            // 튜토리얼이 가르치는 것은 **한 칸 터치**뿐이었다. 그런데 보드를 실제로 쓰려면
+            // **끌어서 여러 칸을 깔고**, **놓인 칸에서 끌어 지우는** 두 손짓이 필요하다 —
+            // 그 둘은 어디에서도 안 알려 주었고, 규칙은 이미 `OnPressEnd` 에 적혀 있었다.
+            // 코드에만 있고 화면에 없는 규칙은 **없는 것과 같다.**
+            //
+            // 📌 **자리와 규격은 고스트 안내 그대로다** — 방금 채운 칸에 눈이 가 있으므로
+            //    거기서 이어 말하는 것이 가장 짧다. 새 판을 만들지 않는다.
+            bool filled = TutorialSignals.GhostCellFilled;
+            if (filled)
+            {
+                if (_ghostFilledAt < 0f) _ghostFilledAt = Time.unscaledTime;
+                if (Time.unscaledTime - _ghostFilledAt > BeltGestureHintSeconds) return;
+            }
+            else _ghostFilledAt = -1f;
 
             // 칸의 **위**에 앉힌다 — 칸 안에 쓰면 고스트 색과 겹쳐 글자가 묻힌다.
             Vector3 c = CellWorld(cell.Value);
@@ -1834,8 +1851,12 @@ namespace MBI.Logistics
             float cellPx = Mathf.Abs(edge.x - sp.x);
             if (cellPx < 24f) return;   // 너무 작으면 글자가 뭉갠다 — 안 그린다
 
-            const string what = "벨트";
-            const string how = "빈 칸을 터치";
+            // ⚠️ **문안은 가정이다**(설계 역기입 자리). 지키는 것은 하나 —
+            //    `OnPressEnd` 에 적힌 규칙을 **그대로** 옮긴다(지침 §7 · 말이 둘이 되면 안 된다):
+            //    · 빈 칸에서 시작 → 설치(탭이든 드래그든)
+            //    · 놓인 칸에서 시작한 **드래그** → 제거 (한 칸 탭은 제거가 아니다)
+            string what = filled ? "끌면 여러 칸" : "벨트";
+            string how = filled ? "놓인 칸에서 끌면 제거" : "빈 칸을 터치";
 
             var st = new GUIStyle(style)
             {
@@ -1860,6 +1881,20 @@ namespace MBI.Logistics
             GUI.Label(new Rect(x, y, w, lineH), what, st);
             GUI.Label(new Rect(x, y + lineH, w, lineH), how, st);
         }
+
+        /// <summary>
+        /// 고스트 칸을 채운 시각. 음수면 아직 안 채웠다.
+        /// ⚠️ **신호가 아니라 화면 쪽 값이다** — 「언제 채웠나」는 튜토리얼 상태가 아니라
+        /// 이 안내가 얼마나 더 서 있을지를 정하는 값뿐이다.
+        /// </summary>
+        private float _ghostFilledAt = -1f;
+
+        /// <summary>
+        /// 채운 뒤 손짓 안내를 몇 초 더 세워 둘 것인가.
+        /// ⚠️ **가정 6초** — 문서에 안내 지속 절이 없다(설계 역기입 자리).
+        /// 너무 짧으면 못 읽고, 안 지우면 판이 영영 칸 위에 얹혀 있다.
+        /// </summary>
+        private const float BeltGestureHintSeconds = 6f;
 
         /// <summary>
         /// **이웃은 있는데 면이 달라** 안 이어진 벨트 칸에 사유를 적는다
