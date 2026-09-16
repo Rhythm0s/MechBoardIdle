@@ -155,6 +155,14 @@ namespace MBI.Data
         [Tooltip("공급이 끊겨 공격이 멈췄다는 표시.")]
         public Sprite ammoOutSprite;
 
+        [Header("피격 VFX 셋 (2026-09-16 설치)")]
+        [Tooltip("표준탄 명중 · 4칸. 비어 있으면 코드 플래시로 떨어진다.")]
+        public Sprite[] hitStandardFrames;
+        [Tooltip("관통탄 명중 · 4칸.")]
+        public Sprite[] hitPierceFrames;
+        [Tooltip("폭발탄 명중 · 4칸. ⚠️ 마지막 칸이 커서 스스로 안 꺼진다 — 코드가 알파로 뻐다.")]
+        public Sprite[] hitExplosiveFrames;
+
         [Tooltip("탄약 소진 아이콘을 몇 배로 줄여 그리는가. ⚠️ 가정 — 연출 문서에 크기 절이 없다. " +
                  "0.5 는 아이콘 실루엣(212px)이 로봇 실루엣(220px)의 절반 이하가 되는 값이며 " +
                  "상한은 EffectTiming.AmmoOutScaleMax(0.52). 설계가 연출 문서에 역기입할 자리다.")]

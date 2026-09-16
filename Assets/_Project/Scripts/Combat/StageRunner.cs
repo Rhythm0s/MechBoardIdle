@@ -1361,11 +1361,71 @@ namespace MBI.Combat
         /// ⚠️ **폭발탄은 크게.** 발당 50 이라 관통 20 · 표준 10 과 **다섯 배까지** 차이가
         /// 나는데 같은 크기로 터지면 화면에서 **무엇이 센지가 안 보인다.**
         /// </summary>
+        /// <summary>
+        /// 이 탄종의 피격 VFX 칸들. 없으면 <c>null</c> — 그때는 코드 플래시로 떨어진다.
+        ///
+        /// ⚠️ **고르는 자리를 하나로 둔다** — 탄종마다 if 를 흩어 두면 하나만 고쳐진다.
+        /// </summary>
+        private Sprite[] HitFramesOf(AmmoKind kind)
+        {
+            if (tuning == null) return null;
+            Sprite[] f;
+            switch (kind)
+            {
+                case AmmoKind.Pierce: f = tuning.hitPierceFrames; break;
+                case AmmoKind.Standard: f = tuning.hitStandardFrames; break;
+                case AmmoKind.Explosive: f = tuning.hitExplosiveFrames; break;
+                default: return null;
+            }
+            return f != null && f.Length > 0 ? f : null;
+        }
+
+        /// <summary>
+        /// 피격 VFX 한 벌의 한 변(월드 유닛). ⚠️ **가정** — 연출 문서에 크기 절이 없다.
+        ///
+        /// 근거는 값이 아니라 **비**다: 종전 코드 플래시가 쓰던 0.28(격파 0.6)에 맞춘다.
+        /// 그림이 대신 들어서는 것이므로 화면에서 차지하는 자리가 갑자기 달라지면 안 된다.
+        /// 폭발탄이 한 배 반인 것도 그대로 둔다(§72-24 ④).
+        /// </summary>
+        private static float HitVfxSize(ShotEvent s)
+        {
+            float size = s.killed ? 0.6f : 0.28f;
+            if (s.kind == AmmoKind.Explosive) size *= 1.5f;
+            return size * HitVfxSpriteMultiplier;
+        }
+
+        /// <summary>
+        /// 그림이 코드 사각보다 여백을 품고 있어 곱하는 배수. ⚠️ **가정 · 되돌릴 수 있다.**
+        /// </summary>
+        private const float HitVfxSpriteMultiplier = 3f;
+
         private void SpawnHitFx(ShotEvent s)
         {
             Color c = TracerColor(s.kind);
 
             Vector2 to = s.to;
+
+            // ⚠️⚠️ **자산이 있으면 그림으로, 없으면 지금 코드 그리기로**(2026-09-16 · §74-7 ②).
+            //
+            // 폴백을 남기는 이유는 둘이다 — ① 아트가 빠진 판에서도 「맞았다」가 보여야 하고,
+            // ② 격리 전투 씬처럼 튜닝이 안 꽂힌 경로가 아직 있다.
+            //
+            // ⚠️ **틴트를 건다** — 탄선 색과 같은 색이라야 「무엇이 맞혔나」가 한 눈에 갈린다.
+            //    격파는 종전처럼 밝은 노랑이다.
+            Sprite[] frames = HitFramesOf(s.kind);
+            if (frames != null && s.aoeRadius <= 0f)
+            {
+                float size = HitVfxSize(s);
+                var go = new GameObject("HitVfx");
+                go.transform.SetParent(transform, false);
+                go.transform.position = new Vector3(to.x, to.y, 0f);
+                go.transform.localScale = new Vector3(size, size, 1f);
+
+                Color tint = s.killed ? new Color(1f, 0.92f, 0.55f) : c;
+                go.AddComponent<HitVfxPlayer>().Play(
+                    frames, tint, EffectTiming.HitFlashDuration, SortingLayers.EffectOver + 1);
+                return;
+            }
 
             if (s.aoeRadius > 0f)
             {

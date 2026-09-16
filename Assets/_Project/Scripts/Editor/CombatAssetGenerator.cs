@@ -86,6 +86,13 @@ namespace MBI.Editor
                 tuning.boosterSprite     = LoadVfx("vfx_booster");
                 tuning.droneExpireSprite = LoadVfx("vfx_droneexpire");
                 tuning.ammoOutSprite     = LoadVfx("vfx_ammoout");
+
+                // 피격 VFX 셋 (2026-09-16 아트 설치 · 사용자 승인 §74-7 ②).
+                // ⚠️ 한 장이 아니라 **폴더 안 칸 넷**이다(`frame_000`~`frame_003` · Anim 관례).
+                //    없으면 빈 배열이고, 그때 러너가 코드 플래시로 떨어진다 — 지어 넣지 않는다.
+                tuning.hitStandardFrames  = LoadVfxFrames("vfx_hit_standard");
+                tuning.hitPierceFrames    = LoadVfxFrames("vfx_hit_pierce");
+                tuning.hitExplosiveFrames = LoadVfxFrames("vfx_hit_explosive");
             }
 
             // 전투 배경 둘 (2026-09-09 배선). 보스 배경은 **S6에서만** 쓰인다 —
@@ -233,6 +240,29 @@ namespace MBI.Editor
             => AssetDatabase.LoadAssetAtPath<Sprite>($"Assets/_Project/Art/Backgrounds/{fileName}.png");
 
         // 이펙트는 Art/VFX 아래에 산다. 없으면 null — 뷰가 자리표시로 폴백한다.
+        /// <summary>
+        /// VFX 폴더 하나를 **칸 순서대로** 읽는다 (`frame_000` · `frame_001` …).
+        ///
+        /// ⚠️ 이름순으로 정렬한다 — `AssetDatabase.FindAssets` 는 **순서를 지어 주지 않는다.**
+        /// 정렬을 빼면 칸이 섞인 채로 돌고, 그것은 에러 없이 이상하게 보일 뿐이다.
+        /// </summary>
+        private static Sprite[] LoadVfxFrames(string folder)
+        {
+            string dir = "Assets/_Project/Art/VFX/" + folder;
+            if (!System.IO.Directory.Exists(dir)) return new Sprite[0];
+
+            var paths = new List<string>(System.IO.Directory.GetFiles(dir, "frame_*.png"));
+            paths.Sort(System.StringComparer.Ordinal);
+
+            var frames = new List<Sprite>();
+            foreach (string path in paths)
+            {
+                var sp = AssetDatabase.LoadAssetAtPath<Sprite>(path.Replace("\\", "/"));
+                if (sp != null) frames.Add(sp);
+            }
+            return frames.ToArray();
+        }
+
         private static Sprite LoadVfx(string fileName)
         {
             return AssetDatabase.LoadAssetAtPath<Sprite>($"Assets/_Project/Art/VFX/{fileName}.png");

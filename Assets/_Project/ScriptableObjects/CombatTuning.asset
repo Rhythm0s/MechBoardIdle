@@ -46,6 +46,21 @@ MonoBehaviour:
   boosterSprite: {fileID: 21300000, guid: 3524cc9e4bf76bb44bdaa6d87e232889, type: 3}
   droneExpireSprite: {fileID: 21300000, guid: 57ec3a9efbdb0374fbdf4e83ebb8f789, type: 3}
   ammoOutSprite: {fileID: 21300000, guid: 96986f16a4fcf234badde14ac1644fbc, type: 3}
+  hitStandardFrames:
+  - {fileID: 21300000, guid: 5f34f486e6b420043b2cda2787bf7180, type: 3}
+  - {fileID: 21300000, guid: 1e23c4388967a514aa3d3ef4c55918e6, type: 3}
+  - {fileID: 21300000, guid: 1bcfe07bf854e0148818e46ab67bb70d, type: 3}
+  - {fileID: 21300000, guid: 9b13456d2197ba14490735b5fe81b13f, type: 3}
+  hitPierceFrames:
+  - {fileID: 21300000, guid: fdf563d0259bd1d41a04a96f1e1cd22c, type: 3}
+  - {fileID: 21300000, guid: 604d2c48761a76a4395af3ff16abf219, type: 3}
+  - {fileID: 21300000, guid: 5dba079435a20c1458a40fd0db064010, type: 3}
+  - {fileID: 21300000, guid: dad7f7c7a3b051b4fbbc42840475c28b, type: 3}
+  hitExplosiveFrames:
+  - {fileID: 21300000, guid: 4f6295d3596b7ff4c8d3bd838e969657, type: 3}
+  - {fileID: 21300000, guid: 1849c8614ebc8d144b74c6c3ec0c5c0e, type: 3}
+  - {fileID: 21300000, guid: 3433fa436df98e043b4d93b95ceed873, type: 3}
+  - {fileID: 21300000, guid: b1ab6a04ee608e545a14b62c3f6f9d6b, type: 3}
   ammoOutScaleAssumed: 0.5
   combatBackgroundSprite: {fileID: 21300000, guid: 09e97e297cb9c9347818d9a3eb60f56d, type: 3}
   bossBackgroundSprite: {fileID: 21300000, guid: efe2cdc0b82f2724eacefc077d3f69b1, type: 3}
