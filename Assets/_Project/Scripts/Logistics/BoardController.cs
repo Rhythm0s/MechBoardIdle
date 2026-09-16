@@ -1902,6 +1902,31 @@ namespace MBI.Logistics
         private void LateUpdate()
         {
             RefreshBeltItems();
+            KeepBoardOnItsLayer();
+        }
+
+        /// <summary>지난 번에 본 계층 속 물건 수. 바뀜었을 때만 층을 다시 입힌다.</summary>
+        private int _lastHierarchyCount = -1;
+
+        /// <summary>
+        /// 보드가 만든 것을 전부 **보드 층**에 둔다 (2026-09-16 · 육안 ②).
+        ///
+        /// ⚠️⚠️ **만드는 자리가 스물네 곳이다**(`new GameObject` 이 이 파일에만 스물네 번).
+        /// 그 자리마다 층을 적으면 **빠뜨리는 자리가 생긴다** — 오늘까지 이 리포에서
+        /// 반복된 결함이 대개 그 모양이었다. 그래서 **나중에 한 곳에서 거둔다.**
+        ///
+        /// 매 프레임 계층을 도는 것은 낭비라, `hierarchyCount`(손자까지 포함한 수)가
+        /// 바뀜었을 때만 다시 입힌다 — 평소에는 정수 비교 하나다.
+        /// </summary>
+        private void KeepBoardOnItsLayer()
+        {
+            int count = transform.hierarchyCount;
+            if (count == _lastHierarchyCount) return;
+            _lastHierarchyCount = count;
+
+            gameObject.layer = BoardLayer.Index;
+            foreach (Transform t in GetComponentsInChildren<Transform>(true))
+                t.gameObject.layer = BoardLayer.Index;
         }
 
         private void Update()

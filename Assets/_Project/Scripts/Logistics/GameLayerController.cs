@@ -129,6 +129,21 @@ namespace MBI.Logistics
             // ⚠️ **전장은 여전히 무한이다** — 따라가는 것은 카메라이고 로봇을 가두지 않는다.
             Vector2 focus = GameViewSignals.HasCombatFocus ? GameViewSignals.CombatFocus : combatCenter;
 
+            // ⚠️⚠️ **전투 화면에서는 보드를 안 그린다**(2026-09-16 · 육안 ②).
+            //
+            // 종전엔 「멀리 두면 안 보인다」가 규칙이었다 — 보드 중심이 `y = -20`,
+            // 전투 중심이 `y = 0` 이라 20 칸 떨어져 있었다. 그런데 09-11 에 이동 클램프가
+            // 폐기돼 전장이 무한해졌고, 09-15 에 이 메서드가 **카메라를 로봇에게 붙였다.**
+            // 반높이 8 이므로 로봇이 `y = -7` 아래로 내려가면 보드 윗변이 올라온다.
+            //
+            // 📌 거리를 늘리는 것은 고치는 것이 아니다 — 무한한 전장에서는 어떤 거리도
+            // 언젠가 닿는다. 규칙을 그대로 적는다 — **보드 화면일 때만 보드 층을 켠다.**
+            if (cam != null) cam.cullingMask = BoardLayer.MaskFor(cam.cullingMask, _boardView);
+
+            // 인셋은 **전투를** 비춘다 — 보드 층은 언제나 끓다.
+            if (combatInsetCam != null)
+                combatInsetCam.cullingMask = BoardLayer.MaskFor(combatInsetCam.cullingMask, false);
+
             if (combatInsetCam != null)
             {
                 combatInsetCam.enabled = _boardView;
