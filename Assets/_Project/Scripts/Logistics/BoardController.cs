@@ -3653,7 +3653,17 @@ namespace MBI.Logistics
         /// ⚠️ **배율을 따라가고 스냅한다** — 구역 이름표와 같은 처리다. 날 픽셀로 두면
         /// 줌을 넣었을 때 점이 되고, 스냅을 빼면 줌마다 새 글리프를 구워 아틀라스가 찬다.
         /// </summary>
-        /// <summary>이름판이 쓸 수 있는 줄 수. ⚠️ **사용자 확정 둘** — 세 줄이면 타일이 덮인다.</summary>
+        /// <summary>
+        /// 이름판이 쓸 수 있는 줄 수 — **둘**.
+        ///
+        /// ✅ **사용자 확정**(2026-09-16 저녁). ⚠️ 한때 갈렸던 자리다 — 받은 문구가
+        /// 「**줄바꿈 최대 두 개**」였고 글자대로 읽으면 **세 줄**이라, 나는 **두 줄**로
+        /// 구현해 놓고 「확정」이라고 적었다. 그것은 **해석**이었다.
+        /// `260916_V02` 에 그 사실을 적어 물었고 **두 줄로 확정** 받았다 —
+        /// 지금 이 줄은 확정을 옮긴 것이다.
+        ///
+        /// 📌 **해석을 확정으로 적지 않는다** — 그때는 물어야 한다.
+        /// </summary>
         private const int MaxNamePlateLines = 2;
 
         private static void DrawNodeNamePlate(Camera cam, Vector3 world, string text, float cellPx)
@@ -3681,7 +3691,7 @@ namespace MBI.Logistics
             };
 
             // 사다리를 큰 쪽부터 내려오며 **두 줄 안에 드는 첫 크기**를 고른다.
-            // ⚠️ **최대 두 줄**(사용자 확정) — 세 줄이면 타일이 글자로 덮인다.
+            // ✅ **최대 두 줄**(2026-09-16 사용자 확정) — 세 줄이면 타일이 글자로 덮인다.
             float lineH = cellPx * 0.26f;
             float maxH = lineH * MaxNamePlateLines;
             float h = lineH;
