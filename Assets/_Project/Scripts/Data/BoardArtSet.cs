@@ -77,6 +77,14 @@ namespace MBI.Data
         public Sprite sorter;
 
         [Header("포트")]
+        /// <summary>
+        /// 면 화살표 — **아직 다 안 이어진 노드**의 입출력 안내 (2026-09-16 · §74-3 #34).
+        ///
+        /// ⚠️ **오른쪽을 보는 한 장이다** — 네 면은 코드가 돌린다(자산을 넷으로 늘리지 않는다).
+        /// ⚠️ 비면 안 그린다 — 자리표시 사각으로 대신하지 않는다(무엇인지가 그림에만 있다).
+        /// </summary>
+        public Sprite portArrow;
+
         public Sprite portInput;
         public Sprite portOutput;
         public Sprite portPower;

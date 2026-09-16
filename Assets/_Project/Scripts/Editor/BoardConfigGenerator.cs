@@ -90,6 +90,8 @@ namespace MBI.Editor
 
             art.boardBackground = CombatAssetGenerator.LoadBackground("bg_board");
 
+            // ⚠️ 이미 있던 자산이다 — 걸린 자리가 없었을 뿐이다(2026-09-16).
+            art.portArrow = LoadBoard("arrow");
             art.portInput = LoadBoard("port_input");
             art.portOutput = LoadBoard("port_output");
             art.portPower = LoadBoard("port_power");

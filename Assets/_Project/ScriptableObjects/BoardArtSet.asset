@@ -32,6 +32,7 @@ MonoBehaviour:
   beltEnd: {fileID: 21300000, guid: 7e3a4fb0117230344aa8c6965ec7dd38, type: 3}
   merger: {fileID: 21300000, guid: a6406c5bdb1684f43acd1c772da38e70, type: 3}
   sorter: {fileID: 21300000, guid: 107692b63dcb1dd4f9e653f8d9b755aa, type: 3}
+  portArrow: {fileID: 21300000, guid: 07d63dd4fd330c54c92268374311a320, type: 3}
   portInput: {fileID: 21300000, guid: cc0df66d5a411db49bc5671bde3c754b, type: 3}
   portOutput: {fileID: 21300000, guid: 67f2ab5e8b383434083b16d8fd42dcfa, type: 3}
   portPower: {fileID: 21300000, guid: 07c016696ace95e4c8625c4240109210, type: 3}

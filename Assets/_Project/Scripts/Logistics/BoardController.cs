@@ -4914,7 +4914,82 @@ namespace MBI.Logistics
             // 파일에 바로 쓰지는 않는다 — 신호에만 올려 두고 방치 런타임의 자동저장이
             // 가져간다. 한 프레임에 여러 번 바뀌어도 디스크는 한 번만 닿는다.
             IdleSignals.BoardState = BoardStateCodec.Capture(_grid);
+
+            // **면 화살표는 배치가 바뀔 때만 다시 짓는다**(2026-09-16 · §74-3 #34).
+            // 매 프레임 짓지 않는 까닭은 저장과 같다 — 바뀌는 자리가 전부 여기를 지난다.
+            RebuildWiringArrows();
         }
+
+        /// <summary>
+        /// **아직 다 안 이어진 노드의 입출력 면에 화살표를 세운다**
+        /// (2026-09-16 신설 · 사용자 확정 · 플랜 §74-3 #34).
+        ///
+        /// 📌 **판정은 `NodeWiringHints` 가 한다** — 여기서는 그리기만 한다.
+        ///    「면이 이어졌는가」를 화면 쪽에서 다시 세면 답이 둘이 된다(지침 §7).
+        ///
+        /// ⚠️ **다 이어진 노드에는 안 그린다** — 이어지는 순간 사라진다.
+        /// ⚠️ **작은 커넥터·「면이 다름」 경고와 함께 선다** — 셋이 말하는 것이 다르다:
+        ///    커넥터는 「여기 면이 있다」, 경고는 「면이 안 맞는다」, 화살표는
+        ///    **「이 노드는 아직 할 일이 남았고 방향은 이쪽이다」**.
+        ///
+        /// ⚠️ 크기·색은 **가정**이다(칸의 1/4 · 미색 · UI 문서 역기입 자리).
+        /// </summary>
+        private void RebuildWiringArrows()
+        {
+            foreach (GameObject go in _wiringArrows) if (go != null) Destroy(go);
+            _wiringArrows.Clear();
+
+            if (_grid == null) return;
+
+            Sprite arrowArt = art != null ? art.portArrow : null;
+            // ⚠️ **자산이 없으면 안 그린다** — 흰 사각으로 대신하면 「무엇을 가리키는지」가
+            //    사라져 보드에 뜻 없는 네모만 늘어난다.
+            if (arrowArt == null) return;
+
+            float cell = _grid.CellSize;
+            float size = cell * WiringArrowCellFraction;
+            float scale = FitScale(arrowArt, size);
+
+            foreach (PortHint h in NodeWiringHints.Collect(_grid))
+            {
+                Vector2 off = FaceOffset(h.face);
+
+                var go = new GameObject($"arrow_{h.cell.x}_{h.cell.y}_{h.face}");
+                go.transform.SetParent(transform, false);
+
+                // 면의 **안쪽**에 앉힌다 — 칸 밖으로 내보내면 이웃 칸의 그림과 겹친다.
+                Vector3 c = CellWorld(h.cell);
+                go.transform.position = new Vector3(
+                    c.x + off.x * cell * WiringArrowInset,
+                    c.y + off.y * cell * WiringArrowInset, 0f);
+
+                // ⚠️ **자산은 오른쪽을 본다** — 입구는 안쪽(면의 반대), 출구는 바깥을 본다.
+                Vector2 dir = h.outward ? off : -off;
+                go.transform.rotation = Quaternion.Euler(0f, 0f,
+                    Mathf.Atan2(dir.y, dir.x) * Mathf.Rad2Deg);
+                go.transform.localScale = Vector3.one * scale;
+
+                var sr = go.AddComponent<SpriteRenderer>();
+                sr.sprite = arrowArt;
+                sr.color = WiringArrowColor;
+                // 노드 그림 **위**다 — 밑에 깔면 타일에 묻힌다.
+                sr.sortingOrder = MarkerOrder + 2;
+                // 층은 <c>KeepBoardOnItsLayer</c> 가 계층이 바뀐 것을 보고 통째로 입힌다.
+                _wiringArrows.Add(go);
+            }
+        }
+
+        /// <summary>면 화살표들. 배치가 바뀔 때 통째로 다시 짓는다.</summary>
+        private readonly List<GameObject> _wiringArrows = new List<GameObject>();
+
+        /// <summary>화살표 한 변 = 칸의 몇 분의 몇인가. ⚠️ **가정 0.25**(사용자 확정 문구).</summary>
+        private const float WiringArrowCellFraction = 0.25f;
+
+        /// <summary>칸 가운데에서 면 쪽으로 얼마나 미는가(칸 기준). ⚠️ 가정 — 면에 붙되 안 넘는다.</summary>
+        private const float WiringArrowInset = 0.33f;
+
+        /// <summary>화살표 색 — ⚠️ **가정 미색**(UI 문서에 절이 없다).</summary>
+        private static readonly Color WiringArrowColor = new Color(0.97f, 0.95f, 0.86f, 0.92f);
 
         private static Vector2 FaceOffset(PortFace face)
         {
