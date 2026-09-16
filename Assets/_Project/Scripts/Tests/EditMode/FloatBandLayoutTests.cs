@@ -193,6 +193,40 @@ namespace MBI.Tests
         }
 
         [Test]
+        public void 모드_판이_보드_띠_안에_있고_다른_것과_안_겹친다()
+        {
+            // 2026-09-16 육안 4차 ⑤ — 「이동 모드(바꾸기) 판이 HUD 글자 블록과 겹친다」.
+            // ⚠️ **레이아웃 셈으로는 재현이 안 됐다** — 조립 화면의 HUD 글자는
+            //    전투 띠 안에 갇히고 이 판은 **보드 띠** 안이다.
+            //    ✅ 대신 **튜토리얼 진행 두 줄과 겹치는 것**을 이 시험이 잡았다(615x1920) —
+            //       사용자가 본 「HUD 글자 블록」이 그 두 줄이었을 가능성이 높다.
+            //    그래서 지금 잡을 수 있는 것부터 박아 둔다: 띠를 안 넘고, 보드 띠를
+            //    같이 쓰는 것들과 안 겹친다.
+            foreach (float w in new[] { 615f, 720f, 1080f, 1440f })
+            foreach (float h in new[] { 1085f, 1280f, 1920f, 2560f })
+            {
+                Rect plate = UiLayout.ModePlateRect(w, h);
+                Rect boardBand = UiLayout.BandRect(UiLayout.Band.Board, w, h);
+                Rect combatBand = UiLayout.BandRect(UiLayout.Band.Combat, w, h);
+
+                Assert.That(plate.y, Is.GreaterThanOrEqualTo(boardBand.y - 0.5f), $"{w}x{h} 보드 띠 위로 나갔다");
+                Assert.That(plate.yMax, Is.LessThanOrEqualTo(boardBand.yMax + 0.5f), $"{w}x{h} 보드 띠 아래로 나갔다");
+                Assert.That(plate.xMax, Is.LessThanOrEqualTo(w + 0.5f), $"{w}x{h} 화면 밖으로 나갔다");
+
+                // **전투 띠와 안 겹친다** — HUD 글자 블록이 사는 띠다.
+                Assert.IsFalse(plate.Overlaps(combatBand), $"{w}x{h} 전투 띠(HUD 글자)와 겹친다");
+
+                // 튜토리얼 진행 두 줄도 보드 띠를 쓴다 — 반대 구석이라 안 겹쳐야 한다.
+                Assert.IsFalse(plate.Overlaps(UiLayout.TutorialProgressRect(w, h)),
+                    $"{w}x{h} 튜토리얼 진행 두 줄과 겹친다");
+
+                // 부유 띠(팔레트·탭)와도 안 겹친다.
+                Assert.IsFalse(plate.Overlaps(UiLayout.BandRect(UiLayout.Band.FloatBand, w, h)),
+                    $"{w}x{h} 부유 띠와 겹친다");
+            }
+        }
+
+        [Test]
         public void 전투로_버튼이_액션바_가운데다()
         {
             Rect bar = UiLayout.BandRect(UiLayout.Band.ActionBar, W, H);

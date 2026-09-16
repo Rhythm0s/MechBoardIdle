@@ -646,8 +646,23 @@ namespace MBI.UI
             float bottomGap = 24f * s;
 
             float y = boardBand.yMax - bottomGap - hintH - 8f * s - h;
+            float x = boardBand.x + bottomGap;
             float w = Mathf.Min(boardBand.width * 0.62f, 880f * s);
-            return new Rect(boardBand.x + bottomGap, Mathf.Max(boardBand.y + pad, y), w, h);
+
+            // ⚠️⚠️ **모드 판 왼쪽까지로 자른다**(2026-09-16 · 사용자 육안 4차 ⑤ ·
+            //    시험이 615x1920 에서 잡았다).
+            //
+            // 둘 다 보드 띠 **아래**를 쓴다 — 이쪽은 왼쪽 구석, 모드 판은 오른쪽 구석.
+            // 넓은 창에서는 가운데가 비어 안 만나는데, **창이 좁아지면 62% 가 판까지
+            // 닿는다.** 09-15 에 이 두 줄을 부유 띠에서 내보낸 것과 **같은 병**이다 —
+            // 「띠 안에서 자리를 나누는 것으로는 못 푼다」고 그때 적어 두고도,
+            // 폭을 비율로만 잡아 다시 만났다.
+            //
+            // 📌 **비율이 아니라 이웃의 자리에서 자른다** — 그래야 창 크기와 무관하다.
+            float plateLeft = ModePlateRect(screenWidth, screenHeight).x;
+            w = Mathf.Min(w, Mathf.Max(0f, plateLeft - bottomGap - x));
+
+            return new Rect(x, Mathf.Max(boardBand.y + pad, y), w, h);
         }
     }
 }

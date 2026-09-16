@@ -49,7 +49,7 @@ namespace MBI.Tests
         public void DroneOutput_SitsOnTheEquivalenceLine()
         {
             var sim = new CombatSimulation(DroneOnlyRobot(), Sandbag(), 6f, 120f, 0f)
-            { DroneInflowRate = 1f };
+            { StackDroneArrivalRate = 1f };
 
             Run(sim, 3f);
 
@@ -61,7 +61,7 @@ namespace MBI.Tests
         public void NoInflow_NoDrones()
         {
             var sim = new CombatSimulation(DroneOnlyRobot(), Sandbag(), 6f, 120f, 0f)
-            { DroneInflowRate = 0f };
+            { StackDroneArrivalRate = 0f };
 
             Run(sim, 3f);
 
@@ -76,7 +76,7 @@ namespace MBI.Tests
             RobotSetup setup = DroneOnlyRobot();
             setup.droneSlots = 1; // 처리량 1/초
 
-            var sim = new CombatSimulation(setup, Sandbag(), 6f, 120f, 0f) { DroneInflowRate = 100f };
+            var sim = new CombatSimulation(setup, Sandbag(), 6f, 120f, 0f) { StackDroneArrivalRate = 100f };
 
             Run(sim, 1f);
 
@@ -93,7 +93,7 @@ namespace MBI.Tests
         public void Drone_FiresOnce_ThenRetires_FreeingItsSlot()
         {
             var sim = new CombatSimulation(DroneOnlyRobot(), Sandbag(), 6f, 120f, 0f)
-            { DroneInflowRate = 1f };
+            { StackDroneArrivalRate = 1f };
 
             Run(sim, 5f);
 
@@ -111,7 +111,7 @@ namespace MBI.Tests
         public void Drone_UsesSharedDamageFormula_SubtractingDefenceOnce()
         {
             var sim = new CombatSimulation(DroneOnlyRobot(), Sandbag(def: 45f), 6f, 120f, 0f)
-            { DroneInflowRate = 1f };
+            { StackDroneArrivalRate = 1f };
 
             Run(sim, 1.5f);
 
@@ -139,7 +139,7 @@ namespace MBI.Tests
             };
 
             var sim = new CombatSimulation(setup, far, arenaRadius: 6f, challengeTime: 120f, spawnCadence: 0f)
-            { DroneInflowRate = 1f };
+            { StackDroneArrivalRate = 1f };
 
             Run(sim, 2f);
 
@@ -153,8 +153,8 @@ namespace MBI.Tests
         [Test]
         public void Deterministic_SameSetupSameDroneDamage()
         {
-            var a = new CombatSimulation(DroneOnlyRobot(), Sandbag(), 6f, 120f, 0f) { DroneInflowRate = 1f };
-            var b = new CombatSimulation(DroneOnlyRobot(), Sandbag(), 6f, 120f, 0f) { DroneInflowRate = 1f };
+            var a = new CombatSimulation(DroneOnlyRobot(), Sandbag(), 6f, 120f, 0f) { StackDroneArrivalRate = 1f };
+            var b = new CombatSimulation(DroneOnlyRobot(), Sandbag(), 6f, 120f, 0f) { StackDroneArrivalRate = 1f };
 
             Run(a, 4f);
             Run(b, 4f);
@@ -173,7 +173,7 @@ namespace MBI.Tests
                     moveSpeed = 0f, attackRange = 0.5f, attackInterval = 1f },
             };
 
-            var sim = new CombatSimulation(DroneOnlyRobot(), fodder, 6f, 120f, 0f) { DroneInflowRate = 1f };
+            var sim = new CombatSimulation(DroneOnlyRobot(), fodder, 6f, 120f, 0f) { StackDroneArrivalRate = 1f };
 
             Run(sim, 5f);
 

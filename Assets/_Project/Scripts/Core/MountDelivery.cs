@@ -46,6 +46,23 @@ namespace MBI.Core
         private readonly float[] _pendingCount = new float[3];
         private readonly float[] _rateOf = new float[3];
 
+        // ── 드론 도착 (2026-09-16 · 조립 문서 7-3-1 · 사용자 확정) ────────────
+        //
+        // ⚠️⚠️ **도착한 드론이 아무 데도 안 쌓이고 있었다.** 문서는
+        // 「고정 포트에 도착한 것은 곧바로 마운트 적재」인데 드론에는 그 길이 없어,
+        // B 의 재고를 **기초 군수 생산량**이 대신 채우고 있었다(임시 길 · 폐기).
+        //
+        // 📌 **탄약과 따로 센다** — 전투력(`_pendingPower`)에 섞으면 드론 한 기가
+        // 탄 하나로 둔갑한다. 여기서 세는 것은 **기 수**다.
+        private float _pendingStack, _pendingAoe;
+        private float _stackRate, _aoeRate;
+
+        /// <summary>누적형이 마운트에 닿는 비율(기/초).</summary>
+        public float StackDroneRate => _stackRate;
+
+        /// <summary>광역형이 마운트에 닿는 비율(기/초).</summary>
+        public float AoeDroneRate => _aoeRate;
+
         /// <summary>그 탄종이 마운트에 닿는 비율(발/초). 한 구간도 안 끝났으면 0.</summary>
         public float RateOf(AmmoKind kind)
         {
@@ -78,6 +95,11 @@ namespace MBI.Core
                 // 마운트는 로봇마다 따로다 — 대기 중인 로봇에게 닿은 것은 지금 화력이 아니다.
                 // `only`가 없으면 종전대로 전부 센다(시험이 그 갈래를 쓴다).
                 if (only.HasValue && arrivals[i].owner != only.Value) continue;
+
+                // 드론은 **기 수**로 따로 센다 — 전투력에 섞지 않는다.
+                if (arrivals[i].kind == FlowKind.StackDrone) { _pendingStack += 1f; continue; }
+                if (arrivals[i].kind == FlowKind.AoeDrone) { _pendingAoe += 1f; continue; }
+
                 if (!MountItemMap.TryAmmoKindOf(arrivals[i].kind, out AmmoKind kind)) continue;
 
                 float damage = damageOf(kind);
@@ -110,6 +132,12 @@ namespace MBI.Core
                 _pendingCount[i] = 0f;
             }
 
+            // 드론도 같은 구간으로 나눈다 — 다른 창을 쓰면 두 수가 다른 판을 말한다.
+            _stackRate = _pendingStack / _pendingSeconds;
+            _aoeRate = _pendingAoe / _pendingSeconds;
+            _pendingStack = 0f;
+            _pendingAoe = 0f;
+
             _pendingPower = 0f;
             _pendingSeconds = 0f;
             return true;
@@ -120,6 +148,10 @@ namespace MBI.Core
         {
             _pendingPower = 0f;
             _pendingSeconds = 0f;
+            _pendingStack = 0f;
+            _pendingAoe = 0f;
+            _stackRate = 0f;
+            _aoeRate = 0f;
             Rate = 0f;
             TotalPower = 0f;
             for (int i = 0; i < _pendingCount.Length; i++) { _pendingCount[i] = 0f; _rateOf[i] = 0f; }

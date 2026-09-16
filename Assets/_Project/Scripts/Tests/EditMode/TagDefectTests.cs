@@ -136,7 +136,7 @@ namespace MBI.Tests
             // 막은 것은 **탄약**뿐이다 — 드론까지 막으면 B 의 태그 조건이 영영 안 열린다.
             CombatSimulation sim = TwoRobots(out _, out MountLoad mountB);
 
-            sim.StandbyDroneInflowRate = 2f;
+            sim.StandbyStackDroneArrivalRate = 2f;
             for (int i = 0; i < 600; i++) sim.Tick(1f / 60f);
 
             Assert.Greater(mountB.AmountOf(MountItem.Drone), 0f, "드론까지 막혔다");

@@ -57,8 +57,10 @@ namespace MBI.Tests
         {
             var sim = new CombatSimulation(DroneRobot(), Enemies(enemies, enemyHp),
                 arenaRadius: 6f, challengeTime: 600f, spawnCadence: 0f);
-            sim.DroneInflowRate = 50f;
-            sim.AoeDroneShare = aoeShare;
+            // ⚠️ **종은 이제 재고가 정한다**(2026-09-16 · 조립 문서 7-3-1) —
+            //    몫이 아니라 **어느 종이 마운트에 닿았는가**다. 시험도 그 길로 넣는다.
+            sim.StackDroneArrivalRate = 50f * (1f - aoeShare);
+            sim.AoeDroneArrivalRate = 50f * aoeShare;
             return sim;
         }
 
@@ -161,7 +163,8 @@ namespace MBI.Tests
             // 한 기만 보도록 유입을 끊는다 — 계속 나면 누가 얼마나 살았는지 못 센다.
             for (int i = 0; i < 12; i++) sim.Tick(Dt);
             Assert.Greater(sim.Drones.Count, 0, "드론이 안 떴다");
-            sim.DroneInflowRate = 0f;
+            sim.StackDroneArrivalRate = 0f;
+            sim.AoeDroneArrivalRate = 0f;
 
             DroneUnit watched = sim.Drones[0];
             float charge0 = watched.Charge;

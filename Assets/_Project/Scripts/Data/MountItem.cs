@@ -16,7 +16,15 @@ namespace MBI.Data
         Pierce = 1,
         Standard = 2,   // 표준탄 — 구 표준 자리(번호 보존)
         Explosive = 3,
-        Drone = 4,
+        Drone = 4,      // 누적형 드론 — 구 이름 그대로다(자산·저장에 박혀 있다)
+
+        /// <summary>
+        /// 광역형 드론 (2026-09-16 신설 · 조립 문서 7-3-1 · 사용자 확정).
+        ///
+        /// ⚠️ **`Drone` 을 「누적형」으로 개명하지 않는다** — 그 이름이 저장·자산·시험에
+        /// 박혀 있어 바꾸면 조용히 어긋나는 자리가 생긴다. 뜻만 좁힌다.
+        /// </summary>
+        DroneAoe = 5,
     }
 
     /// <summary>AmmoKind ↔ MountItem 변환. 두 축이 겹치는 지점을 한 곳에 모은다.</summary>
@@ -46,9 +54,38 @@ namespace MBI.Data
                 case MountItem.Standard: return FlowKind.StandardAmmo;
                 case MountItem.Explosive: return FlowKind.ExplosiveAmmo;
                 case MountItem.Drone: return FlowKind.StackDrone;
+                case MountItem.DroneAoe: return FlowKind.AoeDrone;
                 default: return FlowKind.None;
             }
         }
+
+        /// <summary>
+        /// **벨트를 흐르는 품목 → 마운트 품목** (2026-09-16 · 조립 문서 7-3-1).
+        ///
+        /// ⚠️⚠️ **「고정 포트에 도착한 것은 곧바로 마운트 적재」**가 문서의 규칙인데,
+        /// 드론에는 그 길이 없었다 — 도착한 드론은 **아무 데도 안 쌓이고** B 의 재고는
+        /// **기초 군수 생산량**이 대신 채우고 있었다(임시 길 · 폐기).
+        ///
+        /// ⚠️ 탄약이 아닌 것과 드론이 아닌 것(부품·배터리)은 <c>false</c> 다 —
+        /// 마운트에 갈 자리가 없다.
+        /// </summary>
+        public static bool TryMountItemOf(FlowKind flow, out MountItem item)
+        {
+            switch (flow)
+            {
+                case FlowKind.PierceAmmo: item = MountItem.Pierce; return true;
+                case FlowKind.StandardAmmo: item = MountItem.Standard; return true;
+                case FlowKind.ExplosiveAmmo: item = MountItem.Explosive; return true;
+                case FlowKind.Ammo: item = MountItem.Pierce; return true; // 구 자산 호환
+                case FlowKind.StackDrone: item = MountItem.Drone; return true;
+                case FlowKind.AoeDrone: item = MountItem.DroneAoe; return true;
+                default: item = MountItem.None; return false;
+            }
+        }
+
+        /// <summary>드론 품목인가(둘 중 하나).</summary>
+        public static bool IsDrone(MountItem item) =>
+            item == MountItem.Drone || item == MountItem.DroneAoe;
 
         /// <summary>탄약 품목인가(드론은 아니다).</summary>
         public static bool IsAmmo(MountItem item) =>

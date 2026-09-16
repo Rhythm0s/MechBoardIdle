@@ -517,7 +517,7 @@ namespace MBI.Tests
                 Sandbag(), arenaRadius: 6f, challengeTime: 120f, spawnCadence: 0f);
 
             sim.Tag.Locked = true; // 교대를 막고 대기 축적만 잰다
-            sim.StandbyDroneInflowRate = 2f;
+            sim.StandbyStackDroneArrivalRate = 2f;
 
             Assert.IsTrue(mountB.IsEmpty, "처음엔 비어 있다");
 
@@ -543,7 +543,7 @@ namespace MBI.Tests
                 Sandbag(), arenaRadius: 6f, challengeTime: 120f, spawnCadence: 0f);
 
             sim.Tag.Locked = true;
-            sim.DroneInflowRate = 2f; // 슬롯 처리량 3기/초보다 느리다 → 유입이 병목
+            sim.StackDroneArrivalRate = 2f; // 슬롯 처리량 3기/초보다 느리다 → 유입이 병목
 
             Run(sim, 6f);
 
@@ -567,7 +567,7 @@ namespace MBI.Tests
                 Sandbag(), arenaRadius: 6f, challengeTime: 120f, spawnCadence: 0f);
 
             sim.Tag.Locked = true;
-            sim.DroneInflowRate = 10f; // 슬롯 처리량 3기/초를 훨씬 넘는다
+            sim.StackDroneArrivalRate = 10f; // 슬롯 처리량 3기/초를 훨씬 넘는다
 
             Run(sim, 6f);
 

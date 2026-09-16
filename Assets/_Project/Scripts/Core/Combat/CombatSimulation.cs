@@ -145,7 +145,16 @@ namespace MBI.Core
             public readonly List<DroneUnit> drones = new List<DroneUnit>();
             public float[] lineTimers = new float[0];
             public float ammoSupplyRate;        // 창고 유입(발/초)
-            public float droneInflowRate;       // 드론 몸체 유입(기/초)
+            /// <remarks>
+            /// 🗑️ **폐기 — 읽는 곳이 없다**(2026-09-16). 기초 군수 **생산량**으로 마운트를
+            /// 채우던 임시 길이었다. 지금은 **마운트에 닿은 기 수**가 채운다(아래 둘).
+            /// 자리를 남기는 것은 밖에서 넣는 `DroneInflowRate` 가 아직 있기 때문이다 —
+            /// 그 값은 「보드가 무엇을 만들었나」를 그리는 데 쓰인다.
+            /// </remarks>
+            public float droneInflowRate;       // 드론 몸체 유입(기/초) — 폐기
+
+            public float stackDroneArrivalRate; // 누적형이 마운트에 닿는 비율(기/초)
+            public float aoeDroneArrivalRate;   // 광역형이 마운트에 닿는 비율(기/초)
 
             // 회피는 로봇마다 따로 든다 — 대기 보드의 부스터도 계속 돌아 추진제를 쌓는다.
             public readonly DodgeSystem dodge = new DodgeSystem();
@@ -365,6 +374,37 @@ namespace MBI.Core
         {
             get => Act.ammoSupplyRate;
             set => Act.ammoSupplyRate = value;
+        }
+
+        /// <summary>
+        /// **마운트에 닿는 드론**(기/초) — 종별 (2026-09-16 · 조립 문서 7-3-1).
+        ///
+        /// 📌 생산량이 아니라 **도착률**이다. 만든 것이 벨트를 타고 고정 포트에 닿아야
+        /// 적재가 된다 — 그것이 문서가 정한 재고 세 층의 마지막 층이다.
+        /// </summary>
+        public float StackDroneArrivalRate
+        {
+            get => Act.stackDroneArrivalRate;
+            set => Act.stackDroneArrivalRate = value;
+        }
+
+        public float AoeDroneArrivalRate
+        {
+            get => Act.aoeDroneArrivalRate;
+            set => Act.aoeDroneArrivalRate = value;
+        }
+
+        /// <summary>대기 로봇의 것 — 대기 보드도 계속 돌아 적재가 쌓인다.</summary>
+        public float StandbyStackDroneArrivalRate
+        {
+            get => Standby.stackDroneArrivalRate;
+            set => Standby.stackDroneArrivalRate = value;
+        }
+
+        public float StandbyAoeDroneArrivalRate
+        {
+            get => Standby.aoeDroneArrivalRate;
+            set => Standby.aoeDroneArrivalRate = value;
         }
 
         /// <summary>대기 로봇의 창고 유입. 대기 보드도 계속 돌아 비축이 쌓인다(전투 문서 1장).</summary>
@@ -939,8 +979,20 @@ namespace MBI.Core
         /// </summary>
         private static void LoadDronesInto(RobotSide s, float dt)
         {
-            if (s.mount == null || s.droneInflowRate <= 0f || dt <= 0f) return;
-            s.mount.Load(MountItem.Drone, s.droneInflowRate * dt);
+            if (s.mount == null || dt <= 0f) return;
+
+            // ⚠️⚠️ **도착한 것이 곧 적재다**(2026-09-16 · 조립 문서 7-3-1 · 사용자 확정).
+            //
+            // 🗑️ **구 길 폐기** — `droneInflowRate`(= 기초 군수 **생산량**)로 채우던 것.
+            // 문서는 「고정 포트에 도착한 것은 곧바로 마운트 적재」인데 드론에는 그 길이
+            // 없었다. 그래서 **복합 군수가 만들어 벨트로 보낸 드론은 끝에서 사라지고**,
+            // 재고는 **만들지도 않은 수**(부품 생산량)가 채웠다.
+            //
+            // 📌 **종별로 쌓는다** — 무엇이 실렸는지 모르면 교대해도 못 쏜다(⑤-2 와 같은 뿌리).
+            if (s.stackDroneArrivalRate > 0f)
+                s.mount.Load(MountItem.Drone, s.stackDroneArrivalRate * dt);
+            if (s.aoeDroneArrivalRate > 0f)
+                s.mount.Load(MountItem.DroneAoe, s.aoeDroneArrivalRate * dt);
         }
 
         /// <summary>
@@ -1346,14 +1398,35 @@ namespace MBI.Core
             // 유입은 **마운트로** 들어간다 — 드론은 로봇 B의 탄약이고, 탄약이 있는 곳은 마운트다.
             LoadDronesInto(Act, dt);
 
-            int launched = Act.bay.Launch(dt, Act.mount != null ? Act.mount.AmountOf(MountItem.Drone) : 0f);
-            if (launched > 0 && Act.mount != null) Act.mount.TryConsume(MountItem.Drone, launched);
+            // ⚠️ **둘을 합쳐 셈한다** — 어느 종이든 슬롯 하나를 쓴다.
+            float stock = Act.mount != null
+                ? Act.mount.AmountOf(MountItem.Drone) + Act.mount.AmountOf(MountItem.DroneAoe)
+                : 0f;
+            int launched = Act.bay.Launch(dt, stock);
 
             for (int i = 0; i < launched; i++)
             {
                 // ⚠️ **사출구에서 난다**(15-2 9장 Unity 반영 규격) — 로봇 자리다.
                 //    나온 뒤 어디로 가는가는 **종이 정한다**(아래 `MoveDrones`).
-                DroneKind kind = _droneKind.Next(AoeDroneShare);
+                // ⚠️⚠️ **종은 이제 재고가 정한다**(2026-09-16 · 조립 문서 7-3-1).
+                //
+                // 🗑️ 구 길은 `_droneKind.Next(AoeDroneShare)` — **생산 비율**로 골랐다.
+                // 그때는 마운트가 종을 구분 못 해 달리 방법이 없었다. 이제 **실제로
+                // 실려 있는 것**에서 꺼내므로 비율을 따로 들 이유가 없다.
+                //
+                // 📌 **난수 없음** — 많이 남은 쪽을 먼저 쓰고, 같으면 누적형이다.
+                //    그러면 둘이 섞여 들어와도 한쪽만 쌓이지 않는다.
+                float haveStack = Act.mount != null ? Act.mount.AmountOf(MountItem.Drone) : 0f;
+                float haveAoe = Act.mount != null ? Act.mount.AmountOf(MountItem.DroneAoe) : 0f;
+                DroneKind kind = haveAoe > haveStack ? DroneKind.Aoe : DroneKind.Stack;
+
+                MountItem item = kind == DroneKind.Aoe ? MountItem.DroneAoe : MountItem.Drone;
+                if (Act.mount != null && !Act.mount.TryConsume(item, 1f))
+                {
+                    // 셈과 재고가 어긋났다 — 슬롯을 돌려주고 이 기체는 안 낸다.
+                    Act.bay.Retire();
+                    continue;
+                }
 
                 // 광역형은 궤도 각을 **고르게 흩어** 시작한다 — 전부 0 에서 나면
                 // 여러 기가 한 점에 겹쳐 한 기처럼 보인다. 난수가 아니라 **차례**다.
@@ -1418,7 +1491,16 @@ namespace MBI.Core
                     from = d.Position, to = target.position,
                     kind = AmmoKind.Pierce, // 드론 = 단발 고밀도(관통형)
                     killed = target.hp <= 0f,
-                    aoeRadius = d.Kind == DroneKind.Aoe ? d.AttackRange : 0f,
+                    // ⚠️⚠️ **여기에 사거리를 넣으면 안 된다**(2026-09-16 · 사용자 육안 5차).
+                    //
+                    // 🗑️ 구 줄은 <c>aoeRadius = d.AttackRange</c> 였다. 그 칸은 **폭발탄의
+                    // 스플래시 그림**을 위한 것이고, 화면이 그것을 **지름 = 반경 × 2** 인
+                    // 반투명 사각으로 그린다 — 사거리 9.2 를 넣었더니 **한 변 18.4 유닛짜리
+                    // 주황 사각**이 화면 절반을 덮었다.
+                    //
+                    // 📌 **광역형의 광역 타격에는 그림이 없다.** 없는 자산을 있는 칸에
+                    // 밀어 넣지 않는다 — 연출이 필요하면 그때 제 자산으로 낸다.
+                    aoeRadius = 0f,
                 });
 
                 // 충전량을 다 썼으면 소멸 — 슬롯은 즉시 빈다.

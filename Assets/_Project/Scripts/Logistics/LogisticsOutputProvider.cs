@@ -200,8 +200,14 @@ namespace MBI.Logistics
             // **탄종별 도착률을 전투로 나른다**(2026-09-15 사용자 확정) — 발사율이 이것으로
             // 배분된다. 안 나르면 전투가 「명목 대비 전역 비율」로 되돌아간다.
             if (publishCombat)
+            {
                 for (int i = 0; i < SupplySignals.MountArrivalRate.Length; i++)
                     SupplySignals.MountArrivalRate[i] = delivery.RateOf((AmmoKind)i);
+
+                // **도착한 드론이 곧 적재다**(조립 문서 7-3-1) — 생산량이 아니라 도착률.
+                LogisticsOutputBridge.StackDroneArrivalRate = delivery.StackDroneRate;
+                LogisticsOutputBridge.AoeDroneArrivalRate = delivery.AoeDroneRate;
+            }
 
             // ④ 조립. actual은 계산이 아니라 위에서 잰 값이다.
             LogisticsResult r = LogisticsSimulation.Compute(baseEff, throttle, deliveredRate, origin);

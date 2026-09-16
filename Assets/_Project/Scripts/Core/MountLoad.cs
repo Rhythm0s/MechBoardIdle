@@ -63,6 +63,9 @@ namespace MBI.Core
             {
                 { MountItem.Pierce, limit }, { MountItem.Standard, limit },
                 { MountItem.Explosive, limit }, { MountItem.Drone, limit },
+                // ⚠️ **광역형도 같은 스택 규칙이다**(2026-09-16) — 상한이 없으면
+                //    한 칸이 얼마든 받아 나머지 칸이 안 열리고 만충이 영영 안 선다.
+                { MountItem.DroneAoe, limit },
             };
         }
 

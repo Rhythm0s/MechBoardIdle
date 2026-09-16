@@ -31,6 +31,15 @@ namespace MBI.Core
         /// </summary>
         public static float AoeDroneShare;
 
+        // ── 마운트에 **닿은** 드론 (2026-09-16 · 조립 문서 7-3-1 · 사용자 확정) ──
+        //
+        // 🗑️ **구 길 폐기 — `DroneProduce`(기초 군수 생산량)로 B 재고를 채우던 것.**
+        // 문서는 「고정 포트에 도착한 것은 곧바로 마운트 적재」인데 드론에는 그 길이
+        // 없어서, **만든 드론은 벨트 끝에서 사라지고** 재고는 엉뚱한 수가 채웠다.
+        // `DroneProduce` 자체는 남긴다 — 「보드가 무엇을 만들었나」를 그리는 값이다.
+        public static float StackDroneArrivalRate;
+        public static float AoeDroneArrivalRate;
+
         /// <summary>라이브 추진제 산출(개/초). 부스터가 받아 회피 스택으로 바꾼다.</summary>
         public static float PropellantProduce;
 
