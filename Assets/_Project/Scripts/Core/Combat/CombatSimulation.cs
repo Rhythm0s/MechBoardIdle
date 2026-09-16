@@ -190,6 +190,14 @@ namespace MBI.Core
         /// ⚠️ **0 이하는 무시한다** — 카메라를 아직 못 잰 프레임에 0 이 들어오면
         /// 적이 **로봇 위에 겹쳐 스폰된다.**
         /// </summary>
+        /// <summary>
+        /// 곁눈질 방향을 붙드는 시간(초). ⚠️ **가정**이고 값은 `CombatTuning` 에 있다 —
+        /// 시뮬은 값을 만들지 않고 받는다(2026-09-16 · §74-12 B).
+        /// </summary>
+        public void SetSideStepHold(float seconds) => _sideStepHold = Mathf.Max(0f, seconds);
+
+        private float _sideStepHold;
+
         public void SetSpawnBand(float min, float max)
         {
             if (min <= 0f || max <= 0f) return;
@@ -1138,12 +1146,20 @@ namespace MBI.Core
                 if (dist > reach)
                 {
                     // 4방향 이동(구현 사양). 대각선은 두 축을 번갈아 낸다.
-                    Vector2 next = GridMovement.Step(e.position, Act.body.position, e.moveSpeed * dt);
-
-                    // 막히면 **멈춘다** — 통과하지도, 밀어내지도, 돌아가지도 않는다.
-                    // 경로 탐색을 넣으면 장갑형 길막이 사라지므로 우회는 금지다.
-                    if (!GridMovement.IsBlocked(next, e.radius, e, _enemies, Act.body))
-                        e.position = next;
+                    //
+                    // ⚠️⚠️ **주 축이 막히면 부 축으로 한 칸 본다**(2026-09-16 사용자 확정 · §74-12 B).
+                    //
+                    // 🗑️ 구 주석 「통과하지도, 밀어내지도, **돌아가지도** 않는다 · 경로 탐색을
+                    //    넣으면 장갑형 길막이 사라지므로 우회는 금지」는 폐기됐다.
+                    //    그 규칙은 장갑형 **하나**가 길을 막는 그림이었는데, 보병 120 기에서는
+                    //    저희끼리 막아 **97%가 굳었다**(실측 81/83 · 사거리 안 1).
+                    //
+                    // ⚠️ 경로 탐색이 아니다 — **한 칸짜리 곁눈질**이고 둘 다 막히면 그대로 선다.
+                    //    통과·밀어내기는 여전히 없다.
+                    Vector2? next = GridMovement.StepOrSide(
+                        e.position, Act.body.position, e.moveSpeed * dt, e.radius, e, _enemies, Act.body,
+                        ref e.sideStepHold, ref e.sideStepDir, _sideStepHold, dt);
+                    if (next.HasValue) e.position = next.Value;
 
                     e.attackCooldown = 0f; // 접근 중엔 즉시 타격 준비
                 }

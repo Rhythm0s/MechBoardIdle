@@ -1677,6 +1677,56 @@ namespace MBI.Logistics
             GUI.Label(new Rect(x, y + lineH, w, lineH), how, st);
         }
 
+        /// <summary>
+        /// **이웃은 있는데 면이 달라** 안 이어진 벨트 칸에 사유를 적는다
+        /// (2026-09-16 사용자 확정 ⓒ · §74-12 A).
+        ///
+        /// ⚠️⚠️ 종전에는 아무 말도 안 했다. 코어 위에 가로로 끈 벨트가 **붙어 있는데 안
+        /// 흐르고**, 왜 안 되는지가 어디에도 없었다(사용자 육안 09-16).
+        ///
+        /// 📌 「이웃이 없다」와 구분해서 적는다 — 앞은 아직 안 지은 것이고 뒤는 **지어 놓고
+        /// 안 되는 것**이다. 같은 경고로 보이면 이미 이어 놓은 자리를 또 잇게 된다.
+        ///
+        /// ⚠️ 화면 좌표로 굳히지 않는다 — 매 프레임 다시 잰다(보드를 끌면 따라와야 한다).
+        /// </summary>
+        private void DrawFaceMismatchLabels(Camera cam, GUIStyle style, float fontScale)
+        {
+            if (_grid == null || cam == null) return;
+
+            List<Vector2Int> cells = BeltRouting.FaceMismatchCells(_grid);
+            if (cells.Count == 0) return;
+
+            var st = new GUIStyle(style)
+            {
+                alignment = TextAnchor.MiddleCenter,
+                clipping = TextClipping.Overflow,
+                fontStyle = FontStyle.Bold,
+            };
+            st.normal.textColor = MountEmptyColor;
+
+            foreach (Vector2Int cell in cells)
+            {
+                Vector3 c = CellWorld(cell);
+                Vector3 sp = cam.WorldToScreenPoint(c);
+                if (sp.z <= 0f) continue;
+
+                Vector3 edge = cam.WorldToScreenPoint(c + new Vector3(config.cellSize, 0f, 0f));
+                float cellPx = Mathf.Abs(edge.x - sp.x);
+                if (cellPx < 24f) continue;   // 너무 작으면 글자가 뭉갠다
+
+                // ⚠️ 크기는 두 변에서 잡는다 — 칸 폭도 한계다.
+                st.fontSize = KoreanFont.Snap(Mathf.Max(9,
+                    Mathf.Min(Mathf.RoundToInt(cellPx * 0.22f), Mathf.RoundToInt(26f * fontScale))));
+
+                float w = cellPx * 1.6f, h = st.fontSize * 1.4f;
+                var r = new Rect(sp.x - w * 0.5f, Screen.height - sp.y - h * 0.5f, w, h);
+                if (r.xMax < 0f || r.x > Screen.width || r.yMax < 0f || r.y > Screen.height) continue;
+
+                UiPlate.Draw(r);
+                GUI.Label(r, "면이 다름", st);
+            }
+        }
+
         private void DrawStatusIcons(Camera cam)
         {
             if (_lastDiagnostics == null || _lastDiagnostics.Count == 0) return;
@@ -2191,6 +2241,14 @@ namespace MBI.Logistics
         private void LayBelts(List<Vector2Int> cells)
         {
             List<BeltSegmentSpec> segs = BeltPath.Build(cells);
+
+            // 놓는 **그 순간에만** 양 끝을 이웃 노드에 맞춘다
+            // (2026-09-16 사용자 확정 ⓑ+ⓒ · 플랜 §74-12 A).
+            //
+            // ⚠️ 놓은 뒤의 회전은 안 건드린다 — 계속 따라가게 하면 플레이어가 일부러
+            //    돌려 둔 방향을 코드가 덮는다. 저장이 싣는 면도 그대로다.
+            int snapped = BeltDropSnap.Snap(_grid, segs);
+
             int placed = 0;
             foreach (BeltSegmentSpec s in segs)
             {
@@ -2199,7 +2257,8 @@ namespace MBI.Logistics
                 placed++;
             }
             RefreshConnections();
-            Debug.Log($"[MBI] 벨트 설치: 드래그 {cells.Count}칸 → 세그먼트 {segs.Count}, 신규 배치 {placed}.");
+            Debug.Log($"[MBI] 벨트 설치: 드래그 {cells.Count}칸 → 세그먼트 {segs.Count}, "
+                      + $"신규 배치 {placed}, 노드에 맞춘 끝 {snapped}.");
         }
 
         private bool TryCellUnderPointer(out Vector2Int cell)
@@ -3221,6 +3280,8 @@ namespace MBI.Logistics
             DrawMountLabels(cam, o, style, fontScale);
 
             DrawStatusIcons(cam);
+
+            DrawFaceMismatchLabels(cam, style, fontScale);
 
             DrawGhostHint(cam, style, fontScale);
 

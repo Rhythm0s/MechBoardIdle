@@ -283,6 +283,55 @@ namespace MBI.Core
             return cells;
         }
 
+        /// <summary>
+        /// **이웃은 있는데 면이 달라서** 안 이어진 벨트 칸 (2026-09-16 사용자 확정 ⓒ · §74-12 A).
+        ///
+        /// ⚠️⚠️ **「이웃이 없다」와 「면이 다르다」는 다른 일이다.** 앞은 아직 안 지은 것이고,
+        /// 뒤는 **지어 놓고 안 되는 것**이다. 화면에서 둘이 같은 경고로 보이면
+        /// 플레이어는 「더 이으라」고 읽고 **이미 이어 놓은 자리를 또 잇는다.**
+        ///
+        /// 사용자 육안 09-16 — 코어 위에 가로로 끈 벨트가 붙어 있는데 안 흘렀고,
+        /// **왜 안 되는지가 어디에도 안 적혀 있었다.**
+        ///
+        /// 판정은 하나다 — 이 칸의 **어느 면엔가** 노드나 벨트가 붙어 있는데,
+        /// 그 이웃과 **주고받는 면이 맞물리지 않는다.**
+        /// </summary>
+        public static List<Vector2Int> FaceMismatchCells(BoardGrid grid)
+        {
+            var cells = new List<Vector2Int>();
+            if (grid == null) return cells;
+
+            var linked = new HashSet<Vector2Int>();
+            foreach (BeltLink l in BuildLinks(grid))
+            {
+                linked.Add(l.fromCell);
+                linked.Add(l.toCell);
+            }
+
+            for (int x = 0; x < grid.Columns; x++)
+            for (int y = 0; y < grid.Rows; y++)
+            {
+                var cell = new Vector2Int(x, y);
+                BeltInstance belt = grid.GetBeltAt(cell);
+                if (belt == null) continue;
+
+                // 이미 한쪽이라도 이어져 있으면 「지어 놓고 안 되는」 자리가 아니다.
+                if (linked.Contains(cell)) continue;
+
+                // 붙어 있는 이웃이 하나라도 있는가 — 없으면 그냥 아직 안 지은 것이다.
+                bool hasNeighbour = false;
+                foreach (PortFace f in new[] { PortFace.North, PortFace.East, PortFace.South, PortFace.West })
+                {
+                    Vector2Int nb = cell + Delta(f);
+                    if (!grid.IsInside(nb)) continue;
+                    if (grid.GetAt(nb) != null || grid.GetBeltAt(nb) != null) { hasNeighbour = true; break; }
+                }
+
+                if (hasNeighbour) cells.Add(cell);
+            }
+            return cells;
+        }
+
         /// <summary>면 방향의 셀 델타.</summary>
         public static Vector2Int Delta(PortFace face)
         {

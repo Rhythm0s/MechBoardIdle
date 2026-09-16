@@ -130,6 +130,9 @@ namespace MBI.EditorTools
             // ⚠️ **띠를 러너와 같게 세운다.** 안 세우면 적이 기본 거리에 한 줄로 서고,
             //    그러면 「가까운 것은 제자리에서 쏘고 먼 것에는 걸어간다」가 안 일어난다 —
             //    게임과 다른 판을 재게 된다(2026-09-15 사용자 확정 · §72-40).
+            // 게임과 같은 값으로 곁눈질을 붙든다 — 안 넣으면 떨림 잣대가 다른 판을 잰다.
+            sim.SetSideStepHold(tuning.enemySideStepHoldTbd);
+
             if (tuning.spawnRingMinTbd > 0f && tuning.spawnRingMaxTbd > 0f)
                 sim.SetSpawnBand(tuning.spawnRingMinTbd, tuning.spawnRingMaxTbd);
             else if (tuning.spawnRingRadiusTbd > 0f)
@@ -188,6 +191,12 @@ namespace MBI.EditorTools
             // 지난 표본 뒤로 **거의 안 움직였다**. 우회가 금지라(장갑형 길막) 막히면
             // 그대로 서는 것이 규칙이지만, **몇이 그렇게 되는지**는 아무도 안 셌다.
             var lastPos = new Dictionary<CombatEntity, Vector2>();
+
+            // ⚠️ **떨림 잣대**(2026-09-16 설계 완화 · §74-12 B) — 같은 적이 곁눈질 방향을
+            //    몇 번 뒤집는가. 붙들기가 없으면 두 축이 비슷할 때 프레임마다 뒤집혀
+            //    **제자리에서 떠는 것처럼** 보인다. 수가 크면 붙들기가 모자란 것이다.
+            var lastSide = new Dictionary<CombatEntity, Vector2>();
+            int sideFlips = 0;
             var stuckLog = new List<string>();
             float nextStuckAt = 10f;
             int seenEnemies = 0;
@@ -308,6 +317,13 @@ namespace MBI.EditorTools
                         float reach = e.attackRange + 0.5f + e.radius;   // 로봇 반경은 setup 과 같다
                         if (d <= reach) { inReach++; lastPos[e] = e.position; continue; }
 
+                        if (e.sideStepDir != Vector2.zero)
+                        {
+                            if (lastSide.TryGetValue(e, out Vector2 prevSide)
+                                && prevSide != Vector2.zero && prevSide != e.sideStepDir) sideFlips++;
+                            lastSide[e] = e.sideStepDir;
+                        }
+
                         if (lastPos.TryGetValue(e, out Vector2 was)
                             && (e.position - was).magnitude < 0.05f) stuck++;
                         lastPos[e] = e.position;
@@ -344,8 +360,10 @@ namespace MBI.EditorTools
             sb.AppendLine();
             sb.AppendLine("[굳은 적 — 10초마다 · 사거리 밖인데 안 움직인 수]");
             foreach (string line in stuckLog) sb.AppendLine(line);
-            sb.AppendLine("  ⚠️ 우회는 금지다(장갑형 길막이 규칙) — 막히면 서는 것이 맞다.");
-            sb.AppendLine("     물음은 「서는가」가 아니라 **「몇이 영영 서는가」**다.");
+            sb.AppendLine($"  좌우 반전 {sideFlips} 회 — 떨림 잣대. 크면 붙들기(현재 "
+                          + $"{tuning.enemySideStepHoldTbd:F2}초)가 모자란 것이다");
+            sb.AppendLine("  구 규칙(우회 금지)은 2026-09-16 에 폐기됐다 — 주 축이 막히면");
+            sb.AppendLine("  부 축으로 한 칸 본다. 둘 다 막히면 그대로 선다(길막은 살아 있다).");
 
             sb.AppendLine();
             sb.AppendLine($"[스폰 거리 — 띠 {tuning.spawnRingMinTbd:F1}~{tuning.spawnRingMaxTbd:F1}]");

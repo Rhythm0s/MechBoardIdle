@@ -70,7 +70,10 @@ namespace MBI.Tests
                 // 배율만 곱한 크기다. 레터박스가 없으면 같은 식이 **화면마다 다른 뜻**이 된다.
                 float expected = UiLayout.PaletteButtonSize * scale;
 
-                Assert.That(expected / s.y, Is.EqualTo(216f / 2560f).Within(0.0001f),
+                // 값은 09-16 에 216 → 182 로 바뀌었다. **지키는 것은 값이 아니라 비**다 —
+                // 창이 어떻게 생기든 버튼이 화면 높이에서 차지하는 비율이 같아야 한다.
+                Assert.That(expected / s.y,
+                    Is.EqualTo(UiLayout.PaletteButtonSize / 2560f).Within(0.0001f),
                     $"{win.x}x{win.y} — 버튼이 화면 높이에서 차지하는 비율이 달라졌다");
             }
         }

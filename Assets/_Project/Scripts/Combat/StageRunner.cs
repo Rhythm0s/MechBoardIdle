@@ -1040,6 +1040,8 @@ namespace MBI.Combat
             // 태그 스킬이 터지는 자리도 밖에서 넣는다 — **진입 클립이 다 도는 초**다
             // (260908_W06 2장 · (가) 0.75초). 새 상수를 만들지 않고 이미 있는 클립 초를 그대로 쓴다.
             _sim.SetTagSkillDelay(tuning != null ? tuning.animTagInSeconds : 0.75f);
+            // 곁눈질 방향을 붙드는 시간 — 값은 조율 SO 가 든다(⚠️ 가정 · §74-12 B).
+            _sim.SetSideStepHold(tuning != null ? tuning.enemySideStepHoldTbd : 0f);
 
             _sim.Tick(Time.deltaTime);
 

@@ -22,6 +22,20 @@ namespace MBI.Core
         public float hp;
         public float maxHp;
         public float def;          // 적: composition def(히트당 뺄셈). 로봇: 0(방어 스탯 없음 §9).
+        /// <summary>
+        /// 부 축으로 곁눈질한 방향과 **남은 유지 시간** (2026-09-16 설계 완화 · §74-12 B).
+        ///
+        /// ⚠️⚠️ **한 번 고른 쪽을 잠깐 붙든다.** 매 틱 다시 고르면 두 축이 비슷할 때
+        /// 좌우가 프레임마다 뒤집혀 **제자리에서 떠는 것처럼** 보인다 —
+        /// 얼굴 방향에서 이미 같은 병을 겪었다(조준 관성).
+        ///
+        /// ⚠️ 유지 시간은 **가정**이며 값은 `CombatTuning` 에 있다(코드가 안 들고 있다).
+        /// </summary>
+        public float sideStepHold;
+
+        /// <summary>붙들고 있는 곁눈질 방향(단위 벡터). 0 이면 없다.</summary>
+        public Vector2 sideStepDir;
+
         public float radius;       // 충돌 반경 — 완전 겹침 방지(분리 처리). 0이면 분리 없음.
 
         // 적 전용 이동·공격

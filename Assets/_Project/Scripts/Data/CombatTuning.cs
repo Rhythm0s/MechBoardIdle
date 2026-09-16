@@ -155,6 +155,10 @@ namespace MBI.Data
         [Tooltip("공급이 끊겨 공격이 멈췄다는 표시.")]
         public Sprite ammoOutSprite;
 
+        [Tooltip("적이 부 축으로 곁눈질한 방향을 붙드는 시간(초). ⚠️ 가정 — 매 틱 다시 고르면 "
+                 + "두 축이 비슷할 때 좌우가 뒤집혀 제자리에서 떠는 것처럼 보인다. 0 이면 안 붙든다.")]
+        public float enemySideStepHoldTbd = 0.4f;
+
         [Header("피격 VFX 셋 (2026-09-16 설치)")]
         [Tooltip("표준탄 명중 · 4칸. 비어 있으면 코드 플래시로 떨어진다.")]
         public Sprite[] hitStandardFrames;

@@ -15,10 +15,16 @@ namespace MBI.Tests
         [Test]
         public void 팔레트_버튼은_띠에서_남는_높이를_다_쓴다()
         {
-            // 2026-09-15 사용자 확정 C안 — 부유 띠 312 − 카테고리 탭 줄 96 = 216.
-            Assert.That(UiLayout.PaletteButtonSize,
-                Is.EqualTo(UiLayout.FloatBandHeight - UiLayout.CategoryTabHeight).Within(0.01f),
-                "띠에서 탭 줄을 뺀 나머지가 버튼 한 변이다 — 한쪽만 고치면 버튼이 띠를 넘거나 남긴다");
+            // 2026-09-15 사용자 확정 C안은 「띠 312 − 탭 96 = 216」이었다.
+            //
+            // 그 값은 **높이**로는 맞다. 그런데 같은 날 「한 줄에 여섯」도 확정됐고,
+            // 되찾은 팔레트 폭 1176 을 여섯으로 나누면 **182** 다 — **폭이 먼저 걸린다.**
+            // 09-16 에 사용자가 182 로 내렸다(§74-12 C).
+            //
+            // 📌 지키는 것이 바뀌었다 — 「띠와 똑같다」가 아니라 **「띠를 안 넘는다」**다.
+            float roomInBand = UiLayout.FloatBandHeight - UiLayout.CategoryTabHeight;
+            Assert.That(UiLayout.PaletteButtonSize, Is.LessThanOrEqualTo(roomInBand + 0.01f),
+                "버튼 한 변이 띠에서 남는 높이를 넘었다 — 넘으면 액션바에 물린다");
 
             Assert.That(UiLayout.MeetsMinButton(UiLayout.PaletteButtonSize), Is.True,
                 "문서 최소 150 을 넘어야 한다");
@@ -115,8 +121,11 @@ namespace MBI.Tests
 
             Assert.That(byWidth, Is.GreaterThan(150f),
                 "되찾은 폭에서도 버튼이 150 미만이면 폭 말고 다른 것이 자르고 있다");
-            Assert.That(byWidth, Is.LessThan(UiLayout.PaletteButtonSize),
-                "216 을 넘겼다면 상한이 안 걸린 것이다 — 이 시험의 설명을 고친다");
+            // 2026-09-16 사용자 확정 — 상한을 216 에서 **182** 로 내렸다(§74-12 C).
+            // 화면에 나오는 수와 코드가 말하는 수를 같게 둔다. 216 을 남겨 두면
+            // 상한이 영영 안 걸리고, 다음 사람이 「왜 216 이 안 나오나」를 다시 판다.
+            Assert.That(byWidth, Is.EqualTo(UiLayout.PaletteButtonSize).Within(1f),
+                "폭에서 나온 한 변과 상한이 다르다 — 둘 중 하나가 낡았다");
         }
 
         [Test]
