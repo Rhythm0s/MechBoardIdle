@@ -1138,7 +1138,12 @@ namespace MBI.Logistics
             foreach (MountPort mp in PartLayout.MountPorts)
             {
                 // 묶음 맨 아랫 칸을 자리로 들고 있는다 — 이름표가 그 밑변을 쓴다.
-                Vector2Int bottom = MountDisplay.SlotCell(mp.cell, mp.face, mp.owner, 0);
+                //
+                // ⚠️⚠️ **슬롯 0번이 아니다**(2026-09-16 · 육안 9차 ⑥ 결함). A 는 위부터 차므로
+                //    `SlotCell(...,0)` 이 묶음의 **맨 윗 칸**이다. 그것을 밑변으로 알고 위로
+                //    반 묶음을 올리면 그림이 **세 칸 더 올라가** 격자 위쪽에 뜬다 —
+                //    사용자가 본 「총 그림이 위에 작게 떠 있고 네 칸은 빈다」가 그것이다.
+                Vector2Int bottom = MountDisplay.GroupBottomCell(mp.cell, mp.face, mp.owner);
                 Sprite body = art != null ? art.MountBody(mp.owner) : null;
 
                 var go = new GameObject($"MountBody_{mp.owner}_{mp.face}");

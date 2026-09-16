@@ -104,6 +104,22 @@ namespace MBI.Core
                 ? SlotRowStart(owner) + i
                 : SlotRowStart(owner) + (SlotsPerPort - 1 - i);
 
+        /// <summary>
+        /// 묶음의 **기하학적 아랫 칸** — 그림을 세우는 자리다 (2026-09-16 · 육안 9차 ⑥).
+        ///
+        /// ⚠️⚠️ **슬롯 0번과 다르다.** `SlotRowOf` 는 「들어오는 쪽이 첫 슬롯」이라
+        /// **A 는 위부터** 찬다(§72-24) — A 의 슬롯 0번은 묶음의 **맨 윗 칸**이다.
+        ///
+        /// 그런데 그림을 세우는 코드가 「슬롯 0번 = 맨 아랫 칸」으로 알고 거기서 위로
+        /// 반 묶음을 올렸다. A 에서는 그것이 **세 칸 위**를 가리켜, 화면에서
+        /// **그림이 격자 위쪽에 떠 있고 네 칸은 비어** 보였다(육안 9차 ⑥).
+        ///
+        /// 📌 **채우는 차례와 서는 자리는 다른 물음이다.** 섞어 두면 한쪽을 바꿀 때
+        /// 다른 쪽이 조용히 따라 움직인다 — 여기서 갈라 둔다.
+        /// </summary>
+        public static Vector2Int GroupBottomCell(Vector2Int portCell, PortFace face, MountOwner owner) =>
+            new Vector2Int(GroupColumn(portCell, face, owner), SlotRowStart(owner));
+
         /// <summary>묶음 안 <paramref name="i"/>번째(0~3) 칸.</summary>
         public static Vector2Int SlotCell(Vector2Int portCell, PortFace face, MountOwner owner, int i) =>
             new Vector2Int(GroupColumn(portCell, face, owner), SlotRowOf(owner, i));

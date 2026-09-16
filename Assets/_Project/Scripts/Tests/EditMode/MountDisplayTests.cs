@@ -223,5 +223,59 @@ namespace MBI.Tests
             // 빈 슬롯은 갈래가 없다 — 색을 주면 **없는 것이 있는 것처럼** 보인다.
             Assert.AreEqual(FlowKind.None, MountDisplay.FlowOf(MountItem.None));
         }
+
+        // ── 묶음이 서는 자리 (2026-09-16 · 육안 9차 ⑥) ─────────────────────────
+
+        /// <summary>
+        /// **채우는 차례와 서는 자리는 다른 물음이다.**
+        ///
+        /// ⚠️⚠️ A 는 위부터 찬다(§72-24) — 슬롯 0번이 묶음의 **맨 윗 칸**이다.
+        /// 그림을 세우는 코드가 그것을 밑변으로 알고 위로 반 묶음을 올려서,
+        /// 화면에서 **총 그림이 격자 위쪽에 떠 있고 네 칸은 비어** 보였다.
+        ///
+        /// 📌 여기서 지키는 것은 「밑변은 언제나 묶음의 가장 아랫 줄」 하나다.
+        /// </summary>
+        [Test]
+        public void A묶음의_밑변은_슬롯0번이_아니다()
+        {
+            var port = new Vector2Int(1, 4);
+
+            Vector2Int slot0 = MountDisplay.SlotCell(port, PortFace.South, MountOwner.RobotA, 0);
+            Vector2Int bottom = MountDisplay.GroupBottomCell(port, PortFace.South, MountOwner.RobotA);
+
+            Assert.That(slot0.y, Is.GreaterThan(bottom.y),
+                "A 는 위부터 차므로 슬롯 0번이 밑변보다 위여야 한다 — 같으면 이 시험의 전제가 깨졌다");
+            Assert.That(bottom.y, Is.EqualTo(MountDisplay.SlotRowStart(MountOwner.RobotA)),
+                "밑변은 묶음의 가장 아랫 줄이다");
+        }
+
+        [Test]
+        public void 밑변은_네_칸_중_가장_아래다()
+        {
+            foreach (MountOwner owner in new[] { MountOwner.RobotA, MountOwner.RobotB })
+            {
+                var port = new Vector2Int(2, 10);
+                Vector2Int bottom = MountDisplay.GroupBottomCell(port, PortFace.West, owner);
+
+                int lowest = int.MaxValue;
+                for (int i = 0; i < MountDisplay.SlotsPerPort; i++)
+                    lowest = Mathf.Min(lowest, MountDisplay.SlotCell(port, PortFace.West, owner, i).y);
+
+                Assert.That(bottom.y, Is.EqualTo(lowest), $"{owner} — 밑변이 네 칸의 최저가 아니다");
+            }
+        }
+
+        [Test]
+        public void 밑변의_열은_묶음의_열과_같다()
+        {
+            var port = new Vector2Int(9, 10);
+            foreach (MountOwner owner in new[] { MountOwner.RobotA, MountOwner.RobotB })
+            {
+                Vector2Int bottom = MountDisplay.GroupBottomCell(port, PortFace.East, owner);
+                Assert.That(bottom.x, Is.EqualTo(MountDisplay.GroupColumn(port, PortFace.East, owner)),
+                    $"{owner} — 밑변이 다른 열에 있다");
+            }
+        }
+
     }
 }

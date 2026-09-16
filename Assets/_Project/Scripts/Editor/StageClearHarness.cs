@@ -292,7 +292,7 @@ namespace MBI.EditorTools
             sb.AppendLine($"  마운트 최고 도착률 {peakArrival:F2} 발/초");
 
             sb.AppendLine();
-            sb.AppendLine($"[스폰 거리 — 띄 {tuning.spawnRingMinTbd:F1}~{tuning.spawnRingMaxTbd:F1}]");
+            sb.AppendLine($"[스폰 거리 — 띠 {tuning.spawnRingMinTbd:F1}~{tuning.spawnRingMaxTbd:F1}]");
             foreach (string line in spawnLog) sb.AppendLine(line);
             sb.AppendLine("  ⚠️ 이것은 **나타난 순간**의 거리다 — 적은 그 뒤 로봇 쪽으로 걸어온다.");
 
