@@ -92,6 +92,17 @@ namespace MBI.Logistics
         //    한 번 치르는 그 비용이고(칸 117), 사전이 둘이면 **같은 일을 하는 자리가
         //    아홉 쌍** 생긴다(지침 §7 이 제일 자주 깨지는 꼴).
 
+        /// <summary>
+        /// **시작 보드가 쓰는데 팔레트에는 없는 노드들** (2026-09-16 신설).
+        ///
+        /// 지금 여기 드는 것은 로봇 B 의 **복합 군수** 하나다. 팔레트는 「플레이어가
+        /// 놓을 수 있는 것」이고 이 주머니는 「판을 세울 때 필요한 자산」이라 뜻이 다르다 —
+        /// 섞으면 시작 보드에 한 칸 늘 때마다 **놓을 수 있는 것이 조용히 늘어난다.**
+        ///
+        /// ⚠️ 채우는 것은 `GameSceneCreator` 다 — `StartingBoardB` 를 읽어 넣는다.
+        /// </summary>
+        public List<NodeDefinition> startingNodePool = new List<NodeDefinition>();
+
         /// <summary>판 둘. 차례는 <see cref="MountOwner"/> 값 그대로다(A 0 · B 1).</summary>
         private readonly BoardGrid[] _boards = new BoardGrid[2];
         private readonly BeltItemFlow[] _flows = { new BeltItemFlow(), new BeltItemFlow() };
@@ -103,6 +114,28 @@ namespace MBI.Logistics
         public MountOwner Editing => _editing;
 
         private static int Index(MountOwner owner) => owner == MountOwner.RobotB ? 1 : 0;
+
+        /// <summary>판에 놓인 노드 수 — ⚠️ **임시 진단용**(2026-09-16 · 탭 확인).</summary>
+        private static int CountNodes(BoardGrid g)
+        {
+            if (g == null) return -1;
+            int n = 0;
+            for (int x = 0; x < g.Columns; x++)
+            for (int y = 0; y < g.Rows; y++)
+                if (g.GetAt(new Vector2Int(x, y)) != null) n++;
+            return n;
+        }
+
+        /// <summary>판에 깔린 벨트 수 — ⚠️ **임시 진단용**.</summary>
+        private static int CountBelts(BoardGrid g)
+        {
+            if (g == null) return -1;
+            int n = 0;
+            for (int x = 0; x < g.Columns; x++)
+            for (int y = 0; y < g.Rows; y++)
+                if (g.GetBeltAt(new Vector2Int(x, y)) != null) n++;
+            return n;
+        }
 
         /// <summary>그 로봇의 판. Awake 전에는 <c>null</c>.</summary>
         public BoardGrid BoardOf(MountOwner owner) => _boards[Index(owner)];
@@ -727,13 +760,29 @@ namespace MBI.Logistics
         // 자산 참조를 갖지 않으므로(순수 데이터), 씬 쪽에서 이어 준다.
         private NodeDefinition FindStartingNode(string nodeId)
         {
-            if (initialLayout == null) return null;
-            foreach (InitialNode item in initialLayout)
-                if (item.node != null && item.node.nodeId == nodeId) return item.node;
+            if (initialLayout != null)
+                foreach (InitialNode item in initialLayout)
+                    if (item.node != null && item.node.nodeId == nodeId) return item.node;
 
-            if (palette == null) return null;
-            foreach (NodeDefinition d in palette)
-                if (d != null && d.nodeId == nodeId) return d;
+            if (palette != null)
+                foreach (NodeDefinition d in palette)
+                    if (d != null && d.nodeId == nodeId) return d;
+
+            // ⚠️⚠️ **팔레트에 없는 노드도 시작 보드에 설 수 있다**
+            //    (2026-09-16 · 플랜 브라우저 확인 ① — 「노드 'munix' 못 찾음」).
+            //
+            // 종전에는 찾는 곳이 **A 의 시작 배치**와 **팔레트** 둘뿐이었다. 그런데
+            // B 의 시작 보드는 **복합 군수(`munix`)** 를 쓰고 그것은 둘 중 어디에도 없다 —
+            // 팔레트는 「플레이어가 놓을 수 있는 것」이라 뜻이 다르고, A 의 배치에는
+            // 복합 군수가 안 쓰인다. 그래서 B 판이 **한 칸 빈 채로** 섰다.
+            //
+            // 📌 **팔레트에 넣어 메우지 않는다.** 그러면 「놓을 수 있는 것」이 조용히
+            //    늘어난다 — 그것은 값·기획 판정이지 이 결함의 고침이 아니다.
+            //    자산을 대는 주머니를 따로 둔다.
+            if (startingNodePool != null)
+                foreach (NodeDefinition d in startingNodePool)
+                    if (d != null && d.nodeId == nodeId) return d;
+
             return null;
         }
 
@@ -866,8 +915,11 @@ namespace MBI.Logistics
                 NodeDefinition def = FindStartingNode(slot.nodeId);
                 if (def == null)
                 {
-                    Debug.LogWarning($"[MBI] B 시작 보드: 노드 '{slot.nodeId}' 를 못 찾았다 — "
-                                     + "팔레트에 없다. 그 칸은 빈다.");
+                    // ⚠️ **「그 칸은 빈다」로 끝내면 안 된다** — 복합 군수가 빠지면 두 줄이
+                    //    합류를 못 해 **판 전체가 아무것도 못 낸다.** 무엇이 죽는지를 적는다.
+                    Debug.LogError($"[MBI] B 시작 보드: 노드 '{slot.nodeId}' 자산을 못 찾았다 — "
+                                   + "`startingNodePool` 에 없다(생성기를 다시 돌린다). "
+                                   + "그 칸이 비면 줄이 끊겨 **B 판이 아무것도 못 낸다.**");
                     continue;
                 }
                 if (!grid.TryPlace(slot.cell, def, out NodeInstance placed)) continue;
@@ -1832,13 +1884,34 @@ namespace MBI.Logistics
             //
             // 📌 **자리와 규격은 고스트 안내 그대로다** — 방금 채운 칸에 눈이 가 있으므로
             //    거기서 이어 말하는 것이 가장 짧다. 새 판을 만들지 않는다.
+            // ⚠️⚠️ **「채워진 상태」가 아니라 「채우는 순간」이다**
+            //    (2026-09-16 · 플랜 브라우저 확인 ④ — 「조립에 들어가자마자 떴다」).
+            //
+            // 종전 판은 `GhostCellFilled` 가 **참이기만 하면** 세었다. 그런데 그것은
+            // **상태**라, 저장에서 돌아온 판은 **처음부터 참**이다 — 들어가자마자 안내가
+            // 뜨고, 그때 플레이어는 방금 아무것도 안 했다.
+            //
+            // 📌 **상태와 사건은 다르다.** 가르치는 말은 **방금 한 일**에 붙어야 한다.
+            //    그래서 거짓 → 참으로 **넘어가는 것을 본 때**만 시계를 놓는다.
+            //    들어올 때 이미 참이면 그 넘어감을 못 봤으므로 **안 뜬다.**
             bool filled = TutorialSignals.GhostCellFilled;
+            if (filled && !_ghostFilledSeen)
+            {
+                _ghostFilledSeen = true;
+                // 처음 본 것이 **이미 채워진 판**이면 시계를 안 놓는다(= 영영 안 뜬다).
+                if (_ghostEverEmpty) _ghostFilledAt = Time.unscaledTime;
+            }
+            if (!filled)
+            {
+                _ghostEverEmpty = true;   // 빈 것을 봤다 — 이제부터 채우면 그것은 사건이다
+                _ghostFilledSeen = false;
+                _ghostFilledAt = -1f;
+            }
             if (filled)
             {
-                if (_ghostFilledAt < 0f) _ghostFilledAt = Time.unscaledTime;
+                if (_ghostFilledAt < 0f) return;
                 if (Time.unscaledTime - _ghostFilledAt > BeltGestureHintSeconds) return;
             }
-            else _ghostFilledAt = -1f;
 
             // 칸의 **위**에 앉힌다 — 칸 안에 쓰면 고스트 색과 겹쳐 글자가 묻힌다.
             Vector3 c = CellWorld(cell.Value);
@@ -1888,6 +1961,12 @@ namespace MBI.Logistics
         /// 이 안내가 얼마나 더 서 있을지를 정하는 값뿐이다.
         /// </summary>
         private float _ghostFilledAt = -1f;
+
+        /// <summary>고스트 칸이 **비어 있는 것을 본 적이 있는가.** 저장 복원 판을 가른다.</summary>
+        private bool _ghostEverEmpty;
+
+        /// <summary>채워진 것을 이미 셌는가 — 매 프레임 시계를 다시 놓지 않게.</summary>
+        private bool _ghostFilledSeen;
 
         /// <summary>
         /// 채운 뒤 손짓 안내를 몇 초 더 세워 둘 것인가.
@@ -4186,7 +4265,14 @@ namespace MBI.Logistics
                 bool hit = UiSkin.Button(r, labels[i], style);   // 클릭음은 UiSkin 이 낸다
                 GUI.color = prev;
 
-                if (hit) SetEditing(owners[i]);
+                if (hit)
+                {
+                    SetEditing(owners[i]);
+                    // ⚠️ **임시 진단**(2026-09-16 · 플랜 확인 ② — 「B 를 눌렀는데 A 판으로 보인다」).
+                    //    탭이 안 먹은 것인지, 먹었는데 판이 A 처럼 선 것인지를 가른다.
+                    //    자리가 닫히면 걷는다.
+                    Debug.Log($"[MBI] 로봇 탭 → {_editing} · 판 노드 {CountNodes(_grid)} · 벨트 {CountBelts(_grid)}");
+                }
             }
 
             GUI.enabled = was;

@@ -248,6 +248,31 @@ namespace MBI.Editor
                 pal.arraySize = idx + 1;
                 pal.GetArrayElementAtIndex(idx).objectReferenceValue = n;
             }
+            // ⚠️⚠️ **시작 보드가 쓰는데 팔레트에 없는 노드**(2026-09-16 · 결함 ① 고침).
+            //
+            // 로봇 B 의 시작 보드는 **복합 군수(`munix`)** 를 쓰는데 팔레트 여섯에 없다.
+            // 팔레트에 넣어 메우면 **플레이어가 놓을 수 있는 것이 조용히 늘어난다** —
+            // 그것은 기획 판정이지 이 결함의 고침이 아니다. 자산만 따로 댄다.
+            //
+            // 📌 **목록을 여기 손으로 적지 않는다** — `StartingBoardB` 를 읽는다.
+            //    B 판이 노드를 하나 더 쓰게 되는 날 이 자리를 안 고쳐도 따라온다.
+            SerializedProperty pool = so.FindProperty("startingNodePool");
+            pool.arraySize = 0;
+            var poolSeen = new System.Collections.Generic.HashSet<string>();
+            foreach (StartingBoardB.Slot slot in StartingBoardB.Nodes)
+            {
+                if (!poolSeen.Add(slot.nodeId)) continue;
+                var n = Load<NodeDefinition>($"{SoRoot}/Nodes/Node_{slot.nodeId}.asset");
+                if (n == null)
+                {
+                    Debug.LogError($"[MBI] B 시작 보드 자산이 없다 — Node_{slot.nodeId}.asset");
+                    continue;
+                }
+                int pi = pool.arraySize;
+                pool.arraySize = pi + 1;
+                pool.GetArrayElementAtIndex(pi).objectReferenceValue = n;
+            }
+
             // 시작 배치(온보딩) — **배치는 StartingBoard(MBI.Core)가 쥔다.**
             // 종전에는 여기 좌표 리터럴로만 있어서 「정말 80이 나오는가」를 확인할 방법이
             // 씬을 열어 보는 것뿐이었다. 데이터로 빼면 이 생성기와 테스트가 같은 것을 읽어,

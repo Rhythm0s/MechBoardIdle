@@ -53,6 +53,34 @@ namespace MBI.Tests
         }
 
         [Test]
+        public void 씬이_B_시작_보드_노드_자산을_전부_들고_있다()
+        {
+            // ⚠️⚠️ **이 시험이 없어서 B 판이 반쪽으로 나갔다**(2026-09-16 · 플랜 브라우저 확인 ①).
+            //
+            // 자산을 찾는 곳은 A 의 시작 배치와 **팔레트** 둘뿐이었는데, 복합 군수는
+            // 둘 중 어디에도 없다 — 팔레트는 「플레이어가 놓을 수 있는 것」이라 뜻이 다르고
+            // A 의 배치에는 복합 군수가 안 쓰인다. 빌드에서만 **경고 한 줄**로 드러났다.
+            //
+            // 📌 씬의 주머니(`startingNodePool`)를 직접 본다 — 생성기를 안 돌린 씬도 잡는다.
+            var scene = AssetDatabase.LoadAssetAtPath<UnityEngine.Object>(
+                "Assets/_Project/Scenes/Game.unity");
+            Assert.IsNotNull(scene, "Game.unity 가 없다");
+
+            string text = System.IO.File.ReadAllText(
+                "Assets/_Project/Scenes/Game.unity");
+            int at = text.IndexOf("startingNodePool:", System.StringComparison.Ordinal);
+            Assert.Greater(at, 0, "씬에 startingNodePool 이 없다 — GameSceneCreator 를 다시 돌린다");
+
+            foreach (StartingBoardB.Slot slot in StartingBoardB.Nodes)
+            {
+                string guid = AssetDatabase.AssetPathToGUID($"{NodeRoot}/Node_{slot.nodeId}.asset");
+                Assert.IsNotEmpty(guid, $"노드 자산이 없다 — Node_{slot.nodeId}.asset");
+                StringAssert.Contains(guid, text.Substring(at, System.Math.Min(600, text.Length - at)),
+                    $"씬 주머니에 '{slot.nodeId}' 가 없다 — B 판의 그 칸이 빈 채로 나간다");
+            }
+        }
+
+        [Test]
         public void 모든_칸이_실루엣_안이고_안_겹친다()
         {
             // 판을 세우는 것 자체가 시험이다 — 위 `Assert` 들이 자리를 지킨다.
