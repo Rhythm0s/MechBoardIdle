@@ -139,6 +139,60 @@ namespace MBI.Tests
         }
 
         [Test]
+        public void 로봇_탭_둘이_띠를_세로로_나눠_쓴다()
+        {
+            // 🗑️ 구 자리(정사각 200×200)를 **가로로** 나누면 한 변이 97 이 되어
+            //    최소 버튼 150 을 못 넘는다 — 그래서 **세로**로 나눈다(2026-09-16).
+            Rect a = UiLayout.RobotTabRect(false, W, H);
+            Rect b = UiLayout.RobotTabRect(true, W, H);
+            Rect band = UiLayout.BandRect(UiLayout.Band.FloatBand, W, H);
+            float s = UiLayout.Scale(H);
+
+            Assert.That(a.width, Is.EqualTo(b.width).Within(0.5f), "둘의 폭이 다르면 줄이 안 선다");
+            Assert.That(a.x, Is.EqualTo(b.x).Within(0.5f));
+
+            Assert.That(a.height, Is.GreaterThanOrEqualTo(UiLayout.MinButton * s - 0.5f),
+                "탭 A 높이가 최소 버튼 150 을 못 넘는다");
+            Assert.That(b.height, Is.GreaterThanOrEqualTo(UiLayout.MinButton * s - 0.5f),
+                "탭 B 높이가 최소 버튼 150 을 못 넘는다");
+            Assert.That(a.width, Is.GreaterThanOrEqualTo(UiLayout.MinButton * s - 0.5f),
+                "탭 폭이 최소 버튼 150 을 못 넘는다");
+
+            Assert.That(a.yMax, Is.LessThanOrEqualTo(b.y + 0.5f), "둘이 세로로 겹친다");
+            Assert.That(band.y, Is.LessThanOrEqualTo(a.y + 0.5f), "띠 위로 삐져나간다");
+            Assert.That(b.yMax, Is.LessThanOrEqualTo(band.yMax + 0.5f), "띠 아래로 삐져나간다");
+        }
+
+        [Test]
+        public void 로봇_탭이_탭_줄과_버튼_줄과_안_겹친다()
+        {
+            // **이것이 지키는 것** — 왼쪽 세로 칸을 셋이 다투면 09-15 에 튜토리얼 두 줄이
+            // 탭 위에 겹쳐 「전」 한 글자만 보이던 그 일이 그대로 돌아온다(육안 7차 ②).
+            Rect a = UiLayout.RobotTabRect(false, W, H);
+            Rect tabs = UiLayout.CategoryTabRect(W, H);
+            Rect row = UiLayout.PaletteRect(W, H);
+
+            Assert.That(a.xMax, Is.LessThanOrEqualTo(tabs.x + 0.5f), "카테고리 탭과 겹친다");
+            Assert.That(a.xMax, Is.LessThanOrEqualTo(row.x + 0.5f), "노드 버튼 줄과 겹친다");
+        }
+
+        [Test]
+        public void 좁은_창에서도_로봇_탭이_띠를_안_넘는다()
+        {
+            foreach (float w in new[] { 615f, 720f, 1080f, 1440f })
+            foreach (float h in new[] { 1085f, 1280f, 1920f, 2560f })
+            {
+                Rect band = UiLayout.BandRect(UiLayout.Band.FloatBand, w, h);
+                Rect a = UiLayout.RobotTabRect(false, w, h);
+                Rect b = UiLayout.RobotTabRect(true, w, h);
+
+                Assert.That(a.y, Is.GreaterThanOrEqualTo(band.y - 0.5f), $"{w}x{h}");
+                Assert.That(b.yMax, Is.LessThanOrEqualTo(band.yMax + 0.5f), $"{w}x{h}");
+                Assert.That(a.height, Is.GreaterThan(0f), $"{w}x{h}");
+            }
+        }
+
+        [Test]
         public void 전투로_버튼이_액션바_가운데다()
         {
             Rect bar = UiLayout.BandRect(UiLayout.Band.ActionBar, W, H);

@@ -414,6 +414,38 @@ namespace MBI.UI
         /// </summary>
         public const float CategoryTabFraction = 0.38f;
 
+        /// <summary>
+        /// **로봇 탭 A·B 자리** — 부유 띠 **왼쪽 세로 칸** (2026-09-16 · 사용자 확정 · §74-16 ①).
+        ///
+        /// ⚠️ **왜 이 자리인가.** 미니맵이 09-15 에 폐기돼(`a37a101` · 그리는 곳 0건)
+        /// 왼쪽 정사각이 통째로 비었다. 튜토리얼 진행 두 줄도 같은 날 **보드 띠로
+        /// 나갔으므로**(육안 7차 ②) 다투는 것이 없다.
+        ///
+        /// ⚠️⚠️ **정사각 자리(200×200)를 그대로 쓰지 않는다.** 둘을 가로로 나누면
+        /// 한 변이 **97** 이 되어 최소 버튼 <see cref="MinButton"/>(150) 을 못 넘는다.
+        /// 띠 **전체 높이**(312)를 세로로 둘로 나누면 각 **200×150** 이라 딱 맞는다 —
+        /// 그래서 자리는 정사각이 아니라 **세로 칸**이다.
+        ///
+        /// ⚠️ 폭 200 은 <see cref="RoundButtonDiameter"/> 를 그대로 쓴다. 카테고리 탭과
+        /// 노드 버튼 줄이 **둘 다 `FloatBandSlot(false).xMax` 오른쪽**에서 시작하므로,
+        /// 그 폭을 벗어나지 않는 한 겹치지 않는다(같은 상수를 보게 두는 까닭이다).
+        ///
+        /// ⚠️ **가정이다** — UI 문서에 로봇 탭 절이 없다(설계 역기입 자리).
+        /// </summary>
+        public static Rect RobotTabRect(bool second, float screenWidth, float screenHeight)
+        {
+            Rect band = BandRect(Band.FloatBand, screenWidth, screenHeight);
+            float s = Scale(screenHeight);
+
+            // 정사각 자리와 **같은 x·폭**을 쓴다 — 오른쪽 것들이 그 끝을 기준으로 선다.
+            Rect slot = FloatBandSlot(right: false, screenWidth, screenHeight);
+
+            float gap = 12f * s;
+            float h = (band.height - gap) * 0.5f;
+            float y = band.y + (second ? h + gap : 0f);
+            return new Rect(slot.x, y, slot.width, h);
+        }
+
         /// <summary>카테고리 탭 줄 — 부유 띠 위쪽. 오른쪽 끝은 배율 막대가 쓴다.</summary>
         public static Rect CategoryTabRect(float screenWidth, float screenHeight)
         {
@@ -441,7 +473,9 @@ namespace MBI.UI
         /// <summary>
         /// 노드 버튼 줄 — 부유 띠 **아래쪽**.
         ///
-        /// ⚠️ **왼쪽 정사각 자리는 튜토리얼 진행 두 줄이 쓴다**(2026-09-15 · 개편 ⑤).
+        /// ⚠️ **왼쪽 세로 칸은 로봇 탭 A·B 가 쓴다**(2026-09-16 · `RobotTabRect`).
+        /// 🗑️ 구 주석 「튜토리얼 진행 두 줄이 쓴다」는 폐기 — 그 두 줄은 **같은 09-15 에
+        ///    보드 띠로 나갔다**(육안 7차 ②). 폐기를 한쪽만 해서 주석만 남아 있었다.
         /// 미니맵이 나가며 빈 자리다.
         ///
         /// ⚠️ **오른쪽 끝은 배율 막대가 쓴다**(2026-09-14 · §72-12 5).

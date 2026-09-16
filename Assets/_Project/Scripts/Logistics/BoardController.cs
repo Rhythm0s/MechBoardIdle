@@ -1198,15 +1198,22 @@ namespace MBI.Logistics
                 SpriteRenderer sr = _mountSlotFills[i];
                 if (sr == null) continue;
 
-                bool mine = _mountSlotOwners[i] == SupplySignals.ActiveOwner;
+                // ⚠️⚠️ **기준이 「싸우는 로봇」에서 「보고 있는 판」으로 바뀌었다**
+                //    (2026-09-16 · 로봇 탭이 생겼다 · `ShowsMount` 와 같은 뿌리).
+                //
+                // 옛 기준이면 B 판을 편집하는 내내 **B 칸이 전부 빈 칸으로** 보인다 —
+                // A 가 싸우는 중이라 `ActiveOwner` 가 A 이기 때문이다. 실제로는 B 보드가
+                // 돌며 B 마운트를 채우고 있는데 화면만 0 을 말하는 꼴이다.
+                MountOwner shown = _mountSlotOwners[i];
+                bool mine = shown == _editing;
                 int slot = _mountSlotIndex[i];
 
-                MountItem item = mine && slot < SupplySignals.MountSlotCount
-                    ? SupplySignals.MountSlotItem[slot] : MountItem.None;
+                MountItem item = mine && slot < SupplySignals.MountSlotCountOf(shown)
+                    ? SupplySignals.MountSlotItemOf(shown)[slot] : MountItem.None;
 
                 float ratio = item == MountItem.None ? 0f
-                    : MountDisplay.FillRatio(SupplySignals.MountSlotAmount[slot],
-                                             SupplySignals.MountStackLimit);
+                    : MountDisplay.FillRatio(SupplySignals.MountSlotAmountOf(shown)[slot],
+                                             SupplySignals.MountStackLimitOf(shown));
 
                 // ⚠️ **무엇이 실렸는지는 그림이 말한다**(2026-09-14 · §72-24 ③).
                 //
@@ -2941,8 +2948,11 @@ namespace MBI.Logistics
             DrawFloatBandPlate();
 
             // ⚠️ **미니맵을 걷었다**(2026-09-15 사용자 확정 · 하단 개편 ①).
-            // 그 자리(부유 띠 왼쪽 정사각)는 이제 튜토리얼 진행 두 줄이 쓴다.
             // `DrawMiniMap` 자체는 폐기 표기로 남겨 둔다 — 되돌릴 때 다시 짓지 않게.
+            // 🗑️ 구 주석 「그 자리는 튜토리얼 진행 두 줄이 쓴다」는 폐기 — 그 두 줄은
+            //    **같은 날 보드 띠로 나갔다**(육안 7차 ②). 자리는 그 뒤로 비어 있었고,
+            //    2026-09-16 부터 **로봇 탭 A·B** 가 쓴다.
+            DrawRobotTabs();
 
             // ⚠️ **배율 막대를 걷었다**(2026-09-15 · 개편 ⑦) — 핀치·휠이 대신한다.
             DrawCategoryTabs();
@@ -4091,6 +4101,62 @@ namespace MBI.Logistics
         // 모드 버튼 — 화면 우측 하단 1개(UI 문서 9-2).
         // **버튼이 표시를 겸한다.** 문구가 현재 모드를 그대로 나타내므로 별도 모드 표시를 두지 않는다.
         // 모드를 바꾸는 곳과 확인하는 곳이 같은 자리가 되고, 화면 요소도 하나 아낀다.
+        /// <summary>
+        /// <summary>
+        /// **로봇 탭 A·B** — 어느 판을 편집할지 고른다 (2026-09-16 · 사용자 확정 · §74-16 ①).
+        ///
+        /// ⚠️ **탭은 「누가 싸우는가」가 아니라 「무엇을 편집하는가」다.** 교대는
+        /// 전투 화면의 태그 버튼이 한다 — 여기서 B 를 골라도 **A 가 계속 싸운다.**
+        /// 둘을 한 버튼에 묶으면 「B 줄을 손보려다 전투 로봇이 바뀌는」 일이 생긴다.
+        ///
+        /// ⚠️ 마운트 그림도 이 탭을 따른다(`ShowsMount`) — 보고 있는 판의 마운트라야
+        /// 「이 줄이 어디로 들어가는가」가 화면에서 이어진다.
+        ///
+        /// ⚠️ **튜토리얼 동안에는 잠근다.** 튜토리얼은 A 판만 가르치는데 B 로 옮겨 가면
+        /// 안내가 가리키는 칸이 화면에 없다.
+        /// </summary>
+        private void DrawRobotTabs()
+        {
+            var owners = new[] { MountOwner.RobotA, MountOwner.RobotB };
+            var labels = new[] { "로봇 A", "로봇 B" };
+
+            // 탭 줄과 **같은 잠금**을 쓴다 — 팔레트가 잠긴 동안 여기만 살아 있으면
+            // 「눌러도 아무 일 없는 버튼」이 둘 생긴다.
+            bool allowed = TutorialGate.Allows(TutorialGate.Control.PaletteOther);
+            bool was = GUI.enabled;
+            GUI.enabled = was && allowed;
+
+            for (int i = 0; i < owners.Length; i++)
+            {
+                Rect r = UiLayout.RobotTabRect(i == 1, Screen.width, Screen.height);
+                if (r.width <= 0f || r.height <= 0f) continue;
+                UiBlockers.Add(r);
+
+                bool on = _editing == owners[i];
+                var style = new GUIStyle(GUI.skin.button)
+                {
+                    fontSize = KoreanFont.Snap(Mathf.Max(9,
+                        // 탭 줄과 같은 셈이다 — 높이만 보면 좁은 창에서 글자가 옆으로 잘린다.
+                        Mathf.Min(Mathf.RoundToInt(r.height * 0.30f),
+                                  Mathf.RoundToInt(r.width / 4.2f)))),
+                    wordWrap = false,
+                    clipping = TextClipping.Overflow,
+                    fontStyle = on ? FontStyle.Bold : FontStyle.Normal,
+                };
+
+                Color prev = GUI.color;
+                // 고른 쪽만 밝다 — 밑줄이 아니라 **밝기**로 가른다. 칸이 세로로 커서
+                // 밑줄이 글자에서 멀어지면 무엇에 붙은 줄인지 안 읽힌다.
+                if (!on) GUI.color = new Color(prev.r, prev.g, prev.b, prev.a * 0.55f);
+                bool hit = UiSkin.Button(r, labels[i], style);   // 클릭음은 UiSkin 이 낸다
+                GUI.color = prev;
+
+                if (hit) SetEditing(owners[i]);
+            }
+
+            GUI.enabled = was;
+        }
+
         /// <summary>
         /// 카테고리 탭 줄 — 부유 띠 위쪽 (2026-09-15 사용자 확정 · 하단 개편 ②).
         ///

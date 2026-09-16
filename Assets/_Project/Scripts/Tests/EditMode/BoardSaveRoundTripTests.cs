@@ -175,6 +175,97 @@ namespace MBI.Tests
         // ── 4. 격자 크기가 다르면 버린다 ───────────────────────────────────────
 
         [Test]
+        public void 판_둘이_각자_자기_주인으로_왕복한다()
+        {
+            // **보드가 로봇별로 갈렸다**(2026-09-16). 왕복이 **둘 다** 서야 한다 —
+            // 한쪽만 서면 나머지 하나는 매번 시작 보드로 돌아간다.
+            foreach (MountOwner owner in new[] { MountOwner.RobotA, MountOwner.RobotB })
+            {
+                var src = new BoardGrid(Cols, Rows, 1f, Vector2.zero, null, owner);
+                Assert.IsTrue(src.TryPlace(new Vector2Int(2, 3), Node("core"), out _));
+                Assert.IsTrue(src.TryPlaceBelt(new Vector2Int(3, 3),
+                    PortFace.West, PortFace.East, FlowKind.None, out _));
+
+                BoardStateV1 state = BoardStateCodec.Capture(src);
+                Assert.AreEqual((int)owner, state.owner, "판이 자기 주인을 안 싣는다");
+
+                var dst = new BoardGrid(Cols, Rows, 1f, Vector2.zero, null, owner);
+                Assert.IsTrue(BoardStateCodec.Fits(state, dst), $"{owner} 판이 자기 격자에 안 맞는다");
+                Assert.AreEqual(0, BoardStateCodec.Restore(state, dst, NodeLookup(), ModuleLookup(), null, null));
+
+                Assert.IsNotNull(dst.GetAt(new Vector2Int(2, 3)), $"{owner} 노드가 안 돌아왔다");
+                Assert.IsNotNull(dst.GetBeltAt(new Vector2Int(3, 3)), $"{owner} 벨트가 안 돌아왔다");
+            }
+        }
+
+        [Test]
+        public void 남의_판은_안_푼다()
+        {
+            // ⚠️ **크기도 세대도 같다** — 주인만 다르다. 이것을 안 보면 A 판이 B 자리에
+            //    **에러 없이** 들어앉고, 그때 마운트가 엉뚱한 로봇에게 붙는다.
+            var a = new BoardGrid(Cols, Rows, 1f, Vector2.zero, null, MountOwner.RobotA);
+            BoardStateV1 state = BoardStateCodec.Capture(a);
+
+            var b = new BoardGrid(Cols, Rows, 1f, Vector2.zero, null, MountOwner.RobotB);
+            Assert.IsFalse(BoardStateCodec.Fits(state, b), "남의 판을 받아들였다");
+            StringAssert.Contains("주인", BoardStateCodec.WhyNotFit(state, b),
+                "왜 안 맞는지가 주인 때문이라고 안 적힌다");
+        }
+
+        [Test]
+        public void 저장은_판_둘을_주인으로_찾는다()
+        {
+            // 차례가 아니라 **주인**으로 찾는다 — 한 칸 밀려도 안 섞인다.
+            var save = new SaveDataV1();
+            Assert.IsNull(save.BoardOf(MountOwner.RobotA), "빈 저장인데 판이 있다");
+
+            var a = new BoardGrid(Cols, Rows, 1f, Vector2.zero, null, MountOwner.RobotA);
+            var b = new BoardGrid(Cols, Rows, 1f, Vector2.zero, null, MountOwner.RobotB);
+            save.SetBoard(MountOwner.RobotB, BoardStateCodec.Capture(b));
+            save.SetBoard(MountOwner.RobotA, BoardStateCodec.Capture(a));
+
+            Assert.AreEqual((int)MountOwner.RobotA, save.BoardOf(MountOwner.RobotA).owner);
+            Assert.AreEqual((int)MountOwner.RobotB, save.BoardOf(MountOwner.RobotB).owner);
+            Assert.AreEqual(2, save.boards.Count, "같은 주인이 두 번 들어갔다");
+
+            // 같은 주인을 다시 넣으면 **갈아 끼운다** — 쌓이면 어느 것이 최신인지 답이 둘이 된다.
+            save.SetBoard(MountOwner.RobotA, BoardStateCodec.Capture(a));
+            Assert.AreEqual(2, save.boards.Count);
+        }
+
+        [Test]
+        public void 구_저장의_한_판은_목록으로_옮겨진다()
+        {
+            // ⚠️ **이미 나간 저장이 있다.** 이주를 안 하면 그 사람들의 A 판이 조용히 사라진다.
+            var a = new BoardGrid(Cols, Rows, 1f, Vector2.zero, null, MountOwner.RobotA);
+            var save = new SaveDataV1 { board = BoardStateCodec.Capture(a) };
+
+            save.MigrateLegacyBoard();
+
+            Assert.IsNull(save.board, "구 칸이 안 비워졌다 — 다음에 또 옮긴다");
+            Assert.IsNotNull(save.BoardOf(MountOwner.RobotA), "구 판이 목록에 안 들어왔다");
+        }
+
+        [Test]
+        public void 이주는_새_저장을_안_덮는다()
+        {
+            // 구 칸이 새 목록을 덮으면 **최신 판이 옛 판으로 되돌아간다.**
+            var a = new BoardGrid(Cols, Rows, 1f, Vector2.zero, null, MountOwner.RobotA);
+            Assert.IsTrue(a.TryPlace(new Vector2Int(1, 1), Node("core"), out _));
+
+            var save = new SaveDataV1();
+            save.SetBoard(MountOwner.RobotA, BoardStateCodec.Capture(a)); // 새 목록 = 노드 하나
+
+            var empty = new BoardGrid(Cols, Rows, 1f, Vector2.zero, null, MountOwner.RobotA);
+            save.board = BoardStateCodec.Capture(empty);                  // 구 칸 = 빈 판
+
+            save.MigrateLegacyBoard();
+
+            Assert.AreEqual(1, save.BoardOf(MountOwner.RobotA).nodes.Count,
+                "구 칸의 빈 판이 새 목록을 덮었다");
+        }
+
+        [Test]
         public void 격자_크기가_다르면_안_푼다()
         {
             // ⚠️ 09-14 에 Rows 가 13 → 14 로 늘었다. 크기를 안 보면 **옛 저장이 조용히

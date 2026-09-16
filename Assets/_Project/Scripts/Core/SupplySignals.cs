@@ -19,11 +19,49 @@ namespace MBI.Core
         /// <summary>전투 층이 값을 넣고 있는가. 거짓이면 아래 값들은 뜻이 없다.</summary>
         public static bool HasCombat;
 
+        // 로봇별로 갈랐다 (2026-09-16 · 사용자 확정 · 플랜 §74-16 ①③)
+        //
+        // ⚠️⚠️ **왜 갈랐나.** 보드가 로봇별 둘이 되었고(①), 전투 HUD 가 **대기 로봇의
+        // 적재**를 보여야 한다(③). 종전에는 이 칸들이 「지금 나선 로봇」 하나만 들어서
+        // **대기 쪽은 물어볼 자리 자체가 없었다.**
+        //
+        // 📌 **옛 이름을 지우지 않는다.** 아래 `MountTotal` 등은 그대로 두되 저장소가
+        //    아니라 **「지금 나선 로봇」을 가리키는 창**이 된다 — 값이 두 곳에 살면
+        //    답이 둘이 된다(지침 §7). 읽는 곳 수십 군데가 그대로 맞는다.
+
+        private static int Index(MBI.Data.MountOwner owner) =>
+            owner == MBI.Data.MountOwner.RobotB ? 1 : 0;
+
+        private static readonly float[] _mountTotal = new float[2];
+        private static readonly float[] _storageStock = new float[2];
+
+        /// <summary>그 로봇의 마운트 총 적재량.</summary>
+        public static float MountTotalOf(MBI.Data.MountOwner owner) => _mountTotal[Index(owner)];
+
+        /// <summary>그 로봇의 마운트 총 적재량을 올린다.</summary>
+        public static void SetMountTotal(MBI.Data.MountOwner owner, float value)
+            => _mountTotal[Index(owner)] = value;
+
+        /// <summary>그 로봇 창고의 탄약 총 재고.</summary>
+        public static float StorageStockOf(MBI.Data.MountOwner owner) => _storageStock[Index(owner)];
+
+        /// <summary>그 로봇 창고의 재고를 올린다.</summary>
+        public static void SetStorageStock(MBI.Data.MountOwner owner, float value)
+            => _storageStock[Index(owner)] = value;
+
         /// <summary>지금 나선 로봇의 마운트 총 적재량. 0이면 공격이 멈춘 자리다.</summary>
-        public static float MountTotal;
+        public static float MountTotal
+        {
+            get => _mountTotal[Index(ActiveOwner)];
+            set => _mountTotal[Index(ActiveOwner)] = value;
+        }
 
         /// <summary>저장 노드(창고)의 탄약 총 재고. 조립 화면이 보는 층이다(UI 문서 12-1).</summary>
-        public static float StorageStock;
+        public static float StorageStock
+        {
+            get => _storageStock[Index(ActiveOwner)];
+            set => _storageStock[Index(ActiveOwner)] = value;
+        }
 
         // ── 마운트 슬롯 상태 (2026-09-14 신설 · 플랜 §71-41 · UI 문서 12-4 적재 그리드) ──
         //
@@ -37,17 +75,46 @@ namespace MBI.Core
         // ⚠️ **지금 나선 로봇 것만이다** — `ActiveOwner` 와 같은 이유다. 대기 중인 로봇의
         // 마운트를 함께 실으면 **안 싸우는 쪽 적재가 화면에 섞인다.**
 
+        private static readonly int[] _slotCount = new int[2];
+        private static readonly MBI.Data.MountItem[][] _slotItem =
+            { System.Array.Empty<MBI.Data.MountItem>(), System.Array.Empty<MBI.Data.MountItem>() };
+        private static readonly float[][] _slotAmount =
+            { System.Array.Empty<float>(), System.Array.Empty<float>() };
+        private static readonly float[] _stackLimit = new float[2];
+
+        /// <summary>그 로봇의 슬롯 수(A 4 · B 8). 0이면 슬롯 상태가 없다.</summary>
+        public static int MountSlotCountOf(MBI.Data.MountOwner owner) => _slotCount[Index(owner)];
+
+        /// <summary>그 로봇의 슬롯마다 무엇이 들었는가.</summary>
+        public static MBI.Data.MountItem[] MountSlotItemOf(MBI.Data.MountOwner owner)
+            => _slotItem[Index(owner)];
+
+        /// <summary>그 로봇의 슬롯마다 얼마나 들었는가.</summary>
+        public static float[] MountSlotAmountOf(MBI.Data.MountOwner owner)
+            => _slotAmount[Index(owner)];
+
+        /// <summary>그 로봇의 스택 상한. 채움 비율의 분모다.</summary>
+        public static float MountStackLimitOf(MBI.Data.MountOwner owner) => _stackLimit[Index(owner)];
+
+        /// <summary>그 로봇의 스택 상한을 올린다.</summary>
+        public static void SetMountStackLimit(MBI.Data.MountOwner owner, float value)
+            => _stackLimit[Index(owner)] = value;
+
         /// <summary>지금 나선 로봇의 슬롯 수(A 4 · B 8). 0이면 슬롯 상태가 없다.</summary>
-        public static int MountSlotCount;
+        public static int MountSlotCount => _slotCount[Index(ActiveOwner)];
 
         /// <summary>슬롯마다 무엇이 들었는가. 길이는 <see cref="MountSlotCount"/> 이상이다.</summary>
-        public static MBI.Data.MountItem[] MountSlotItem = System.Array.Empty<MBI.Data.MountItem>();
+        public static MBI.Data.MountItem[] MountSlotItem => _slotItem[Index(ActiveOwner)];
 
         /// <summary>슬롯마다 얼마나 들었는가.</summary>
-        public static float[] MountSlotAmount = System.Array.Empty<float>();
+        public static float[] MountSlotAmount => _slotAmount[Index(ActiveOwner)];
 
         /// <summary>스택 상한(확정 10 · `260901_V03`). 채움 비율의 **분모**다. 0이면 못 나눈다.</summary>
-        public static float MountStackLimit;
+        public static float MountStackLimit
+        {
+            get => _stackLimit[Index(ActiveOwner)];
+            set => _stackLimit[Index(ActiveOwner)] = value;
+        }
 
         /// <summary>
         /// **탄종별 마운트 도착률**(발/초) — 관통·표준·폭발 차례 (2026-09-15 사용자 확정).
@@ -76,28 +143,39 @@ namespace MBI.Core
         /// 슬롯 하나만 보면 모자라게 센다.
         /// </summary>
         public static float MountStockOf(MBI.Data.AmmoKind kind)
+            => MountStockOf(kind, ActiveOwner);
+
+        /// <summary>그 로봇의 마운트에 그 탄종이 몇 발 실려 있는가.</summary>
+        public static float MountStockOf(MBI.Data.AmmoKind kind, MBI.Data.MountOwner owner)
         {
             MBI.Data.MountItem want = MBI.Data.MountItemMap.From(kind);
             if (want == MBI.Data.MountItem.None) return 0f;
 
+            MBI.Data.MountItem[] items = MountSlotItemOf(owner);
+            float[] amounts = MountSlotAmountOf(owner);
+
             float sum = 0f;
-            int n = MountSlotCount;
-            if (n > MountSlotItem.Length) n = MountSlotItem.Length;
-            if (n > MountSlotAmount.Length) n = MountSlotAmount.Length;
+            int n = MountSlotCountOf(owner);
+            if (n > items.Length) n = items.Length;
+            if (n > amounts.Length) n = amounts.Length;
             for (int i = 0; i < n; i++)
-                if (MountSlotItem[i] == want) sum += MountSlotAmount[i];
+                if (items[i] == want) sum += amounts[i];
             return sum;
         }
 
         /// <summary>슬롯 배열을 길이에 맞춰 잡는다. 길이가 같으면 아무것도 안 한다.</summary>
-        public static void EnsureSlots(int count)
+        public static void EnsureSlots(int count) => EnsureSlots(ActiveOwner, count);
+
+        /// <summary>그 로봇의 슬롯 배열을 길이에 맞춰 잡는다.</summary>
+        public static void EnsureSlots(MBI.Data.MountOwner owner, int count)
         {
             if (count < 0) count = 0;
-            MountSlotCount = count;
-            if (MountSlotItem.Length >= count && MountSlotAmount.Length >= count) return;
+            int i = Index(owner);
+            _slotCount[i] = count;
+            if (_slotItem[i].Length >= count && _slotAmount[i].Length >= count) return;
 
-            MountSlotItem = new MBI.Data.MountItem[count];
-            MountSlotAmount = new float[count];
+            _slotItem[i] = new MBI.Data.MountItem[count];
+            _slotAmount[i] = new float[count];
         }
 
         /// <summary>
@@ -113,10 +191,14 @@ namespace MBI.Core
         {
             for (int i = 0; i < MountArrivalRate.Length; i++) MountArrivalRate[i] = 0f;
             HasCombat = false;
-            MountTotal = 0f;
-            StorageStock = 0f;
-            MountSlotCount = 0;
-            MountStackLimit = 0f;
+            // ⚠️ **둘 다 비운다** — 하나만 비우면 대기 쪽 적재가 다음 판으로 새어 간다.
+            for (int i = 0; i < 2; i++)
+            {
+                _mountTotal[i] = 0f;
+                _storageStock[i] = 0f;
+                _slotCount[i] = 0;
+                _stackLimit[i] = 0f;
+            }
             ActiveOwner = MBI.Data.MountOwner.RobotA;
         }
     }

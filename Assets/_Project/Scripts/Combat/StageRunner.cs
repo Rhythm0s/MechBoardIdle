@@ -835,27 +835,54 @@ namespace MBI.Combat
 
             if (_sim == null) { SupplySignals.Reset(); return; }
 
-            MountLoad mount = _sim.ActiveMount;
             SupplySignals.HasCombat = true;
-            SupplySignals.MountTotal = mount != null ? mount.Total : 0f;
-            SupplySignals.StorageStock = _sim.AmmoStock;
-            SupplySignals.ActiveOwner =
+            MountOwner active =
                 _sim.ActiveRobotIndex == 1 ? MountOwner.RobotB : MountOwner.RobotA;
+            SupplySignals.ActiveOwner = active;
 
-            // ⚠️ **슬롯 상태도 함께 넘긴다**(2026-09-14 · §71-41 · UI 문서 12-4).
-            // 합만 넘기면 조립 화면은 「얼마나 찼나」까지만 말할 수 있고
-            // **무엇이 몇 칸에 있나**는 못 그린다.
+            // ⚠️⚠️ **대기 로봇 것도 같이 싣는다**(2026-09-16 사용자 확정 · 플랜 §74-16 ③).
+            //
+            // 종전에는 **나선 로봇 하나**만 실었다. 그러면 「지금 교대하면 쏠 것이 있는가」를
+            // **물어볼 자리 자체가 없다** — 전투 HUD 의 대기 로봇 적재 표시도, 조립 화면의
+            // B 마운트 칸도 그 값을 필요로 한다.
+            //
+            // 📌 `Tag` 가 둘을 다 들고 있다 — 여기서 새로 짓지 않는다(지침 §7).
+            //    태그가 없는 판(합체 등)이면 나선 쪽 하나만 실린다.
+            PublishMount(active, _sim.ActiveMount, _sim.AmmoStock);
+
+            MountOwner standby = active == MountOwner.RobotB ? MountOwner.RobotA : MountOwner.RobotB;
+            MountLoad standbyMount = _sim.Tag != null ? _sim.Tag.StandbyMount : null;
+            // ⚠️ 창고는 **나선 쪽 것만 잰다** — 대기 로봇의 창고 재고를 시뮬이 안 들고 있다.
+            //    0 을 지어 넣지 않고 **건드리지 않는다**(옛 값이 남는 편이 거짓말보다 낫다).
+            if (standbyMount != null) PublishMount(standby, standbyMount, null);
+        }
+
+        /// <summary>
+        /// 한 로봇의 마운트 상태를 신호에 싣는다 (2026-09-16 · 로봇별로 갈리며 떼어냈다).
+        ///
+        /// ⚠️ **슬롯 상태도 함께 넘긴다**(2026-09-14 · §71-41 · UI 문서 12-4).
+        /// 합만 넘기면 조립 화면은 「얼마나 찼나」까지만 말할 수 있고
+        /// **무엇이 몇 칸에 있나**는 못 그린다.
+        /// </summary>
+        /// <param name="stock">창고 재고. <c>null</c> 이면 **안 건드린다**(모르는 값이다).</param>
+        private static void PublishMount(MountOwner owner, MountLoad mount, float? stock)
+        {
+            SupplySignals.SetMountTotal(owner, mount != null ? mount.Total : 0f);
+            if (stock.HasValue) SupplySignals.SetStorageStock(owner, stock.Value);
+
             int slots = mount != null ? mount.SlotCount : 0;
-            SupplySignals.EnsureSlots(slots);
+            SupplySignals.EnsureSlots(owner, slots);
+            MountItem[] items = SupplySignals.MountSlotItemOf(owner);
+            float[] amounts = SupplySignals.MountSlotAmountOf(owner);
             for (int i = 0; i < slots; i++)
             {
-                SupplySignals.MountSlotItem[i] = mount.ItemAt(i);
-                SupplySignals.MountSlotAmount[i] = mount.AmountAt(i);
+                items[i] = mount.ItemAt(i);
+                amounts[i] = mount.AmountAt(i);
             }
 
             // 분모는 **품목과 무관하게 같다**(표준 스택 10) — `StandardStacks` 가 그렇게 짓는다.
-            SupplySignals.MountStackLimit =
-                mount != null ? mount.StackLimitOf(MountItem.Standard) : 0f;
+            SupplySignals.SetMountStackLimit(owner,
+                mount != null ? mount.StackLimitOf(MountItem.Standard) : 0f);
         }
 
         /// <summary>한 번 그려지고 사라지는 이펙트 한 장. 반복 없음(연출 2장 「공통 생성 규칙」).</summary>
