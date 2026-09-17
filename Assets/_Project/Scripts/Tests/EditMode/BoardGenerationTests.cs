@@ -52,6 +52,32 @@ namespace MBI.Tests
         }
 
         [Test]
+        public void 산출_속도가_바뀌어도_표식은_안_바뀐다()
+        {
+            // ⚠️⚠️ **밸런스가 값을 고칠 때마다 저장이 버려지면 안 된다**
+            //    (2026-09-17 · `260917_W06` 2장 「추진제 30 이행」).
+            //    09-17 에 추진제 필요 생산치가 150 → 30 이 되면서 조합표의 **속도**가 바뀌었다.
+            //    표식이 속도를 섞어 뽑고 있었다면 그 자리에서 **모든 사용자 저장이 조용히
+            //    버려졌을 것**이다 — 크기도 주인도 같으니 아무 경고도 안 난다.
+            //
+            // 📌 표식이 뽑는 것은 **칸 · 노드 · 조합표 종류**이지 그 조합표의 수가 아니다.
+            //    이 시험은 그 경계를 값으로 못 박는다.
+            // ⚠️ **속도를 넣을 자리가 아예 없는 것**이 이 시험의 근거다 —
+            //    `NodeKey` 가 드는 것은 칸 · 노드 id · 조합표 종류 셋뿐이다.
+            //    누가 넷째로 수를 넣으면 아래 두 줄이 **그 자리에서** 빨개진다.
+            Assert.AreEqual(BoardGeneration.Of(MountOwner.RobotA), StartingBoard.Generation,
+                "A 표식이 배치 밖의 무언가를 섞어 뽑고 있다");
+            Assert.AreEqual(BoardGeneration.Of(MountOwner.RobotB), StartingBoardB.Generation,
+                "B 표식이 배치 밖의 무언가를 섞어 뽑고 있다");
+
+            // 추진제 줄의 조합표 종류는 **그대로 `Propellant`** 다 — 바뀐 것은 그 속도뿐이다.
+            var key = new BoardGeneration.NodeKey(new Vector2Int(8, 9), "muni", RecipeKind.Propellant);
+            Assert.AreEqual(BoardGeneration.Of(12, 14, new[] { key }, null),
+                            BoardGeneration.Of(12, 14, new[] { key }, null),
+                            "같은 열쇠가 두 번 다른 표식을 냈다 — 셈이 결정적이지 않다");
+        }
+
+        [Test]
         public void 조합표만_달라도_표식이_바뀐다()
         {
             // ⚠️ **B 판이 이것을 꼭 필요로 한다** — 가공 노드 셋이 같은 자산이고
