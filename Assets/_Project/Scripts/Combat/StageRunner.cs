@@ -1135,11 +1135,11 @@ namespace MBI.Combat
                     _sim.StandbyShieldMax = ShieldSystem.MaxFrom(
                         LogisticsOutputBridge.StandbyShieldNodeCount, bal.shieldMaxPerNode);
 
-                    _sim.ShieldChargeRate = ShieldCharge(bal,
+                    _sim.ShieldChargeRate = ShieldCharge(bal, _sim.ShieldMax,
                         LogisticsOutputBridge.ShieldMaterialProduce,
                         LogisticsOutputBridge.ShieldNodeCount);
                     // ⚠️ **대기 보드도 채운다** — 그래야 「다친 로봇을 빼서 회복」이 성립한다.
-                    _sim.StandbyShieldChargeRate = ShieldCharge(bal,
+                    _sim.StandbyShieldChargeRate = ShieldCharge(bal, _sim.StandbyShieldMax,
                         LogisticsOutputBridge.StandbyShieldMaterialProduce,
                         LogisticsOutputBridge.StandbyShieldNodeCount);
                 }
@@ -2353,10 +2353,11 @@ namespace MBI.Combat
         /// 둘을 가르는 것은 **누적 횟수**이고, 왜 안 차는지를 말하는 것은 **유입**이다.
         /// </summary>
         /// <summary>쉴드 충전률 — 셈은 `ShieldSystem.ChargeFrom` 하나가 쥔다(§7).</summary>
-        private static float ShieldCharge(BalanceConfig bal, float materialProduce, int nodeCount)
+        private static float ShieldCharge(BalanceConfig bal, float max,
+                                          float materialProduce, int nodeCount)
             => bal == null ? 0f
-             : ShieldSystem.ChargeFrom(materialProduce, nodeCount,
-                                       bal.shieldMaterialPerSec, bal.shieldChargePerMaterial);
+             : ShieldSystem.ChargeFrom(max, bal.shieldChargeRatioPerSec,
+                                       materialProduce, nodeCount, bal.shieldMaterialPerSec);
 
         private string DodgeLine()
         {

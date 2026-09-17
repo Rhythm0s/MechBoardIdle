@@ -67,20 +67,31 @@ namespace MBI.Core
         /// 보드 집계 → 충전률(쉴드/초)로 바꾸는 **하나뿐인 문**
         /// (지침 §7 「한 값이 두 곳에 살면 답이 둘이 된다」 — 러너와 하네스가 같이 쓴다).
         ///
-        /// 먹는 양 = `min(재료 산출, 발생 노드 수 × 대당 소비)` · 충전률 = 먹은 양 × 개당 충전량.
+        /// > 충전률 = **최대치 × 초당 비율** × (먹은 재료 ÷ 먹고 싶은 재료)
+        ///
+        /// ✅ **2026-09-17 사용자 확정 — 비율은 고정(0.025/초)이고 노드 수와 무관하다.**
+        /// 그래서 **빈 게이지가 차는 데 늘 40초**다. 노드를 더 놓으면 그릇이 커지고
+        /// 충전률도 같이 커지므로 **채우는 시간은 그대로**다 — 두 손잡이가 안 겹친다.
+        /// 🗑️ 구 규칙 「충전률 = 먹은 재료 × 개당 충전량」 폐기. 개당 충전량은 이제 **파생값**이다
+        ///    (= 최대치 × 비율 ÷ 노드 대당 소비).
+        ///
+        /// ⚠️ **재료 게이트는 그대로다** — 먹고 싶은 만큼 재료가 안 오면 **온 만큼만** 찬다.
+        /// 재료가 하나도 없으면 0 이고, 그것이 「벨트가 생존에 닿는 자리」다.
         ///
         /// ⚠️⚠️ **발생 노드가 0 이면 0 이다** — 재료를 아무리 만들어도 먹을 입이 없다.
         /// 이 고리가 없으면 쉴드는 보드와 무관한 공짜 HP 가 되고,
         /// 노드를 뽑아도 생존이 안 변해서 「보드가 결과를 바꾼다」가 무너진다.
         /// </summary>
-        public static float ChargeFrom(float materialProduce, int nodeCount,
-                                       float materialPerSec, float chargePerMaterial)
+        public static float ChargeFrom(float max, float ratioPerSec, float materialProduce,
+                                       int nodeCount, float materialPerSec)
         {
-            if (nodeCount <= 0 || chargePerMaterial <= 0f) return 0f;
+            if (nodeCount <= 0 || max <= 0f || ratioPerSec <= 0f) return 0f;
 
-            float eaten = Mathf.Min(Mathf.Max(0f, materialProduce),
-                                    nodeCount * Mathf.Max(0f, materialPerSec));
-            return eaten * chargePerMaterial;
+            float want = nodeCount * Mathf.Max(0f, materialPerSec);
+            if (want <= 0f) return 0f;   // 먹는 양이 0 이면 게이트가 뜻을 잃는다
+
+            float eaten = Mathf.Min(Mathf.Max(0f, materialProduce), want);
+            return max * ratioPerSec * (eaten / want);
         }
 
         /// <summary>쉴드가 있기는 한가 — 최대치가 0 이면 이 층 자체가 없다.</summary>

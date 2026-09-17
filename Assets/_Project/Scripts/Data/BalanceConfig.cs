@@ -71,8 +71,11 @@ namespace MBI.Data
         [Tooltip("쉴드 발생 노드 1대당 최대치. params.shieldMaxPerNode = 200 확정. 최대치 = 노드 수 × 이 값.")]
         public float shieldMaxPerNode = 200f;
 
-        [Tooltip("쉴드 재료 1개당 충전량. params.shieldChargePerMaterial. 충전률 = 재료 소비 × 이 값. ⚠️ 기본 0.")]
+        [Tooltip("🗑️ 폐기(2026-09-17) — 개당 충전량은 이제 파생값이다(최대치 × 비율 ÷ 대당 소비). 0 으로 둔다.")]
         public float shieldChargePerMaterial;
+
+        [Tooltip("쉴드 초당 충전 비율. params.shieldChargeRatioPerSec = 0.025 확정. 충전률 = 최대치 × 이 값. 빈 게이지가 차는 데 40초.")]
+        public float shieldChargeRatioPerSec = 0.025f;
 
         [Tooltip("쉴드 발생 노드 1대가 1초에 먹는 쉴드 재료(개). params.shieldMaterialPerSec = 1 측정용 고정값.")]
         public float shieldMaterialPerSec = 1f;

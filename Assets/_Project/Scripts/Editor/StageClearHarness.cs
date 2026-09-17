@@ -107,8 +107,7 @@ namespace MBI.EditorTools
         /// </summary>
         public static string Run(string stageId, bool preloadMount, float propellantNeed,
             float hpOverride)
-            => Run(stageId, preloadMount, propellantNeed, hpOverride,
-                   shieldMaxPerNode: 0f, shieldChargePerMaterial: 0f);
+            => Run(stageId, preloadMount, propellantNeed, hpOverride, shieldMaxPerNode: 0f);
 
         /// <summary>
         /// 【스위프】 위에 **쉴드 최대치·재료 1개당 충전량**을 얹은 판
@@ -126,7 +125,7 @@ namespace MBI.EditorTools
         /// <paramref name="shieldMaxPerNode"/> 가 0 이면 쉴드 줄을 **아예 안 놓는다** — 그 판이 기준선이다.
         /// </summary>
         public static string Run(string stageId, bool preloadMount, float propellantNeed,
-            float hpOverride, float shieldMaxPerNode, float shieldChargePerMaterial)
+            float hpOverride, float shieldMaxPerNode)
         {
             var sb = new StringBuilder();
             sb.AppendLine($"=== 스테이지 {stageId} 클리어 하네스 (2026-09-17) ===");
@@ -138,8 +137,7 @@ namespace MBI.EditorTools
             if (hpOverride > 0f) sb.AppendLine($"[판] 로봇 HP **{hpOverride:F0}**(하네스 전용 · 자산은 그대로)");
             if (shieldMaxPerNode > 0f)
                 sb.AppendLine($"[판] 쉴드 노드 대당 최대치 **{shieldMaxPerNode:F0}**"
-                              + $" · 재료 1개당 충전 **{shieldChargePerMaterial:F0}**"
-                              + " (하네스 전용 · 자산·시작 보드는 그대로)");
+                              + " · 충전 비율은 **자산**이 든다(하네스 전용 · 자산·시작 보드는 그대로)");
             else
                 sb.AppendLine("[판] 쉴드 **없음**(줄을 안 놓았다) — 기준선");
             sb.AppendLine(preloadMount
@@ -325,6 +323,10 @@ namespace MBI.EditorTools
             float shieldMaterialPerSec = robot.balanceRef != null
                 ? robot.balanceRef.shieldMaterialPerSec : 1f;
 
+            // 초당 충전 비율 — **자산이 원천**이다(사용자 확정 0.025/초 · 빈 게이지가 40초).
+            float shieldChargeRatio = robot.balanceRef != null
+                ? robot.balanceRef.shieldChargeRatioPerSec : 0.025f;
+
             // ⚠️⚠️ **굴리지 않은 최고값으로 판정하면 안 된다**(2026-09-16 · 첫 판에서 잡았다).
             //    0.1 초 창에서는 한 틱에 몰려 도착한 것이 순간 50.0 으로 읽힌다 — 명목 20.0 의
             //    2.5 배다. 그것을 「요구치 18 을 넘겼다」의 근거로 쓰면 **없는 성능을 보고**하게 된다.
@@ -412,8 +414,8 @@ namespace MBI.EditorTools
                 //    ⚠️ 매 틱 다시 쓴다: 한 번만 쓰면 러너와 다른 판을 재게 된다.
                 sim.ShieldMax = shieldMax;   // 위에서 노드 수 × 대당으로 냈다(러너와 같은 문)
                 sim.ShieldChargeRate = ShieldSystem.ChargeFrom(
-                    agg.shieldMaterialProduce, agg.shieldNodeCount,
-                    shieldMaterialPerSec, shieldChargePerMaterial);
+                    shieldMax, shieldChargeRatio,
+                    agg.shieldMaterialProduce, agg.shieldNodeCount, shieldMaterialPerSec);
 
                 // 4) 전투
                 sim.Tick(Dt);
@@ -578,9 +580,12 @@ namespace MBI.EditorTools
                 sb.AppendLine($"  최대치 {shieldMax:F0}"
                               + $" (발생 노드 {agg.shieldNodeCount} 대 × 대당 {shieldMaxPerNode:F0})"
                               + $" · 충전률 {sim.ShieldChargeRate:F2}/초"
-                              + $" (재료 {agg.shieldMaterialProduce:F3} 개/초 · 발생 노드 {agg.shieldNodeCount} 대"
-                              + $" · 대당 소비 {shieldMaterialPerSec:F0} · 개당 충전 {shieldChargePerMaterial:F0})"
-                              + "  ← 측정법: `ShieldSystem.ChargeFrom` = min(재료, 노드×대당) × 개당 충전");
+                              + $" (비율 {shieldChargeRatio * 100f:F1}%/초"
+                              + $" · 재료 {agg.shieldMaterialProduce:F3} 개/초 · 대당 소비 {shieldMaterialPerSec:F0})"
+                              + "  ← 측정법: `ShieldSystem.ChargeFrom` = 최대치 × 비율 × (먹은 재료 ÷ 먹고 싶은 재료)");
+                float fillSeconds = sim.ShieldChargeRate > 0f ? shieldMax / sim.ShieldChargeRate : 0f;
+                sb.AppendLine($"  빈 게이지가 차는 데 {fillSeconds:F1}초"
+                              + "  ← 측정법: 최대치 ÷ 충전률. **비율이 고정이라 그릇을 키워도 이 수는 안 변한다**");
                 sb.AppendLine($"  **쉴드가 막은 피해 {sim.ShieldAbsorbed:F0}**"
                               + "  ← 측정법: 피격마다 게이지에서 실제로 빠진 양의 합(`ShieldSystem.Absorbed`)."
                               + " ⚠️ 넘친 몫은 여기 안 들고 위의 「받은 총 피해」로 간다");
@@ -818,13 +823,14 @@ namespace MBI.EditorTools
         public static string RunW07()
         {
             var sb = new StringBuilder();
-            sb.AppendLine("############ 쉴드 재측정 두 판 (대당 최대치 200) ############");
+            sb.AppendLine("############ 쉴드 재측정 한 판 (대당 최대치 200 · 비율 2.5%/초) ############");
             sb.AppendLine();
+            // 🗑️ 구 「두 판(개당 충전 5 · 10)」 폐기 — 충전률이 **최대치의 고정 비율**이 되면서
+            //    개당 충전량이 파생값이 됐다. 이제 움직일 손잡이가 하나뿐이라 한 판이다.
             sb.AppendLine(Run("S1", preloadMount: true, propellantNeed: 30f, hpOverride: 1000f,
-                              shieldMaxPerNode: 0f, shieldChargePerMaterial: 0f));
-            foreach (float per in new[] { 5f, 10f })
-                sb.AppendLine(Run("S1", preloadMount: true, propellantNeed: 30f, hpOverride: 1000f,
-                                  shieldMaxPerNode: 200f, shieldChargePerMaterial: per));
+                              shieldMaxPerNode: 0f));
+            sb.AppendLine(Run("S1", preloadMount: true, propellantNeed: 30f, hpOverride: 1000f,
+                              shieldMaxPerNode: 200f));
             return sb.ToString();
         }
 

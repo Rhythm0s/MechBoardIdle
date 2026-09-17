@@ -26,6 +26,7 @@ MonoBehaviour:
   shieldMax: 0
   shieldMaxPerNode: 200
   shieldChargePerMaterial: 0
+  shieldChargeRatioPerSec: 0.025
   shieldMaterialPerSec: 1
   propellantNeed: 30
   dodgeStacksPerBooster: 4

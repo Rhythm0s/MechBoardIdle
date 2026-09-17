@@ -166,6 +166,7 @@ namespace MBI.Editor
             c.shieldMax = json.Param("shieldMax");
             c.shieldMaxPerNode = json.Param("shieldMaxPerNode");
             c.shieldChargePerMaterial = json.Param("shieldChargePerMaterial");
+            c.shieldChargeRatioPerSec = json.Param("shieldChargeRatioPerSec");
             c.shieldMaterialPerSec = json.Param("shieldMaterialPerSec");
 
             // 노드 생산력 10 — `260909_W01` 2-3의 「노드 생산력 10 · 필요 생산치 10 기준」이다.

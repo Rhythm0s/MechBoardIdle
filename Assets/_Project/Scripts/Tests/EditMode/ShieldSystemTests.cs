@@ -88,19 +88,42 @@ namespace MBI.Tests
         public void 발생_노드가_없으면_재료를_아무리_만들어도_0이다()
         {
             // ⚠️⚠️ 이 고리가 없으면 쉴드는 보드와 무관한 **공짜 HP** 다.
-            Assert.AreEqual(0f, ShieldSystem.ChargeFrom(1000f, 0, 1f, 5f), D);
+            Assert.AreEqual(0f, ShieldSystem.ChargeFrom(200f, 0.025f, 1000f, 0, 1f), D);
         }
 
         [Test]
-        public void 충전률은_먹은_재료_곱하기_개당_충전량이다()
+        public void 충전률은_최대치의_고정_비율이다()
         {
-            // 노드 하나가 1초에 1개를 먹고 개당 5 를 채우면 5/초.
-            Assert.AreEqual(5f, ShieldSystem.ChargeFrom(10f, 1, 1f, 5f), D,
-                "재료가 남아도 먹는 입만큼만 먹는다");
+            // ✅ **2026-09-17 사용자 확정** — 최대치 200 · 비율 2.5%/초 → 5/초.
+            Assert.AreEqual(5f, ShieldSystem.ChargeFrom(200f, 0.025f, 10f, 1, 1f), D,
+                "재료가 남아도 비율이 정한 만큼만 찬다");
+        }
 
-            // 재료가 모자라면 **모자란 쪽**이 정한다 — 그것이 벨트가 생존에 닿는 자리다.
-            Assert.AreEqual(1.5f, ShieldSystem.ChargeFrom(0.3f, 2, 1f, 5f), D,
-                "재료가 모자란데 노드 수대로 찼다");
+        [Test]
+        public void 그릇을_키워도_채우는_데_걸리는_시간은_그대로다()
+        {
+            // 📌 **이것이 비율로 바꾼 까닭이다** — 노드를 더 놓으면 그릇과 충전률이 같이 커져
+            //    빈 게이지가 차는 시간은 **늘 40초**다. 두 손잡이가 안 겹친다.
+            foreach (int nodes in new[] { 1, 2, 5 })
+            {
+                float max = ShieldSystem.MaxFrom(nodes, 200f);
+                float rate = ShieldSystem.ChargeFrom(max, 0.025f, 1000f, nodes, 1f);
+                Assert.AreEqual(40f, max / rate, 0.01f,
+                    $"노드 {nodes} 대에서 채우는 시간이 40초가 아니다 — 비율이 고정이 아니다");
+            }
+        }
+
+        [Test]
+        public void 재료가_모자라면_온_만큼만_찬다()
+        {
+            // ⚠️ **재료 게이트는 그대로다**(사용자 결정에 명시) — 그것이 벨트가 생존에 닿는 자리다.
+            //    노드 둘이 초당 2개를 먹고 싶은데 0.5개만 오면 **넷 중 하나 속도**다.
+            float max = ShieldSystem.MaxFrom(2, 200f);
+            Assert.AreEqual(max * 0.025f * 0.25f,
+                ShieldSystem.ChargeFrom(max, 0.025f, 0.5f, 2, 1f), D);
+
+            Assert.AreEqual(0f, ShieldSystem.ChargeFrom(max, 0.025f, 0f, 2, 1f), D,
+                "재료가 하나도 없는데 찬다");
         }
 
         // ── 자산이 원천 ──────────────────────────────────────────────────────
@@ -134,6 +157,12 @@ namespace MBI.Tests
 
             Assert.AreEqual(200f, bal.shieldMaxPerNode, D,
                 "params shieldMaxPerNode = 200 (2026-09-17 사용자 확정)");
+            Assert.AreEqual(0.025f, bal.shieldChargeRatioPerSec, D,
+                "params shieldChargeRatioPerSec = 0.025 (사용자 확정 · 빈 게이지 40초)");
+            Assert.AreEqual(bal.shieldChargeRatioPerSec, new BalanceConfig().shieldChargeRatioPerSec, D,
+                "코드 기본값이 자산과 갈렸다");
+            // 🗑️ 구 칸도 0 인 채 남아 있어야 한다.
+            Assert.AreEqual(0f, bal.shieldChargePerMaterial, D, "폐기한 개당 충전량에 값이 들어왔다");
             Assert.AreEqual(bal.shieldMaxPerNode, new BalanceConfig().shieldMaxPerNode, D,
                 "코드 기본값이 자산과 갈렸다 — 자산을 못 읽는 판이 다른 그릇을 세운다");
 
