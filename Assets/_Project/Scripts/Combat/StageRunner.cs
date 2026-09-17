@@ -1679,6 +1679,19 @@ namespace MBI.Combat
             _robotView = null;
             _viewedRobotIndex = 0;
             _viewedMerged = false;
+
+            // ⚠️⚠️ **발사 누적의 기준점을 같이 지운다** (2026-09-17 · 사용자 육안 · 실측 `-198.8`).
+            //
+            // `_firedMark` 는 **앞 판의 누적 발사 수**다. 새 시뮬은 0 부터 다시 세는데
+            // 기준점만 남아 있으면 첫 창에서 **(0 − 199) ÷ 1초 = -199 발/초**가 찍힌다.
+            // 화면에 「표준 **-198.8** 발/초」로 떴고, 사용자가 S1 을 200발로 이기고
+            // S2 에 들어간 직후의 수가 정확히 그것이다.
+            //
+            // 📌 **지우는 자리가 둘로 갈려 있던 것**이다 — 시뮬은 새로 나는데 그 시뮬을
+            //    재는 창은 안 지워졌다. 「같이 나는 것은 같이 지운다」.
+            for (int i = 0; i < _firedMark.Length; i++) { _firedMark[i] = 0; _firedRate[i] = 0f; }
+            _firedWindow = 0f;
+            _seenDodges = 0;
             Begin();
         }
 
@@ -2307,11 +2320,23 @@ namespace MBI.Combat
         /// 회피 재고. 추진제가 곧 회피 횟수이므로 남은 개수를 상한과 함께 보여 준다.
         /// 무적 중에는 그 사실을 따로 표시한다 — 피해가 0으로 뜨는 이유가 보여야 한다.
         /// </summary>
+        /// <summary>
+        /// ⚠️ **추진제 유입과 누적 회피를 같이 찍는다** (2026-09-17 · 사용자 육안 ①).
+        ///
+        /// 「부스터가 발생하지 않음」이라는 보고가 왔는데, 화면에 있던 것은 **남은 스택** 하나라
+        /// **「한 번도 안 났다」와 「나는 즉시 써서 늘 0 이다」가 같아 보였다.**
+        /// 둘을 가르는 것은 **누적 횟수**이고, 왜 안 차는지를 말하는 것은 **유입**이다.
+        /// </summary>
         private string DodgeLine()
         {
             DodgeSystem d = _sim.Dodge;
             // 상한을 부스터 대수와 함께 보여 준다 — 「노드를 더 놓으면 칸이 는다」가 화면에서 읽혀야 한다.
             string core = $"회피 {d.Stacks}/{d.Capacity} (부스터 {d.BoosterCount}대)";
+
+            // 누적 · 유입 — 「안 나는 것」과 「나자마자 쓰는 것」을 가른다.
+            core += $" · 누적 {d.TotalDodges}회 · 추진제 {_sim.PropellantSupplyRate:F3}/초";
+            if (_sim.PropellantSupplyRate <= 0f) core += " ⚠️보드가 추진제를 안 만든다";
+
             return d.IsInvincible ? core + "  [무적]" : core;
         }
 
