@@ -270,8 +270,9 @@ namespace MBI.EditorTools
         {
             var g = new BoardGrid(PartLayout.Columns, PartLayout.Rows, 1f,
                 Vector2.zero, PartLayout.BuildMask());
-            foreach (StartingBoard.Slot s in StartingBoard.Nodes)
-                g.TryPlace(s.cell, Node(s.nodeId), out _);
+            // ⚠️ **게임이 지나는 문으로 세운다** — 조합표를 안 고르면 추진제 노드가
+            //    표준탄으로 돌아 그 줄이 죽고, 프로브가 없는 판을 재게 된다(2026-09-17).
+            StartingBoard.Apply(g, Node);
             foreach (StartingBoard.Run r in StartingBoard.Belts) StartingBoard.Place(g, r);
             if (fill) StartingBoard.Place(g, StartingBoard.FillsEmptySlot);
             BeltAutoOrient.Resolve(g);

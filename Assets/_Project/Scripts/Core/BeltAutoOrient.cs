@@ -52,8 +52,34 @@ namespace MBI.Core
                 foreach (PortFace f in FaceOrder)
                     if (f != single) rest.Add(f);
 
-                if (merger) b.Reorient(rest.ToArray(), new[] { single });
-                else b.Reorient(new[] { single }, rest.ToArray());
+                if (merger)
+                {
+                    // 병합기는 **어느 쪽에서 와도 받는다** — 남는 입력면은 경고를 안 부른다
+                    // (`BeltRouting.Classify` 의 「안 들어오는 것과 못 나가는 것은 다르다」).
+                    b.Reorient(rest.ToArray(), new[] { single });
+                }
+                else
+                {
+                    // ⚠️⚠️ **분류기의 출력면도 이웃을 보고 잡는다** (2026-09-17).
+                    //
+                    // 종전에는 **입력면을 뺀 셋 전부**를 출력면으로 박았다. 시작 보드는
+                    // 그중 둘만 쓰므로 남는 한 면이 늘 「열린 끝」이 되고, **다 이어 놓은
+                    // 판에 「나가는 곳이 없다」가 영영 떴다**(2026-09-17 실측 — 채운 판 (9,9)).
+                    //
+                    // 📌 **경고 규칙을 고치지 않았다.** 「출구가 비면 막힌 것」은 그대로 옳고,
+                    //    고칠 것은 **안 쓸 면을 출구라고 적어 둔 쪽**이다. 이 클래스의 이름과
+                    //    주석이 처음부터 「이웃에서 다시 잡는다」였는데 출력면만 이웃을
+                    //    안 보고 있었다 — 입력면 쪽은 보고 있었다.
+                    //
+                    // ⚠️ **이웃이 하나도 없으면 셋 전부로 둔다** — 아직 배치 중일 수 있고,
+                    //    여기서 면을 0 개로 만들면 다음에 벨트를 붙여도 안 이어진다.
+                    var usable = new List<PortFace>(3);
+                    foreach (PortFace f in rest)
+                        if (CanReceive(grid, cell, f)) usable.Add(f);
+
+                    b.Reorient(new[] { single },
+                        usable.Count > 0 ? usable.ToArray() : rest.ToArray());
+                }
 
                 touched++;
             }
@@ -97,6 +123,25 @@ namespace MBI.Core
 
             // 아직 아무것도 안 붙었다. 동쪽으로 두고 이웃이 붙으면 다시 잡힌다.
             return PortFace.East;
+        }
+
+        /// <summary>
+        /// 그 면의 이웃이 **이 칸에서 오는 것을 받을 수 있는가** — 분류기 출력면 판정.
+        /// 노드면 맞은 면에 입력 포트가 있어야 하고, 벨트면 그 면으로 받는 벨트여야 한다.
+        /// ⚠️ **마운트 고정 포트도 받는 곳이다** — 운반로의 끝이 노드가 아닐 수 있다.
+        /// </summary>
+        private static bool CanReceive(BoardGrid grid, Vector2Int cell, PortFace face)
+        {
+            Vector2Int nb = cell + BeltRouting.Delta(face);
+
+            if (PartLayout.TryGetMountPort(cell, face, grid.Owner, out _)) return true;
+            if (!grid.IsInside(nb)) return false;
+
+            NodeInstance node = grid.GetAt(nb);
+            if (node != null) return HasPort(node, PortIO.Input, NodeConnectionRules.Opposite(face));
+
+            BeltInstance nbBelt = grid.GetBeltAt(nb);
+            return nbBelt != null && Receives(nbBelt, NodeConnectionRules.Opposite(face));
         }
 
         /// <summary>이 벨트가 그 면으로 들어오는 것을 받는가.</summary>

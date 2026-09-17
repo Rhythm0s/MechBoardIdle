@@ -250,9 +250,9 @@ namespace MBI.EditorTools
             var g = new BoardGrid(PartLayout.Columns, PartLayout.Rows, 1f,
                 Vector2.zero, PartLayout.BuildMask());
 
-            foreach (StartingBoard.Slot slot in StartingBoard.Nodes)
-                g.TryPlace(slot.cell, Node(slot.nodeId), out _);
-
+            // ⚠️ **게임이 지나는 문으로 세운다** — 조합표를 안 고르면 추진제 노드가
+            //    표준탄으로 돌아 그 줄이 죽고, 프로브가 없는 판을 재게 된다(2026-09-17).
+            StartingBoard.Apply(g, Node);
             // ⚠️ **병합기는 병합기로 놓는다.** 종전에는 이 줄이 `merger` 를 통째로 무시해
             // 합류 칸이 직선 벨트가 됐다 — 하네스가 게임과 다른 보드를 재고 있었다(2026-09-11).
             foreach (StartingBoard.Run run in StartingBoard.Belts)
@@ -346,8 +346,9 @@ namespace MBI.EditorTools
             var g = new BoardGrid(PartLayout.Columns, PartLayout.Rows, 1f,
                 Vector2.zero, PartLayout.BuildMask());
 
-            foreach (StartingBoard.Slot slot in StartingBoard.Nodes)
-                g.TryPlace(slot.cell, Node(slot.nodeId), out _);
+            // ⚠️ **게임이 지나는 문으로 세운다** — 조합표를 안 고르면 추진제 노드가
+            //    표준탄으로 돌아 그 줄이 죽고, 프로브가 없는 판을 재게 된다(2026-09-17).
+            StartingBoard.Apply(g, Node);
             PlaceRun(g, StartingBoard.FillsEmptySlot);   // 운반로를 다 잇는다
 
             foreach (StartingBoard.Run run in StartingBoard.Belts)
