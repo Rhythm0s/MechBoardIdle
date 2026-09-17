@@ -57,3 +57,8 @@ sysinfo.txt
 # Docs/audio_manifest.md 2장에 적혀 있다 — 새로 클론하면 거기를 보고 다시 받는다.
 Assets/_Project/Audio/sfx/*.ogg
 Assets/_Project/Audio/sfx/*.meta
+
+# 하네스·시험 로그가 쌓이는 자리 (2026-09-18). 리포 밖 임시 폴더를 쓰는 것이
+# 원칙이지만 배치 실행이 프로젝트 경로를 기준으로 파일을 쓰는 자리가 있어,
+# 그 결과물이 미추적으로 쌓여 `git status` 를 가렸다. 결과는 회신문이 나른다.
+/scratchpad/
