@@ -119,7 +119,7 @@ namespace MBI.Tests
 
             Run(sim, 30f);
 
-            Assert.AreEqual(4, sim.Dodge.Capacity, "2대 × 2칸");
+            Assert.AreEqual(2 * DodgeSystem.StacksPerBooster, sim.Dodge.Capacity, "2대 × 계수");
             Assert.AreEqual(0, sim.Dodge.Stacks, "그런데 빈 그릇이다");
             Assert.AreEqual(0, sim.Dodge.TotalDodges);
         }
@@ -139,8 +139,8 @@ namespace MBI.Tests
             Run(few, 20f);
             Run(many, 20f);
 
-            Assert.AreEqual(2, few.Dodge.TotalDodges, "1대 = 2회");
-            Assert.AreEqual(6, many.Dodge.TotalDodges, "3대 = 6회");
+            Assert.AreEqual(DodgeSystem.StacksPerBooster, few.Dodge.TotalDodges, "1대 = 계수만큼");
+            Assert.AreEqual(3 * DodgeSystem.StacksPerBooster, many.Dodge.TotalDodges, "3대 = 그 세 배");
             Assert.Less(Taken(many), Taken(few), "더 놓은 쪽이 덜 맞는다");
         }
 
@@ -160,12 +160,17 @@ namespace MBI.Tests
 
             Run(sim, 30f);
             Assert.AreEqual(3, sim.Dodge.Stacks + sim.Dodge.TotalDodges, "45초에 3개");
-            Assert.AreEqual(4, sim.Dodge.Capacity, "칸은 넷인데 셋이다 — 그릇이 아니라 속도가 병목이다");
+            Assert.AreEqual(2 * DodgeSystem.StacksPerBooster, sim.Dodge.Capacity,
+                "칸은 남는데 셋뿐이다 — 그릇이 아니라 속도가 병목이다");
         }
 
         /// <summary>
-        /// 공급이 아무리 빨라도 3에서 멈춘다. 이월분을 남겨 두면 회피 직후 쌓인 소수분이
-        /// 한꺼번에 터져 상한이 사실상 없어진다 — 그래서 만충에서 이월을 버린다.
+        /// 공급이 아무리 빨라도 **상한에서 멈춘다.** 이월분을 남겨 두면 회피 직후 쌓인
+        /// 소수분이 한꺼번에 터져 상한이 사실상 없어진다 — 그래서 만충에서 이월을 버린다.
+        ///
+        /// ⚠️ 한 틱에 들어오는 것은 `공급률 × dt` 다. 상한이 커지면 **한 틱으로는 못 채운다** —
+        ///    계수가 2 → 4 로 바뀌며 이 시험이 그것 때문에 빨개졌다(5/8). 틀린 것은 코드가
+        ///    아니라 **한 틱이면 찬다고 본 전제**였다. 상한만큼 찰 때까지 돌린다.
         /// </summary>
         [Test]
         public void FastSupply_StillCapsAtCapacity()
@@ -173,9 +178,19 @@ namespace MBI.Tests
             CombatSimulation sim = One();
             sim.PropellantSupplyRate = 100f;
 
-            sim.Tick(0.05f);
+            int peak = 0;
+            for (int i = 0; i < 20; i++)
+            {
+                sim.Tick(0.05f);
+                // ⚠️ **매 틱 본다.** 끝에서 한 번만 보면 「쌓였다가 쓰여서 줄어든 것」과
+                //    「애초에 안 쌓인 것」이 같아 보인다.
+                Assert.LessOrEqual(sim.Dodge.Stacks, sim.Dodge.Capacity,
+                    "공급이 아무리 빨라도 상한을 넘겨 쌓이지 않는다");
+                if (sim.Dodge.Stacks > peak) peak = sim.Dodge.Stacks;
+            }
 
-            Assert.AreEqual(sim.Dodge.Capacity, sim.Dodge.Stacks + sim.Dodge.TotalDodges);
+            // 그리고 실제로 **상한까지 찼다** — 안 찼으면 위 단언이 공짜로 통과한다.
+            Assert.AreEqual(sim.Dodge.Capacity, peak, "상한까지 차지도 않았다");
         }
 
         // ---- 피해 흡수 ----
@@ -206,8 +221,10 @@ namespace MBI.Tests
             Run(bare, 10f);
             Run(boosted, 10f);
 
-            Assert.AreEqual(4, boosted.Dodge.TotalDodges, "네 번 피했다");
-            Assert.AreEqual(4f * EnemyAtk, Taken(bare) - Taken(boosted), D, "그만큼 덜 맞았다");
+            // 스택 하나가 한 대를 막는다 — 몇 대인지는 **상한이 정한다.**
+            int absorbed = boosted.Dodge.TotalDodges;
+            Assert.AreEqual(boosted.Dodge.Capacity, absorbed, "쌓아 둔 만큼 피했다");
+            Assert.AreEqual(absorbed * EnemyAtk, Taken(bare) - Taken(boosted), D, "그만큼 덜 맞았다");
         }
 
         /// <summary>
@@ -312,7 +329,7 @@ namespace MBI.Tests
             sim.Tick(0.05f);
             sim.PropellantSupplyRate = 0f;
 
-            Assert.AreEqual(4, sim.Dodge.Stacks + sim.Dodge.TotalDodges, "A는 채웠고");
+            Assert.AreEqual(2 * DodgeSystem.StacksPerBooster, sim.Dodge.Stacks + sim.Dodge.TotalDodges, "A는 채웠고");
 
             sim.Tag.Locked = false;
             Assert.IsTrue(RunUntilSwap(sim), "교대한다");

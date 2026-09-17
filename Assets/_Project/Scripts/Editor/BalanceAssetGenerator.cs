@@ -151,6 +151,10 @@ namespace MBI.Editor
             // 합체 산출량 배율 — **하드코딩 금지**(`260917_W03` 7-2 #2). json 이 원천이다.
             c.mergeOutputMult = json.Param("mergeOutputMult");
 
+            // 부스터 1대당 회피 스택 칸 — 2026-09-17 사용자 확정으로 2 → 4.
+            // ⚠️ 구 값 2 는 `DodgeSystem` 에 `const` 로 **박혀 있었다.** 자산으로 옮겼다.
+            c.dodgeStacksPerBooster = Mathf.RoundToInt(json.Param("dodgeStacksPerBooster"));
+
             // 노드 생산력 10 — `260909_W01` 2-3의 「노드 생산력 10 · 필요 생산치 10 기준」이다.
             // ⚠️ **json에는 없다.** balance_v4는 이 축을 갖지 않았고 W01이 새로 준 값이라
             // 없는 키를 읽는 대신 상수로 둔다. json에 키가 생기면 그쪽으로 옮긴다.

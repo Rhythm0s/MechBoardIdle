@@ -65,6 +65,9 @@ namespace MBI.Data
         public float mountStackLimit = 10f;
 
         [Header("탄종별 생산 — 260824_V02 §1 확정")]
+        [Tooltip("부스터 1대당 회피 스택 칸. params.dodgeStacksPerBooster = 4 확정치(구 2). 회피 스택 상한 = 부스터 노드 대수 × 이 값. 시작 보드는 부스터 둘이라 상한 8.")]
+        public int dodgeStacksPerBooster = 4;
+
         [Tooltip("합체 지속 중 두 보드 모든 노드의 산출량 배율. params.mergeOutputMult = 2 확정치. 재료·전력·생산 주기는 그대로이고 벨트는 제외다(12/초 고정). 합체가 끝나면 즉시 1.0.")]
         public float mergeOutputMult = 2f;
 

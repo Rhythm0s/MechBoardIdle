@@ -31,7 +31,9 @@ namespace MBI.Tests
         public void ConfirmedConstants()
         {
             Assert.AreEqual(0.167f, DodgeSystem.InvincibleSeconds, D, "무적 0.167초");
-            Assert.AreEqual(2, DodgeSystem.StacksPerBooster, "부스터 1대 = 2칸");
+            // ⚠️ 2026-09-17 사용자 확정으로 **2 → 4**(`260917_W04` 2장).
+            //    값의 원천은 이제 `balance_v4.json` 이고, 이 줄은 코드 기본값을 본다.
+            Assert.AreEqual(4, DodgeSystem.DefaultStacksPerBooster, "부스터 1대 = 4칸");
         }
 
         /// <summary>
@@ -76,11 +78,14 @@ namespace MBI.Tests
 
             Assert.AreEqual(0, d.Capacity, "부스터가 없으면 회피 자체가 없다");
 
+            // ⚠️ **계수를 시험에 박지 않는다**(2026-09-17). 계수가 2 → 4 로 바뀌자 박아 둔
+            //    시험 열하나가 한꺼번에 빨개졌다 — 값이 바뀐 것은 결함이 아닌데 결함처럼 보였다.
+            //    시험이 보는 것은 **대수에 비례하는가**이지 계수의 값이 아니다.
             d.BoosterCount = 1;
-            Assert.AreEqual(2, d.Capacity);
+            Assert.AreEqual(DodgeSystem.StacksPerBooster, d.Capacity);
 
             d.BoosterCount = 3;
-            Assert.AreEqual(6, d.Capacity, "대수에 비례한다 — 상수가 아니다");
+            Assert.AreEqual(3 * DodgeSystem.StacksPerBooster, d.Capacity, "대수에 비례한다 — 상수가 아니다");
         }
 
         /// <summary>상한을 넘겨 쌓이지 않는다. 넘치는 분은 버려진다.</summary>
@@ -89,8 +94,8 @@ namespace MBI.Tests
         {
             var d = new DodgeSystem { BoosterCount = 2 };
 
-            Assert.AreEqual(4, d.AddStacks(10), "4개만 들어간다");
-            Assert.AreEqual(4, d.Stacks);
+            Assert.AreEqual(2 * DodgeSystem.StacksPerBooster, d.AddStacks(100), "상한만큼만 들어간다");
+            Assert.AreEqual(d.Capacity, d.Stacks);
             Assert.AreEqual(0, d.AddStacks(5), "가득 차면 한 개도 안 들어간다");
         }
 
@@ -102,12 +107,12 @@ namespace MBI.Tests
         public void RemovingBoosters_TrimsStacksImmediately()
         {
             var d = new DodgeSystem { BoosterCount = 3 };
-            d.AddStacks(6);
+            d.AddStacks(3 * DodgeSystem.StacksPerBooster);
 
             d.BoosterCount = 1;
 
-            Assert.AreEqual(2, d.Capacity);
-            Assert.AreEqual(2, d.Stacks, "상한 위로 넘친 분은 잘린다");
+            Assert.AreEqual(DodgeSystem.StacksPerBooster, d.Capacity);
+            Assert.AreEqual(DodgeSystem.StacksPerBooster, d.Stacks, "상한 위로 넘친 분은 잘린다");
         }
 
         /// <summary>
@@ -121,7 +126,7 @@ namespace MBI.Tests
 
             Assert.AreEqual(1, d.AddStacks(1), "한 번에 들어오는 것은 추진제 하나뿐이다");
             Assert.AreEqual(1, d.Stacks);
-            Assert.AreEqual(6, d.Capacity, "칸은 여섯이지만 다섯 칸이 비어 있다");
+            Assert.AreEqual(3 * DodgeSystem.StacksPerBooster, d.Capacity, "칸은 많은데 한 칸만 찼다");
         }
 
         [Test]

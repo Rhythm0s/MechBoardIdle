@@ -94,12 +94,26 @@ namespace MBI.EditorTools
         /// 여기서는 노드 자산의 **복제본**을 만들어 추진제 조합표의 산출률만 바꾼다.
         /// </summary>
         public static string Run(string stageId, bool preloadMount, float propellantNeed)
+            => Run(stageId, preloadMount, propellantNeed, hpOverride: 0f);
+
+        /// <summary>
+        /// 【스위프】 추진제 필요 생산치와 **로봇 HP** 를 바꿔 돌린다
+        /// (2026-09-17 · `260917_W04` 4장).
+        ///
+        /// ⚠️⚠️ **배포 값은 안 건드린다.** HP 는 `CombatTuning.asset` 의 `robotHpTbd` 에 사는데,
+        /// 그 자산을 고치면 디스크에 남아 **빌드와 다음 측정이 바뀐 값을 보게 된다.**
+        /// 여기서는 세우는 `RobotSetup` 의 `hp` 만 갈아 끼운다 — 자산은 그대로다.
+        /// <paramref name="hpOverride"/> 가 0 이면 자산 값을 쓴다.
+        /// </summary>
+        public static string Run(string stageId, bool preloadMount, float propellantNeed,
+            float hpOverride)
         {
             var sb = new StringBuilder();
             sb.AppendLine($"=== 스테이지 {stageId} 클리어 하네스 (2026-09-17) ===");
             sb.AppendLine($"[판] 추진제 필요 생산치 **{propellantNeed:F0}**"
                           + $" (15초당 {BasePropellantNeed / propellantNeed:F0}개"
                           + (Mathf.Approximately(propellantNeed, BasePropellantNeed) ? " · 기준)" : ")"));
+            if (hpOverride > 0f) sb.AppendLine($"[판] 로봇 HP **{hpOverride:F0}**(하네스 전용 · 자산은 그대로)");
             sb.AppendLine(preloadMount
                 ? "[시작 조건] **튜토리얼 종료** — 마운트 적재 참(정상 경로) · 창고 빈손"
                 : "[시작 조건] **심사자 S1 점프** — 빈 칸 자동 채움 · 창고·마운트 **빈손**");
@@ -114,6 +128,11 @@ namespace MBI.EditorTools
                 sb.AppendLine($"  stage={stage != null} robot={robot != null} tuning={tuning != null}");
                 return sb.ToString();
             }
+
+            // 회피 스택 계수 — **게임과 같은 자산에서** 읽는다(2026-09-17 · `260917_W04` 2장).
+            //    안 읽으면 하네스가 코드 기본값으로 재서 화면과 다른 판을 본다.
+            if (robot.balanceRef != null && robot.balanceRef.dodgeStacksPerBooster > 0)
+                DodgeSystem.StacksPerBooster = robot.balanceRef.dodgeStacksPerBooster;
 
             var catalog = new List<EnemyDefinition>();
             foreach (string guid in AssetDatabase.FindAssets("t:EnemyDefinition"))
@@ -144,7 +163,7 @@ namespace MBI.EditorTools
 
             var setup = new RobotSetup
             {
-                hp = tuning.robotHpTbd,
+                hp = hpOverride > 0f ? hpOverride : tuning.robotHpTbd,
                 mountCoef = mountCoef,
                 moduleMult = robot.moduleMult,
                 attackRange = tuning.robotAttackRangeTbd,
@@ -443,6 +462,10 @@ namespace MBI.EditorTools
                 ? $"  ⚠️ **안 끝났다** — {HardCapSeconds:F0}초에서 끊었다. 「졌다」가 아니다."
                 : $"  {result} · {elapsed:F1}초");
             sb.AppendLine($"  남은 적 {sim.Remaining}/{sim.TotalEnemies} · 로봇 HP {sim.Robot.hp:F0}/{sim.Robot.maxHp:F0}");
+            if (result == CombatResult.Win)
+                sb.AppendLine($"  ✅ **이겼다 — 끝날 때 남은 HP {sim.Robot.hp:F0}"
+                              + $" ({sim.Robot.hp / Mathf.Max(1f, sim.Robot.maxHp) * 100f:F0}%)**"
+                              + "  ← 여유가 얼마인지가 값을 고를 때의 입력이다(`260917_W04` 4-2)");
             sb.AppendLine($"  쏜 발 {shots}");
             sb.AppendLine(firstArrivalAt >= 0f
                 ? $"  첫 도착 {firstArrivalAt:F1}초"
@@ -625,6 +648,33 @@ namespace MBI.EditorTools
         ///
         /// 배치 실행: <c>-executeMethod MBI.EditorTools.StageClearHarness.RunW02Batch</c>
         /// </summary>
+        /// <summary>
+        /// 【`260917_W04` 4장】 **HP 여섯 판** — HP 1000·1250·1500 × 추진제 150·30.
+        ///
+        /// ⚠️ 조건부다 — 「게임에도 쉴드 판정이 없다」일 때만 돌리라고 했고, 코드를 봤더니
+        /// 쉴드는 **노드 스텁 하나**뿐이라 전투에 게이지도 판정도 없다(회신문 3장).
+        /// ⚠️ **스택 상한은 새 값(부스터당 4칸 = 8)** 으로 돈다 — 자산에서 읽는다.
+        /// </summary>
+        [MenuItem("MBI/Harness W04 HP 여섯 판")]
+        public static void RunW04Menu() => Debug.Log(RunW04());
+
+        public static void RunW04Batch()
+        {
+            Debug.Log(RunW04());
+            if (Application.isBatchMode) EditorApplication.Exit(0);
+        }
+
+        public static string RunW04()
+        {
+            var sb = new StringBuilder();
+            sb.AppendLine("############ 260917_W04 4장 HP 여섯 판 ############");
+            sb.AppendLine();
+            foreach (float need in new[] { 150f, 30f })
+            foreach (float hp in new[] { 1000f, 1250f, 1500f })
+                sb.AppendLine(Run("S1", preloadMount: true, propellantNeed: need, hpOverride: hp));
+            return sb.ToString();
+        }
+
         /// <summary>추진제 스위프의 네 값 — `260917_W03` 2-1. **밸런스 자산은 안 건드린다.**</summary>
         private static readonly float[] SweepNeeds = { 150f, 75f, 50f, 30f };
 

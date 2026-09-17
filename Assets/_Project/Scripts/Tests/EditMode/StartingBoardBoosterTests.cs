@@ -129,6 +129,73 @@ namespace MBI.Tests
             Assert.Greater(arrived, 0, "빈 칸을 채웠는데도 마운트에 하나도 안 닿았다");
         }
 
+        // ── 회피 스택 상한 × 4칸 (2026-09-17 사용자 확정 · `260917_W04` 2장) ──
+
+        [Test]
+        public void 부스터_둘인_보드는_상한이_여덟이다()
+        {
+            // ⚠️ 상한은 **대수의 파생값**이다 — 시작 보드가 부스터 둘이므로 2 × 4 = 8.
+            NetworkAggregate a = Aggregate(Build(MountOwner.RobotA, fillEmptySlot: true));
+            Assert.AreEqual(2, a.boosterCount, "시험 전제가 깨졌다");
+
+            var dodge = new DodgeSystem { BoosterCount = a.boosterCount };
+            Assert.AreEqual(8, dodge.Capacity,
+                "부스터 둘인데 상한이 8 이 아니다 — 계수가 4 로 안 서 있다");
+        }
+
+        [Test]
+        public void 계수는_자산에서_온다()
+        {
+            // ⚠️⚠️ **하드코딩 금지**(`260917_W04` 2장). 구 값 2 는 `DodgeSystem` 에
+            //    `const` 로 박혀 있어서 밸런스가 이 칸을 못 움직였다.
+            var bal = AssetDatabase.LoadAssetAtPath<BalanceConfig>(
+                "Assets/_Project/ScriptableObjects/BalanceConfig.asset");
+            Assert.IsNotNull(bal, "BalanceConfig 자산이 없다 — 생성기를 먼저 돌린다");
+
+            Assert.AreEqual(4, bal.dodgeStacksPerBooster,
+                "params dodgeStacksPerBooster = 4 (밸런스「회피와 기동 라인」)");
+            Assert.AreEqual(bal.dodgeStacksPerBooster, DodgeSystem.DefaultStacksPerBooster,
+                "코드 기본값이 자산과 갈렸다 — 자산을 못 읽는 판에서 다른 수가 나온다");
+        }
+
+        [Test]
+        public void 상한_계수는_세대_표식을_안_바꾼다()
+        {
+            // 설계가 물은 것 — 「상한 개정으로 세대 표식은 바뀌지 않아야 한다」.
+            // 📌 표식은 **배치**에서 뽑는다. 계수는 배치가 아니므로 닿지 않는다.
+            //    이 시험은 그 사실을 **값으로** 못 박는다 — 나중에 누가 표식에 전투 값을
+            //    섞으면 여기서 걸리고, 그때 사용자 저장이 조용히 버려지는 것을 막는다.
+            int before = DodgeSystem.StacksPerBooster;
+            try
+            {
+                string a1 = StartingBoard.Generation;
+                string b1 = StartingBoardB.Generation;
+
+                DodgeSystem.StacksPerBooster = 2;
+                Assert.AreEqual(a1, StartingBoard.Generation, "A 표식이 계수를 따라 바뀌었다");
+                Assert.AreEqual(b1, StartingBoardB.Generation, "B 표식이 계수를 따라 바뀌었다");
+
+                DodgeSystem.StacksPerBooster = 9;
+                Assert.AreEqual(a1, StartingBoard.Generation);
+                Assert.AreEqual(b1, StartingBoardB.Generation);
+            }
+            finally { DodgeSystem.StacksPerBooster = before; }
+        }
+
+        [Test]
+        public void 회피_게이지_눈금은_상한을_따른다()
+        {
+            // 설계가 물은 것 — 「눈금 수는 상한을 따른다 · 부스터 5대면 눈금 20개」.
+            // 📌 **코드는 이미 열에서 접는다**(`HudMeters.MaxTicks`) — 20 개가 서는 일은 없다.
+            //    상한 8 은 열 밑이라 **눈금 여덟**이 그대로 선다.
+            Assert.AreEqual(8, HudMeters.TickCount(8), "상한 8 인데 눈금이 여덟이 아니다");
+            Assert.AreEqual(4, HudMeters.TickCount(4), "부스터 한 대면 눈금 넷");
+            Assert.LessOrEqual(HudMeters.TickCount(20), 10,
+                "상한 20 에서 눈금이 열을 넘었다 — 고정 길이 바가 못 읽힌다");
+            Assert.AreNotEqual(string.Empty, HudMeters.OverflowTag(20),
+                "열을 넘겼는데 꼬리표가 없다 — 접힌 것을 화면이 안 말한다");
+        }
+
         [Test]
         public void 분류기가_직선으로_깔리지_않았다()
         {

@@ -46,8 +46,30 @@ namespace MBI.Core
         /// <summary>무적 지속(초). 확정치 0.167.</summary>
         public const float InvincibleSeconds = 0.167f;
 
-        /// <summary>부스터 노드 1대가 드는 회피 스택. 확정치 2(260829_V02).</summary>
-        public const int StacksPerBooster = 2;
+        /// <summary>
+        /// 부스터 노드 1대가 드는 회피 스택 — **확정치 4**(2026-09-17 사용자 확정 · `260917_W04` 2장).
+        ///
+        /// ⚠️⚠️ **원천은 `balance_v4.json` 의 `dodgeStacksPerBooster` 다.**
+        /// 🗑️ 구 `public const int StacksPerBooster = 2`(260829_V02) 폐기 —
+        /// 값이 **코드에 박혀 있어서** 밸런스가 이 칸을 못 움직였다. 설계가 「계수는 자산에
+        /// 둔다」로 자른 자리다. 부르는 쪽(`StageRunner` · 하네스)이 자산을 읽어 넣는다.
+        ///
+        /// ⚠️ 여기 적힌 4 는 **자산을 못 읽는 판을 위한 기본값**이지 원천이 아니다.
+        /// 시험이 자산과 이 값이 같은지를 본다 — 둘이 갈리면 그때 거기서 걸린다.
+        ///
+        /// 상한은 상수가 아니라 **대수의 파생값**이다 — 상수로 두면 부스터 1대와 3대가
+        /// 같아져 「더 놓으면 강해진다」가 수치로 무너진다.
+        /// </summary>
+        public static int StacksPerBooster
+        {
+            get => _stacksPerBooster;
+            set => _stacksPerBooster = Mathf.Max(1, value);
+        }
+
+        private static int _stacksPerBooster = 4;
+
+        /// <summary>기본값 — 자산이 없을 때 쓰는 값이자, 시험이 자산과 맞대는 값.</summary>
+        public const int DefaultStacksPerBooster = 4;
 
         /// <summary>
         /// 종료 모션 딜레이(초) — **미확정**. 무적과 **별개 값**이다:

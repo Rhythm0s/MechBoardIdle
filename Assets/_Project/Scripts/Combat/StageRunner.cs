@@ -1110,6 +1110,11 @@ namespace MBI.Combat
                 // 합체 지속 중에는 두 보드 모든 노드의 산출량이 ×2 다(`260917_W03` 7-2 #2).
                 // ⚠️ **매 틱 다시 쓴다** — 켤 때만 쓰면 합체가 끝나도 공장이 영영 두 배다.
                 BalanceConfig bal = robot != null ? robot.balanceRef : null;
+
+                // 회피 스택 계수는 **자산이 원천**이다(2026-09-17 · `260917_W04` 2장).
+                // ⚠️ 매 틱 넣는 까닭 — 자산을 인스펙터에서 고치면 그 자리에서 반영돼야 한다.
+                if (bal != null && bal.dodgeStacksPerBooster > 0)
+                    DodgeSystem.StacksPerBooster = bal.dodgeStacksPerBooster;
                 MergeSignals.OutputMultiplier = IsMerged && bal != null
                     ? Mathf.Max(1f, bal.mergeOutputMult)
                     : MergeSignals.None;

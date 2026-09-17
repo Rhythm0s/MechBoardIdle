@@ -222,11 +222,15 @@ namespace MBI.Tests
             NetworkAggregate agg = LogisticsNetwork.Aggregate(g);
             var dodge = new DodgeSystem { BoosterCount = agg.boosterCount };
 
-            Assert.AreEqual(6, dodge.Capacity, "3대 × 2칸");
+            Assert.AreEqual(3 * DodgeSystem.StacksPerBooster, dodge.Capacity, "3대 × 계수");
 
-            // 여섯 칸을 채우려면 15초짜리 추진제가 여섯 개 = 90초다. 그릇만 키우면 빈 그릇이 는다.
+            // 칸을 다 채우려면 **칸 수만큼** 추진제가 와야 하고, 하나에 15초다.
+            // 그릇만 키우면 **빈 그릇이 는다** — 채우는 속도는 군수 노드가 정한다.
+            // ⚠️ 90 을 박아 두었더니 계수가 2 → 4 로 바뀌며 빨개졌다. 시험이 보는 것은
+            //    「칸 수 × 한 개에 걸리는 시간」이지 90 이라는 수가 아니다.
+            const float SecondsPerPropellant = 15f;
             float secondsToFill = dodge.Capacity / agg.propellantProduce;
-            Assert.AreEqual(90f, secondsToFill, 0.01f);
+            Assert.AreEqual(dodge.Capacity * SecondsPerPropellant, secondsToFill, 0.01f);
         }
     }
 }
