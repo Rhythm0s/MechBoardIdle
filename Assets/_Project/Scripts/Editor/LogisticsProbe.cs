@@ -65,7 +65,7 @@ namespace MBI.EditorTools
         /// <summary>
         /// **4단 체인의 첫 도착** (2026-09-04 · `260904_W02` 2-2 요청).
         ///
-        /// 코어 → 가공 → 기초 군수 → 복합 군수 → 마운트(어깨 R). 단계마다 생산 시간이 붙고
+        /// 코어 → 가공 → 기초 가공 → 복합 가공 → 마운트(어깨 R). 단계마다 생산 시간이 붙고
         /// 그 사이마다 벨트가 있어, 1단 라인의 지연과는 자릿수가 다르다. 60초 창의
         /// **상한**(첫 도착이 영영 안 오면 0으로 확정)을 정하는 근거가 이 값이다.
         ///
@@ -73,7 +73,7 @@ namespace MBI.EditorTools
         /// 넷을 번갈아 놓았는데, 그 배치는 노드가 전부 서→동이라는 가정 위에 있었다.
         /// 실제 포트는 그렇지 않다:
         ///   - **코어는 북으로 낸다**(남으로 전력을 받는다) — 동쪽 이웃에게 아무것도 안 준다
-        ///   - **복합 군수는 두 면으로 받는다**(서=표준탄 · 남=부품) — 부품 라인을 갈라야 한다
+        ///   - **복합 가공는 두 면으로 받는다**(서=표준탄 · 남=부품) — 부품 라인을 갈라야 한다
         /// 그래서 라인이 층을 갈아타고, 분류기가 부품을 두 갈래로 나눈다. 이 굴곡 자체가
         /// 지연의 큰 몫이므로 **직선으로 재면 실제보다 짧게 나온다.**
         ///
@@ -118,21 +118,21 @@ namespace MBI.EditorTools
             // 2단 — 가공. 코어 에너지를 먹어 기초재료·부품을 낸다.
             Node(6, 5, proc);
 
-            // 부품을 두 갈래로: 동쪽은 기초 군수, 남쪽은 복합 군수의 둘째 입력.
+            // 부품을 두 갈래로: 동쪽은 기초 가공, 남쪽은 복합 가공의 둘째 입력.
             if (!grid.TryPlaceBeltElement(new Vector2Int(7, 5), BeltElementKind.Sorter,
                     new[] { PortFace.West }, new[] { PortFace.East, PortFace.South },
                     FlowKind.None, out _))
                 sb.AppendLine("  ⚠️ 분류기 (7,5)를 못 놓았다");
 
-            // 3단 — 기초 군수. 부품을 먹어 표준탄을 낸다.
+            // 3단 — 기초 가공. 부품을 먹어 표준탄을 낸다.
             Node(8, 5, muni);
 
-            // 표준탄 라인 — 위로 올라가 복합 군수의 서쪽 면으로.
+            // 표준탄 라인 — 위로 올라가 복합 가공의 서쪽 면으로.
             Belt(9, 5, PortFace.West, PortFace.North);
             Belt(9, 6, PortFace.South, PortFace.North);
             Belt(9, 7, PortFace.South, PortFace.East);
 
-            // 부품 라인 — 아래로 돌아 복합 군수의 남쪽 면으로.
+            // 부품 라인 — 아래로 돌아 복합 가공의 남쪽 면으로.
             Belt(7, 4, PortFace.North, PortFace.East);
             Belt(8, 4, PortFace.West, PortFace.East);
             Belt(9, 4, PortFace.West, PortFace.East);
@@ -140,7 +140,7 @@ namespace MBI.EditorTools
             Belt(10, 5, PortFace.South, PortFace.North);
             Belt(10, 6, PortFace.South, PortFace.North);
 
-            // 4단 — 복합 군수. 표준탄 + 부품을 먹어 관통탄을 낸다.
+            // 4단 — 복합 가공. 표준탄 + 부품을 먹어 관통탄을 낸다.
             Node(10, 7, munix);
             NodeInstance complex = grid.GetAt(new Vector2Int(10, 7));
 
@@ -182,14 +182,14 @@ namespace MBI.EditorTools
             // 마지막 단이 왜 안 도는지 — 굶었는가, 산출이 갈 곳이 없는가.
             if (complex != null)
             {
-                sb.AppendLine($"  복합 군수 조합표: {complex.CurrentRecipe.kind} " +
+                sb.AppendLine($"  복합 가공 조합표: {complex.CurrentRecipe.kind} " +
                               $"(가동 {complex.CurrentRecipe.IsRunnable} · " +
                               $"{complex.CurrentRecipe.outputPerSec:F3}/초)");
-                sb.Append("  복합 군수 입력버퍼:");
+                sb.Append("  복합 가공 입력버퍼:");
                 foreach (KeyValuePair<FlowKind, float> kv in complex.InputBuffer)
                     sb.Append($" {kv.Key}={kv.Value:F1}");
                 sb.AppendLine($"  (굶음 {complex.IsStarved})");
-                sb.AppendLine($"  복합 군수 출력버퍼: {complex.OutputBuffer:F2} ({complex.BufferKind})");
+                sb.AppendLine($"  복합 가공 출력버퍼: {complex.OutputBuffer:F2} ({complex.BufferKind})");
             }
             return sb.ToString();
         }
@@ -204,7 +204,7 @@ namespace MBI.EditorTools
         /// 라인은 서에서 동으로 흐른다. y=6은 팔R·몸통·팔L을 관통해 12칸이 전부 유효하다.
         ///
         /// ⚠️ **재료를 매 틱 먹인다**(2026-09-05). 여기서 재는 것은 「벨트가 한 칸을 나르는 데
-        /// 몇 초 걸리는가」이지 「체인이 재료를 대는가」가 아니다. 레시피 개정으로 기초 군수가
+        /// 몇 초 걸리는가」이지 「체인이 재료를 대는가」가 아니다. 레시피 개정으로 기초 가공가
         /// 부품을 먹기 시작하면서 이 하네스가 통째로 0을 냈는데, 그것은 벨트가 느린 것이 아니라
         /// **앞단이 없는 것**이라 지연 측정에 섞이면 안 된다. 상류를 무한 공급으로 고정해
         /// 벨트 구간만 남긴다.

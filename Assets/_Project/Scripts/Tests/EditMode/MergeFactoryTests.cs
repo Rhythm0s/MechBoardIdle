@@ -40,7 +40,7 @@ namespace MBI.Tests
         public void 합체_중_기초_군수_산출이_두_배이고_재료_소비는_그대로다()
         {
             NodeDefinition muni = Node(StartingBoard.MuniId);
-            Assert.IsNotNull(muni, "기초 군수 자산이 없다");
+            Assert.IsNotNull(muni, "기초 가공 자산이 없다");
 
             NodeRecipe recipe = default;
             foreach (NodeRecipe r in muni.recipes)

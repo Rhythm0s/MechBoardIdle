@@ -91,7 +91,7 @@ namespace MBI.Tests
         }
 
         /// <summary>
-        /// 기초 군수의 조합표는 **넷 다 돈다**(2026-09-05).
+        /// 기초 가공의 조합표는 **넷 다 돈다**(2026-09-05).
         ///
         /// 종전에는 쉴드 재료 하나가 「자리만 있고 안 도는」 범위 밖이었는데, W01 3-2 개정에서
         /// 그 자리를 **방어 재료**가 이어받으며 가동으로 넘어갔다. 쉴드 발생 노드 자체는
@@ -155,7 +155,7 @@ namespace MBI.Tests
                                              Recipe(RecipeKind.StandardAmmo, 1f, 0f)), Vector2Int.zero);
 
             Assert.AreEqual(RecipeKind.StandardAmmo, inst.CurrentRecipe.kind,
-                "기초 군수의 기본값은 표준탄이다 — 목록 순서와 무관하다");
+                "기초 가공의 기본값은 표준탄이다 — 목록 순서와 무관하다");
         }
 
         // ---- ④ 버퍼 상한 = 생산 정지 조건 ----

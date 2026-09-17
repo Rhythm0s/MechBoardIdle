@@ -67,9 +67,9 @@ namespace MBI.EditorTools
             if (bal == null) return "BalanceConfig을 못 찾았다 — MBI/Generate Balance + Nodes 먼저.";
 
             // 체인 구성은 W01 2-3 표 그대로다.
-            // 표준 = 기초 군수 + 부품 가공.
-            // 관통 = 복합 군수 + 표준탄 라인 둘 + 부품 가공.
-            // 폭발 = 복합 군수 + 표준탄 라인 둘 + 발전재료 가공.
+            // 표준 = 기초 가공 + 부품 가공.
+            // 관통 = 복합 가공 + 표준탄 라인 둘 + 부품 가공.
+            // 폭발 = 복합 가공 + 표준탄 라인 둘 + 발전재료 가공.
             // ⚠️ 가공 노드 자산이 하나(proc)라 부품과 발전재료가 같은 값을 쓴다.
             Chain std = new Chain("표준", 10f, bal.LineSpecOf(AmmoKind.Standard), "muni", "proc");
             Chain pierce = new Chain("관통", 20f, bal.LineSpecOf(AmmoKind.Pierce),
@@ -154,18 +154,18 @@ namespace MBI.EditorTools
             sb.AppendLine("  주의: 갈아탈 이유가 있는가는 이 두 표를 겹쳐 보고 설계가 답한다.");
         }
 
-        // ---- 4. 복합 군수 전력 3에서 에너지 노드가 몇 대 드는가 ----
+        // ---- 4. 복합 가공 전력 3에서 에너지 노드가 몇 대 드는가 ----
 
         private static void Four(StringBuilder sb, Chain pierce, Chain expl)
         {
             sb.AppendLine();
-            sb.AppendLine("[4] 복합 군수 대당 전력 3에서 드는 에너지 노드 수");
+            sb.AppendLine("[4] 복합 가공 대당 전력 3에서 드는 에너지 노드 수");
 
             NodeDefinition munix = Node("munix");
             NodeDefinition ener = Node("ener");
             if (munix == null || ener == null) { sb.AppendLine("  노드 자산 없음"); return; }
 
-            sb.AppendLine($"  복합 군수 대당 전력 = {munix.resources.powerDraw:F0} " +
+            sb.AppendLine($"  복합 가공 대당 전력 = {munix.resources.powerDraw:F0} " +
                           $"(확정 여부 {munix.resources.confirm})");
             sb.AppendLine($"  에너지 대당 공급 {ener.resources.powerSupply:F0} · 자기 소비 " +
                           $"{ener.resources.powerDraw:F0} → 순 공급 {NetSupply(ener):F0}/대");
@@ -173,7 +173,7 @@ namespace MBI.EditorTools
             float withThree = 4f * ChainDraw(pierce) + 2f * ChainDraw(expl);
             float withZero = withThree - 6f * munix.resources.powerDraw;
             sb.AppendLine($"  관통 4 + 폭발 2 소비 {withThree:F0}/초 → {EnergyLine(withThree)}");
-            sb.AppendLine($"  복합 군수 전력이 0이었을 때 {withZero:F0}/초 → {EnergyLine(withZero)}");
+            sb.AppendLine($"  복합 가공 전력이 0이었을 때 {withZero:F0}/초 → {EnergyLine(withZero)}");
             sb.AppendLine("  주의: 값 3은 잠정이다 — W01 2-6이 크기를 정할 잣대가 없다고 적은 자리다.");
         }
 

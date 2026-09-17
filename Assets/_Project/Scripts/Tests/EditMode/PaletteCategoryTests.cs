@@ -52,12 +52,12 @@ namespace MBI.Tests
         [Test]
         public void 이름이_아니라_수가_가른다()
         {
-            // ⚠️ 이것이 이 규칙의 값이다 — 「기초 군수」라는 **이름**을 달고 있어도
+            // ⚠️ 이것이 이 규칙의 값이다 — 「기초 가공」라는 **이름**을 달고 있어도
             // 입력이 둘이면 복합이다. 나중에 입력 둘짜리가 생겨도 표를 안 고쳐도 된다.
             Assert.That(PaletteCategories.Of(Node(NodeType.MunitionsBasic, 2)),
                 Is.EqualTo(PaletteCategory.Complex));
 
-            // 반대도 성립한다 — 「복합 군수」인데 입력이 하나면 기초로 간다.
+            // 반대도 성립한다 — 「복합 가공」인데 입력이 하나면 기초로 간다.
             Assert.That(PaletteCategories.Of(Node(NodeType.MunitionsComplex, 1)),
                 Is.EqualTo(PaletteCategory.Basic));
         }

@@ -63,7 +63,7 @@ namespace MBI.Tests
 
             foreach (StartingBoard.Run run in StartingBoard.Belts) PlaceRun(g, run);
             // 빈 칸을 채우는 것은 **운반로 벨트 한 칸**이다 (2026-09-11 설계 확정 (가)).
-            // 세 판째다 — 병합기 → 기초 군수 → 벨트. 매번 **놓기 전 0** 이 되는 자리를 찾아왔다.
+            // 세 판째다 — 병합기 → 기초 가공 → 벨트. 매번 **놓기 전 0** 이 되는 자리를 찾아왔다.
             if (fillEmptySlot) PlaceRun(g, StartingBoard.FillsEmptySlot);
 
             // 실제 경로와 같은 순서로 푼다: 면 → 품목.
@@ -155,7 +155,7 @@ namespace MBI.Tests
         /// <summary>
         /// 빈 칸을 채우면 **0이 아닌 무엇**이 된다 — 그 「무엇」은 아직 측정 중이다.
         ///
-        /// ⚠️ 종전 값 100은 구 보드(군수 다섯 대)의 것이다. 새 보드는 기초 군수 한 대이므로
+        /// ⚠️ 종전 값 100은 구 보드(군수 다섯 대)의 것이다. 새 보드는 기초 가공 한 대이므로
         /// 자릿수부터 다르다. **여기에 지금 나오는 수를 적지 않는다** — 4단 체인 실측 전이고,
         /// 밸런스 문서의 100·80은 이미 재산출 대상에 올라 있다(`260904_W04` 4장).
         /// </summary>
@@ -166,7 +166,7 @@ namespace MBI.Tests
         }
 
         /// <summary>
-        /// 채우는 것은 **기초 군수 노드**다 (2026-09-05). 종전에는 병합기였는데,
+        /// 채우는 것은 **기초 가공 노드**다 (2026-09-05). 종전에는 병합기였는데,
         /// 단일 라인이 되면서 합칠 갈래가 없어져 병합기가 놀게 됐다.
         ///
         /// 스테이지 0의 목표는 「라인을 이으면 물건이 만들어진다」이므로,
@@ -226,7 +226,7 @@ namespace MBI.Tests
             // ⚠️ 2026-09-17 — **셋이다.** 표준탄 둘 + **추진제 하나**(부스터 줄이 배포에 들어왔다).
             // 🗑️ 구 「셋」 폐기 — 09-17 에 쉴드 줄이 들어와 **넷**이 됐다.
             Assert.AreEqual(4, placed,
-                "기초 군수 넷 — 표준탄 둘(두 줄) + 추진제(부스터 줄) + 방어 재료(쉴드 줄)");
+                "기초 가공 넷 — 표준탄 둘(두 줄) + 추진제(부스터 줄) + 방어 재료(쉴드 줄)");
 
             BoardGrid g = Build(fillEmptySlot: false);
             NetworkAggregate agg = LogisticsNetwork.Aggregate(g, LogisticsReach.ConnectedNodes(g));
@@ -290,13 +290,13 @@ namespace MBI.Tests
         /// ⚠️ **측정 중** — 빈 칸을 채웠을 때 전력이 남는지 모자라는지.
         ///
         /// 구 보드에서는 채운 순간 모자라졌다(수요 11 > 공급 10). 새 보드는 노드 수가 달라
-        /// 그 결론을 그대로 옮길 수 없고, 복합 군수의 대당 전력은 **아직 확정치가 없다**
+        /// 그 결론을 그대로 옮길 수 없고, 복합 가공의 대당 전력은 **아직 확정치가 없다**
         /// (「대당 전력 7종」에 여덟째가 없다). 값이 서기 전에는 부등호도 못 쓴다.
         /// </summary>
         [Test]
         public void FillingTheEmptySlot_PowerBalance()
         {
-            Assert.Ignore("측정 중 — 대당 전력(복합 군수 포함) 확정 후에 잰다.");
+            Assert.Ignore("측정 중 — 대당 전력(복합 가공 포함) 확정 후에 잰다.");
         }
 
         /// <summary>
@@ -345,7 +345,7 @@ namespace MBI.Tests
 
             // ✅ 군수는 다 놓여 있다 — 플레이어 몫은 **벨트 한 칸**이다(2026-09-11).
             // ⚠️ 2026-09-17 — 셋이다(표준탄 둘 + 추진제 하나).
-            Assert.AreEqual(4, muni, "기초 군수 넷이 다 놓여 있다");
+            Assert.AreEqual(4, muni, "기초 가공 넷이 다 놓여 있다");
         }
 
         private NetworkAggregate Aggregate(BoardGrid g)
@@ -386,7 +386,7 @@ namespace MBI.Tests
             Assert.AreEqual(1, core, "코어 1대");
             // ⚠️ 2026-09-17 — 가공이 둘 늘었다: 추진제 줄(**발전재료**) · 쉴드 줄(**기초재료·부품**).
             Assert.AreEqual(4, proc, "가공 4대 — 표준탄 두 줄 + 추진제 줄 + 쉴드 줄");
-            Assert.AreEqual(4, muni, "기초 군수 4대 — 표준탄 둘 + 추진제 + 방어 재료");
+            Assert.AreEqual(4, muni, "기초 가공 4대 — 표준탄 둘 + 추진제 + 방어 재료");
             Assert.AreEqual(3, ener, "에너지 3대 — 전력망은 전역이라 안 이어도 발전한다");
             Assert.AreEqual(0, stor, "저장 노드 없음");
             Assert.AreEqual(2, boost, "부스터 2대 — 회피 스택 상한 8 의 뿌리");

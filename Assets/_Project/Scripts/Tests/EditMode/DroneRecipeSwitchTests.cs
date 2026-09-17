@@ -7,7 +7,7 @@ using UnityEngine;
 namespace MBI.Tests
 {
     /// <summary>
-    /// **복합 군수의 조합표를 바꾸면 전투의 드론 종이 따라 바뀌는가**
+    /// **복합 가공의 조합표를 바꾸면 전투의 드론 종이 따라 바뀌는가**
     /// (2026-09-16 사용자 육안 4차 ④ — 「광역형 → 누적형으로 바꿨는데 여전히 광역형」).
     ///
     /// 📌 **값이 어디서 끊기는지를 가르는 시험이다.** 길은 넷이다 —
@@ -21,7 +21,7 @@ namespace MBI.Tests
         private static NodeDefinition Node(string id)
             => AssetDatabase.LoadAssetAtPath<NodeDefinition>($"{NodeRoot}/Node_{id}.asset");
 
-        /// <summary>B 의 시작 보드 — 복합 군수가 (9,8) 에 선다.</summary>
+        /// <summary>B 의 시작 보드 — 복합 가공가 (9,8) 에 선다.</summary>
         private static BoardGrid BuildB()
         {
             var g = new BoardGrid(PartLayout.Columns, PartLayout.Rows, 1f, Vector2.zero,
@@ -48,7 +48,7 @@ namespace MBI.Tests
             NodeInstance n = null;
             foreach (StartingBoardB.Slot slot in StartingBoardB.Nodes)
                 if (slot.nodeId == StartingBoardB.ComplexId) n = g.GetAt(slot.cell);
-            Assert.IsNotNull(n, "복합 군수가 판에 없다");
+            Assert.IsNotNull(n, "복합 가공가 판에 없다");
             return n;
         }
 
@@ -107,7 +107,7 @@ namespace MBI.Tests
                 BeltFlow.Resolve(g);
                 var connected = LogisticsReach.ConnectedNodes(g);
                 Assert.IsTrue(connected.Contains(n.Cell),
-                    $"{k} 로 바꾸니 복합 군수가 이어진 노드에서 빠졌다");
+                    $"{k} 로 바꾸니 복합 가공가 이어진 노드에서 빠졌다");
             }
         }
 

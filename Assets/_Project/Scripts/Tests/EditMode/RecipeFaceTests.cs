@@ -11,7 +11,7 @@ namespace MBI.Tests
     ///
     /// ⚠️ **왜 신설하는가.** 종전에는 <c>BeltRouting.HasInputPort</c> 가 **포트에 적힌
     /// 품목까지** 대조했다. 포트 품목은 노드마다 하나로 박혀 있어(가공 = 기초재료·부품 ·
-    /// 복합 군수 남면 = 기초재료·부품), 조합표를 발전재료로 바꿔도 면이 그것을 안 받았다.
+    /// 복합 가공 남면 = 기초재료·부품), 조합표를 발전재료로 바꿔도 면이 그것을 안 받았다.
     ///
     /// 그 결과 **조합표에는 있는데 격자 위에는 한 줄도 못 서는 것이 넷**이었다 —
     /// 폭발탄 · 누적형 드론 · 광역형 드론 · 배터리. 같은 판에서 조합표만 바꿔 재면
@@ -49,11 +49,11 @@ namespace MBI.Tests
         }
 
         // ────────────────────────────────────────────────────────────────
-        //  1. 폭발탄 — 가공(발전재료) → 복합 군수(폭발탄)
+        //  1. 폭발탄 — 가공(발전재료) → 복합 가공(폭발탄)
         // ────────────────────────────────────────────────────────────────
 
         /// <summary>
-        /// 복합 군수의 남면 포트는 **기초재료·부품**으로 적혀 있다. 그런데 폭발탄 조합표가
+        /// 복합 가공의 남면 포트는 **기초재료·부품**으로 적혀 있다. 그런데 폭발탄 조합표가
         /// 먹는 것은 **발전재료**다 — 포트를 잣대로 쓰면 이 줄이 영영 안 선다.
         /// </summary>
         [Test]
@@ -67,7 +67,7 @@ namespace MBI.Tests
             Assert.AreEqual(FlowKind.PowerMaterial, BeltFlow.OutputKindOf(proc),
                 "산출은 조합표가 정한다");
 
-            // 벨트 한 칸이 꺾어 올려 복합 군수 남면에 넣는다(가공은 동으로 낸다).
+            // 벨트 한 칸이 꺾어 올려 복합 가공 남면에 넣는다(가공은 동으로 낸다).
             g.TryPlaceBelt(new Vector2Int(2, 1), PortFace.West, PortFace.North, FlowKind.None, out _);
             g.TryPlace(new Vector2Int(2, 2), _munix, out NodeInstance munix);
             Assert.IsTrue(munix.SelectRecipe(RecipeKind.ExplosiveAmmo));
@@ -116,7 +116,7 @@ namespace MBI.Tests
         {
             var g = Grid();
 
-            // 서면: 기초 군수가 드론 몸체 부품을 낸다.
+            // 서면: 기초 가공가 드론 몸체 부품을 낸다.
             g.TryPlace(new Vector2Int(1, 2), _muni, out NodeInstance muni);
             Assert.IsTrue(muni.SelectRecipe(RecipeKind.DroneBody));
             Assert.AreEqual(FlowKind.DroneBodyParts, BeltFlow.OutputKindOf(muni));
