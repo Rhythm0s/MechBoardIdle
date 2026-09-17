@@ -38,7 +38,7 @@ namespace MBI.Data
         /// <summary>
         /// 그 레시피의 필요 생산치. **확정된 것만 값을 돌려준다** (`260909_W01` 2-1).
         ///
-        /// 관통탄·폭발탄 각 **10**이며, 노드 생산력 10과 나누어 복합 가공 1대 = 1발/초가 된다.
+        /// 관통탄·폭발탄 각 **10**이며, 노드 생산력 10과 나누어 복합 가공소 1대 = 1발/초가 된다.
         /// ⚠️ **나머지는 아직 없다** — 표준탄을 포함해 W01이 값을 준 것은 특수탄 둘뿐이다.
         /// 같은 값일 것 같다는 이유로 채우면 그것은 확정이 아니라 발명이다.
         ///
@@ -91,7 +91,7 @@ namespace MBI.Data
             new Row(NodeType.Processing, RecipeKind.Battery, "배터리",
                 FlowKind.Battery, FlowKind.PowerMaterial),
 
-            // 기초 가공 — 입력면 1.
+            // 기초 가공소 — 입력면 1.
             new Row(NodeType.MunitionsBasic, RecipeKind.StandardAmmo, "표준탄",
                 FlowKind.StandardAmmo, FlowKind.BasicParts),
             new Row(NodeType.MunitionsBasic, RecipeKind.DroneBody, "드론 몸체 부품",
@@ -101,7 +101,7 @@ namespace MBI.Data
             new Row(NodeType.MunitionsBasic, RecipeKind.Propellant, "추진제",
                 FlowKind.Propellant, FlowKind.PowerMaterial),
 
-            // 복합 가공 — 입력면 2. **표준탄이 특수탄의 재료다.**
+            // 복합 가공소 — 입력면 2. **표준탄이 특수탄의 재료다.**
             new Row(NodeType.MunitionsComplex, RecipeKind.PierceAmmo, "관통탄",
                 FlowKind.PierceAmmo, FlowKind.StandardAmmo, FlowKind.BasicParts),
             new Row(NodeType.MunitionsComplex, RecipeKind.ExplosiveAmmo, "폭발탄",

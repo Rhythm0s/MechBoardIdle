@@ -343,7 +343,7 @@ namespace MBI.Tests
             var node = new NodeInstance(def, Vector2Int.zero);
 
             Assert.AreEqual(RecipeKind.StandardAmmo, node.CurrentRecipe.kind,
-                "기초 가공의 기본값은 표준탄이다 — 목록 순서와 무관하다");
+                "기초 가공소의 기본값은 표준탄이다 — 목록 순서와 무관하다");
             Assert.AreEqual(AmmoKind.Pierce, node.AmmoKind, "탄종 기본값도 관통이다");
         }
 

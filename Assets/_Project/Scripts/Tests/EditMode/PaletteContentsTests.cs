@@ -9,7 +9,7 @@ namespace MBI.Tests
     /// <summary>
     /// **팔레트에 무엇이 서는가** (2026-09-16 · 사용자 확정 · 플랜 §74-3 #32).
     ///
-    /// ⚠️⚠️ **복합 가공가 빠져 있었다.** 팔레트가 여섯이라 플레이어가 그 노드를
+    /// ⚠️⚠️ **복합 가공소가 빠져 있었다.** 팔레트가 여섯이라 플레이어가 그 노드를
     /// 못 놓았는데, **관통탄·폭발탄·누적 드론·광역 드론이 전부 그것을 거친다** —
     /// 만들 수 있는 것의 절반이 놓을 수 없는 노드 뒤에 있었다.
     /// 이 결함은 로그도 예외도 안 냈다. 화면에 **없는 버튼**이라 아무 신호가 없다.
@@ -46,9 +46,9 @@ namespace MBI.Tests
         {
             // **이 한 줄이 결함 그 자체다.**
             string guid = AssetDatabase.AssetPathToGUID($"{NodeRoot}/Node_munix.asset");
-            Assert.IsNotEmpty(guid, "복합 가공 자산이 없다");
+            Assert.IsNotEmpty(guid, "복합 가공소 자산이 없다");
             StringAssert.Contains(guid, PaletteBlock(),
-                "복합 가공가 팔레트에 없다 — 플레이어가 관통·폭발·드론 줄을 못 짓는다");
+                "복합 가공소가 팔레트에 없다 — 플레이어가 관통·폭발·드론 줄을 못 짓는다");
         }
 
         [Test]
@@ -72,7 +72,7 @@ namespace MBI.Tests
             Assert.IsNotNull(def);
 
             Assert.GreaterOrEqual(PaletteCategories.InputFaceCount(def), 2,
-                "복합 가공의 입력면이 둘 미만이다 — 그러면 기초 탭으로 간다");
+                "복합 가공소의 입력면이 둘 미만이다 — 그러면 기초 탭으로 간다");
             Assert.AreEqual(PaletteCategory.Complex, PaletteCategories.Of(def));
             Assert.IsTrue(PaletteCategories.Shows(PaletteCategory.Complex, def));
             Assert.IsTrue(PaletteCategories.Shows(PaletteCategory.All, def));

@@ -122,8 +122,8 @@ namespace MBI.EditorTools
         // ────────────────────────────────────────────────────────────────
 
         /// <summary>
-        /// 폭발탄 = 표준탄 + **발전재료**(복합 가공). 그런데 자산의 면 표를 보면
-        /// 복합 가공의 둘째 입력면이 **기초재료·부품 하나로 박혀** 있고, 가공의 출력면도
+        /// 폭발탄 = 표준탄 + **발전재료**(복합 가공소). 그런데 자산의 면 표를 보면
+        /// 복합 가공소의 둘째 입력면이 **기초재료·부품 하나로 박혀** 있고, 가공의 출력면도
         /// 마찬가지다. 조합표를 발전재료로 바꿔도 **면이 그것을 안 받으면 안 흐른다.**
         ///
         /// 여기서 재는 것은 그 하나다 — **격자 위에서 폭발탄이 한 발이라도 나오는가.**
@@ -137,21 +137,21 @@ namespace MBI.EditorTools
             {
                 var g = new BoardGrid(12, 14, 1f, Vector2.zero, PartLayout.BuildMask());
 
-                // 코어(5,8) 동면 -> 가공(6,8) -> 기초 가공(7,8) -> 표준탄 -> 복합 가공(8,8) 서면
+                // 코어(5,8) 동면 -> 가공(6,8) -> 기초 가공소(7,8) -> 표준탄 -> 복합 가공소(8,8) 서면
                 g.TryPlace(new Vector2Int(5, 8), Node("core"), out _);
                 g.TryPlace(new Vector2Int(6, 8), Node("proc"), out NodeInstance procA);
                 g.TryPlace(new Vector2Int(7, 8), Node("muni"), out _);
                 g.TryPlace(new Vector2Int(8, 8), Node("munix"), out NodeInstance mx);
 
                 // ⚠️ **둘째 재료는 남면으로 들어간다** — 가공은 **동쪽으로 내므로**
-                // 복합 가공 밑에 바로 붙이면 안 닿는다. 벨트 한 칸이 꺾어 올려 준다.
+                // 복합 가공소 밑에 바로 붙이면 안 닿는다. 벨트 한 칸이 꺾어 올려 준다.
                 // 코어 남면 -> (5,7) -> (6,7) -> 가공(7,7) -> (8,7) 벨트가 북으로.
                 g.TryPlaceBelt(new Vector2Int(5, 7), PortFace.North, PortFace.East, FlowKind.None, out _);
                 g.TryPlaceBelt(new Vector2Int(6, 7), PortFace.West, PortFace.East, FlowKind.None, out _);
                 g.TryPlace(new Vector2Int(7, 7), Node("proc"), out NodeInstance procB);
                 g.TryPlaceBelt(new Vector2Int(8, 7), PortFace.West, PortFace.North, FlowKind.None, out _);
 
-                // 복합 가공 산출(동면) -> 내려가 y4 를 타고 서쪽 -> 마운트(0,6)
+                // 복합 가공소 산출(동면) -> 내려가 y4 를 타고 서쪽 -> 마운트(0,6)
                 g.TryPlaceBelt(new Vector2Int(9, 8), PortFace.West, PortFace.South, FlowKind.None, out _);
                 for (int y = 7; y >= 5; y--)
                     g.TryPlaceBelt(new Vector2Int(9, y), PortFace.North, PortFace.South, FlowKind.None, out _);
@@ -174,8 +174,8 @@ namespace MBI.EditorTools
 
                 sb.AppendLine();
                 sb.AppendLine($"  --- {ammo} ---");
-                sb.AppendLine($"  조합표 선택 — 복합 가공 {pickedAmmo} · 둘째 재료 가공 {pickedMat}");
-                sb.AppendLine($"  복합 가공가 실제로 도는 조합표 = {mx?.CurrentRecipe.kind}");
+                sb.AppendLine($"  조합표 선택 — 복합 가공소 {pickedAmmo} · 둘째 재료 가공 {pickedMat}");
+                sb.AppendLine($"  복합 가공소가 실제로 도는 조합표 = {mx?.CurrentRecipe.kind}");
                 sb.AppendLine($"  둘째 재료 가공 조합표 = {procB?.CurrentRecipe.kind} " +
                               $"(첫째 {procA?.CurrentRecipe.kind})");
                 sb.AppendLine($"  60초 도착 {got}개 · 첫 도착 {firstAt:F1}초");
@@ -213,7 +213,7 @@ namespace MBI.EditorTools
 
             var g = new BoardGrid(12, 14, 1f, Vector2.zero, PartLayout.BuildMask());
 
-            // 표준 줄 — 코어(5,8) 동면 -> 가공(6,8) -> 기초 가공(7,8) -> 표준탄
+            // 표준 줄 — 코어(5,8) 동면 -> 가공(6,8) -> 기초 가공소(7,8) -> 표준탄
             g.TryPlace(new Vector2Int(5, 8), Node("core"), out _);
             g.TryPlace(new Vector2Int(6, 8), Node("proc"), out _);
             g.TryPlace(new Vector2Int(7, 8), Node("muni"), out _);
@@ -226,7 +226,7 @@ namespace MBI.EditorTools
                 FlowKind.None, out _);
             g.TryPlaceBelt(new Vector2Int(4, 6), PortFace.North, PortFace.East, FlowKind.None, out _);
 
-            // 폭발 본줄 (y7) — 가공(기초재료) -> 기초 가공(표준탄) -> 복합 가공(폭발탄)
+            // 폭발 본줄 (y7) — 가공(기초재료) -> 기초 가공소(표준탄) -> 복합 가공소(폭발탄)
             g.TryPlace(new Vector2Int(5, 7), Node("proc"), out _);
             g.TryPlace(new Vector2Int(6, 7), Node("muni"), out _);
             g.TryPlace(new Vector2Int(7, 7), Node("munix"), out NodeInstance mx);

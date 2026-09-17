@@ -1109,7 +1109,7 @@ namespace MBI.Combat
                 // 창고 유입 = 라이브 군수 생산율. 재고가 마르면 발사가 멈춘다(탄약 소진 = 공격 정지).
                 _sim.AmmoSupplyRate = LogisticsOutputBridge.AmmoProduce;
                 // 드론 몸체·추진제도 같은 보드에서 온다. 사출대·부스터가 각각 받아 화력과 생존이 된다.
-                // 🗑️ **구 길 폐기** — 기초 가공 **생산량**으로 마운트를 채우던 자리.
+                // 🗑️ **구 길 폐기** — 기초 가공소 **생산량**으로 마운트를 채우던 자리.
                 //    문서는 「고정 포트에 도착한 것은 곧바로 마운트 적재」다(조립 7-3-1).
                 //    값 자체는 남긴다 — 「보드가 무엇을 만들었나」를 그리는 데 쓴다.
                 _sim.DroneInflowRate = LogisticsOutputBridge.DroneProduce;

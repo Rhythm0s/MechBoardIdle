@@ -61,7 +61,7 @@ namespace MBI.Tests
             Assert.AreEqual(2, a.boosterCount,
                 "부스터가 집계에 안 잡혔다 — 안 이어졌으면 `connectedOnly` 에서 빠진다");
             Assert.Greater(a.propellantProduce, 0f,
-                "추진제 산출이 0 이다 — 기초 가공가 기본값(표준탄)으로 돌고 있다");
+                "추진제 산출이 0 이다 — 기초 가공소가 기본값(표준탄)으로 돌고 있다");
         }
 
         [Test]

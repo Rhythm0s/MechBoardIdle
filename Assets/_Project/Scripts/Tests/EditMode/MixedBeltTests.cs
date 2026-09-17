@@ -51,7 +51,7 @@ namespace MBI.Tests
         {
             var g = new BoardGrid(12, 14, 1f, Vector2.zero, PartLayout.BuildMask());
 
-            // 표준 줄 — 코어(5,8) 동면 → 가공 → 기초 가공 → 표준탄
+            // 표준 줄 — 코어(5,8) 동면 → 가공 → 기초 가공소 → 표준탄
             g.TryPlace(new Vector2Int(5, 8), _core, out _);
             g.TryPlace(new Vector2Int(6, 8), _proc, out _);
             g.TryPlace(new Vector2Int(7, 8), _muni, out _);

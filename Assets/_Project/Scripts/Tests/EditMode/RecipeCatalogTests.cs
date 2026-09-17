@@ -18,7 +18,7 @@ namespace MBI.Tests
             Assert.AreEqual(12, RecipeCatalog.All.Count, "레시피는 열둘이다 (W01 3-2)");
         }
 
-        /// <summary>노드별 조합표 수 — 코어 1 · 가공 3 · 기초 가공 4 · 복합 가공 4.</summary>
+        /// <summary>노드별 조합표 수 — 코어 1 · 가공 3 · 기초 가공소 4 · 복합 가공소 4.</summary>
         [Test]
         public void Catalog_RecipesPerNode()
         {
@@ -71,7 +71,7 @@ namespace MBI.Tests
             CollectionAssert.AreEqual(new[] { FlowKind.PowerMaterial }, battery.inputs);
         }
 
-        /// <summary>**표준탄이 특수탄의 재료다** — 로봇 A는 기초 가공를 반드시 거친다.</summary>
+        /// <summary>**표준탄이 특수탄의 재료다** — 로봇 A는 기초 가공소를 반드시 거친다.</summary>
         [Test]
         public void SpecialAmmo_RequiresStandardAmmo()
         {

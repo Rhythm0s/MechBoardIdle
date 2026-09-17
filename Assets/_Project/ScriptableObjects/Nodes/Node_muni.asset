@@ -13,7 +13,7 @@ MonoBehaviour:
   m_Name: Node_muni
   m_EditorClassIdentifier: MBI.Data::MBI.Data.NodeDefinition
   nodeId: muni
-  displayName: "\uAE30\uCD08 \uAC00\uACF5"
+  displayName: "\uAE30\uCD08 \uAC00\uACF5\uC18C"
   type: 2
   implemented: 1
   resources:

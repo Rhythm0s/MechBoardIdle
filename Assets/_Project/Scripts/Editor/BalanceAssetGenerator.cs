@@ -59,7 +59,7 @@ namespace MBI.Editor
         private const int CoreOutputFaces = 4;
         private const float MuniPowerDraw = 2f;    // 군수 — 만들기도 하고 나르기도 한다
 
-        // 복합 가공 대당 전력 **3 — 확정** (2026-09-10 · `260910_W01` 4장 8번).
+        // 복합 가공소 대당 전력 **3 — 확정** (2026-09-10 · `260910_W01` 4장 8번).
         // ✅ **실측이 잣대를 대신했다.** 밸런스 문서가 「잠정 점값 · 실측 뒤 교체」로 두었고
         // 하네스가 값을 냈다 — 관통4+폭발2에서 소비 42/초 · 에너지 5대. 전력이 0이었을 때는
         // 3대였으므로 **두 대가 늘어난 것이 값 3의 대가**이며, 그 크기가 「기초보다 무겁다」에 맞는다.
@@ -230,17 +230,20 @@ namespace MBI.Editor
                 },
                 BuildRecipes(NodeType.Processing, ProcOutputPerSecTbd, config.nodeProductionPower, config.propellantNeed));
 
-            // 기초 가공 — 조합표 넷 중 **하나**를 돌린다 (2026-09-05 · `260904_W01` 3-2).
+            // 기초 가공소 — 조합표 넷 중 **하나**를 돌린다 (2026-09-05 · `260904_W01` 3-2).
             //
             // 갈래를 늘리는 방법은 노드를 더 놓는 것이지 노드 하나를 넓히는 것이 아니므로
             // 출력 포트는 단일이고 산출 종류는 선택된 조합표가 정한다.
             //
             // 바뀐 것: 탄약 → **표준탄**(특수탄의 재료가 된다) · 쉴드 재료 → **방어 재료** ·
             // 드론 몸체 → **드론 몸체 부품**. 추진제만 발전재료를 먹고 나머지 셋은 부품을 먹는다.
-            // ✅ **개명 — 「기초 가공」 → 「기초 가공」**(2026-09-17 사용자 확정 · `260917_W08`).
+            // ✅ **개명 — 「기초 군수」 → 「기초 가공소」**(2026-09-17 사용자 확정 · `260917_W08`).
+            //    ⚠️ **「기초 가공」이 아니라 「기초 가공소」다**(같은 날 두 번째 결정) —
+            //    팔레트 **탭** 이름이 「기초 가공」이라 노드까지 같은 글자면 셋이 겹친다.
+            //    「소」 한 글자가 **탭(갈래)과 노드(물건)**를 가른다.
             //    ⚠️ **자산 id 는 그대로 `muni` 다** — 바꾸면 저장·시작 보드·씬 주머니가 다 끊긴다.
             //    바뀌는 것은 **화면에 뜨는 글자**뿐이다.
-            WriteNode(config, "muni", "기초 가공", NodeType.MunitionsBasic, true,
+            WriteNode(config, "muni", "기초 가공소", NodeType.MunitionsBasic, true,
                 new NodeResourceProfile { ammoProduce = muniPerNode, powerDraw = MuniPowerDraw,
                     confirm = ConfirmState.Confirmed },
                 new List<NodePort>
@@ -250,19 +253,19 @@ namespace MBI.Editor
                 },
                 BuildRecipes(NodeType.MunitionsBasic, muniPerNode, config.nodeProductionPower, config.propellantNeed));
 
-            // 복합 가공 — 입력면 **둘** (2026-09-04 신설 · `260904_W01` 3장).
+            // 복합 가공소 — 입력면 **둘** (2026-09-04 신설 · `260904_W01` 3장).
             //
-            // 기초 가공와 갈린 이유는 입력면 수가 노드에 고정되기 때문이다. 레시피를 바꿔도
+            // 기초 가공소와 갈린 이유는 입력면 수가 노드에 고정되기 때문이다. 레시피를 바꿔도
             // 면이 늘거나 줄지 않으므로, 1종을 먹는 조합표와 2종을 먹는 조합표는 한 노드에
             // 같이 못 산다.
             //
             // 조합표는 `RecipeCatalog`에서 읽는다 — 표를 두 곳에 적으면 갈린다.
             // ⚠️ 산출 속도와 개당 소비량은 **아직 미확정**이다. 값을 만들지 않고 카탈로그의
             // 센티넬을 그대로 쓰며, 밸런스가 정하면 그쪽만 고치면 된다.
-            // ✅ **개명 — 「복합 가공」 → 「복합 가공」**(2026-09-17 사용자 확정). id `munix` 는 그대로.
-            WriteNode(config, "munix", "복합 가공", NodeType.MunitionsComplex, true,
+            // ✅ **개명 — 「복합 군수」 → 「복합 가공소」**(2026-09-17 사용자 확정). id `munix` 는 그대로.
+            WriteNode(config, "munix", "복합 가공소", NodeType.MunitionsComplex, true,
                 // 대당 전력 **3 — 확정**(2026-09-10 · `260910_W01` 4장 8번). 종전에는 0(미설정
-                // 센티넬)이었고 그동안 복합 가공는 전력을 한 푼도 안 먹었다 — 전력 축이 이 노드에
+                // 센티넬)이었고 그동안 복합 가공소는 전력을 한 푼도 안 먹었다 — 전력 축이 이 노드에
                 // 안 걸렸다. 실측(에너지 3대 → 5대)이 크기를 재 주어 `Tbd`를 푼다.
                 new NodeResourceProfile { powerDraw = MuniComplexPowerDraw, confirm = ConfirmState.Confirmed },
                 new List<NodePort>
@@ -292,7 +295,7 @@ namespace MBI.Editor
                 new List<NodePort>
                 {
                     // 2026-09-05: 구 `FlowKind.Ammo`가 있던 자리를 표준탄이 잇는다(W01 3-2 품목 개정).
-                    // 기초 가공의 산출이 표준탄으로 바뀌었으므로 저장이 Ammo를 물고 있으면
+                    // 기초 가공소의 산출이 표준탄으로 바뀌었으므로 저장이 Ammo를 물고 있으면
                     // 군수→저장 링크가 통째로 안 선다 — 2026-08-21에 Material로 겪었던 것과 같은 결함이다.
                     new NodePort(PortFace.West, PortIO.Input, FlowKind.StandardAmmo),
                     new NodePort(PortFace.East, PortIO.Output, FlowKind.StandardAmmo),

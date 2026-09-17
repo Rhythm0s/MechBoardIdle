@@ -80,7 +80,7 @@ namespace MBI.Data
         [Tooltip("쉴드 발생 노드 1대가 1초에 먹는 쉴드 재료(개). params.shieldMaterialPerSec = 1 측정용 고정값.")]
         public float shieldMaterialPerSec = 1f;
 
-        [Tooltip("추진제 필요 생산치. params.propellantNeed = 30 확정치(구 150). 산출률 = 노드 생산력 ÷ 이 값이라 기초 가공(구 기초 군수) 1대가 3초에 1개를 낸다.")]
+        [Tooltip("추진제 필요 생산치. params.propellantNeed = 30 확정치(구 150). 산출률 = 노드 생산력 ÷ 이 값이라 기초 가공소(구 기초 군수) 1대가 3초에 1개를 낸다.")]
         public float propellantNeed = 30f;
 
         [Tooltip("회피할 때 밀려나는 거리(칸). params.dodgeMoveDistance = 0.5 확정치(2026-09-17 사용자).")]
