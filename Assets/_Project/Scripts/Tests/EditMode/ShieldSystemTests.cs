@@ -106,16 +106,40 @@ namespace MBI.Tests
         // ── 자산이 원천 ──────────────────────────────────────────────────────
 
         [Test]
-        public void 값이_정해지기_전까지는_꺼져_있다()
+        public void 최대치는_노드_수_곱하기_계수다()
         {
-            // ⚠️ **값을 지어내지 않는다**(`260917_W05` 4-2). 최대치가 0 이면 이 층은 없는 것이고
-            //    배포 거동이 지금 그대로다. 설계가 값을 주면 이 시험을 그때 고친다.
+            // ✅ **2026-09-17 사용자 확정** — 회피의 「부스터 대수 × 4」와 **같은 규칙**이다.
+            //    🗑️ 구 규칙 「최대치는 로봇의 것 · 노드는 속도만」 폐기(`260917_V04` 구현 판단 4).
+            Assert.AreEqual(200f, ShieldSystem.MaxFrom(1, 200f), D, "노드 하나면 그릇 200");
+            Assert.AreEqual(600f, ShieldSystem.MaxFrom(3, 200f), D, "노드 셋이면 세 배");
+        }
+
+        [Test]
+        public void 발생_노드가_없으면_그릇도_없다()
+        {
+            // ⚠️⚠️ **여기에 배포 거동이 걸려 있다.** 시작 보드에는 쉴드 줄이 없으므로
+            //    노드가 0 이고, 그러면 최대치도 0 이라 **쉴드가 없는 것과 같다.**
+            //    이 줄이 무너지면 값이 정해지기도 전에 배포가 바뀐다.
+            Assert.AreEqual(0f, ShieldSystem.MaxFrom(0, 200f), D);
+            Assert.AreEqual(0f, ShieldSystem.MaxFrom(-1, 200f), D);
+        }
+
+        [Test]
+        public void 계수는_자산에서_온다()
+        {
+            // ⚠️ **하드코딩 금지** — 원천은 `balance_v4.json` 이고 `BalanceConfig` 가 미러한다.
             var bal = AssetDatabase.LoadAssetAtPath<BalanceConfig>(
                 "Assets/_Project/ScriptableObjects/BalanceConfig.asset");
             Assert.IsNotNull(bal, "BalanceConfig 자산이 없다 — 생성기를 먼저 돌린다");
 
-            Assert.AreEqual(0f, bal.shieldMax, D,
-                "params shieldMax 가 0 이 아니다 — 값이 확정됐다면 이 시험을 고쳐야 한다");
+            Assert.AreEqual(200f, bal.shieldMaxPerNode, D,
+                "params shieldMaxPerNode = 200 (2026-09-17 사용자 확정)");
+            Assert.AreEqual(bal.shieldMaxPerNode, new BalanceConfig().shieldMaxPerNode, D,
+                "코드 기본값이 자산과 갈렸다 — 자산을 못 읽는 판이 다른 그릇을 세운다");
+
+            // 🗑️ 구 칸은 **0 으로 남아 있어야 한다** — 읽는 곳이 남아 있어도 옛 규칙이 안 살아난다.
+            Assert.AreEqual(0f, bal.shieldMax, D, "폐기한 로봇 고정 그릇에 값이 들어왔다");
+
             Assert.AreEqual(1f, bal.shieldMaterialPerSec, D,
                 "대당 재료 소비는 측정용 고정값 1 이다");
         }
@@ -219,7 +243,9 @@ namespace MBI.Tests
             sim.Tag.Locked = false;
             Assert.IsTrue(sim.TryMerge(), "시험 전제가 깨졌다 — 합체가 안 걸렸다");
 
+            // ⚠️ 최대치는 이제 **판마다 다르다**(노드 수 × 대당) — 양쪽에 따로 건다.
             sim.ShieldMax = 50f;
+            sim.StandbyShieldMax = 50f;
             sim.ShieldChargeRate = 0f;
             sim.StandbyShieldChargeRate = 0f;
             sim.Shield.Reset();                  // 싸우는 쪽 0
@@ -246,6 +272,7 @@ namespace MBI.Tests
             CombatSimulation sim = TwoRobots(atk: 30f);
             sim.Tag.Locked = true;   // 교대가 끼면 대기 쪽이 싸우는 쪽이 되어 전제가 깨진다
             sim.ShieldMax = 50f;
+            sim.StandbyShieldMax = 50f;
             sim.ShieldChargeRate = 0f;
             sim.StandbyShieldChargeRate = 0f;
             sim.StandbyShield.Add(50f);

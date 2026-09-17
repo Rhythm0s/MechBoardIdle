@@ -108,7 +108,7 @@ namespace MBI.EditorTools
         public static string Run(string stageId, bool preloadMount, float propellantNeed,
             float hpOverride)
             => Run(stageId, preloadMount, propellantNeed, hpOverride,
-                   shieldMax: 0f, shieldChargePerMaterial: 0f);
+                   shieldMaxPerNode: 0f, shieldChargePerMaterial: 0f);
 
         /// <summary>
         /// 【스위프】 위에 **쉴드 최대치·재료 1개당 충전량**을 얹은 판
@@ -119,10 +119,14 @@ namespace MBI.EditorTools
         /// 줄을 한 벌 더 놓고 값을 갈아 끼운다 — 그래야 「값이 얼마면 살아남나」를
         /// 자산을 더럽히지 않고 잴 수 있다.
         ///
-        /// <paramref name="shieldMax"/> 가 0 이면 쉴드 줄을 **아예 안 놓는다** — 그 판이 기준선이다.
+        /// ⚠️ **대당 최대치를 받는다**(2026-09-17 사용자 확정). 🗑️ 구 인자 `shieldMax`(판 전체의
+        /// 고정 그릇) 폐기 — 최대치는 이제 **놓인 발생 노드 수 × 이 값**이다. 하네스가 제 수를
+        /// 들면 러너와 다른 판을 재게 된다(`ShieldSystem.MaxFrom` 이 둘의 하나뿐인 문이다).
+        ///
+        /// <paramref name="shieldMaxPerNode"/> 가 0 이면 쉴드 줄을 **아예 안 놓는다** — 그 판이 기준선이다.
         /// </summary>
         public static string Run(string stageId, bool preloadMount, float propellantNeed,
-            float hpOverride, float shieldMax, float shieldChargePerMaterial)
+            float hpOverride, float shieldMaxPerNode, float shieldChargePerMaterial)
         {
             var sb = new StringBuilder();
             sb.AppendLine($"=== 스테이지 {stageId} 클리어 하네스 (2026-09-17) ===");
@@ -132,11 +136,12 @@ namespace MBI.EditorTools
                           + $" (자산 {needBase:F0} 대비 ×{needBase / propellantNeed:F2}"
                           + (Mathf.Approximately(propellantNeed, needBase) ? " · 기준)" : ")"));
             if (hpOverride > 0f) sb.AppendLine($"[판] 로봇 HP **{hpOverride:F0}**(하네스 전용 · 자산은 그대로)");
-            if (shieldMax > 0f)
-                sb.AppendLine($"[판] 쉴드 최대치 **{shieldMax:F0}** · 재료 1개당 충전 **{shieldChargePerMaterial:F0}**"
+            if (shieldMaxPerNode > 0f)
+                sb.AppendLine($"[판] 쉴드 노드 대당 최대치 **{shieldMaxPerNode:F0}**"
+                              + $" · 재료 1개당 충전 **{shieldChargePerMaterial:F0}**"
                               + " (하네스 전용 · 자산·시작 보드는 그대로)");
             else
-                sb.AppendLine("[판] 쉴드 **없음**(최대치 0) — 기준선");
+                sb.AppendLine("[판] 쉴드 **없음**(줄을 안 놓았다) — 기준선");
             sb.AppendLine(preloadMount
                 ? "[시작 조건] **튜토리얼 종료** — 마운트 적재 참(정상 경로) · 창고 빈손"
                 : "[시작 조건] **심사자 S1 점프** — 빈 칸 자동 채움 · 창고·마운트 **빈손**");
@@ -163,7 +168,7 @@ namespace MBI.EditorTools
 
             // ── 판 세우기 ──────────────────────────────────────────────────
             BoardGrid grid = Board(propellantNeed);
-            int shieldCells = shieldMax > 0f ? PlaceShieldLine(grid) : 0;
+            int shieldCells = shieldMaxPerNode > 0f ? PlaceShieldLine(grid) : 0;
             if (shieldCells > 0)
             {
                 BeltAutoOrient.Resolve(grid);
@@ -264,6 +269,9 @@ namespace MBI.EditorTools
             ICollection<Vector2Int> connected = LogisticsReach.ConnectedNodes(grid);
             WorkloadRate.Result work = WorkloadRate.Compute(grid, connected, robot.balanceRef);
             NetworkAggregate agg = LogisticsNetwork.Aggregate(grid, connected, work);
+
+            // 쉴드 그릇 — **보드가 정한다**(`ShieldSystem.MaxFrom` · 러너와 같은 문).
+            float shieldMax = ShieldSystem.MaxFrom(agg.shieldNodeCount, shieldMaxPerNode);
 
             float heatThreshold = config != null ? config.heatThreshold : 12f;
             ProductionThrottle throttle = LogisticsSimulation.Throttles(
@@ -402,7 +410,7 @@ namespace MBI.EditorTools
 
                 // 쉴드 — 러너와 **같은 문**(`ShieldSystem.ChargeFrom`)으로 낸다(§7).
                 //    ⚠️ 매 틱 다시 쓴다: 한 번만 쓰면 러너와 다른 판을 재게 된다.
-                sim.ShieldMax = shieldMax;
+                sim.ShieldMax = shieldMax;   // 위에서 노드 수 × 대당으로 냈다(러너와 같은 문)
                 sim.ShieldChargeRate = ShieldSystem.ChargeFrom(
                     agg.shieldMaterialProduce, agg.shieldNodeCount,
                     shieldMaterialPerSec, shieldChargePerMaterial);
@@ -561,11 +569,15 @@ namespace MBI.EditorTools
             sb.AppendLine("[쉴드 축]");
             if (shieldMax <= 0f)
             {
-                sb.AppendLine("  쉴드 **없음**(최대치 0) — 이 판이 기준선이다");
+                sb.AppendLine(shieldCells > 0
+                    ? "  ⚠️ 쉴드 줄을 놓았는데 **최대치가 0** 이다 — 발생 노드가 안 이어졌다"
+                    : "  쉴드 **없음**(줄을 안 놓았다) — 이 판이 기준선이다");
             }
             else
             {
-                sb.AppendLine($"  최대치 {shieldMax:F0} · 충전률 {sim.ShieldChargeRate:F2}/초"
+                sb.AppendLine($"  최대치 {shieldMax:F0}"
+                              + $" (발생 노드 {agg.shieldNodeCount} 대 × 대당 {shieldMaxPerNode:F0})"
+                              + $" · 충전률 {sim.ShieldChargeRate:F2}/초"
                               + $" (재료 {agg.shieldMaterialProduce:F3} 개/초 · 발생 노드 {agg.shieldNodeCount} 대"
                               + $" · 대당 소비 {shieldMaterialPerSec:F0} · 개당 충전 {shieldChargePerMaterial:F0})"
                               + "  ← 측정법: `ShieldSystem.ChargeFrom` = min(재료, 노드×대당) × 개당 충전");
@@ -779,17 +791,40 @@ namespace MBI.EditorTools
             if (Application.isBatchMode) EditorApplication.Exit(0);
         }
 
+        /// 🗑️ **폐기 — 2026-09-17.** 네 판은 최대치를 **판에 직접 걸어** 쟀다.
+        /// 사용자 결정으로 최대치가 **노드 수 × 대당**이 되면서 그 조건이 성립하지 않는다.
+        /// 값은 `260917_V04` 6장에 남아 있고, 다시 재는 것은 <see cref="RunW07"/> 다.
         public static string RunW05()
+            => "🗑️ 폐기 — 최대치가 노드 수 × 대당으로 바뀌었다(2026-09-17). RunW07 을 쓴다.";
+
+        /// <summary>
+        /// 【사용자 결정 2026-09-17 · 플랜 §79-3】 **쉴드 재측정 두 판** —
+        /// 노드 대당 최대치 **200**(노드 1대 = 그릇 200) × 재료 1개당 충전 **5 · 10**.
+        ///
+        /// 조건은 `260917_V04` 6장과 **같다** — S1 · A 보드 + 부스터 줄 + 쉴드 줄(발생 1) ·
+        /// 추진제 30 · HP 1000 · 상한 8 · 적재 40. 기준선도 같이 낸다.
+        ///
+        /// 배치 실행: <c>-executeMethod MBI.EditorTools.StageClearHarness.RunW07Batch</c>
+        /// </summary>
+        [MenuItem("MBI/Harness W07 쉴드 재측정 두 판")]
+        public static void RunW07Menu() => Debug.Log(RunW07());
+
+        public static void RunW07Batch()
+        {
+            Debug.Log(RunW07());
+            if (Application.isBatchMode) EditorApplication.Exit(0);
+        }
+
+        public static string RunW07()
         {
             var sb = new StringBuilder();
-            sb.AppendLine("############ 260917_W05 5-1 쉴드 네 판 ############");
+            sb.AppendLine("############ 쉴드 재측정 두 판 (대당 최대치 200) ############");
             sb.AppendLine();
             sb.AppendLine(Run("S1", preloadMount: true, propellantNeed: 30f, hpOverride: 1000f,
-                              shieldMax: 0f, shieldChargePerMaterial: 0f));
-            foreach (float max in new[] { 100f, 250f })
+                              shieldMaxPerNode: 0f, shieldChargePerMaterial: 0f));
             foreach (float per in new[] { 5f, 10f })
                 sb.AppendLine(Run("S1", preloadMount: true, propellantNeed: 30f, hpOverride: 1000f,
-                                  shieldMax: max, shieldChargePerMaterial: per));
+                                  shieldMaxPerNode: 200f, shieldChargePerMaterial: per));
             return sb.ToString();
         }
 

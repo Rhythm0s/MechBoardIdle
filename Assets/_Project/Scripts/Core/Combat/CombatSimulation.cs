@@ -469,11 +469,26 @@ namespace MBI.Core
         /// <summary>대기 로봇의 쉴드 — **합체 중에는 합산해 쓴다**(`260917_W06` 5장).</summary>
         public ShieldSystem StandbyShield => Standby.shield;
 
-        /// <summary>쉴드 최대치 — 두 진영에 같이 건다(로봇 A · B 같은 값).</summary>
+        /// <summary>
+        /// 싸우는 보드의 쉴드 최대치.
+        ///
+        /// 🗑️ **구 거동 폐기 — 2026-09-17.** 종전에는 여기 넣으면 **두 진영에 같이 걸렸다**
+        /// (최대치가 로봇의 것이었으므로 A · B 가 같은 값). 이제 최대치는
+        /// **보드의 쉴드 발생 노드 수**가 정하므로(`ShieldSystem.MaxFrom`) **판마다 다르다** —
+        /// 한쪽에 건 값을 반대쪽에도 걸면 **쉴드 줄이 없는 보드가 그릇을 얻는다.**
+        /// 대기 보드 쪽은 `StandbyShieldMax` 로 따로 건다.
+        /// </summary>
         public float ShieldMax
         {
             get => Act.shield.Max;
-            set { Act.shield.Max = value; Standby.shield.Max = value; }
+            set => Act.shield.Max = value;
+        }
+
+        /// <summary>대기 보드의 쉴드 최대치 — **제 판의 노드 수**에서 온다.</summary>
+        public float StandbyShieldMax
+        {
+            get => Standby.shield.Max;
+            set => Standby.shield.Max = value;
         }
 
         /// <summary>싸우는 보드가 채우는 속도(쉴드/초).</summary>

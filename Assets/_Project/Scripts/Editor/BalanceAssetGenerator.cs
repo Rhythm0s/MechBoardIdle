@@ -164,6 +164,7 @@ namespace MBI.Editor
             // 쉴드 값 셋 — ⚠️ **최대치·개당 충전량의 기본은 0** 이다(미확정). 0 이면 쉴드가
             // 없는 것과 같아 배포 거동이 지금 그대로다(`260917_W05` 4-2).
             c.shieldMax = json.Param("shieldMax");
+            c.shieldMaxPerNode = json.Param("shieldMaxPerNode");
             c.shieldChargePerMaterial = json.Param("shieldChargePerMaterial");
             c.shieldMaterialPerSec = json.Param("shieldMaterialPerSec");
 

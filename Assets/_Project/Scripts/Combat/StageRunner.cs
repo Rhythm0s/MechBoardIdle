@@ -1128,7 +1128,13 @@ namespace MBI.Combat
                 //    배포 거동은 지금 그대로다. 켜는 것은 `balance_v4.json` 이 한다.
                 if (bal != null)
                 {
-                    _sim.ShieldMax = bal.shieldMax;
+                    // ⚠️ **그릇도 보드가 정한다**(2026-09-17 사용자 확정) — 노드를 뽑으면
+                    //    그 자리에서 줄어든다. 🗑️ 구 `bal.shieldMax`(로봇 고정) 폐기.
+                    _sim.ShieldMax = ShieldSystem.MaxFrom(
+                        LogisticsOutputBridge.ShieldNodeCount, bal.shieldMaxPerNode);
+                    _sim.StandbyShieldMax = ShieldSystem.MaxFrom(
+                        LogisticsOutputBridge.StandbyShieldNodeCount, bal.shieldMaxPerNode);
+
                     _sim.ShieldChargeRate = ShieldCharge(bal,
                         LogisticsOutputBridge.ShieldMaterialProduce,
                         LogisticsOutputBridge.ShieldNodeCount);

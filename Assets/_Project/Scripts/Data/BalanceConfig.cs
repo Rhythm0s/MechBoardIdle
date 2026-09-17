@@ -65,8 +65,11 @@ namespace MBI.Data
         public float mountStackLimit = 10f;
 
         [Header("탄종별 생산 — 260824_V02 §1 확정")]
-        [Tooltip("쉴드 최대치. params.shieldMax. ⚠️ 기본 0 — 쉴드가 없는 것과 같다(값 미확정).")]
+        [Tooltip("🗑️ 폐기(2026-09-17) — 로봇 고정 그릇. 최대치는 이제 노드 수 × shieldMaxPerNode 다. 0 으로 둔다.")]
         public float shieldMax;
+
+        [Tooltip("쉴드 발생 노드 1대당 최대치. params.shieldMaxPerNode = 200 확정. 최대치 = 노드 수 × 이 값.")]
+        public float shieldMaxPerNode = 200f;
 
         [Tooltip("쉴드 재료 1개당 충전량. params.shieldChargePerMaterial. 충전률 = 재료 소비 × 이 값. ⚠️ 기본 0.")]
         public float shieldChargePerMaterial;

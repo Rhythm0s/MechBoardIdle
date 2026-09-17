@@ -24,6 +24,7 @@ MonoBehaviour:
   storeCapacity: 40
   mountStackLimit: 10
   shieldMax: 0
+  shieldMaxPerNode: 200
   shieldChargePerMaterial: 0
   shieldMaterialPerSec: 1
   propellantNeed: 30
