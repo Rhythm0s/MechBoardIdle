@@ -71,8 +71,43 @@ namespace MBI.Tests
                 Is.EqualTo(PaletteCategory.Logistics));
             Assert.That(PaletteCategories.Of(Node(NodeType.Energy, 0)),
                 Is.EqualTo(PaletteCategory.Power));
+
+            // ✅ **부스터 · 쉴드는 「군수」다**(2026-09-17 사용자 확정 · `260917_W08` 5-1).
+            //    🗑️ 구 「부스터 = 전력」 폐기 — 전력 탭은 **전력을 내고 관리하는 것만** 담는다.
+            //    ⚠️⚠️ **쉴드가 이 시험의 값이다** — 입력면이 **하나**라
+            //    규칙(입력 수)대로 두면 **기초 가공**으로 간다. 명시 그룹이 먼저라 군수로 온다.
+            //    생존 두 층(회피 · 쉴드)이 다른 탭에 서던 것을 사용자가 고친 자리다.
             Assert.That(PaletteCategories.Of(Node(NodeType.Booster, 1)),
-                Is.EqualTo(PaletteCategory.Power));
+                Is.EqualTo(PaletteCategory.Munitions));
+            Assert.That(PaletteCategories.Of(Node(NodeType.Shield, 1)),
+                Is.EqualTo(PaletteCategory.Munitions),
+                "쉴드가 입력면 하나라 기초 가공으로 갔다 — 명시 그룹이 규칙보다 먼저다");
+        }
+
+        [Test]
+        public void 전력_탭은_전력만_담는다()
+        {
+            // 「전력을 내거나 전력으로 무형 자원을 내는 것」에서 **전력만**으로 좁혔다.
+            foreach (NodeType t in new[] { NodeType.Booster, NodeType.Shield })
+                Assert.That(PaletteCategories.Of(Node(t, 1)),
+                    Is.Not.EqualTo(PaletteCategory.Power), $"{t} 가 아직 전력 탭에 있다");
+        }
+
+        [Test]
+        public void 탭은_일곱이고_군수는_전력_앞에_선다()
+        {
+            Assert.That(PaletteCategories.Order.Length, Is.EqualTo(7), "탭 수가 일곱이 아니다");
+
+            int munitions = System.Array.IndexOf(PaletteCategories.Order, PaletteCategory.Munitions);
+            int power = System.Array.IndexOf(PaletteCategories.Order, PaletteCategory.Power);
+            Assert.That(munitions, Is.GreaterThanOrEqualTo(0), "군수 탭이 차례에 없다");
+            Assert.That(munitions, Is.LessThan(power), "군수가 전력 뒤에 선다 — 만드는 것이 먼저다");
+
+            // ⚠️ **열거값 차례가 아니라 이 배열이 화면 차례다** — 군수는 값이 6 인데 앞에 선다.
+            Assert.That((int)PaletteCategory.Munitions, Is.GreaterThan((int)PaletteCategory.Power),
+                "새 값을 앞에 끼웠다 — 앞의 정수는 저장·자산에 박혀 있다");
+
+            Assert.That(PaletteCategories.LabelOf(PaletteCategory.Munitions), Is.EqualTo("군수"));
         }
 
         [Test]
@@ -103,7 +138,9 @@ namespace MBI.Tests
         [Test]
         public void 탭_차례는_전체가_맨_앞이다()
         {
-            Assert.That(PaletteCategories.Order.Length, Is.EqualTo(6));
+            // 🗑️ 구 「여섯」 폐기 — 2026-09-17 에 「군수」 탭이 생겨 **일곱**이다.
+            //    (수는 바로 위 시험이 뜻과 함께 지킨다 — 여기서는 차례와 이름만 본다.)
+            Assert.That(PaletteCategories.Order.Length, Is.EqualTo(7));
             Assert.That(PaletteCategories.Order[0], Is.EqualTo(PaletteCategory.All));
             foreach (PaletteCategory c in PaletteCategories.Order)
                 Assert.That(PaletteCategories.LabelOf(c), Is.Not.Empty, "이름 없는 탭이 있으면 안 된다");

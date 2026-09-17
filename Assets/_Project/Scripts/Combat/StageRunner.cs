@@ -1657,6 +1657,33 @@ namespace MBI.Combat
                 return;
             }
 
+            // ── 광역형 드론의 범위 타격 (2026-09-17 · `260917_W08` 5-5) ──
+            //
+            // ⚠️ **폭발탄 칸(`aoeRadius`)과 다른 칸을 본다** — 09-16 에 사거리를 그 칸에
+            //    넣었다가 한 변 18.4 짜리 주황 사각이 화면 절반을 덮었다.
+            // 📌 그리는 반경은 **판정이 실제로 쓴 수**다(`aoeJudgeRadius`).
+            if (s.aoeJudgeRadius > 0f)
+            {
+                Sprite ring = tuning.droneAoeSprite != null
+                    ? tuning.droneAoeSprite
+                    : tuning.droneAoeRingPlaceholder ? PlaceholderSprite.Ring() : null;
+
+                if (ring != null)
+                {
+                    float dia = s.aoeJudgeRadius * 2f;
+                    var aoe = new GameObject("DroneAoe");
+                    aoe.transform.SetParent(transform, false);
+                    aoe.transform.position = new Vector3(to.x, to.y, 0f);
+                    aoe.transform.localScale = new Vector3(dia, dia, 1f);
+                    var asr = aoe.AddComponent<SpriteRenderer>();
+                    asr.sprite = ring;
+                    // 바닥에 퍼지는 것이라 **액터보다 아래**다 — 그림자와 같은 층 결.
+                    asr.color = new Color(0.55f, 0.8f, 1f, 0.55f);
+                    asr.sortingOrder = SortingLayers.EffectUnder;
+                    Destroy(aoe, EffectTiming.HitFlashDuration);
+                }
+            }
+
             if (s.aoeRadius > 0f)
             {
                 // AoE 폭발 광역 원(플레이스홀더 반투명 주황 사각). 스플래시 범위 시각화.

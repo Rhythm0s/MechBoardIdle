@@ -237,7 +237,10 @@ namespace MBI.Editor
             //
             // 바뀐 것: 탄약 → **표준탄**(특수탄의 재료가 된다) · 쉴드 재료 → **방어 재료** ·
             // 드론 몸체 → **드론 몸체 부품**. 추진제만 발전재료를 먹고 나머지 셋은 부품을 먹는다.
-            WriteNode(config, "muni", "기초 군수", NodeType.MunitionsBasic, true,
+            // ✅ **개명 — 「기초 군수」 → 「기초 가공」**(2026-09-17 사용자 확정 · `260917_W08`).
+            //    ⚠️ **자산 id 는 그대로 `muni` 다** — 바꾸면 저장·시작 보드·씬 주머니가 다 끊긴다.
+            //    바뀌는 것은 **화면에 뜨는 글자**뿐이다.
+            WriteNode(config, "muni", "기초 가공", NodeType.MunitionsBasic, true,
                 new NodeResourceProfile { ammoProduce = muniPerNode, powerDraw = MuniPowerDraw,
                     confirm = ConfirmState.Confirmed },
                 new List<NodePort>
@@ -256,7 +259,8 @@ namespace MBI.Editor
             // 조합표는 `RecipeCatalog`에서 읽는다 — 표를 두 곳에 적으면 갈린다.
             // ⚠️ 산출 속도와 개당 소비량은 **아직 미확정**이다. 값을 만들지 않고 카탈로그의
             // 센티넬을 그대로 쓰며, 밸런스가 정하면 그쪽만 고치면 된다.
-            WriteNode(config, "munix", "복합 군수", NodeType.MunitionsComplex, true,
+            // ✅ **개명 — 「복합 군수」 → 「복합 가공」**(2026-09-17 사용자 확정). id `munix` 는 그대로.
+            WriteNode(config, "munix", "복합 가공", NodeType.MunitionsComplex, true,
                 // 대당 전력 **3 — 확정**(2026-09-10 · `260910_W01` 4장 8번). 종전에는 0(미설정
                 // 센티넬)이었고 그동안 복합 군수는 전력을 한 푼도 안 먹었다 — 전력 축이 이 노드에
                 // 안 걸렸다. 실측(에너지 3대 → 5대)이 크기를 재 주어 `Tbd`를 푼다.

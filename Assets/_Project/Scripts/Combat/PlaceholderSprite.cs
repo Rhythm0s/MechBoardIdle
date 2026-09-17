@@ -53,5 +53,43 @@ namespace MBI.Combat
             _softDisc.name = "MBI_SoftDisc";
             return _softDisc;
         }
+
+        private static Sprite _ring;
+
+        /// <summary>
+        /// **속이 빈 얇은 고리** — 광역형 드론의 범위 자리표시
+        /// (2026-09-17 · `260917_W08` 5-5 · 연출 아트 요청 문서「광역형 드론 범위 타격」).
+        ///
+        /// ⚠️⚠️ **속이 찬 그림과 갈라야 한다.** 폭발탄 스플래시는 **속이 찬 터짐**이고
+        /// 이쪽은 **바닥에 퍼지는 테두리**다 — 같은 모양으로 그리면 둘이 한 사건으로 읽힌다.
+        ///
+        /// 📌 자리표시일 뿐이라 **아트가 오면 이 함수를 안 쓴다**(자산이 있으면 그쪽이 이긴다).
+        /// </summary>
+        public static Sprite Ring()
+        {
+            if (_ring != null) return _ring;
+
+            const int n = 128;
+            var tex = new Texture2D(n, n, TextureFormat.RGBA32, false) { filterMode = FilterMode.Bilinear };
+            float r = n * 0.5f;
+            var c = new Vector2(r, r);
+
+            // 테두리 두께 — 반지름의 6%. 얇게 두면 크게 늘려도 선으로 읽힌다.
+            const float thickness = 0.06f;
+
+            for (int y = 0; y < n; y++)
+            for (int x = 0; x < n; x++)
+            {
+                float d = Vector2.Distance(new Vector2(x + 0.5f, y + 0.5f), c) / r;
+                // 1(가장자리)에서 멀어질수록 옅어진다 — 가운데는 **완전히 비어 있다**.
+                float a = Mathf.Clamp01(1f - Mathf.Abs(1f - d) / thickness);
+                tex.SetPixel(x, y, new Color(1f, 1f, 1f, a));
+            }
+            tex.Apply();
+
+            _ring = Sprite.Create(tex, new Rect(0, 0, n, n), new Vector2(0.5f, 0.5f), n);
+            _ring.name = "MBI_Ring";
+            return _ring;
+        }
     }
 }

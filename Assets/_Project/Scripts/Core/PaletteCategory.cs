@@ -3,10 +3,12 @@ using MBI.Data;
 namespace MBI.Core
 {
     /// <summary>
-    /// 팔레트 상위 그룹 여섯 (2026-09-15 사용자 확정 · 하단 개편 ② ·
-    /// 참고 = 명일방주: 엔드필드 배치 화면).
+    /// 팔레트 상위 그룹 **일곱** (2026-09-15 사용자 확정 · 하단 개편 ② ·
+    /// 2026-09-17 「군수」 신설 · 참고 = 명일방주: 엔드필드 배치 화면).
     ///
     /// ⚠️ **탭 차례가 곧 이 열거값 차례다** — 화면이 따로 정렬하지 않는다.
+    /// ⚠️ **새 값은 맨 뒤에 붙인다** — 앞의 정수는 저장·자산에 박혀 있다.
+    ///    그래서 「군수」는 값이 6 이고 **차례는 `Order` 가 따로 정한다**(전력 앞).
     /// </summary>
     public enum PaletteCategory
     {
@@ -16,6 +18,15 @@ namespace MBI.Core
         Complex = 3,    // 복합 가공
         Power = 4,      // 전력
         Module = 5,     // 모듈
+
+        /// <summary>
+        /// 군수 — **싸우는 데 쓰는 무형 자원을 내는 것**(2026-09-17 사용자 확정 · `260917_W08` 5-1).
+        /// 지금은 **쉴드 발생 · 부스터** 둘이다.
+        ///
+        /// ⚠️ 탭 이름 「군수」는 **기초 군수 · 복합 군수 노드 이름과 같은 말**이었는데,
+        ///    같은 날 그 둘이 **기초 가공 · 복합 가공**으로 개명되어 겹침이 풀렸다.
+        /// </summary>
+        Munitions = 6,
     }
 
     /// <summary>
@@ -28,7 +39,10 @@ namespace MBI.Core
     /// 명시 그룹 셋은 「무엇을 하는 물건인가」로 정한다 —
     /// · **물류** = 옮기고 **나누고** 쌓는 것 — 병합기 · 분류기 · 저장
     ///   (🗑️ 구 「고르고」 폐기 2026-09-17 — 품목을 고르는 것으로 읽힌다)
-    /// · **전력** = 전력을 내거나 전력으로 무형 자원을 내는 것 — 에너지 · 부스터
+    /// · **전력** = **전력을 내고 관리하는 것만** — 에너지
+    ///   (🗑️ 구 「전력으로 무형 자원을 내는 것 — 부스터」 폐기 2026-09-17 사용자 확정 ·
+    ///    부스터는 아래 「군수」로 갔다)
+    /// · **군수** = 싸우는 데 쓰는 **무형 자원**을 내는 것 — 쉴드 발생 · 부스터 (2026-09-17 신설)
     /// · **모듈** = 노드에 **붙는** 것 — M · R
     ///
     /// 남는 가공 계열 둘은 **입력면 수가 가른다**(2026-09-15 사용자 확정) —
@@ -46,13 +60,18 @@ namespace MBI.Core
     /// </summary>
     public static class PaletteCategories
     {
-        /// <summary>탭에 뜨는 차례. 「전체」가 맨 앞이다.</summary>
+        /// <summary>
+        /// 탭에 뜨는 차례. 「전체」가 맨 앞이다.
+        /// ⚠️ **열거값 차례가 아니라 이 배열이 화면 차례다**(2026-09-17) —
+        /// 「군수」는 값이 6 이지만 **전력 앞**에 선다(만드는 것 → 먹이는 것 순).
+        /// </summary>
         public static readonly PaletteCategory[] Order =
         {
             PaletteCategory.All,
             PaletteCategory.Logistics,
             PaletteCategory.Basic,
             PaletteCategory.Complex,
+            PaletteCategory.Munitions,
             PaletteCategory.Power,
             PaletteCategory.Module,
         };
@@ -73,6 +92,7 @@ namespace MBI.Core
                 // 기초/복합이 이미 둘을 가른다. 문서 문안이 서면 그때 이 줄이 바뀐다.
                 case PaletteCategory.Basic: return "기초";
                 case PaletteCategory.Complex: return "복합";
+                case PaletteCategory.Munitions: return "군수";
                 case PaletteCategory.Power: return "전력";
                 case PaletteCategory.Module: return "모듈";
                 default: return "";
@@ -103,8 +123,17 @@ namespace MBI.Core
             switch (def.type)
             {
                 case NodeType.Storage: return PaletteCategory.Logistics;
-                case NodeType.Energy:
-                case NodeType.Booster: return PaletteCategory.Power;
+
+                // ✅ **전력은 전력만**(2026-09-17 사용자 확정 · `260917_W08` 5-1).
+                case NodeType.Energy: return PaletteCategory.Power;
+
+                // ✅ **군수 — 싸우는 데 쓰는 무형 자원**(2026-09-17 사용자 확정).
+                //    🗑️ 구 「부스터 = 전력」 폐기. 쉴드도 여기다 —
+                //    ⚠️ 쉴드는 입력면이 하나라 **규칙대로 두면 기초 가공**으로 간다.
+                //    생존 두 층(회피 · 쉴드)이 다른 탭에 서는 것을 사용자가 고쳤다.
+                //    📌 **입력면 수 규칙은 이 두 종에서 멈춘다** — 명시 그룹이 먼저다.
+                case NodeType.Booster:
+                case NodeType.Shield: return PaletteCategory.Munitions;
             }
 
             // ── 남는 노드 = 가공 계열. 입력면 수가 가른다 ───────────────────────
