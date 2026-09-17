@@ -122,8 +122,9 @@ namespace MBI.EditorTools
         /// 고정 그릇) 폐기 — 최대치는 이제 **놓인 발생 노드 수 × 이 값**이다. 하네스가 제 수를
         /// 들면 러너와 다른 판을 재게 된다(`ShieldSystem.MaxFrom` 이 둘의 하나뿐인 문이다).
         ///
-        /// <paramref name="shieldOff"/> 가 참이면 **배포 보드에서 쉴드 줄만 뽑아** 돌린다 —
-        /// 견주기 위한 기준선이고 배포 거동이 아니다.
+        /// <paramref name="shieldOff"/> 가 참이면 **배포 보드에서 쉴드 발생 노드 하나만 뽑아**
+        /// 돌린다 — 견주기 위한 기준선이고 배포 거동이 아니다.
+        /// ⚠️ **줄 전체를 걷는 것이 아니다**(벨트·가공·군수는 그대로) — 축을 하나만 움직이려는 것이다.
         /// </summary>
         public static string Run(string stageId, bool preloadMount, float propellantNeed,
             float hpOverride, bool shieldOff)
@@ -146,7 +147,7 @@ namespace MBI.EditorTools
                           + (Mathf.Approximately(propellantNeed, needBase) ? " · 기준)" : ")"));
             if (hpOverride > 0f) sb.AppendLine($"[판] 로봇 HP **{hpOverride:F0}**(하네스 전용 · 자산은 그대로)");
             sb.AppendLine(shieldOff
-                ? "[판] 쉴드 **줄을 뽑았다** — 견주기 위한 기준선(배포 거동이 아니다)"
+                ? "[판] 쉴드 **발생 노드를 뽑았다**(벨트·가공·군수는 그대로) — 견주기 위한 기준선"
                 : "[판] 쉴드 줄 **배포 보드에 포함** — 값은 자산이 든다(대당 최대치 · 충전 비율)");
             sb.AppendLine(autoPilot
                 ? "[판] 자동 조종 **켬** — 게임과 같은 문(2026-09-17 신설)"
@@ -181,8 +182,8 @@ namespace MBI.EditorTools
             //    들어왔으므로**(`260917_W07` 4장 1번) 하네스가 제 줄을 따로 놓으면
             //    **같은 일을 하는 자리 둘**이 된다. 지금은 시작 보드가 가진 것을 그대로 잰다.
             //
-            // ⚠️ `shieldOff` 는 **견주기 위한 기준선**이다 — 배포 보드에서 쉴드 줄만 뽑아
-            //    「쉴드가 얼마를 바꿨나」를 같은 판에서 본다. 배포 거동이 아니다.
+            // ⚠️ `shieldOff` 는 **견주기 위한 기준선**이다 — 배포 보드에서 **쉴드 발생 노드
+            //    하나만** 뽑아 「쉴드가 얼마를 바꿨나」를 같은 판에서 본다. 배포 거동이 아니다.
             if (shieldOff)
             {
                 RemoveShieldNode(grid);
@@ -615,7 +616,7 @@ namespace MBI.EditorTools
             if (shieldMax <= 0f)
             {
                 sb.AppendLine(shieldOff
-                    ? "  쉴드 **줄을 뽑았다** — 이 판이 기준선이다"
+                    ? "  쉴드 **발생 노드를 뽑았다** — 이 판이 기준선이다(벨트·가공·군수는 그대로 돈다)"
                     : "  ⚠️ 쉴드 줄이 배포 보드에 있는데 **최대치가 0** 이다 — 발생 노드가 안 이어졌다");
             }
             else
@@ -975,7 +976,7 @@ namespace MBI.EditorTools
         //    자리 · 조합표 · 「가공을 안 나눠 쓴다」는 이제 `StartingBoard` 주석이 든다.
 
         /// <summary>
-        /// **쉴드 줄을 뽑는다** — 견주기 위한 기준선을 만드는 자리다(배포 거동이 아니다).
+        /// **쉴드 발생 노드를 뽑는다** — 견주기 위한 기준선을 만드는 자리다(배포 거동이 아니다).
         /// 발생 노드 하나만 걷는다: 그릇이 0 이 되고 벨트·군수는 그대로라 **한 축만 움직인다**.
         /// </summary>
         private static void RemoveShieldNode(BoardGrid g)
