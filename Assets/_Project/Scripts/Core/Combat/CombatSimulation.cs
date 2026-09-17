@@ -192,6 +192,18 @@ namespace MBI.Core
         /// <summary>태그 스킬이 한 번에 치는 표적 모음 — 광역이라 틱마다 다시 담는다.</summary>
         private readonly List<CombatEntity> _tagSkillTargets = new List<CombatEntity>();
 
+        private readonly List<Vector2> _tagSkillTargetPositions = new List<Vector2>();
+
+        /// <summary>
+        /// 직전 태그 스킬이 **실제로 때린 자리들**. 연출이 어디로 나갈지를 여기서 읽는다
+        /// (2026-09-18 · 연출을 화면 전부로 넓히면서 신설).
+        ///
+        /// ⚠️⚠️ **연출이 판정 범위를 다시 재지 않게 하려고 둔 자리다.** 러너가 카메라로
+        /// 화면 범위를 다시 재면 같은 값이 두 곳에 살고, 어제 광역형 드론에서 난 일
+        /// (그림은 고쳐지고 판정은 옛 수를 쓰던 것)이 방향만 바꿔 되풀이된다.
+        /// </summary>
+        public IReadOnlyList<Vector2> LastTagSkillTargets => _tagSkillTargetPositions;
+
         /// <summary>
         /// **화면 안**의 범위 — 태그 스킬 광역이 여기 든 적만 친다
         /// (2026-09-08 · <c>260908_W05</c> 2-2).
@@ -807,6 +819,7 @@ namespace MBI.Core
             int targetCount = _tagSkillTargets.Count;
             float dealt = 0f;
             bool anyHit = false;
+            _tagSkillTargetPositions.Clear();
             foreach (CombatEntity target in _tagSkillTargets)
             {
                 float avg = AverageDamagePerItem(side, target, loadedRounds);
@@ -816,6 +829,7 @@ namespace MBI.Core
                 target.hp -= damage;
                 dealt += damage;
                 anyHit = true;
+                _tagSkillTargetPositions.Add(target.position); // 연출이 읽는 자리(판정과 같은 목록)
 
                 _shots.Add(new ShotEvent
                 {

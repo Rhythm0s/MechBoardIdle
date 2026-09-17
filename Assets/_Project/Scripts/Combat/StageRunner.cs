@@ -698,20 +698,27 @@ namespace MBI.Combat
             // 마운트가 만재가 아니어서 스킬이 안 터졌으면 연출도 없다 — 사건 종속(10-1).
             if (_sim.LastTagSkillDamage <= 0f) return;
 
-            float radius = tuning != null ? tuning.arenaRadiusTbd : 6f;
             Vector2 origin = _sim.Robot != null ? _sim.Robot.position : Vector2.zero;
             bool bEntering = _sim.ActiveRobotIndex == 1;
             Color c = bEntering ? RobotBColor : RobotAColor;
 
-            // ⚠️ **적 무리 쪽으로 한 번 나간다**(2026-09-16 사용자 육안 4차 ①② · 회전 폐기).
-            float aim = TagSkillAimDegrees(origin, radius);
+            // ⚠️⚠️ **화면 끝까지 닿는 길이**로 그린다 (2026-09-18) — 종전에는 투기장 반경(6)을
+            //    썼는데, 그 수는 화면과 아무 상관이 없어 **판정이 닿는 데까지 그림이 안 갔다.**
+            float radius = TagSkillReachRadius(origin);
 
             if (bEntering)
             {
+                // 빔은 **때린 적 하나마다 한 줄기**다(2026-09-18 사용자 확정).
+                // 자리는 시뮬이 판정에 쓴 목록 그대로다 — 여기서 화면을 다시 재지 않는다.
+                int maxBeams = tuning != null ? tuning.tagLaserMaxBeamsTbd : 16;
+                float[] beams = TagSkillEffect.AnglesToward(origin, _sim.LastTagSkillTargets, maxBeams);
+
                 // 레이저는 자산이 없다 — 흰 사각을 늘여 그리는 것이 곧 완성형이다(연출 3-1).
                 TagSkillEffect fx = TagSkillEffect.PlayLaser(
-                    transform, origin, radius, tuning, PlaceholderSprite.White(), c);
-                fx.AimDegrees = aim;
+                    transform, origin, radius, tuning, PlaceholderSprite.White(), c, beams);
+
+                // 목록이 비었을 때만(그 사이 전부 죽은 경우) 옛 길로 한 줄기 뻗는다.
+                if (beams.Length == 0) fx.AimDegrees = TagSkillAimDegrees(origin, radius);
             }
             else
             {
@@ -721,10 +728,30 @@ namespace MBI.Combat
                 bool real = bullet != PlaceholderSprite.White();
                 // 자산에는 색이 이미 실려 있다 — 흰 사각일 때만 색을 입힌다.
                 Color tint = real ? Color.white : c;
-                TagSkillEffect rain = TagSkillEffect.PlayBulletRain(
-                    transform, origin, radius, tuning, bullet, tint, real);
-                rain.AimDegrees = aim;
+                // 탄환비는 **한 바퀴 전부**에 깐다 — 방향을 고르지 않으므로 겨냥이 없다.
+                TagSkillEffect.PlayBulletRain(
+                    transform, origin, radius, tuning, bullet, tint, real, fullScreen: true);
             }
+        }
+
+        /// <summary>
+        /// 태그 스킬 연출이 **화면 끝까지 닿는 길이**(2026-09-18).
+        ///
+        /// 📌 판정이 「화면 안 적 전부」이므로 연출도 화면 끝까지 가야 한다.
+        /// 원점이 화면 가운데가 아니므로 **먼 쪽 귀까지**로 잡는다 — 그래야 어느 방향으로도 닿는다.
+        /// ⚠️ 수를 지어내지 않는다 — 카메라에서 잰다. 카메라가 없으면 옛 값(투기장 반경)으로 떨어진다.
+        /// </summary>
+        private float TagSkillReachRadius(Vector2 origin)
+        {
+            Camera cam = Camera.main;
+            if (cam == null || !cam.orthographic) return tuning != null ? tuning.arenaRadiusTbd : 6f;
+
+            float halfH = cam.orthographicSize;
+            float halfW = halfH * cam.aspect;
+            Vector3 c = cam.transform.position;
+            float dx = Mathf.Abs(origin.x - c.x) + halfW;
+            float dy = Mathf.Abs(origin.y - c.y) + halfH;
+            return Mathf.Sqrt(dx * dx + dy * dy);
         }
 
         /// <summary>

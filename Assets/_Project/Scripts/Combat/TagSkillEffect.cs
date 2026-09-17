@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using MBI.Data;
 using UnityEngine;
 
@@ -36,13 +37,57 @@ namespace MBI.Combat
         private float _elapsed;
         private float _sweepSeconds;
 
-        private Transform _beam;
         private Transform[] _bullets;
         private float[] _bulletAngles;
 
-        /// <summary>레이저(B 태그 인) — 빔 한 줄기가 한 바퀴 돈다.</summary>
+        // ── 각을 고르는 법 — 순수 계산이라 시험이 여기를 잰다 ─────────────────
+        //    (2026-09-18 · 연출을 화면 전부로 넓히면서 신설)
+
+        /// <summary>한 바퀴를 고르게 나눈 각들. 첫 각과 끝 각이 겹치지 않는다.</summary>
+        public static float[] FullCircleAngles(int count)
+        {
+            count = Mathf.Max(1, count);
+            var a = new float[count];
+            // ⚠️ count-1 로 나누면 0°와 360°가 겹쳐 그 자리만 탄환이 둘이 된다.
+            for (int i = 0; i < count; i++) a[i] = i * (FullTurn / count);
+            return a;
+        }
+
+        /// <summary>
+        /// **표적 하나마다 한 각**(도) — 빔이 나갈 방향들.
+        ///
+        /// ⚠️ 표적이 <paramref name="maxBeams"/>보다 많으면 **고르지 않고 고르게 편다** —
+        /// 어느 표적을 버릴지 고를 잣대가 없기 때문이다. 그때는 한 바퀴를 고르게 나눈다.
+        /// </summary>
+        public static float[] AnglesToward(Vector2 origin, IReadOnlyList<Vector2> targets, int maxBeams)
+        {
+            maxBeams = Mathf.Max(1, maxBeams);
+            int n = targets?.Count ?? 0;
+            if (n == 0) return new float[0];
+            if (n > maxBeams) return FullCircleAngles(maxBeams);
+
+            var a = new float[n];
+            for (int i = 0; i < n; i++)
+            {
+                Vector2 d = targets[i] - origin;
+                a[i] = d.sqrMagnitude <= 1e-6f ? 0f : Mathf.Atan2(d.y, d.x) * Mathf.Rad2Deg;
+            }
+            return a;
+        }
+
+        /// <summary>
+        /// 레이저(B 태그 인) — **빔이 표적 수만큼 뻗는다**(2026-09-18 사용자 확정).
+        ///
+        /// 🗑️ 구 「빔 한 줄기가 한 바퀴 돈다」 폐기(09-16 회전 폐기) ·
+        /// 🗑️ 구 「적 무리 쪽으로 한 줄기」 폐기(09-18) — 판정이 화면 안 적 전부인데
+        /// 연출만 한 줄기면 **맞은 줄 모르는 적이 남는다.**
+        ///
+        /// 각은 밖에서 재서 넣는다 — 이 클래스는 적을 모르는 자리다.
+        /// 목록이 비면 <see cref="AimDegrees"/> 쪽으로 한 줄기만 뻗는다(스킬은 이미 터졌다).
+        /// </summary>
         public static TagSkillEffect PlayLaser(Transform parent, Vector2 origin, float radius,
-                                               CombatTuning tuning, Sprite white, Color color)
+                                               CombatTuning tuning, Sprite white, Color color,
+                                               IReadOnlyList<float> beamDegrees = null)
         {
             TagSkillEffect fx = Create(parent, origin, radius, tuning, color);
             fx._isLaser = true;
@@ -51,18 +96,32 @@ namespace MBI.Combat
             float widthPx = tuning != null ? tuning.tagLaserWidthArtPixels : 53f;
             float width = widthPx / PixelsPerUnit;
 
-            var beam = new GameObject("TagLaserBeam");
-            beam.transform.SetParent(fx.transform, false);
-            // 피벗이 가운데라 길이의 절반만큼 밀어야 원점에서 뻗는다.
-            beam.transform.localPosition = new Vector3(radius * 0.5f, 0f, 0f);
-            beam.transform.localScale = new Vector3(radius, width, 1f);
-            var sr = beam.AddComponent<SpriteRenderer>();
-            sr.sprite = white;
-            sr.color = color;
-            sr.sortingOrder = SortingLayers.EffectOver;
-            fx._beam = fx.transform;
+            int count = beamDegrees != null && beamDegrees.Count > 0 ? beamDegrees.Count : 1;
+            fx.BeamCount = count;
+            for (int i = 0; i < count; i++)
+            {
+                float deg = beamDegrees != null && beamDegrees.Count > 0 ? beamDegrees[i] : 0f;
+
+                // 빔마다 제 각도로 도는 축을 하나 세운다 — 축이 돌고 빔은 그 위에 눕는다.
+                var pivot = new GameObject("TagLaserPivot");
+                pivot.transform.SetParent(fx.transform, false);
+                pivot.transform.localRotation = Quaternion.Euler(0f, 0f, deg);
+
+                var beam = new GameObject("TagLaserBeam");
+                beam.transform.SetParent(pivot.transform, false);
+                // 피벗이 가운데라 길이의 절반만큼 밀어야 원점에서 뻗는다.
+                beam.transform.localPosition = new Vector3(radius * 0.5f, 0f, 0f);
+                beam.transform.localScale = new Vector3(radius, width, 1f);
+                var sr = beam.AddComponent<SpriteRenderer>();
+                sr.sprite = white;
+                sr.color = color;
+                sr.sortingOrder = SortingLayers.EffectOver;
+            }
             return fx;
         }
+
+        /// <summary>뻗은 빔 수 — 시험이 「표적 수만큼 나갔나」를 여기서 읽는다.</summary>
+        public int BeamCount { get; private set; }
 
         /// <summary>탄환비(A 태그 인) — 탄환 여럿이 부채꼴로 깔리며 한 바퀴 돈다.</summary>
         /// <param name="nativeSize">
@@ -71,9 +130,14 @@ namespace MBI.Combat
         /// **규격 「탄환 38」이 몸통인지 꼬리까지인지가 아직 안 정해져**(`260908_V05` 판정 요청)
         /// 자산이 들어온 뒤에는 값을 강제하지 않는다 — 지어낸 배율을 넣지 않기 위해서다.
         /// </param>
+        /// <param name="fullScreen">
+        /// 참이면 **부채꼴이 아니라 한 바퀴 전부**에 깐다 (2026-09-18 사용자 확정) —
+        /// 판정이 화면 안 적 전부인데 연출이 120도만 덮으면 **뒤에서 맞은 적이 안 읽힌다.**
+        /// 수는 <c>tagBulletFullCircleCountTbd</c>(구현 가정)가 든다.
+        /// </param>
         public static TagSkillEffect PlayBulletRain(Transform parent, Vector2 origin, float radius,
                                                    CombatTuning tuning, Sprite bullet, Color color,
-                                                   bool nativeSize = false)
+                                                   bool nativeSize = false, bool fullScreen = false)
         {
             TagSkillEffect fx = Create(parent, origin, radius, tuning, color);
             fx._isLaser = false;
@@ -82,16 +146,24 @@ namespace MBI.Combat
 
             int count = tuning != null ? Mathf.Max(1, tuning.tagBulletCount) : 10;
             float fan = tuning != null ? tuning.tagBulletFanDegrees : 120f;
+            if (fullScreen)
+            {
+                count = tuning != null ? Mathf.Max(1, tuning.tagBulletFullCircleCountTbd) : 30;
+                fan = FullTurn;
+            }
             float sizePx = tuning != null ? tuning.tagBulletSizeArtPixels : 38f;
             float size = sizePx / PixelsPerUnit;
 
             fx._bullets = new Transform[count];
-            fx._bulletAngles = new float[count];
+            fx._bulletAngles = fullScreen ? FullCircleAngles(count) : new float[count];
             for (int i = 0; i < count; i++)
             {
-                // 부채꼴을 고르게 나눈다 — 손으로 고른 배분을 쓰지 않는다.
-                float t = count == 1 ? 0.5f : i / (float)(count - 1);
-                fx._bulletAngles[i] = (t - 0.5f) * fan;
+                if (!fullScreen)
+                {
+                    // 부채꼴을 고르게 나눈다 — 손으로 고른 배분을 쓰지 않는다.
+                    float t = count == 1 ? 0.5f : i / (float)(count - 1);
+                    fx._bulletAngles[i] = (t - 0.5f) * fan;
+                }
 
                 var one = new GameObject("TagBullet");
                 one.transform.SetParent(fx.transform, false);
