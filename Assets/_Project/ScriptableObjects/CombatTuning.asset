@@ -12,7 +12,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: cf35e83cdc62e7f449cfeab29dcb58ec, type: 3}
   m_Name: CombatTuning
   m_EditorClassIdentifier: MBI.Data::MBI.Data.CombatTuning
-  robotHpTbd: 1000
+  robotHp: 1000
+  dodgeVfxSeconds: 0.5
   robotAttackRangeTbd: 9.2
   autoPilotHoldWhenMoreThanTbd: 1
   robotMoveSpeedTbd: 4.5

@@ -64,6 +64,28 @@ namespace MBI.Core
         /// <summary>대기 로봇 보드의 추진제 산출(개/초).</summary>
         public static float StandbyPropellantProduce;
 
+        // ── 쉴드 (2026-09-17 · `260917_W05` 4장 · 사용자 「보호막 되살릴 것」) ──────────
+        //
+        // ⚠️ **추진제와 같은 길이되 쓰임이 다르다.** 추진제는 스택을 쌓고, 쉴드 재료는
+        // **게이지를 채우는 속도**가 된다. 최대치는 노드가 아니라 **로봇**의 것이다
+        // (`ShieldSystem` 머리말의 구현 판단 · 설계가 뒤집을 수 있는 자리).
+        //
+        // 📌 **노드 수와 재료 산출을 따로 싣는다** — 충전률은
+        // `min(재료 산출, 노드 수 × 대당 소비) × 재료 1개당 충전량` 이라
+        // 둘 중 하나만 오면 「발생 노드 없이 재료만 만들어도 차는」 판이 된다.
+
+        /// <summary>라이브 쉴드 재료 산출(개/초).</summary>
+        public static float ShieldMaterialProduce;
+
+        /// <summary>보드에 놓인 쉴드 발생 노드 수 — 재료를 먹는 입이 몇인가.</summary>
+        public static int ShieldNodeCount;
+
+        /// <summary>대기 로봇 보드의 쉴드 재료 산출(개/초) — **대기 보드도 채운다**.</summary>
+        public static float StandbyShieldMaterialProduce;
+
+        /// <summary>대기 로봇 보드의 쉴드 발생 노드 수.</summary>
+        public static int StandbyShieldNodeCount;
+
         /// <summary>전역 병목 원인(변수 패널 아이콘·점멸용). Power → Heat 우선(§3-4-1). None = 정상.</summary>
         public static ConstraintCause GlobalCause;
 
@@ -109,6 +131,10 @@ namespace MBI.Core
             DroneProduce = 0f;
             PropellantProduce = 0f;
             BoosterCount = 0;
+            ShieldMaterialProduce = 0f;
+            ShieldNodeCount = 0;
+            StandbyShieldMaterialProduce = 0f;
+            StandbyShieldNodeCount = 0;
             GlobalCause = ConstraintCause.None;
             PowerSupply = 0f;
             PowerDraw = 0f;

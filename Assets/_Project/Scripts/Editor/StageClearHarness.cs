@@ -100,20 +100,43 @@ namespace MBI.EditorTools
         /// 【스위프】 추진제 필요 생산치와 **로봇 HP** 를 바꿔 돌린다
         /// (2026-09-17 · `260917_W04` 4장).
         ///
-        /// ⚠️⚠️ **배포 값은 안 건드린다.** HP 는 `CombatTuning.asset` 의 `robotHpTbd` 에 사는데,
+        /// ⚠️⚠️ **배포 값은 안 건드린다.** HP 는 `CombatTuning.asset` 의 `robotHp` 에 사는데,
         /// 그 자산을 고치면 디스크에 남아 **빌드와 다음 측정이 바뀐 값을 보게 된다.**
         /// 여기서는 세우는 `RobotSetup` 의 `hp` 만 갈아 끼운다 — 자산은 그대로다.
         /// <paramref name="hpOverride"/> 가 0 이면 자산 값을 쓴다.
         /// </summary>
         public static string Run(string stageId, bool preloadMount, float propellantNeed,
             float hpOverride)
+            => Run(stageId, preloadMount, propellantNeed, hpOverride,
+                   shieldMax: 0f, shieldChargePerMaterial: 0f);
+
+        /// <summary>
+        /// 【스위프】 위에 **쉴드 최대치·재료 1개당 충전량**을 얹은 판
+        /// (2026-09-17 · `260917_W05` 5-1 · `260917_W06` 5장).
+        ///
+        /// ⚠️⚠️ **배포 값도 배포 보드도 안 건드린다.** 쉴드 값은 `balance_v4.json` 에서 0 이고
+        /// (설계가 값을 안 줬다) 시작 보드에는 쉴드 줄이 없다. 여기서는 **하네스 안에서만**
+        /// 줄을 한 벌 더 놓고 값을 갈아 끼운다 — 그래야 「값이 얼마면 살아남나」를
+        /// 자산을 더럽히지 않고 잴 수 있다.
+        ///
+        /// <paramref name="shieldMax"/> 가 0 이면 쉴드 줄을 **아예 안 놓는다** — 그 판이 기준선이다.
+        /// </summary>
+        public static string Run(string stageId, bool preloadMount, float propellantNeed,
+            float hpOverride, float shieldMax, float shieldChargePerMaterial)
         {
             var sb = new StringBuilder();
             sb.AppendLine($"=== 스테이지 {stageId} 클리어 하네스 (2026-09-17) ===");
+            // ⚠️ 배수는 **자산 값 대비**다(구 상수 150 대비 폐기 — 위 `BasePropellantNeed` 머리말).
+            float needBase = BasePropellantNeed;
             sb.AppendLine($"[판] 추진제 필요 생산치 **{propellantNeed:F0}**"
-                          + $" (15초당 {BasePropellantNeed / propellantNeed:F0}개"
-                          + (Mathf.Approximately(propellantNeed, BasePropellantNeed) ? " · 기준)" : ")"));
+                          + $" (자산 {needBase:F0} 대비 ×{needBase / propellantNeed:F2}"
+                          + (Mathf.Approximately(propellantNeed, needBase) ? " · 기준)" : ")"));
             if (hpOverride > 0f) sb.AppendLine($"[판] 로봇 HP **{hpOverride:F0}**(하네스 전용 · 자산은 그대로)");
+            if (shieldMax > 0f)
+                sb.AppendLine($"[판] 쉴드 최대치 **{shieldMax:F0}** · 재료 1개당 충전 **{shieldChargePerMaterial:F0}**"
+                              + " (하네스 전용 · 자산·시작 보드는 그대로)");
+            else
+                sb.AppendLine("[판] 쉴드 **없음**(최대치 0) — 기준선");
             sb.AppendLine(preloadMount
                 ? "[시작 조건] **튜토리얼 종료** — 마운트 적재 참(정상 경로) · 창고 빈손"
                 : "[시작 조건] **심사자 S1 점프** — 빈 칸 자동 채움 · 창고·마운트 **빈손**");
@@ -140,6 +163,12 @@ namespace MBI.EditorTools
 
             // ── 판 세우기 ──────────────────────────────────────────────────
             BoardGrid grid = Board(propellantNeed);
+            int shieldCells = shieldMax > 0f ? PlaceShieldLine(grid) : 0;
+            if (shieldCells > 0)
+            {
+                BeltAutoOrient.Resolve(grid);
+                BeltFlow.Resolve(grid);
+            }
             var flow = new BeltItemFlow();
             flow.Rebuild(grid);
             var delivery = new MountDelivery();
@@ -163,7 +192,7 @@ namespace MBI.EditorTools
 
             var setup = new RobotSetup
             {
-                hp = hpOverride > 0f ? hpOverride : tuning.robotHpTbd,
+                hp = hpOverride > 0f ? hpOverride : tuning.robotHp,
                 mountCoef = mountCoef,
                 moduleMult = robot.moduleMult,
                 attackRange = tuning.robotAttackRangeTbd,
@@ -215,7 +244,7 @@ namespace MBI.EditorTools
             sb.AppendLine();
             sb.AppendLine("[판] " + stage.stageId + " · " + stage.topic);
             sb.AppendLine($"  요구치 {stage.req:F0} · 제한 {stage.challengeTime:F0}s · 적 {spawns.Count} 기");
-            sb.AppendLine($"  로봇 HP {tuning.robotHpTbd:F0} · 사거리 {tuning.robotAttackRangeTbd:F1}"
+            sb.AppendLine($"  로봇 HP {tuning.robotHp:F0} · 사거리 {tuning.robotAttackRangeTbd:F1}"
                           + $" · 마운트계수 {mountCoef:F2} · 소비 상한 {robot.consumptionCap:F1}");
             // ⚠️ 시작 적재는 조건마다 다르다 — 머리의 [시작 조건] 줄과 **같은 말을 해야 한다**.
             //    한쪽만 고치면 표가 거짓말을 한다(2026-09-16).
@@ -278,6 +307,15 @@ namespace MBI.EditorTools
 
             LogisticsResult lastResult = default;
             float peakActual = 0f;
+
+            // 쉴드 표본 — 「0 인 틱」과 「만충 틱」은 **다른 병**을 가리킨다.
+            //   0 이 많다 = 재료가 모자라 못 채운다(공급 부족).
+            //   만충이 많다 = 그릇이 남아돈다(맞는 것보다 채워지는 것이 빠르다).
+            int tickShieldCountable = 0, tickShieldEmpty = 0, tickShieldFull = 0;
+
+            // 대당 재료 소비 — 측정용 고정값 1/초(`balance_v4.json` · `shieldMaterialPerSec`).
+            float shieldMaterialPerSec = robot.balanceRef != null
+                ? robot.balanceRef.shieldMaterialPerSec : 1f;
 
             // ⚠️⚠️ **굴리지 않은 최고값으로 판정하면 안 된다**(2026-09-16 · 첫 판에서 잡았다).
             //    0.1 초 창에서는 한 틱에 몰려 도착한 것이 순간 50.0 으로 읽힌다 — 명목 20.0 의
@@ -362,6 +400,13 @@ namespace MBI.EditorTools
                 sim.PropellantSupplyRate = agg.propellantProduce;
                 sim.BoosterCount = agg.boosterCount;
 
+                // 쉴드 — 러너와 **같은 문**(`ShieldSystem.ChargeFrom`)으로 낸다(§7).
+                //    ⚠️ 매 틱 다시 쓴다: 한 번만 쓰면 러너와 다른 판을 재게 된다.
+                sim.ShieldMax = shieldMax;
+                sim.ShieldChargeRate = ShieldSystem.ChargeFrom(
+                    agg.shieldMaterialProduce, agg.shieldNodeCount,
+                    shieldMaterialPerSec, shieldChargePerMaterial);
+
                 // 4) 전투
                 sim.Tick(Dt);
                 elapsed += Dt;
@@ -386,6 +431,14 @@ namespace MBI.EditorTools
                 {
                     tickDodgeCountable++;
                     if (dodge.Stacks <= 0) tickDodgeEmpty++;
+                }
+
+                // 쉴드 — **틱마다 본다**(회피와 같은 결). 끝에서 한 번 보면 마지막 값만 남는다.
+                if (shieldMax > 0f)
+                {
+                    tickShieldCountable++;
+                    if (sim.Shield.Value <= 0f) tickShieldEmpty++;
+                    else if (sim.Shield.IsFull) tickShieldFull++;
                 }
 
                 if (sim.AmmoStock > peakStore) peakStore = sim.AmmoStock;
@@ -495,13 +548,40 @@ namespace MBI.EditorTools
             sb.AppendLine($"  **피격 {sim.HitsTaken} 회**(회피로 무효가 된 것 포함)"
                           + "  ← 측정법: 근접·포탄이 **명중 판정에 들어온** 순간마다 1 증가");
             sb.AppendLine($"  **받은 총 피해 {sim.DamageTaken:F0}**"
-                          + "  ← 측정법: 실제로 HP 에서 깎인 값의 합."
-                          + " ⚠️ **쉴드는 시뮬에 없다** — 설계가 「쉴드 + HP」로 물었으나 HP 하나다");
+                          + "  ← 측정법: 실제로 **HP 에서** 깎인 값의 합."
+                          + " 🗑️ 구 「쉴드는 시뮬에 없다」 폐기 — 09-17 에 쉴드가 붙었고 그 몫은 아래 줄이 센다");
             sb.AppendLine($"  **회피로 무효화한 피해 {sim.DamageAvoided:F0}**"
                           + "  ← 측정법: 무적이라 **계산에 들어가지도 않은** 공격력의 합");
 
             sb.AppendLine($"  마운트 최고 도착률 {peakArrival:F2} 발/초");
             sb.AppendLine($"  재배분 {reallocs} 회 — 0 이면 라인이 시작값(빈 줄)으로 굳은 것이다");
+
+            // ── 쉴드 축 (2026-09-17 · `260917_W05` 5-1 · `260917_W06` 5장) ──
+            sb.AppendLine();
+            sb.AppendLine("[쉴드 축]");
+            if (shieldMax <= 0f)
+            {
+                sb.AppendLine("  쉴드 **없음**(최대치 0) — 이 판이 기준선이다");
+            }
+            else
+            {
+                sb.AppendLine($"  최대치 {shieldMax:F0} · 충전률 {sim.ShieldChargeRate:F2}/초"
+                              + $" (재료 {agg.shieldMaterialProduce:F3} 개/초 · 발생 노드 {agg.shieldNodeCount} 대"
+                              + $" · 대당 소비 {shieldMaterialPerSec:F0} · 개당 충전 {shieldChargePerMaterial:F0})"
+                              + "  ← 측정법: `ShieldSystem.ChargeFrom` = min(재료, 노드×대당) × 개당 충전");
+                sb.AppendLine($"  **쉴드가 막은 피해 {sim.ShieldAbsorbed:F0}**"
+                              + "  ← 측정법: 피격마다 게이지에서 실제로 빠진 양의 합(`ShieldSystem.Absorbed`)."
+                              + " ⚠️ 넘친 몫은 여기 안 들고 위의 「받은 총 피해」로 간다");
+                sb.AppendLine($"  쉴드 0 인 틱 {tickShieldEmpty}/{tickShieldCountable}"
+                              + $" ({tickShieldEmpty * 100f / Mathf.Max(1, tickShieldCountable):F1}%)"
+                              + "  ← 측정법: 매 틱 `Shield.Value <= 0` 인 틱의 비율 · **재료가 모자란다는 뜻**");
+                sb.AppendLine($"  쉴드 만충 틱 {tickShieldFull}/{tickShieldCountable}"
+                              + $" ({tickShieldFull * 100f / Mathf.Max(1, tickShieldCountable):F1}%)"
+                              + "  ← 측정법: 매 틱 `Shield.IsFull` 인 틱의 비율 · **그릇이 남아돈다는 뜻**");
+                sb.AppendLine($"  쉴드 줄이 쓴 칸 {shieldCells} 칸"
+                              + "  ← 측정법: 하네스가 실제로 놓은 칸 수(벨트 3 + 가공 1 + 군수 1 + 발생 1)."
+                              + " ⚠️ **가공을 공유하지 않는 판정**이라 한 칸이 더 든다(구현 판단)");
+            }
 
             sb.AppendLine();
             sb.AppendLine("[못 쏜 까닭 — 틱마다 하나씩 · 차례가 인과다]");
@@ -566,7 +646,7 @@ namespace MBI.EditorTools
             const float Seconds = 120f;
             var sb = new StringBuilder();
             sb.AppendLine($"=== B 보드 120초 가동 (전투 없음) · 추진제 필요 생산치 "
-                          + $"**{propellantNeed:F0}** (15초당 {BasePropellantNeed / propellantNeed:F0}개) ===");
+                          + $"**{propellantNeed:F0}** (자산 {BasePropellantNeed:F0} 대비 ×{BasePropellantNeed / propellantNeed:F2}) ===");
 
             BoardGrid grid = BoardB(propellantNeed);
 
@@ -675,6 +755,44 @@ namespace MBI.EditorTools
             return sb.ToString();
         }
 
+        /// <summary>
+        /// 【`260917_W05` 5-1 · `260917_W06` 5장】 **쉴드 측정 네 판**
+        /// — 최대치 100·250 × 재료 1개당 충전 5·10.
+        ///
+        /// 고정: 재료 소비 **1/초**(자산) · 추진제 필요 생산치 **30**(W06 수정) ·
+        /// A 시작 보드 + 부스터 줄 + **쉴드 줄** · 적재 40 · HP **1000** · 회피 상한 8.
+        ///
+        /// ⚠️ **기준선을 같이 낸다** — 쉴드 없는 판(최대치 0)이 맨 앞이다.
+        ///    없으면 「쉴드가 얼마를 바꿨나」를 이 문서 안에서 못 읽는다.
+        ///
+        /// ⚠️⚠️ **넷 다 지면 넓히지 않고 그대로 보고한다**(설계 지시).
+        ///    못 미치는 것 자체가 보고 내용이다.
+        ///
+        /// 배치 실행: <c>-executeMethod MBI.EditorTools.StageClearHarness.RunW05Batch</c>
+        /// </summary>
+        [MenuItem("MBI/Harness W05 쉴드 네 판")]
+        public static void RunW05Menu() => Debug.Log(RunW05());
+
+        public static void RunW05Batch()
+        {
+            Debug.Log(RunW05());
+            if (Application.isBatchMode) EditorApplication.Exit(0);
+        }
+
+        public static string RunW05()
+        {
+            var sb = new StringBuilder();
+            sb.AppendLine("############ 260917_W05 5-1 쉴드 네 판 ############");
+            sb.AppendLine();
+            sb.AppendLine(Run("S1", preloadMount: true, propellantNeed: 30f, hpOverride: 1000f,
+                              shieldMax: 0f, shieldChargePerMaterial: 0f));
+            foreach (float max in new[] { 100f, 250f })
+            foreach (float per in new[] { 5f, 10f })
+                sb.AppendLine(Run("S1", preloadMount: true, propellantNeed: 30f, hpOverride: 1000f,
+                                  shieldMax: max, shieldChargePerMaterial: per));
+            return sb.ToString();
+        }
+
         /// <summary>추진제 스위프의 네 값 — `260917_W03` 2-1. **밸런스 자산은 안 건드린다.**</summary>
         private static readonly float[] SweepNeeds = { 150f, 75f, 50f, 30f };
 
@@ -712,10 +830,24 @@ namespace MBI.EditorTools
         }
 
         /// <summary>
-        /// 밸런스 문서의 **추진제 필요 생산치** 기준값 — 기초 군수 1대가 15초에 1개.
-        /// ⚠️ 값 자체는 노드 자산이 든다. 여기 있는 것은 **배수를 셈하기 위한 기준**이다.
+        /// 🗑️ **구 상수 `BasePropellantNeed = 150f` 폐기 — 2026-09-17.**
+        ///
+        /// ⚠️⚠️ **이것이 오늘의 내 결함이다.** 09-17 에 사용자 확정으로 필요 생산치가
+        /// `balance_v4.json` 으로 옮겨 가 **30** 이 됐는데, 하네스는 150 을 기준으로
+        /// 배수를 셈하고 있었다 — 「추진제 30 판」이 실제로는 **자산 30 을 다시 5배 한 판**
+        /// (사실상 필요치 6)이었다. `260917_V03` 의 「30/1000 도 진다」가 그래서 틀렸다.
+        /// 지침 §7 「한 값이 두 곳에 살면 답이 둘이 된다」 그대로다.
+        ///
+        /// 지금은 **자산이 기준**이다 — 요청한 값이 자산 값과 같으면 배수가 1 이다.
         /// </summary>
-        public const float BasePropellantNeed = 150f;
+        public static float BasePropellantNeed
+        {
+            get
+            {
+                var bal = AssetDatabase.LoadAssetAtPath<BalanceConfig>($"{SoRoot}/BalanceConfig.asset");
+                return bal != null && bal.propellantNeed > 0f ? bal.propellantNeed : 30f;
+            }
+        }
 
         /// <summary>
         /// 추진제 산출률만 바꾼 **노드 자산 복제본**을 대는 손.
@@ -747,6 +879,68 @@ namespace MBI.EditorTools
         }
 
         /// <summary>시작 보드 + 튜토리얼 칸 — **운반로가 이어진 판**이다.</summary>
+        /// <summary>
+        /// **하네스 전용 쉴드 줄** — 놓인 칸 수를 돌려준다
+        /// (2026-09-17 · `260917_W06` 5장 「군수 1 · 발생 1 · 배치는 구현 판단」).
+        ///
+        /// 자리는 A 판의 **폐기된 서 줄**을 되쓴다. 코어 서면에서 내려가 동쪽으로 되돌아온다.
+        ///
+        ///     y=8   벨(4,8) 동→남
+        ///     y=7   벨(4,7) 북→남
+        ///     y=6   벨(4,6) 북→동 → 가공(5,6) → 군수(6,6) 방어 재료 → 쉴드 발생(7,6)
+        ///
+        /// 📌 **가공을 공유하지 않는다**(구현 판단 · 설계가 뒤집을 수 있는 자리).
+        ///    남 줄의 가공을 나눠 쓰면 **표준탄이 줄어** 쉴드가 화력을 깎은 것인지
+        ///    쉴드 자체가 모자란 것인지 구분이 안 된다. 재는 판에서는 축을 하나만 움직인다.
+        ///    ⚠️ 그 대신 **가공 한 대만큼 코어 에너지를 더 먹는다** — 그 대가는 전력 줄에 나온다.
+        ///
+        /// ⚠️ **쉴드 발생 노드는 입력면이 서쪽 하나뿐이다**(`Node_shield`). 군수 바로 동쪽에
+        ///    붙여야 받는다 — 사이에 벨트를 두면 `BeltAutoOrient` 가 다른 면을 입력으로
+        ///    뽑아 09-17 의 분류기 사고가 그대로 되풀이된다.
+        /// </summary>
+        private static int PlaceShieldLine(BoardGrid g)
+        {
+            var belts = new[]
+            {
+                new StartingBoard.Run(4, 8, PortFace.East, PortFace.South),
+                new StartingBoard.Run(4, 7, PortFace.North, PortFace.South),
+                new StartingBoard.Run(4, 6, PortFace.North, PortFace.East),
+            };
+
+            int cells = 0;
+            foreach (StartingBoard.Run r in belts)
+            {
+                StartingBoard.Place(g, r);   // 놓는 문은 하나다 — 여기서 따로 깔지 않는다
+                cells++;
+            }
+
+            if (g.TryPlace(new Vector2Int(5, 6), Node(StartingBoard.ProcId), out _)) cells++;
+
+            NodeDefinition muni = MuniWith(RecipeKind.DefenseMaterial);
+            if (muni != null && g.TryPlace(new Vector2Int(6, 6), muni, out NodeInstance made))
+            {
+                made.SelectRecipe(RecipeKind.DefenseMaterial);
+                cells++;
+            }
+
+            if (g.TryPlace(new Vector2Int(7, 6), Node("shield"), out _)) cells++;
+            return cells;
+        }
+
+        /// <summary>
+        /// 기초 군수 자산을 **복제해** 조합표를 갈아 끼운다 — 디스크의 자산은 안 건드린다
+        /// (`NodeResolver` 와 같은 수법 · 추진제 줄에서 쓴 것).
+        /// </summary>
+        private static NodeDefinition MuniWith(RecipeKind kind)
+        {
+            NodeDefinition src = Node(StartingBoard.MuniId);
+            if (src == null) return null;
+
+            var clone = Object.Instantiate(src);
+            clone.name = src.name + "_" + kind;
+            return clone;
+        }
+
         private static BoardGrid Board() => Board(BasePropellantNeed);
 
         /// <summary>

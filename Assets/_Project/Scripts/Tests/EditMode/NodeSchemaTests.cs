@@ -48,12 +48,13 @@ namespace MBI.Tests
         [Test]
         public void OnlyShield_IsStub()
         {
+            // 🗑️ **이 시험의 옛 뜻 폐기 — 2026-09-17.** 「쉴드만 스텁이다」였는데
+            //    사용자 결정(「보호막 되살릴 것」 · `260917_W05` 4장)으로 스텁이 풀렸다.
+            //    ✅ 지금 지키는 것은 **스텁이 하나도 안 남았다**이다.
+            //    ⚠️ 이름은 그대로 둔다 — 바꾸면 이 줄이 어디서 왔는지 자취가 끊긴다.
             foreach (NodeDefinition n in _nodes)
-            {
-                bool expectedImplemented = n.type != NodeType.Shield;
-                Assert.AreEqual(expectedImplemented, n.implemented,
-                    $"{n.displayName}({n.type}) implemented 기대={expectedImplemented}");
-            }
+                Assert.IsTrue(n.implemented,
+                    $"{n.displayName}({n.type}) 가 아직 스텁이다 — 놓아도 아무 일도 안 한다");
         }
 
         // ---- (c) 구현 노드는 포트를 갖고, 노드별 수치는 확정분 외에는 Tbd로 표기 ----
@@ -74,6 +75,8 @@ namespace MBI.Tests
                 // ⚠️ 발열 확정치는 코드에 안 들어간다(§2층 적용 경계). 그래도 Confirmed인 이유는
                 // 이 표기가 **전력** 부하 열의 확정 여부를 가리키기 때문이다.
                 // **남은 Tbd 는 쉴드 하나뿐이다** — 일곱 종 중 유일하게 대당 발열이 공백이다.
+                // ⚠️ **09-17 에 쉴드 구현이 붙었어도 이 칸은 그대로 Tbd 다** —
+                //    구현이 붙은 것과 값이 정해진 것은 다르다. 최대치·충전량이 아직 0 이다.
                 bool valueMissing = n.type == NodeType.Shield;
                 ConfirmState expected = valueMissing ? ConfirmState.Tbd : ConfirmState.Confirmed;
 

@@ -480,7 +480,7 @@ namespace MBI.Combat
             // 로봇 A — 다발형. 화력이 탄약 라인에서 나온다.
             var setup = new RobotSetup
             {
-                hp = tuning.robotHpTbd,
+                hp = tuning.robotHp,
                 mountCoef = _mountCoef,
                 moduleMult = robot.moduleMult,
                 attackRange = tuning.robotAttackRangeTbd,
@@ -532,7 +532,7 @@ namespace MBI.Combat
 
             return new RobotSetup
             {
-                hp = tuning.robotHpTbd,
+                hp = tuning.robotHp,
                 mountCoef = stage.powerModel == StagePowerModel.Logistics
                     ? robotB.mountCoef : robotB.enhancedMountCoef,
                 moduleMult = robotB.moduleMult,
@@ -803,9 +803,13 @@ namespace MBI.Combat
             DodgeSystem dodge = _sim.Dodge;
             if (dodge == null) { _seenDodges = 0; return; }
 
+            // ⚠️ **분사는 제 지속을 쓴다**(2026-09-17 · `260917_W06` 3장) — 다른 한 방 그림과
+            //    같은 `life` 를 쓰면 **무적만큼도 안 남아** 발동해도 안 보인다.
+            //    사용자 보고 「부스터가 발생하지 않음」의 정체가 그 자리였다.
             if (dodge.TotalDodges > _seenDodges && tuning.boosterSprite != null &&
                 _sim.Robot != null)
-                SpawnOneShot(tuning.boosterSprite, _sim.Robot.position, life);
+                SpawnOneShot(tuning.boosterSprite, _sim.Robot.position,
+                    Mathf.Max(life, tuning.dodgeVfxSeconds));
 
             _seenDodges = dodge.TotalDodges;
         }
@@ -1118,6 +1122,21 @@ namespace MBI.Combat
                 MergeSignals.OutputMultiplier = IsMerged && bal != null
                     ? Mathf.Max(1f, bal.mergeOutputMult)
                     : MergeSignals.None;
+
+                // ── 쉴드 (2026-09-17 · `260917_W05` 4장) ──────────────────────────
+                // ⚠️ **기본 최대치 0 이면 이 층은 없는 것과 같다** — 값이 정해지기 전까지
+                //    배포 거동은 지금 그대로다. 켜는 것은 `balance_v4.json` 이 한다.
+                if (bal != null)
+                {
+                    _sim.ShieldMax = bal.shieldMax;
+                    _sim.ShieldChargeRate = ShieldCharge(bal,
+                        LogisticsOutputBridge.ShieldMaterialProduce,
+                        LogisticsOutputBridge.ShieldNodeCount);
+                    // ⚠️ **대기 보드도 채운다** — 그래야 「다친 로봇을 빼서 회복」이 성립한다.
+                    _sim.StandbyShieldChargeRate = ShieldCharge(bal,
+                        LogisticsOutputBridge.StandbyShieldMaterialProduce,
+                        LogisticsOutputBridge.StandbyShieldNodeCount);
+                }
             }
 
             // 수동 회피(화면 플릭). 이동 명령이 아니라 **즉시 회피**라 이동 처리와 섞지 않는다.
@@ -2327,6 +2346,12 @@ namespace MBI.Combat
         /// **「한 번도 안 났다」와 「나는 즉시 써서 늘 0 이다」가 같아 보였다.**
         /// 둘을 가르는 것은 **누적 횟수**이고, 왜 안 차는지를 말하는 것은 **유입**이다.
         /// </summary>
+        /// <summary>쉴드 충전률 — 셈은 `ShieldSystem.ChargeFrom` 하나가 쥔다(§7).</summary>
+        private static float ShieldCharge(BalanceConfig bal, float materialProduce, int nodeCount)
+            => bal == null ? 0f
+             : ShieldSystem.ChargeFrom(materialProduce, nodeCount,
+                                       bal.shieldMaterialPerSec, bal.shieldChargePerMaterial);
+
         private string DodgeLine()
         {
             DodgeSystem d = _sim.Dodge;

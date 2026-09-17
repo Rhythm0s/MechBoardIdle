@@ -94,8 +94,11 @@ namespace MBI.Editor
         /// </summary>
         private const float PropellantItemStack = 3f;
 
-        /// <summary>추진제 산출 주기 — 15초에 1개. **선언치**이며 시뮬 실측 후 확정된다.</summary>
-        private const float PropellantPerSec = 1f / 15f;
+        /// 🗑️ **폐기 — 2026-09-17.** 구 `PropellantPerSec = 1f / 15f` 는 **주기를 코드에 박아**
+        /// 두었다. 값이 `balance_v4.json` 의 `propellantNeed` 로 갔다(사용자 확정 150 → 30).
+        ///
+        /// 산출률 = **노드 생산력 ÷ 필요 생산치** — 다른 조합표와 같은 식이다.
+        /// ⚠️ 여기 상수를 되살리지 않는다. 박아 두면 밸런스가 이 칸을 다시 못 움직인다.
 
         [MenuItem("MBI/Generate Balance + Nodes")]
         public static void Generate()
@@ -155,6 +158,15 @@ namespace MBI.Editor
             // ⚠️ 구 값 2 는 `DodgeSystem` 에 `const` 로 **박혀 있었다.** 자산으로 옮겼다.
             c.dodgeStacksPerBooster = Mathf.RoundToInt(json.Param("dodgeStacksPerBooster"));
 
+            // 추진제 필요 생산치 — 구 값은 생성기에 `1f / 15f` 로 박혀 있었다(2026-09-17).
+            c.propellantNeed = json.Param("propellantNeed");
+
+            // 쉴드 값 셋 — ⚠️ **최대치·개당 충전량의 기본은 0** 이다(미확정). 0 이면 쉴드가
+            // 없는 것과 같아 배포 거동이 지금 그대로다(`260917_W05` 4-2).
+            c.shieldMax = json.Param("shieldMax");
+            c.shieldChargePerMaterial = json.Param("shieldChargePerMaterial");
+            c.shieldMaterialPerSec = json.Param("shieldMaterialPerSec");
+
             // 노드 생산력 10 — `260909_W01` 2-3의 「노드 생산력 10 · 필요 생산치 10 기준」이다.
             // ⚠️ **json에는 없다.** balance_v4는 이 축을 갖지 않았고 W01이 새로 준 값이라
             // 없는 키를 읽는 대신 상수로 둔다. json에 키가 생기면 그쪽으로 옮긴다.
@@ -192,7 +204,7 @@ namespace MBI.Editor
             WriteNode(config, "core", "코어", NodeType.Core, true,
                 new NodeResourceProfile { powerDraw = CorePowerDraw, confirm = ConfirmState.Confirmed },
                 CorePorts(),
-                BuildRecipes(NodeType.Core, CoreOutputPerSec, config.nodeProductionPower));
+                BuildRecipes(NodeType.Core, CoreOutputPerSec, config.nodeProductionPower, config.propellantNeed));
 
             // 가공 — 물류 품목 처리. 전력 1/초(확정).
             // ⚠️ 가공의 **발열**은 부하 열에 없다. 표에 있는 발열원은 에너지 하나뿐이라
@@ -212,7 +224,7 @@ namespace MBI.Editor
                     new NodePort(PortFace.West, PortIO.Input, FlowKind.CoreEnergy),
                     new NodePort(PortFace.East, PortIO.Output, FlowKind.BasicParts),
                 },
-                BuildRecipes(NodeType.Processing, ProcOutputPerSecTbd, config.nodeProductionPower));
+                BuildRecipes(NodeType.Processing, ProcOutputPerSecTbd, config.nodeProductionPower, config.propellantNeed));
 
             // 기초 군수 — 조합표 넷 중 **하나**를 돌린다 (2026-09-05 · `260904_W01` 3-2).
             //
@@ -229,7 +241,7 @@ namespace MBI.Editor
                     new NodePort(PortFace.West, PortIO.Input, FlowKind.BasicParts),
                     new NodePort(PortFace.East, PortIO.Output, FlowKind.StandardAmmo),
                 },
-                BuildRecipes(NodeType.MunitionsBasic, muniPerNode, config.nodeProductionPower));
+                BuildRecipes(NodeType.MunitionsBasic, muniPerNode, config.nodeProductionPower, config.propellantNeed));
 
             // 복합 군수 — 입력면 **둘** (2026-09-04 신설 · `260904_W01` 3장).
             //
@@ -251,7 +263,7 @@ namespace MBI.Editor
                     new NodePort(PortFace.South, PortIO.Input, FlowKind.BasicParts),
                     new NodePort(PortFace.East, PortIO.Output, FlowKind.PierceAmmo),
                 },
-                BuildRecipes(NodeType.MunitionsComplex, muniPerNode, config.nodeProductionPower));
+                BuildRecipes(NodeType.MunitionsComplex, muniPerNode, config.nodeProductionPower, config.propellantNeed));
 
             // 에너지 — 발전(전력 공급). 고정비 0 · 발열 1/초는 확정,
             // **대당 발전량은 미확정**이라 프로필 전체는 Tbd다.
@@ -292,9 +304,28 @@ namespace MBI.Editor
                 });
 
             // 쉴드 발생 — 스키마 자리만(구현 보류, §4). implemented=false, 포트 없음.
-            WriteNode(config, "shield", "쉴드 발생", NodeType.Shield, false,
+            // ✅ **스텁을 푼다** (2026-09-17 사용자 결정 · `260917_W05` 4장).
+            //
+            // 🗑️ 구 `implemented: false` · 포트 없음 폐기 — 자산은 있는데 **놓아도 아무 일도
+            //    안 하고 애초에 놓을 길도 없었다**(`260917_V03` 3장).
+            //
+            // ⚠️ **부스터와 같은 문법이다** — 품목을 만들지 않고 **무형 자원**(쉴드 게이지)을 낸다.
+            //    그래서 조합표가 없고 **입력 포트 하나**만 있다(쉴드 재료를 받는다).
+            //    ⚠️ 조합표가 없는 노드는 **포트에 적힌 품목이 그대로 잣대**다
+            //    (`BeltRouting.HasInputPort` — 「부스터가 탄약을 받았다」를 막은 그 규칙).
+            //
+            // ⚠️ **팔레트·시작 보드·HUD·그림은 아직 안 넣는다**(설계 지시) — 값이 정해진 뒤
+            //    한 번에 묶는다. 시작 보드를 지금 건드리면 저장이 또 버려진다.
+            //
+            // ⚠️⚠️ **확정 표기는 Tbd 로 둔다.** 구현이 붙은 것과 값이 정해진 것은 다르다 —
+            //    일곱 종 중 **유일하게 대당 발열이 공백**이고 최대치·충전량도 아직 0 이다.
+            //    Confirmed 로 적으면 없는 확정을 자산이 주장하게 된다(지침 「값을 지어내지 않는다」).
+            WriteNode(config, "shield", "쉴드 발생", NodeType.Shield, true,
                 new NodeResourceProfile { powerDraw = ShieldPowerDraw, confirm = ConfirmState.Tbd },
-                new List<NodePort>());
+                new List<NodePort>
+                {
+                    new NodePort(PortFace.West, PortIO.Input, FlowKind.DefenseMaterial),
+                });
         }
 
         /// <summary>
@@ -304,7 +335,8 @@ namespace MBI.Editor
         /// 산출을 그대로 쓰고, 개당 소비량은 카탈로그의 미확정 센티넬을 쓴다 —
         /// 둘 다 밸런스가 정하면 그쪽만 고친다.
         /// </summary>
-        private static List<NodeRecipe> BuildRecipes(NodeType type, float outputPerSec, float nodeProductionPower)
+        private static List<NodeRecipe> BuildRecipes(NodeType type, float outputPerSec,
+            float nodeProductionPower, float propellantNeed)
         {
             var list = new List<NodeRecipe>();
             foreach (RecipeCatalog.Row row in RecipeCatalog.For(type))
@@ -325,11 +357,15 @@ namespace MBI.Editor
                 // (`260909_W01` 2-3). 관통·폭발은 10/10 = 1발/초라 결과가 종전과 같지만,
                 // **같은 1이 다른 곳에서 나온다** — 종전 1은 노드 대당 산출을 그대로 쓴 값이고
                 // 지금 1은 확정된 두 값이 나눠진 결과다. 값이 바뀌면 이쪽만 따라 움직인다.
-                float required = RecipeCatalog.RequiredProductionOf(row.kind);
+                // ⚠️ **추진제도 같은 식으로 온다**(2026-09-17 · `260917_W06` 2장).
+                //    종전에는 추진제만 코드 상수(1/15)로 새 나갔다 — 그래서 밸런스가
+                //    그 칸을 못 움직였다. 지금은 `propellantNeed` 가 json 에 있다.
+                float required = isPropellant
+                    ? propellantNeed
+                    : RecipeCatalog.RequiredProductionOf(row.kind);
                 float byProduction = required > 0f ? nodeProductionPower / required : 0f;
 
-                float rate = isPropellant ? PropellantPerSec
-                    : (byProduction > 0f ? byProduction : outputPerSec);
+                float rate = byProduction > 0f ? byProduction : outputPerSec;
                 float stack = isPropellant ? PropellantItemStack : 0f;
 
                 list.Add(new NodeRecipe

@@ -65,6 +65,18 @@ namespace MBI.Data
         public float mountStackLimit = 10f;
 
         [Header("탄종별 생산 — 260824_V02 §1 확정")]
+        [Tooltip("쉴드 최대치. params.shieldMax. ⚠️ 기본 0 — 쉴드가 없는 것과 같다(값 미확정).")]
+        public float shieldMax;
+
+        [Tooltip("쉴드 재료 1개당 충전량. params.shieldChargePerMaterial. 충전률 = 재료 소비 × 이 값. ⚠️ 기본 0.")]
+        public float shieldChargePerMaterial;
+
+        [Tooltip("쉴드 발생 노드 1대가 1초에 먹는 쉴드 재료(개). params.shieldMaterialPerSec = 1 측정용 고정값.")]
+        public float shieldMaterialPerSec = 1f;
+
+        [Tooltip("추진제 필요 생산치. params.propellantNeed = 30 확정치(구 150). 산출률 = 노드 생산력 ÷ 이 값이라 기초 군수 1대가 3초에 1개를 낸다.")]
+        public float propellantNeed = 30f;
+
         [Tooltip("부스터 1대당 회피 스택 칸. params.dodgeStacksPerBooster = 4 확정치(구 2). 회피 스택 상한 = 부스터 노드 대수 × 이 값. 시작 보드는 부스터 둘이라 상한 8.")]
         public int dodgeStacksPerBooster = 4;
 

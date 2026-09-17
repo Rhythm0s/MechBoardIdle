@@ -145,6 +145,8 @@ namespace MBI.Logistics
             LogisticsOutputBridge.AoeDroneShare = agg.AoeShare;
             LogisticsOutputBridge.PropellantProduce = agg.propellantProduce;
             LogisticsOutputBridge.BoosterCount = agg.boosterCount;
+            LogisticsOutputBridge.ShieldMaterialProduce = agg.shieldMaterialProduce;
+            LogisticsOutputBridge.ShieldNodeCount = agg.shieldNodeCount;
             }
             else
             {
@@ -153,6 +155,8 @@ namespace MBI.Logistics
                 //    코드에만 있고 화면에는 없는 것이 된다.
                 LogisticsOutputBridge.StandbyPropellantProduce = agg.propellantProduce;
                 LogisticsOutputBridge.StandbyBoosterCount = agg.boosterCount;
+                LogisticsOutputBridge.StandbyShieldMaterialProduce = agg.shieldMaterialProduce;
+                LogisticsOutputBridge.StandbyShieldNodeCount = agg.shieldNodeCount;
             }
 
             if (publishCombat)

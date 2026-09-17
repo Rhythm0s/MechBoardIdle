@@ -158,6 +158,9 @@ namespace MBI.Core
 
             // 회피는 로봇마다 따로 든다 — 대기 보드의 부스터도 계속 돌아 추진제를 쌓는다.
             public readonly DodgeSystem dodge = new DodgeSystem();
+
+            /// <summary>생존 세 층의 가운데 — 이 로봇의 보드가 채운다(2026-09-17).</summary>
+            public readonly ShieldSystem shield = new ShieldSystem();
             public float propellantSupplyRate;  // 부스터 유입(개/초)
             public float propellantCarry;       // 소수분 이월 — 15초에 1개라 한 틱에 1개가 안 나온다
         }
@@ -460,6 +463,46 @@ namespace MBI.Core
         /// <summary>대기 로봇의 회피 그릇 — **합체 중에만 쓰인다**(`260917_W03` 7-2 #1).</summary>
         public DodgeSystem StandbyDodge => Standby.dodge;
 
+        /// <summary>싸우는 로봇의 쉴드.</summary>
+        public ShieldSystem Shield => Act.shield;
+
+        /// <summary>대기 로봇의 쉴드 — **합체 중에는 합산해 쓴다**(`260917_W06` 5장).</summary>
+        public ShieldSystem StandbyShield => Standby.shield;
+
+        /// <summary>쉴드 최대치 — 두 진영에 같이 건다(로봇 A · B 같은 값).</summary>
+        public float ShieldMax
+        {
+            get => Act.shield.Max;
+            set { Act.shield.Max = value; Standby.shield.Max = value; }
+        }
+
+        /// <summary>싸우는 보드가 채우는 속도(쉴드/초).</summary>
+        public float ShieldChargeRate
+        {
+            get => Act.shield.ChargeRate;
+            set => Act.shield.ChargeRate = value;
+        }
+
+        /// <summary>
+        /// 대기 보드가 채우는 속도. ⚠️ **대기 보드도 계속 채운다**
+        /// (「다친 로봇을 빼서 쉴드 회복」 · 플레이어블 로봇 기획서「태그 접점」).
+        /// </summary>
+        public float StandbyShieldChargeRate
+        {
+            get => Standby.shield.ChargeRate;
+            set => Standby.shield.ChargeRate = value;
+        }
+
+        /// <summary>
+        /// 쉴드가 막은 피해 합(진단용) — 로봇이 둘이면 두 쪽을 더한다.
+        ///
+        /// ⚠️⚠️ **로봇이 하나면 `Standby` 가 `Act` 와 같은 객체다**(`_sides` 가 한 칸이라
+        /// `Standby` 가 제자리를 가리킨다). 무턱대고 더하면 **막은 양이 두 배로 세진다** —
+        /// 실제로 그릇 50 짜리 쉴드가 100 을 막았다고 나왔다.
+        /// </summary>
+        public float ShieldAbsorbed =>
+            HasTagPartner ? Act.shield.Absorbed + Standby.shield.Absorbed : Act.shield.Absorbed;
+
         /// <summary>
         /// **합체 중에는 두 보드의 회피 스택을 모두 쓴다** (2026-09-17 사용자 결정 ·
         /// `260917_W03` 7-2 #1 · 전투 시스템 문서「회피」 합체체 행).
@@ -477,6 +520,29 @@ namespace MBI.Core
         /// 만 보면 **피하고도 맞는다** — 무적은 진영이 아니라 **몸**에 걸리는 것이다.
         /// </summary>
         private bool MergedNow => Merge != null && Merge.IsActive;
+
+        /// <summary>
+        /// 쉴드가 먹고 **남은 피해**를 돌려준다 — 그것이 HP 로 간다 (2026-09-17 · `260917_W05` 4-1).
+        ///
+        /// 📌 **넘치는 규칙 — 한 방이 남은 쉴드보다 크면 넘친 만큼 HP 로 간다**(구현 판단).
+        /// 「1 이라도 남았으면 통째로 막는다」로 두면 **쉴드 1 = 무적 1회**가 되어
+        /// 회피와 같은 일을 하는 층이 둘 생긴다.
+        ///
+        /// 📌 **합체 중에는 두 보드 게이지를 합산해 쓴다**(사용자 확정 · `260917_W06` 5장).
+        /// **활성 쪽부터 깎는다** — 회피 스택의 「활성 쪽 먼저」와 **같은 모양**이라
+        /// 화면에서 읽는 규칙이 하나로 유지된다.
+        ///
+        /// ⚠️ **합체가 끝난 뒤 남은 게이지를 어떻게 돌려주는가는 설계가 안 정했다.**
+        /// 지금 구현은 **각자 제 게이지를 그대로 들고 나간다** — 합산은 「쓸 때」만이고
+        /// 옮겨 담지 않으므로 종료 시점에 따로 할 일이 없다. 가장 적게 지어내는 쪽이다.
+        /// </summary>
+        private float AbsorbWithShield(float damage)
+        {
+            float left = Act.shield.Absorb(damage);
+            if (left <= 0f || !MergedNow) return left;
+
+            return Standby.shield.Absorb(left);
+        }
 
         /// <summary>지금 무적인가 — 합체 중이면 **어느 쪽이든** 무적이면 무적이다.</summary>
         private bool BodyIsInvincible =>
@@ -504,7 +570,10 @@ namespace MBI.Core
         /// </summary>
         public int HitsTaken { get; private set; }
 
-        /// <summary>실제로 HP 에서 깎인 피해 합. ⚠️ **쉴드는 시뮬에 없다** — HP 하나다.</summary>
+        /// <summary>
+        /// 실제로 **HP 에서** 깎인 피해 합 — 쉴드가 먹은 몫은 여기 안 든다(`ShieldAbsorbed` 가 센다).
+        /// 🗑️ 구 주석 「쉴드는 시뮬에 없다 — HP 하나다」 폐기(2026-09-17 · 사용자 「보호막 되살릴 것」).
+        /// </summary>
         public float DamageTaken { get; private set; }
 
         /// <summary>무적 구간이라 **계산에 들어가지도 않은** 피해 합 — 회피가 더한 값이다.</summary>
@@ -1057,6 +1126,10 @@ namespace MBI.Core
         {
             for (int i = 0; i < _sides.Length; i++) _sides[i].dodge.Tick(dt);
 
+            // ⚠️ **쉴드는 두 진영이 다 찬다**(2026-09-17 · `260917_W05` 4-1 귀속).
+            //    대기 보드도 계속 채우는 것이 「다친 로봇을 빼서 회복」의 근거다.
+            for (int i = 0; i < _sides.Length; i++) _sides[i].shield.Tick(dt);
+
             ProducePropellantInto(Act, dt);
 
             if (!_pendingFlick) return;
@@ -1374,8 +1447,12 @@ namespace MBI.Core
                         HitsTaken++;
                         if (BodyIsInvincible) { DamageAvoided += e.atk; continue; }
 
-                        DamageTaken += e.atk;
-                        Act.body.hp -= e.atk; // 로봇 방어 스탯 없음 — 받는 피해 = 몬스터 공격력(§9)
+                        // 회피 → **쉴드** → HP. 쉴드가 먹고 남은 것만 HP 로 간다.
+                        float toBody = AbsorbWithShield(e.atk);
+                        if (toBody <= 0f) continue;
+
+                        DamageTaken += toBody;
+                        Act.body.hp -= toBody; // 로봇 방어 스탯 없음 — 받는 피해 = 몬스터 공격력(§9)
                     }
                 }
             }
@@ -1431,8 +1508,11 @@ namespace MBI.Core
                     HitsTaken++;
                     if (BodyIsInvincible) { DamageAvoided += p.atk; continue; }
 
-                    DamageTaken += p.atk;
-                    Act.body.hp -= p.atk;
+                    float toBody = AbsorbWithShield(p.atk);
+                    if (toBody <= 0f) continue;
+
+                    DamageTaken += toBody;
+                    Act.body.hp -= toBody;
                     continue;
                 }
 

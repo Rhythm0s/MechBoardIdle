@@ -294,7 +294,10 @@ namespace MBI.Tests
                 if (r.kind == RecipeKind.Propellant) propellant = r;
 
             Assert.IsTrue(propellant.IsRunnable, "추진제를 돌릴 수 있다");
-            Assert.AreEqual(1f / 15f, propellant.outputPerSec, D, "15초에 1개");
+            // 🗑️ 구 `1f / 15f` · 「15초에 1개」 폐기 — 주기가 `balance_v4.json` 의
+            //    `propellantNeed` 로 갔다(150 → 30). 시험은 **같은 식에서 오는가**만 본다.
+            Assert.AreEqual(BalanceFixture.PropellantPerSec(), propellant.outputPerSec, D,
+                "산출률이 노드 생산력 ÷ 필요 생산치와 갈렸다");
             // ⚠️ 회피 스택 상한(부스터 대수 × 2)과 **다른 축**이다 — 이쪽은 마운트 한 칸에
             // 몇 개가 쌓이는가이고, 저쪽은 부스터가 채우는 게이지의 칸 수다.
             Assert.AreEqual(3f, propellant.stackLimitTbd, D, "추진제 아이템 최대 스택 3");
@@ -310,11 +313,13 @@ namespace MBI.Tests
             var recipe = new NodeRecipe
             {
                 kind = RecipeKind.Propellant, output = FlowKind.Propellant,
-                outputPerSec = 1f / 15f, stackLimitTbd = 3f, implemented = true,
+                outputPerSec = BalanceFixture.PropellantPerSec(), stackLimitTbd = 3f, implemented = true,
             };
 
-            Assert.AreEqual(3f, NodeProduction.Produce(recipe, 0f, 45f), D);
-            Assert.AreEqual(0f, NodeProduction.Produce(recipe, 3f, 45f), D, "버퍼가 차면 멈춘다");
+            // 스택 3 을 채우는 시간 = 3 ÷ 산출률. 🗑️ 구 45초 폐기 — 주기가 json 으로 갔다.
+            float full = 3f / BalanceFixture.PropellantPerSec();
+            Assert.AreEqual(3f, NodeProduction.Produce(recipe, 0f, full), D);
+            Assert.AreEqual(0f, NodeProduction.Produce(recipe, 3f, full), D, "버퍼가 차면 멈춘다");
         }
     }
 }

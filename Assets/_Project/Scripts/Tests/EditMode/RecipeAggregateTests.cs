@@ -140,7 +140,7 @@ namespace MBI.Tests
 
             Assert.AreEqual(0, agg.muniPierce, "탄종 수에 안 들어간다");
             Assert.AreEqual(0f, agg.ammoProduce, D, "탄약 생산에도 안 들어간다");
-            Assert.AreEqual(1f / 15f, agg.propellantProduce, D, "추진제로 나간다");
+            Assert.AreEqual(BalanceFixture.PropellantPerSec(), agg.propellantProduce, D, "추진제로 나간다");
         }
 
         [Test]
@@ -175,7 +175,7 @@ namespace MBI.Tests
             NetworkAggregate after = LogisticsNetwork.Aggregate(g);
 
             Assert.AreEqual(95f, Output(after), D, "폭발 한 대가 빠져 20 + 25 + 50");
-            Assert.AreEqual(1f / 15f, after.propellantProduce, D, "그 대신 추진제가 나온다");
+            Assert.AreEqual(BalanceFixture.PropellantPerSec(), after.propellantProduce, D, "그 대신 추진제가 나온다");
         }
 
         /// <summary>돌릴 수 없는 조합표는 거절되므로 산출이 안 바뀐다 — 착수 금지가 데이터로 지켜진다.</summary>
@@ -228,7 +228,8 @@ namespace MBI.Tests
             // 그릇만 키우면 **빈 그릇이 는다** — 채우는 속도는 군수 노드가 정한다.
             // ⚠️ 90 을 박아 두었더니 계수가 2 → 4 로 바뀌며 빨개졌다. 시험이 보는 것은
             //    「칸 수 × 한 개에 걸리는 시간」이지 90 이라는 수가 아니다.
-            const float SecondsPerPropellant = 15f;
+            // 🗑️ 구 `const float SecondsPerPropellant = 15f` 폐기 — 주기가 json 으로 갔다.
+            float SecondsPerPropellant = 1f / BalanceFixture.PropellantPerSec();
             float secondsToFill = dodge.Capacity / agg.propellantProduce;
             Assert.AreEqual(dodge.Capacity * SecondsPerPropellant, secondsToFill, 0.01f);
         }

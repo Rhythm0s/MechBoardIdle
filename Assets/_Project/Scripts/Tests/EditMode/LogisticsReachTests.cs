@@ -310,7 +310,7 @@ namespace MBI.Tests
             NetworkAggregate agg = Settle(g);
 
             Assert.AreEqual(1, agg.boosterCount, "추진제가 닿는다");
-            Assert.AreEqual(1f / 15f, agg.propellantProduce, D, "그 군수 노드도 함께 센다");
+            Assert.AreEqual(BalanceFixture.PropellantPerSec(), agg.propellantProduce, D, "그 군수 노드도 함께 센다");
         }
 
         // ---- 대역 ----

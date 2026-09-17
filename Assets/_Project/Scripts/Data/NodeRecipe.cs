@@ -17,7 +17,11 @@ namespace MBI.Data
         Ammo,
         /// <summary>드론 몸체 → 로봇 B 사출. 2026-08-27 범위.</summary>
         DroneBody,
-        /// <summary>쉴드 재료 → 쉴드 발생 노드. 범위 밖.</summary>
+        /// <summary>
+        /// 🗑️ **구 이름 — 쓰지 않는다**(2026-09-17). 실제로 도는 것은 아래 `DefenseMaterial`
+        /// (「방어 재료」)이고 `RecipeCatalog` 의 기초 군수 행도 그쪽이다.
+        /// ⚠️ **지우지 않는다** — 정수 값이 자산에 박혀 있다. 새로 쓸 때는 `DefenseMaterial` 을 쓴다.
+        /// </summary>
         ShieldMaterial,
         /// <summary>추진제 → 부스터 노드(회피). 기초 군수 소관 (2026-09-04 개정).</summary>
         Propellant,

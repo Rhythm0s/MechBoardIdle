@@ -81,7 +81,7 @@ namespace MBI.EditorTools
             // 「스스로 일어나는가」라는 물음 자체가 사라진다.
             var setup = new RobotSetup
             {
-                hp = tuning.robotHpTbd,
+                hp = tuning.robotHp,
                 mountCoef = robot.mountCoef,
                 moduleMult = robot.moduleMult,
                 attackRange = tuning.robotAttackRangeTbd,

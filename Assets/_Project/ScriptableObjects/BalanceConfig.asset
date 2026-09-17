@@ -23,6 +23,10 @@ MonoBehaviour:
   offlineCapHours: 36
   storeCapacity: 40
   mountStackLimit: 10
+  shieldMax: 0
+  shieldChargePerMaterial: 0
+  shieldMaterialPerSec: 1
+  propellantNeed: 30
   dodgeStacksPerBooster: 4
   mergeOutputMult: 2
   muniPerNode: 1

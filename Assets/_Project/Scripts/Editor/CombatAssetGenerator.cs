@@ -78,6 +78,10 @@ namespace MBI.Editor
             // 아직 없으면 null 이고 뷰가 자리표시로 폴백한다.
             if (tuning != null) tuning.tagBulletSprite = LoadVfx("vfx_tagbullet");
 
+            // 로봇 HP — **json 이 원천이다**(2026-09-17 사용자 확정 1000 · `260917_W05` 3장).
+            // 🗑️ 구 이름 `robotHpTbd` 와 구 기본값 3000 폐기. 자산이 값을 따로 들면 진실이 둘이 된다.
+            if (tuning != null) tuning.robotHp = json.Param("robotHp");
+
             // 설치된 VFX 넷 (2026-09-08 · 260908_W06 6장). 셋은 배선됐고
             // `vfx_ammoout`은 **사건 자리가 코드에 없어** 자리만 걸어 둔다 — 지어 넣지 않는다.
             if (tuning != null)

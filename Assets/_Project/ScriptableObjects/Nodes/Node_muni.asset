@@ -60,8 +60,8 @@ MonoBehaviour:
     - kind: 9
       perOutput: 1
     output: 5
-    outputPerSec: 0.06666667
-    requiredProduction: 0
+    outputPerSec: 0.33333334
+    requiredProduction: 30
     stackLimitTbd: 3
     implemented: 1
   ports:

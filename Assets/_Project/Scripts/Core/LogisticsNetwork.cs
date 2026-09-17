@@ -50,8 +50,20 @@ namespace MBI.Core
         }
         public float propellantProduce; // Σ 추진제(개/초) — 부스터가 받아 회피 스택으로 바꾼다
 
-        /// <summary>부스터 대수. **회피 스택 상한 = 이 값 × 2**(260829_V02) — 상수가 아니다.</summary>
+        /// <summary>부스터 대수. **회피 스택 상한 = 이 값 × 계수**(자산) — 상수가 아니다.</summary>
         public int boosterCount;
+
+        /// <summary>
+        /// Σ 쉴드 재료(개/초) — 쉴드 발생 노드가 받아 게이지로 바꾼다 (2026-09-17 · `260917_W05` 4장).
+        /// 부스터가 추진제를 받는 것과 **같은 문법**이다.
+        /// </summary>
+        public float shieldMaterialProduce;
+
+        /// <summary>
+        /// 쉴드 발생 노드 대수. **채우는 속도**를 정한다 — 그릇(최대치)은 로봇의 것이다.
+        /// ⚠️ 부스터와 반대 구조라 구현 가정으로 올린다(`ShieldSystem` 머리말).
+        /// </summary>
+        public int shieldNodeCount;
 
         /// <summary>탄약이 흐르는 **경로 수**. 총 대역 = 이 값 × 한 줄 처리량(벨트 등급).</summary>
         public int ammoPaths;
@@ -116,6 +128,7 @@ namespace MBI.Core
 
                 if (node.Definition.type == NodeType.Core) a.hasCore = true;
                 if (node.Definition.type == NodeType.Booster) a.boosterCount++;
+                if (node.Definition.type == NodeType.Shield) a.shieldNodeCount++;
                 a.nodeCount++;
 
                 NodeResourceProfile r = node.Definition.resources;
@@ -172,6 +185,19 @@ namespace MBI.Core
                             break;
                         case RecipeKind.Propellant:
                             a.propellantProduce += recipe.outputPerSec * gain;
+                            break;
+                        // ⚠️ **쉴드 재료도 탄약이 아니다**(2026-09-17). 드론 둘이 `default` 로
+                        //    떨어져 탄약으로 세어지던 것과 같은 자리다 — 갈래를 미리 연다.
+                        //
+                        // ⚠️⚠️ **이름이 둘이다.** 자산이 실제로 도는 조합표는
+                        //    `DefenseMaterial`(「방어 재료」 · `RecipeCatalog` 의 기초 군수 행)이고,
+                        //    `ShieldMaterial` 은 **범위 밖 시절의 구 이름**이라 카탈로그에 행이 없다.
+                        //    09-17 에 `ShieldMaterial` 만 받아 두었다가 **방어 재료가 `default` 로
+                        //    떨어져 탄약으로 세어지고 있었다** — 「같은 일을 하는 자리 둘」의 실례다.
+                        //    🗑️ 구 이름은 자산에 정수로 박혀 있어 못 지운다 — 같은 칸으로 받는다.
+                        case RecipeKind.DefenseMaterial:
+                        case RecipeKind.ShieldMaterial:
+                            a.shieldMaterialProduce += recipe.outputPerSec * gain;
                             break;
                         // ⚠️ **드론 둘은 탄약이 아니다**(2026-09-16). 여태 아래 `default` 로
                         //    떨어져 `ammoProduce` 에 들어가고 있었다 — 노드 하나는 조합표

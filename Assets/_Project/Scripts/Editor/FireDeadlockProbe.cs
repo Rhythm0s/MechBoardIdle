@@ -202,7 +202,7 @@ namespace MBI.EditorTools
 
             var setup = new RobotSetup
             {
-                hp = tuning.robotHpTbd,
+                hp = tuning.robotHp,
                 mountCoef = robot.mountCoef,
                 moduleMult = robot.moduleMult,
                 attackRange = tuning.robotAttackRangeTbd,
