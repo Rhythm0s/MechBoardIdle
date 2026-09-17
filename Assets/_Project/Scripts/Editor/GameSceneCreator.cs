@@ -269,9 +269,17 @@ namespace MBI.Editor
             //    B 판이 노드를 하나 더 쓰게 되는 날 이 자리를 안 고쳐도 따라온다.
             SerializedProperty pool = so.FindProperty("startingNodePool");
             pool.arraySize = 0;
+            // ⚠️⚠️ **두 판을 다 담는다**(2026-09-17). 종전에는 B 의 것만 담았는데,
+            //    A 의 배치도 코드로 옮겨 오면서 A 도 이 주머니에서 자산을 찾는다.
+            //    한쪽만 담으면 그 판의 칸이 **빈 채로** 나가고 줄이 끊긴다.
+            var poolIds = new System.Collections.Generic.List<string>();
+            foreach (StartingBoard.Slot a in StartingBoard.Nodes) poolIds.Add(a.nodeId);
+            foreach (StartingBoardB.Slot b in StartingBoardB.Nodes) poolIds.Add(b.nodeId);
+
             var poolSeen = new System.Collections.Generic.HashSet<string>();
-            foreach (StartingBoardB.Slot slot in StartingBoardB.Nodes)
+            foreach (string nodeId in poolIds)
             {
+                var slot = new StartingBoardB.Slot(0, 0, nodeId);
                 if (!poolSeen.Add(slot.nodeId)) continue;
                 var n = Load<NodeDefinition>($"{SoRoot}/Nodes/Node_{slot.nodeId}.asset");
                 if (n == null)

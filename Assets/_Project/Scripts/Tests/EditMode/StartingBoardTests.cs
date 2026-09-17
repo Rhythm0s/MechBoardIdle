@@ -69,15 +69,10 @@ namespace MBI.Tests
             return g;
         }
 
+        // 🗑️ 구 `PlaceRun` 폐기 (2026-09-17) — 병합기만 보고 분류기를 직선으로 깔았다.
+        //    놓는 손은 `StartingBoard.Place` 하나다.
         private static void PlaceRun(BoardGrid g, StartingBoard.Run run)
-        {
-            if (run.merger)
-                g.TryPlaceBeltElement(run.cell, BeltElementKind.Merger,
-                    StartingBoard.MergerInFaces(run.outFace), new[] { run.outFace },
-                    FlowKind.None, out _);
-            else
-                g.TryPlaceBelt(run.cell, run.inFace, run.outFace, FlowKind.None, out _);
-        }
+            => StartingBoard.Place(g, run);
 
         private static void Place(BoardGrid g, StartingBoard.Slot slot)
         {
@@ -85,7 +80,11 @@ namespace MBI.Tests
             Assert.NotNull(def, slot.nodeId);
             Assert.IsTrue(g.TryPlace(slot.cell, def, out NodeInstance placed),
                 $"{slot.nodeId} @ {slot.cell} — 놓을 수 없는 칸이다");
-            if (placed != null) placed.AmmoKind = slot.ammo;
+            if (placed == null) return;
+            placed.AmmoKind = slot.ammo;
+            placed.Rotation = slot.rotation;
+            // ⚠️ 조합표를 안 고르면 추진제 노드가 표준탄으로 돌아 그 줄이 죽는다.
+            if (slot.recipe != RecipeKind.None) placed.SelectRecipe(slot.recipe);
         }
 
         /// <summary>한 칸을 빼고 깐다 — 「그 칸이 없으면 라인이 끊기는가」를 재기 위한 것.</summary>
@@ -221,7 +220,9 @@ namespace MBI.Tests
             int placed = 0;
             foreach (StartingBoard.Slot slot in StartingBoard.Nodes)
                 if (slot.nodeId == StartingBoard.MuniId) placed++;
-            Assert.AreEqual(2, placed, "군수 둘은 처음부터 놓여 있다 — 09-15 에 넷에서 둘로 줄였다");
+            // ⚠️ 2026-09-17 — **셋이다.** 표준탄 둘 + **추진제 하나**(부스터 줄이 배포에 들어왔다).
+            Assert.AreEqual(3, placed,
+                "기초 군수 셋 — 표준탄 둘(두 줄) + 추진제 하나(2026-09-17 부스터 줄)");
 
             BoardGrid g = Build(fillEmptySlot: false);
             NetworkAggregate agg = LogisticsNetwork.Aggregate(g, LogisticsReach.ConnectedNodes(g));
@@ -338,8 +339,9 @@ namespace MBI.Tests
             foreach (StartingBoard.Slot slot in StartingBoard.Nodes)
                 if (slot.nodeId == StartingBoard.MuniId) muni++;
 
-            // ✅ 군수는 **넷** 다 놓여 있다 — 플레이어 몫은 **벨트 한 칸**이다(2026-09-11).
-            Assert.AreEqual(2, muni, "군수 둘이 다 놓여 있다");
+            // ✅ 군수는 다 놓여 있다 — 플레이어 몫은 **벨트 한 칸**이다(2026-09-11).
+            // ⚠️ 2026-09-17 — 셋이다(표준탄 둘 + 추진제 하나).
+            Assert.AreEqual(3, muni, "기초 군수 셋이 다 놓여 있다");
         }
 
         private NetworkAggregate Aggregate(BoardGrid g)
@@ -372,11 +374,12 @@ namespace MBI.Tests
             // ⚠️ 네 줄 보드다(2026-09-11 · `260911_W01` 값 3) — 코어 하나가 네 방향으로
             // 라인을 세우므로 가공도 넷이다. 에너지 셋은 **벨트를 안 물고** 놓여만 있다.
             Assert.AreEqual(1, core, "코어 1대");
-            Assert.AreEqual(2, proc, "가공 2대 — 두 줄이라 줄마다 하나다");
+            // ⚠️ 2026-09-17 — 가공도 하나 늘었다(추진제 줄의 **발전재료** 가공).
+            Assert.AreEqual(3, proc, "가공 3대 — 표준탄 두 줄 + 추진제 줄 하나");
             Assert.AreEqual(3, ener, "에너지 3대 — 전력망은 전역이라 안 이어도 발전한다");
             Assert.AreEqual(0, stor, "저장 노드 없음");
-            Assert.AreEqual(8, StartingBoard.Nodes.Count,
-                "코어1 + 가공2 + 군수2 + 에너지3 — 09-15 에 줄을 넷에서 둘로 줄였다(공급 하향)");
+            Assert.AreEqual(12, StartingBoard.Nodes.Count,
+                "코어1 + 가공3 + 군수3 + 에너지3 + **부스터2** — 2026-09-17 추진제 줄이 들어왔다");
         }
     }
 }

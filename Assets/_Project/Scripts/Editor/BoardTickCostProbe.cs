@@ -92,22 +92,13 @@ namespace MBI.EditorTools
                 Vector2.zero, PartLayout.BuildMask());
             foreach (StartingBoard.Slot s in StartingBoard.Nodes)
                 g.TryPlace(s.cell, Node(s.nodeId), out _);
-            foreach (StartingBoard.Run r in StartingBoard.Belts) Place(g, r);
-            Place(g, StartingBoard.FillsEmptySlot);
+            foreach (StartingBoard.Run r in StartingBoard.Belts) StartingBoard.Place(g, r);
+            StartingBoard.Place(g, StartingBoard.FillsEmptySlot);
             BeltAutoOrient.Resolve(g);
             BeltFlow.Resolve(g);
             return g;
         }
 
-        private static void Place(BoardGrid g, StartingBoard.Run run)
-        {
-            if (run.merger)
-                g.TryPlaceBeltElement(run.cell, BeltElementKind.Merger,
-                    StartingBoard.MergerInFaces(run.outFace), new[] { run.outFace },
-                    FlowKind.None, out _);
-            else
-                g.TryPlaceBelt(run.cell, run.inFace, run.outFace, FlowKind.None, out _);
-        }
 
         private static NodeDefinition Node(string id)
             => AssetDatabase.LoadAssetAtPath<NodeDefinition>(NodeRoot + "/Node_" + id + ".asset");

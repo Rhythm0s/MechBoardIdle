@@ -458,6 +458,20 @@ namespace MBI.Core
         public DodgeSystem Dodge => Act.dodge;
 
         /// <summary>
+        /// **맞은 횟수 — 회피로 무효가 된 것도 센다** (2026-09-17 · `260917_W03` 2-2).
+        ///
+        /// 📌 무효가 된 것을 빼면 「회피가 몇 번 필요한가」의 **분모가 사라진다.**
+        /// 재는 쪽이 알고 싶은 것은 「몇 대 맞을 뻔했나」이지 「몇 대 맞았나」가 아니다.
+        /// </summary>
+        public int HitsTaken { get; private set; }
+
+        /// <summary>실제로 HP 에서 깎인 피해 합. ⚠️ **쉴드는 시뮬에 없다** — HP 하나다.</summary>
+        public float DamageTaken { get; private set; }
+
+        /// <summary>무적 구간이라 **계산에 들어가지도 않은** 피해 합 — 회피가 더한 값이다.</summary>
+        public float DamageAvoided { get; private set; }
+
+        /// <summary>
         /// 추진제 유입(개/초). 러너가 부스터 노드 산출에서 매 프레임 주입한다.
         /// ⚠️ 탄약 유입과 마찬가지로 **설정 시점의 활성 로봇**을 가리킨다 —
         /// 같은 틱에 교대가 끼면 그 값은 새로 나온 로봇의 것이 된다.
@@ -1319,8 +1333,10 @@ namespace MBI.Core
 
                         // ⚠️ 무적은 **판정식의 항이 아니다.** 계산에 진입하지 않고 통째로 건너뛴다 —
                         // 판정식이 max(1, …)라 「방어 무한대」로 표현하면 여전히 1이 꽂힌다.
-                        if (Act.dodge.IsInvincible) continue;
+                        HitsTaken++;
+                        if (Act.dodge.IsInvincible) { DamageAvoided += e.atk; continue; }
 
+                        DamageTaken += e.atk;
                         Act.body.hp -= e.atk; // 로봇 방어 스탯 없음 — 받는 피해 = 몬스터 공격력(§9)
                     }
                 }
@@ -1373,8 +1389,11 @@ namespace MBI.Core
 
                     // 회피·무적은 **여기서** 본다. 위협 방향은 포탄이 온 쪽이다.
                     Act.dodge.TryDodge(true, -p.direction, false, Vector2.zero);
-                    if (Act.dodge.IsInvincible) continue;
 
+                    HitsTaken++;
+                    if (Act.dodge.IsInvincible) { DamageAvoided += p.atk; continue; }
+
+                    DamageTaken += p.atk;
                     Act.body.hp -= p.atk;
                     continue;
                 }

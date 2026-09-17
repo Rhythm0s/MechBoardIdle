@@ -28,29 +28,17 @@ namespace MBI.Tests
             var g = new BoardGrid(PartLayout.Columns, PartLayout.Rows, 1f, Vector2.zero,
                 PartLayout.BuildMask(), MountOwner.RobotA);
 
-            foreach (StartingBoard.Slot slot in StartingBoard.Nodes)
-            {
-                NodeDefinition def = Node(slot.nodeId);
-                Assert.IsNotNull(def, $"노드 자산이 없다 — Node_{slot.nodeId}.asset");
-                Assert.IsTrue(g.TryPlace(slot.cell, def, out _));
-            }
-            foreach (StartingBoard.Run r in StartingBoard.Belts) Place(g, r);
-            if (fillEmptySlot) Place(g, StartingBoard.FillsEmptySlot);
+            // ⚠️ **같은 문으로 세운다** — 조합표를 안 고르면 추진제 노드가 표준탄으로 돌아
+            //    그 줄의 링크가 안 서고, 화살표가 **없는 곳에** 뜬다.
+            Assert.AreEqual(StartingBoard.Nodes.Count, StartingBoard.Apply(g, Node),
+                "시작 보드 노드가 다 안 섰다");
+            if (fillEmptySlot) StartingBoard.Place(g, StartingBoard.FillsEmptySlot);
 
             BeltAutoOrient.Resolve(g);
             BeltFlow.Resolve(g);
             return g;
         }
 
-        private static void Place(BoardGrid g, StartingBoard.Run run)
-        {
-            if (run.merger)
-                g.TryPlaceBeltElement(run.cell, BeltElementKind.Merger,
-                    StartingBoard.MergerInFaces(run.outFace), new[] { run.outFace },
-                    FlowKind.None, out _);
-            else
-                g.TryPlaceBelt(run.cell, run.inFace, run.outFace, FlowKind.None, out _);
-        }
 
         [Test]
         public void 홀로_놓인_노드는_모든_면에_화살표가_선다()

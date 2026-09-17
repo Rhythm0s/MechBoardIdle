@@ -45,6 +45,12 @@ namespace MBI.Core
         public const string ComplexId = "munix";
 
         /// <summary>
+        /// **마운트 고정 포트로 나가는 칸** (2026-09-17 신설 · 구 「목록의 마지막」 폐기).
+        /// 시험이 차례로 짚고 있었는데, 추진제 줄을 뒤에 붙이자 그 차례가 어긋났다.
+        /// </summary>
+        public static readonly Vector2Int MountExit = new Vector2Int(9, 10);
+
+        /// <summary>
         /// 노드 여덟.
         ///
         /// **자리 잡는 규칙 하나** — 노드끼리 맞닿으면 벨트가 필요 없다(A 의 동 줄과 같다).
@@ -83,6 +89,20 @@ namespace MBI.Core
             new Slot(3, 2, StartingBoard.EnergyId),
             new Slot(4, 2, StartingBoard.EnergyId),
             new Slot(5, 2, StartingBoard.EnergyId),
+
+            // ── 추진제 줄 + 부스터 둘 (2026-09-17 사용자 확정 · `260917_W03` 3장) ──
+            //
+            // ⚠️ **A 와 자리가 다르다.** B 는 어깨L(x≥9)이 드론 운반로라 A 의 자리를 못 쓴다 —
+            //    코어의 **서면**으로 내려가 몸통 아래를 쓴다. 노드 수·조합표·부스터 대수는 같다.
+            //
+            //      y=8   벨(4,8)←코어(5,8) 西面
+            //      y=7   벨(4,7)↓
+            //      y=6   벨(4,6)→ 가공(5,6)→ 군수(6,6)→ 분류기(7,6)→ 부스터(8,6)
+            //      y=5                                   벨(7,5)→ 부스터(8,5)
+            new Slot(5, 6, StartingBoard.ProcId, RecipeKind.PowerMaterial),
+            new Slot(6, 6, StartingBoard.MuniId, RecipeKind.Propellant),
+            new Slot(8, 6, StartingBoard.BoosterId),
+            new Slot(8, 5, StartingBoard.BoosterId),
         };
 
         /// <summary>
@@ -113,7 +133,36 @@ namespace MBI.Core
             new StartingBoard.Run(10, 9, PortFace.South, PortFace.North),
             new StartingBoard.Run(10, 10, PortFace.South, PortFace.West),
             new StartingBoard.Run(9, 10, PortFace.East, PortFace.West),
+
+            // ── 추진제 줄 (2026-09-17) — 코어 서면에서 몸통 아래로 ──
+            new StartingBoard.Run(4, 8, PortFace.East, PortFace.South),
+            new StartingBoard.Run(4, 7, PortFace.North, PortFace.South),
+            new StartingBoard.Run(4, 6, PortFace.North, PortFace.East),
+            StartingBoard.Run.Sorter(7, 6),
+            new StartingBoard.Run(7, 5, PortFace.North, PortFace.East),
         };
+
+        /// <summary>
+        /// **놓는 문 하나** — A 쪽 <see cref="StartingBoard.Apply"/> 와 같은 까닭이다
+        /// (2026-09-17 신설). 조합표를 한 곳만 빠뜨려도 그 판은 조용히 반쪽이 된다.
+        /// </summary>
+        public static int Apply(BoardGrid grid, System.Func<string, NodeDefinition> nodeById)
+        {
+            if (grid == null || nodeById == null) return 0;
+
+            int placed = 0;
+            foreach (Slot slot in Nodes)
+            {
+                NodeDefinition def = nodeById(slot.nodeId);
+                if (def == null) continue;
+                if (!grid.TryPlace(slot.cell, def, out NodeInstance node)) continue;
+                if (slot.recipe != RecipeKind.None) node.SelectRecipe(slot.recipe);
+                placed++;
+            }
+
+            foreach (StartingBoard.Run run in Belts) StartingBoard.Place(grid, run);
+            return placed;
+        }
 
         /// <summary>
         /// 이 판의 **세대 표식** (2026-09-17 신설 · 사용자 결정 · `260917_V01` 6-1).

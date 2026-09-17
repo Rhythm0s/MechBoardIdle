@@ -70,38 +70,12 @@ namespace MBI.Tests
                 "조합표가 달라졌는데 표식이 그대로다");
         }
 
-        [Test]
-        public void A_표식은_이_개정으로_안_바뀐다()
-        {
-            // ⚠️⚠️ **이 개정이 하기로 한 일은 B 하나다.** A 의 표식까지 바뀌면
-            //    사용자가 감수하기로 한 것보다 **한 판을 더** 버리게 된다.
-            //    그래서 A 는 조합표를 안 섞는다 — 옛 셈을 여기 다시 적어 대조한다.
-            unchecked
-            {
-                uint h = 2166136261u;
-                void Mix(int v)
-                {
-                    for (int b = 0; b < 4; b++) { h ^= (uint)((v >> (b * 8)) & 0xFF); h *= 16777619u; }
-                }
-
-                Mix(PartLayout.Columns);
-                Mix(PartLayout.Rows);
-                foreach (StartingBoard.Slot n in StartingBoard.Nodes)
-                {
-                    foreach (char c in n.nodeId ?? string.Empty) Mix(c);
-                    Mix(n.cell.x); Mix(n.cell.y);
-                }
-                foreach (StartingBoard.Run r in StartingBoard.Belts)
-                {
-                    Mix(r.cell.x); Mix(r.cell.y);
-                    Mix((int)r.inFace); Mix((int)r.outFace);
-                    Mix(r.merger ? 1 : 0);
-                }
-
-                Assert.AreEqual(h.ToString("x8"), StartingBoard.Generation,
-                    "A 의 표식이 이 개정 때문에 바뀌었다 — A 저장까지 버려진다");
-            }
-        }
+        // 🗑️ **폐기 — 2026-09-17.** 구 시험 `A_표식은_이_개정으로_안_바뀐다` 는
+        //    「09-17 의 주인별 개정이 **B 만** 버리게 한다」를 못 박던 것이다.
+        //    같은 날 뒤에 **부스터 줄이 A 배포 배치에 들어오면서** A 의 배치 자체가 바뀌어
+        //    A 저장도 한 번 버려지게 됐다(사용자 감수 · `260917_W03` 3장).
+        //    지킬 것이 없어진 시험이라 지운다 — 남겨 두면 **바뀌는 것이 정상인 자리에서**
+        //    빨개져, 다음 사람이 「무엇이 깨졌나」를 헛짚는다.
 
         [Test]
         public void B_저장에_B_표식이_찍힌다()

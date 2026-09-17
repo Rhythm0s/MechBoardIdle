@@ -162,20 +162,12 @@ namespace MBI.Tests
             var g = new BoardGrid(PartLayout.Columns, PartLayout.Rows, 1f, Vector2.zero,
                 PartLayout.BuildMask());
 
-            foreach (StartingBoard.Slot slot in StartingBoard.Nodes)
-                g.TryPlace(slot.cell, Node(slot.nodeId), out _);
+            // ⚠️⚠️ **게임이 지나는 문으로 세운다**(2026-09-17). 조합표가 자리에 들어오면서,
+            //    제 손으로 놓으면 추진제 노드가 **표준탄으로 돌아** 다른 판을 재게 된다.
+            StartingBoard.Apply(g, Node);
 
-            // ⚠️ 병합기는 병합기로 놓는다 — 아래 분기가 그것이다(2026-09-11).
-            foreach (StartingBoard.Run run in StartingBoard.Belts)
-            {
-                if (run.cell == omitBelt) continue;
-                if (run.merger)
-                    g.TryPlaceBeltElement(run.cell, BeltElementKind.Merger,
-                        StartingBoard.MergerInFaces(run.outFace), new[] { run.outFace },
-                        FlowKind.None, out _);
-                else
-                    g.TryPlaceBelt(run.cell, run.inFace, run.outFace, FlowKind.None, out _);
-            }
+            // 끊어 볼 칸은 놓은 **뒤에** 뺀다 — 놓는 문을 갈라 두면 또 어긋난다.
+            if (omitBelt.x >= 0) g.TryRemoveBelt(omitBelt);
 
             // ⚠️ **채우는 것이 노드에서 벨트로 바뀌었다**(2026-09-11 설계 확정 (가)).
             if (fillEmptySlot)
@@ -248,7 +240,8 @@ namespace MBI.Tests
             Assert.Greater(whole, 0f, "온전한 라인은 물건을 나른다");
 
             // 마운트 바로 앞 칸을 뺀다. 노드는 하나도 안 건드렸다.
-            Vector2Int lastLeg = StartingBoard.Belts[StartingBoard.Belts.Count - 2].cell;
+            // 🗑️ 구 `Belts[Count - 2]` 폐기 — 목록 뒤에 줄을 붙이자 엉뚱한 칸을 짚었다.
+            Vector2Int lastLeg = StartingBoard.MountApproach;
             float cut = RunAndMeasure(BuildStartingBoard(true, lastLeg), 60f);
 
             Assert.AreEqual(0f, cut, Delta, $"{lastLeg}를 끊으면 마운트에 못 닿는다");

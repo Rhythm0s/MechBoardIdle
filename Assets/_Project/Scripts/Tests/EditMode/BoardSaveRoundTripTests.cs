@@ -76,7 +76,7 @@ namespace MBI.Tests
             foreach (StartingBoard.Slot s in StartingBoard.Nodes)
                 before.TryPlace(s.cell, Node(s.nodeId), out _);
             foreach (StartingBoard.Run r in StartingBoard.Belts)
-                Place(before, r);
+                StartingBoard.Place(before, r);
 
             int nodeCount = Count(before.Nodes);
             int beltCount = Count(before.Belts);
@@ -481,8 +481,8 @@ namespace MBI.Tests
                 if (def == null) Assert.Ignore($"노드 자산이 없다({s.nodeId}) — 'MBI/Generate' 먼저");
                 g.TryPlace(s.cell, def, out _);
             }
-            foreach (StartingBoard.Run r in StartingBoard.Belts) Place(g, r);
-            Place(g, StartingBoard.FillsEmptySlot);
+            foreach (StartingBoard.Run r in StartingBoard.Belts) StartingBoard.Place(g, r);
+            StartingBoard.Place(g, StartingBoard.FillsEmptySlot);
             BeltAutoOrient.Resolve(g);
             BeltFlow.Resolve(g);
             return g;
@@ -525,14 +525,5 @@ namespace MBI.Tests
             return n;
         }
 
-        private static void Place(BoardGrid g, StartingBoard.Run run)
-        {
-            if (run.merger)
-                g.TryPlaceBeltElement(run.cell, BeltElementKind.Merger,
-                    StartingBoard.MergerInFaces(run.outFace), new[] { run.outFace },
-                    FlowKind.None, out _);
-            else
-                g.TryPlaceBelt(run.cell, run.inFace, run.outFace, FlowKind.None, out _);
-        }
     }
 }

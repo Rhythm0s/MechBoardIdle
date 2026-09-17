@@ -889,6 +889,7 @@ namespace MBI.Logistics
         /// </summary>
         private void ApplyStartingBoardB(BoardGrid grid)
         {
+            // ⚠️ 자산을 못 찾은 칸을 **먼저 알린다** — `Apply` 는 조용히 건너뛴다.
             foreach (StartingBoardB.Slot slot in StartingBoardB.Nodes)
             {
                 NodeDefinition def = FindStartingNode(slot.nodeId);
@@ -907,8 +908,10 @@ namespace MBI.Logistics
                                      + $"{slot.recipe} 를 못 받는다 — 기본값으로 선다.");
             }
 
-            foreach (StartingBoard.Run run in StartingBoardB.Belts)
-                grid.TryPlaceBelt(run.cell, run.inFace, run.outFace, FlowKind.None, out _);
+            // ⚠️⚠️ **놓는 손은 `StartingBoard.Place` 하나다**(2026-09-17).
+            //    종전에는 여기서 `TryPlaceBelt` 만 불렀다 — 병합기도 분류기도 **직선 벨트로**
+            //    깔렸다는 뜻이다. B 판에 분류기가 들어온 오늘 그것이 실제 결함이 됐다.
+            foreach (StartingBoard.Run run in StartingBoardB.Belts) StartingBoard.Place(grid, run);
         }
 
         /// <summary>
@@ -974,27 +977,21 @@ namespace MBI.Logistics
             //    (`StartingBoardB`) — 씬 목록이 하나뿐이라 둘을 못 담는다.
             if (grid.Owner == MountOwner.RobotB) { ApplyStartingBoardB(grid); return; }
 
-            if (initialLayout != null)
-                foreach (InitialNode item in initialLayout)
-                {
-                    if (item.node == null) continue;
-                    if (!grid.TryPlace(item.cell, item.node, out NodeInstance placed)) continue;
-                    placed.AmmoKind = item.ammoKind; // 군수 노드가 만드는 탄종(§1). 다른 타입에서는 읽히지 않는다.
-                }
-
-            if (initialBelts != null)
-                foreach (InitialBelt b in initialBelts)
-                {
-                    // ⚠️ **선언한 면을 쓴다**(2026-09-11). 종전에는 병합기를 **서→동으로 박아**
-                    // 시작 보드가 적어 둔 면을 통째로 버렸다 — 네 줄 배치의 합류가 전부
-                    // 엉뚱한 쪽으로 흘렀다. 받는 면은 출력면을 뺀 나머지 셋이다.
-                    if (b.merger)
-                        grid.TryPlaceBeltElement(b.cell, BeltElementKind.Merger,
-                            StartingBoard.MergerInFaces(b.outFace), new[] { b.outFace },
-                            FlowKind.None, out _);
-                    else
-                        grid.TryPlaceBelt(b.cell, b.inFace, b.outFace, FlowKind.None, out _);
-                }
+            // ⚠️⚠️ **A 도 코드의 배치를 쓴다**(2026-09-17 · 구 「씬의 `initialLayout` 을 깐다」 폐기).
+            //
+            // 종전에는 A 의 배치가 **씬 배열**에, B 의 것이 **코드**에 살았다. 이 파일의 옛
+            // 주석이 그 자리를 「둘을 같이 고쳐야 할 때 한쪽을 빠뜨리기 쉽다」고 적어 두었고,
+            // 09-17 에 **조합표가 자리에 들어오면서** 그것이 실제 위험이 됐다 —
+            // 씬 배열에는 조합표 칸이 없어서 추진제 노드가 **표준탄으로 돌** 참이었다.
+            // 그러면 부스터는 영영 빈 그릇이고 **회피가 한 번도 안 난다**(에러 없이).
+            //
+            // 📌 이제 배치는 `StartingBoard` 하나가 들고, 씬 배열은 **자산을 대는 주머니**로만
+            //    남는다(`FindStartingNode` 가 거기서 노드를 찾는다).
+            int placedCount = StartingBoard.Apply(grid, FindStartingNode);
+            if (placedCount < StartingBoard.Nodes.Count)
+                Debug.LogError($"[MBI] A 시작 보드: 노드 {StartingBoard.Nodes.Count} 중 "
+                               + $"{placedCount} 만 섰다 — 자산을 못 찾았거나 칸이 막혔다. "
+                               + "빠진 칸이 줄 가운데면 **그 줄이 통째로 안 흐른다.**");
 
             // 튜토리얼을 이미 끝냈으면 **비워 둔 칸이 채워진 채로 시작한다**(260902_W09 §1-1 안 A).
             //

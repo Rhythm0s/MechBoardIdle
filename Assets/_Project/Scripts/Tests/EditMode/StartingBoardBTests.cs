@@ -89,17 +89,18 @@ namespace MBI.Tests
         }
 
         [Test]
-        public void 마지막_벨트는_B_마운트_포트로_나간다()
+        public void 운반로_끝_칸이_B_마운트_포트로_나간다()
         {
             BoardGrid g = BuildB();
             var flow = new BeltItemFlow();
             flow.Rebuild(g);
 
-            StartingBoard.Run last = default;
-            foreach (StartingBoard.Run r in StartingBoardB.Belts) last = r;
+            // 🗑️ 구 「목록의 마지막 벨트」 폐기 (2026-09-17) — 추진제 줄을 뒤에 붙이자
+            //    그 차례가 엉뚱한 칸을 짚었다. **목록의 차례는 배치의 뜻이 아니다.**
+            Vector2Int exit = StartingBoardB.MountExit;
 
-            Assert.IsTrue(flow.TryGetMountExitOwner(last.cell, out MountOwner owner),
-                $"마지막 벨트 {last.cell} 가 마운트 출구가 아니다");
+            Assert.IsTrue(flow.TryGetMountExitOwner(exit, out MountOwner owner),
+                $"운반로 끝 칸 {exit} 가 마운트 출구가 아니다");
             Assert.AreEqual(MountOwner.RobotB, owner, "B 판인데 출구 주인이 B 가 아니다");
         }
 

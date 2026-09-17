@@ -84,15 +84,22 @@ namespace MBI.EditorTools
         public static string Run(string stageId) => Run(stageId, preloadMount: true);
 
         public static string Run(string stageId, bool preloadMount)
-            => Run(stageId, preloadMount, withBoosters: false);
+            => Run(stageId, preloadMount, propellantNeed: BasePropellantNeed);
 
-        public static string Run(string stageId, bool preloadMount, bool withBoosters)
+        /// <summary>
+        /// 【스위프】 **추진제 필요 생산치**만 바꿔 돌린다 (2026-09-17 · `260917_W03` 2-1).
+        ///
+        /// ⚠️⚠️ **`balance_v4.json` 과 노드 자산은 안 건드린다.** 자산을 고치면 그 값이
+        /// 디스크에 남아 다음 빌드와 다음 측정이 **다른 판**을 보게 된다.
+        /// 여기서는 노드 자산의 **복제본**을 만들어 추진제 조합표의 산출률만 바꾼다.
+        /// </summary>
+        public static string Run(string stageId, bool preloadMount, float propellantNeed)
         {
             var sb = new StringBuilder();
             sb.AppendLine($"=== 스테이지 {stageId} 클리어 하네스 (2026-09-17) ===");
-            sb.AppendLine(withBoosters
-                ? "[판] **나** — A 시작 보드 + 부스터 둘 + 추진제 줄(하네스 전용)"
-                : "[판] **가** — 현행 A 시작 보드");
+            sb.AppendLine($"[판] 추진제 필요 생산치 **{propellantNeed:F0}**"
+                          + $" (15초당 {BasePropellantNeed / propellantNeed:F0}개"
+                          + (Mathf.Approximately(propellantNeed, BasePropellantNeed) ? " · 기준)" : ")"));
             sb.AppendLine(preloadMount
                 ? "[시작 조건] **튜토리얼 종료** — 마운트 적재 참(정상 경로) · 창고 빈손"
                 : "[시작 조건] **심사자 S1 점프** — 빈 칸 자동 채움 · 창고·마운트 **빈손**");
@@ -113,8 +120,7 @@ namespace MBI.EditorTools
                 catalog.Add(AssetDatabase.LoadAssetAtPath<EnemyDefinition>(AssetDatabase.GUIDToAssetPath(guid)));
 
             // ── 판 세우기 ──────────────────────────────────────────────────
-            BoardGrid grid = Board(withBoosters, out string boosterNote);
-            if (boosterNote != null) sb.AppendLine("  " + boosterNote);
+            BoardGrid grid = Board(propellantNeed);
             var flow = new BeltItemFlow();
             flow.Rebuild(grid);
             var delivery = new MountDelivery();
@@ -462,6 +468,15 @@ namespace MBI.EditorTools
                           + $" · 수요 {agg.powerDraw:F1})"
                           + "  ← 측정법: `LogisticsSimulation.Throttles` 의 `power` = min(1, 공급/수요)");
 
+            // ── 새 열 셋 (2026-09-17 · `260917_W03` 2-2) ──
+            sb.AppendLine($"  **피격 {sim.HitsTaken} 회**(회피로 무효가 된 것 포함)"
+                          + "  ← 측정법: 근접·포탄이 **명중 판정에 들어온** 순간마다 1 증가");
+            sb.AppendLine($"  **받은 총 피해 {sim.DamageTaken:F0}**"
+                          + "  ← 측정법: 실제로 HP 에서 깎인 값의 합."
+                          + " ⚠️ **쉴드는 시뮬에 없다** — 설계가 「쉴드 + HP」로 물었으나 HP 하나다");
+            sb.AppendLine($"  **회피로 무효화한 피해 {sim.DamageAvoided:F0}**"
+                          + "  ← 측정법: 무적이라 **계산에 들어가지도 않은** 공격력의 합");
+
             sb.AppendLine($"  마운트 최고 도착률 {peakArrival:F2} 발/초");
             sb.AppendLine($"  재배분 {reallocs} 회 — 0 이면 라인이 시작값(빈 줄)으로 굳은 것이다");
 
@@ -523,15 +538,14 @@ namespace MBI.EditorTools
         /// 배율은 **둘 다 낸다**: 116 과 견주려면 그쪽과 같은 **1.0** 이어야 하고,
         /// 전력이 실제로 어떤지는 **실제 배율**이 말한다. 하나만 적으면 둘 중 하나가 거짓이 된다.
         /// </summary>
-        public static string RunBoardB(bool withBoosters)
+        public static string RunBoardB(float propellantNeed)
         {
             const float Seconds = 120f;
             var sb = new StringBuilder();
-            sb.AppendLine("=== 판 " + (withBoosters ? "다" : "다-기준")
-                          + " · B 보드 120초 가동 (전투 없음) ===");
+            sb.AppendLine($"=== B 보드 120초 가동 (전투 없음) · 추진제 필요 생산치 "
+                          + $"**{propellantNeed:F0}** (15초당 {BasePropellantNeed / propellantNeed:F0}개) ===");
 
-            BoardGrid grid = BoardB(withBoosters, out string boosterNote);
-            if (boosterNote != null) sb.AppendLine("  " + boosterNote);
+            BoardGrid grid = BoardB(propellantNeed);
 
             var config = AssetDatabase.LoadAssetAtPath<LogisticsConfig>($"{SoRoot}/LogisticsConfig.asset");
             ICollection<Vector2Int> connected = LogisticsReach.ConnectedNodes(grid);
@@ -545,13 +559,16 @@ namespace MBI.EditorTools
             sb.AppendLine($"  이어진 노드 {connected.Count} · 부스터 {agg.boosterCount} 대"
                           + $" · 추진제 {agg.propellantProduce:F4} 개/초"
                           + $" · 누적형 드론 {agg.droneStackProduce:F3} 기/초");
+            sb.AppendLine($"  **코어 에너지 사용량 {CoreEnergyDraw(grid, connected):F2} 개/초**"
+                          + "  ← 측정법: 이어진 노드 중 **코어 에너지를 먹는 조합표**의"
+                          + " 입력 소요를 더한다(코어 산출은 10 개/초)");
             sb.AppendLine($"  **전력 효율 {throttle.power:F3}** (공급 {agg.powerSupply:F0}"
                           + $" · 수요 {agg.powerDraw:F1})");
 
             // 도착 — 두 배율로 각각 센다. 판을 새로 세워야 한다(앞 판의 버퍼가 남는다).
-            int arrivedUnit = CountArrivals(withBoosters, 1f, Seconds);
+            int arrivedUnit = CountArrivals(propellantNeed, 1f, Seconds);
             int arrivedReal = Mathf.Approximately(throttle.Scale, 1f)
-                ? arrivedUnit : CountArrivals(withBoosters, throttle.Scale, Seconds);
+                ? arrivedUnit : CountArrivals(propellantNeed, throttle.Scale, Seconds);
 
             sb.AppendLine($"  **드론 도착 {arrivedUnit} 기**(배율 1.0 · 현행 116 과 같은 잣대)");
             sb.AppendLine($"  드론 도착 {arrivedReal} 기(실제 배율 {throttle.Scale:F3})");
@@ -586,9 +603,9 @@ namespace MBI.EditorTools
         }
 
         /// <summary>판을 새로 세워 도착 수만 센다 — 버퍼가 남지 않게 매번 다시 짓는다.</summary>
-        private static int CountArrivals(bool withBoosters, float scale, float seconds)
+        private static int CountArrivals(float propellantNeed, float scale, float seconds)
         {
-            BoardGrid g = BoardB(withBoosters, out _);
+            BoardGrid g = BoardB(propellantNeed);
             var flow = new BeltItemFlow();
             flow.Rebuild(g);
 
@@ -608,24 +625,31 @@ namespace MBI.EditorTools
         ///
         /// 배치 실행: <c>-executeMethod MBI.EditorTools.StageClearHarness.RunW02Batch</c>
         /// </summary>
-        [MenuItem("MBI/Harness W02 측정 세 판")]
-        public static void RunW02Menu() => Debug.Log(RunW02());
+        /// <summary>추진제 스위프의 네 값 — `260917_W03` 2-1. **밸런스 자산은 안 건드린다.**</summary>
+        private static readonly float[] SweepNeeds = { 150f, 75f, 50f, 30f };
 
-        public static void RunW02Batch()
+        [MenuItem("MBI/Harness W03 추진제 스위프")]
+        public static void RunW03Menu() => Debug.Log(RunW03());
+
+        public static void RunW03Batch()
         {
-            Debug.Log(RunW02());
+            Debug.Log(RunW03());
             if (Application.isBatchMode) EditorApplication.Exit(0);
         }
 
-        public static string RunW02()
+        /// <summary>【`260917_W03` 2장·4장】 스위프 A(S1 네 판) + 스위프 B(B 보드 네 판).</summary>
+        public static string RunW03()
         {
             var sb = new StringBuilder();
-            sb.AppendLine("############ 260917_W02 2-2 측정 세 판 ############");
+            sb.AppendLine("############ 260917_W03 추진제 스위프 ############");
             sb.AppendLine();
-            sb.AppendLine(Run("S1", preloadMount: true, withBoosters: false));
-            sb.AppendLine(Run("S1", preloadMount: true, withBoosters: true));
-            sb.AppendLine(RunBoardB(withBoosters: false));
-            sb.AppendLine(RunBoardB(withBoosters: true));
+            sb.AppendLine("======== 스위프 A — S1 (튜토리얼 종료 · 적재 40) ========");
+            foreach (float need in SweepNeeds)
+                sb.AppendLine(Run("S1", preloadMount: true, propellantNeed: need));
+
+            sb.AppendLine("======== 스위프 B — B 보드 120초 가동 ========");
+            foreach (float need in SweepNeeds)
+                sb.AppendLine(RunBoardB(need));
             return sb.ToString();
         }
 
@@ -637,67 +661,101 @@ namespace MBI.EditorTools
             return 0f;
         }
 
-        /// <summary>시작 보드 + 튜토리얼 칸 — **운반로가 이어진 판**이다.</summary>
-        private static BoardGrid Board() => Board(withBoosters: false, out _);
+        /// <summary>
+        /// 밸런스 문서의 **추진제 필요 생산치** 기준값 — 기초 군수 1대가 15초에 1개.
+        /// ⚠️ 값 자체는 노드 자산이 든다. 여기 있는 것은 **배수를 셈하기 위한 기준**이다.
+        /// </summary>
+        public const float BasePropellantNeed = 150f;
 
         /// <summary>
-        /// 시작 보드 + 튜토리얼 칸 · 선택으로 **부스터 둘 + 추진제 줄**
-        /// (2026-09-17 · `260917_W02` 2-2 나 판).
+        /// 추진제 산출률만 바꾼 **노드 자산 복제본**을 대는 손.
         ///
-        /// ⚠️ **배포 시작 보드는 안 건드린다** — 줄은 <see cref="HarnessBoosterLine"/> 가
-        /// 하네스 안에서만 얹는다(세대 표식이 바뀌면 사용자 저장이 버려진다).
+        /// ⚠️⚠️ **원본을 안 고친다.** `AssetDatabase` 가 주는 것은 디스크의 그 자산이라,
+        /// 여기서 값을 바꾸면 **빌드와 다음 측정이 바뀐 값을 보게 된다.**
+        /// 복제본은 메모리에만 살고 저장되지 않는다.
         /// </summary>
-        private static BoardGrid Board(bool withBoosters, out string boosterNote)
+        private static System.Func<string, NodeDefinition> NodeResolver(float propellantNeed)
         {
-            boosterNote = null;
+            if (Mathf.Approximately(propellantNeed, BasePropellantNeed)) return Node;
+
+            float scale = BasePropellantNeed / Mathf.Max(1f, propellantNeed);
+            NodeDefinition src = Node(StartingBoard.MuniId);
+            if (src == null) return Node;
+
+            var clone = Object.Instantiate(src);
+            clone.name = src.name;
+            if (clone.recipes != null)
+                for (int i = 0; i < clone.recipes.Count; i++)
+                {
+                    NodeRecipe r = clone.recipes[i];
+                    if (r.kind != RecipeKind.Propellant) continue;
+                    r.outputPerSec *= scale;
+                    clone.recipes[i] = r;
+                }
+
+            return id => id == StartingBoard.MuniId ? clone : Node(id);
+        }
+
+        /// <summary>시작 보드 + 튜토리얼 칸 — **운반로가 이어진 판**이다.</summary>
+        private static BoardGrid Board() => Board(BasePropellantNeed);
+
+        /// <summary>
+        /// A 시작 보드 + 튜토리얼 칸 — **게임이 세우는 것과 같은 문**(`StartingBoard.Apply`)으로 세운다.
+        /// 2026-09-17 부터 배포 배치에 **부스터 둘 + 추진제 줄**이 들어 있다.
+        /// </summary>
+        private static BoardGrid Board(float propellantNeed)
+        {
             var g = new BoardGrid(PartLayout.Columns, PartLayout.Rows, 1f,
                 Vector2.zero, PartLayout.BuildMask());
-            foreach (StartingBoard.Slot s in StartingBoard.Nodes)
-                g.TryPlace(s.cell, Node(s.nodeId), out _);
-            foreach (StartingBoard.Run r in StartingBoard.Belts) Place(g, r);
-            Place(g, StartingBoard.FillsEmptySlot);
 
-            if (withBoosters && !HarnessBoosterLine.ApplyToA(g, out boosterNote))
-                boosterNote = "⚠️ **부스터 줄을 못 얹었다** — " + boosterNote;
+            StartingBoard.Apply(g, NodeResolver(propellantNeed));
+            StartingBoard.Place(g, StartingBoard.FillsEmptySlot);
 
             BeltAutoOrient.Resolve(g);
             BeltFlow.Resolve(g);
             return g;
         }
 
-        /// <summary>B 시작 보드 · 선택으로 부스터 줄 (`260917_W02` 2-2 다 판).</summary>
-        private static BoardGrid BoardB(bool withBoosters, out string boosterNote)
+        /// <summary>B 시작 보드 — 같은 문(`StartingBoardB.Apply`)으로 세운다.</summary>
+        private static BoardGrid BoardB(float propellantNeed)
         {
-            boosterNote = null;
             var g = new BoardGrid(PartLayout.Columns, PartLayout.Rows, 1f,
                 Vector2.zero, PartLayout.BuildMask(), MountOwner.RobotB);
 
-            foreach (StartingBoardB.Slot s in StartingBoardB.Nodes)
-            {
-                if (!g.TryPlace(s.cell, Node(s.nodeId), out NodeInstance placed)) continue;
-                if (s.recipe != RecipeKind.None) placed.SelectRecipe(s.recipe);
-            }
-            foreach (StartingBoard.Run r in StartingBoardB.Belts) Place(g, r);
-
-            if (withBoosters && !HarnessBoosterLine.ApplyToB(g, out boosterNote))
-                boosterNote = "⚠️ **부스터 줄을 못 얹었다** — " + boosterNote;
+            StartingBoardB.Apply(g, NodeResolver(propellantNeed));
 
             BeltAutoOrient.Resolve(g);
             BeltFlow.Resolve(g);
             return g;
         }
 
-        private static void Place(BoardGrid g, StartingBoard.Run run)
-        {
-            if (run.merger)
-                g.TryPlaceBeltElement(run.cell, BeltElementKind.Merger,
-                    StartingBoard.MergerInFaces(run.outFace), new[] { run.outFace },
-                    FlowKind.None, out _);
-            else
-                g.TryPlaceBelt(run.cell, run.inFace, run.outFace, FlowKind.None, out _);
-        }
 
         private static NodeDefinition Node(string id)
             => AssetDatabase.LoadAssetAtPath<NodeDefinition>(NodeRoot + "/Node_" + id + ".asset");
+
+        /// <summary>
+        /// 이 판이 **코어 에너지를 초당 몇 개 먹는가** (2026-09-17 · `260917_W03` 4장).
+        ///
+        /// 코어 산출은 10 개/초이고, 그 안에서 줄들이 나눠 쓴다. 추진제 줄을 빠르게 돌리면
+        /// **가공 한 대가 더 먹으므로** 이 수가 올라간다 — 「회피의 대가」가 있다면 여기 보인다.
+        ///
+        /// 📌 **집계가 이 값을 안 든다** — `NetworkAggregate` 는 전력·탄약·드론만 센다.
+        /// 그래서 여기서 조합표를 직접 훑는다. ⚠️ 값을 짓지 않는다 — 전부 자산의 수다.
+        /// </summary>
+        private static float CoreEnergyDraw(BoardGrid grid, ICollection<Vector2Int> connected)
+        {
+            float sum = 0f;
+            foreach (Vector2Int cell in connected)
+            {
+                NodeInstance node = grid.GetAt(cell);
+                if (node?.Definition == null) continue;
+
+                NodeRecipe r = node.CurrentRecipe;
+                if (r.inputs == null) continue;
+                foreach (RecipeInput i in r.inputs)
+                    if (i.kind == FlowKind.CoreEnergy) sum += i.perOutput * r.outputPerSec;
+            }
+            return sum;
+        }
     }
 }

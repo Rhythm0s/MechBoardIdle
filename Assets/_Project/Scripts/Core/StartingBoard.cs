@@ -51,11 +51,29 @@ namespace MBI.Core
             public string nodeId;
             public AmmoKind ammo;
 
-            public Slot(int x, int y, string nodeId, AmmoKind ammo = AmmoKind.Pierce)
+            /// <summary>
+            /// 고른 조합표 (2026-09-17 신설 · 부스터 줄이 들어오면서).
+            ///
+            /// ⚠️⚠️ **안 고르면 기본값으로 돈다.** 기초 군수의 기본은 **표준탄**이라,
+            /// 추진제 노드에 이것을 안 적으면 추진제가 한 개도 안 나오고 부스터는
+            /// 영영 빈 그릇이 된다 — **에러 없이 회피만 0** 이 된다.
+            /// </summary>
+            public RecipeKind recipe;
+
+            /// <summary>
+            /// 놓을 때의 방향(사분면 0~3) — 2026-09-17 신설.
+            /// ⚠️ **부스터는 입력면이 서쪽 하나뿐**이라, 다른 쪽에서 받으려면 돌려야 한다.
+            /// </summary>
+            public int rotation;
+
+            public Slot(int x, int y, string nodeId, AmmoKind ammo = AmmoKind.Pierce,
+                RecipeKind recipe = RecipeKind.None, int rotation = 0)
             {
                 cell = new Vector2Int(x, y);
                 this.nodeId = nodeId;
                 this.ammo = ammo;
+                this.recipe = recipe;
+                this.rotation = rotation;
             }
         }
 
@@ -65,18 +83,38 @@ namespace MBI.Core
             public Vector2Int cell;
             public PortFace inFace;
             public PortFace outFace;
-            public bool merger;
 
-            public Run(int x, int y, PortFace inFace, PortFace outFace, bool merger = false)
+            /// <summary>
+            /// 무엇을 놓는가 — 직선·코너는 <see cref="BeltElementKind.Straight"/>,
+            /// 합류는 병합기, 갈래는 분류기 (2026-09-17 · 구 <c>bool merger</c> 폐기).
+            ///
+            /// 📌 **bool 을 하나 더 붙이지 않고 갈래를 늘렸다.** `merger` 옆에 `sorter` 를
+            /// 두면 그 둘을 안 보는 옛 코드가 **분류기를 직선 벨트로 조용히 놓는다.**
+            /// 종류를 값으로 바꾸면 안 고친 자리가 **컴파일에서** 걸린다.
+            /// </summary>
+            public BeltElementKind element;
+
+            public bool merger => element == BeltElementKind.Merger;
+
+            public Run(int x, int y, PortFace inFace, PortFace outFace,
+                BeltElementKind element = BeltElementKind.Straight)
             {
                 cell = new Vector2Int(x, y);
                 this.inFace = inFace;
                 this.outFace = outFace;
-                this.merger = merger;
+                this.element = element;
             }
 
             public static Run Merger(int x, int y) =>
-                new Run(x, y, PortFace.West, PortFace.East, merger: true);
+                new Run(x, y, PortFace.West, PortFace.East, BeltElementKind.Merger);
+
+            /// <summary>
+            /// 분류기 한 대. **면은 적어도 남지 않는다** — <see cref="BeltAutoOrient"/> 가
+            /// 입력면을 이웃에서 다시 잡고 나머지 셋을 출력면으로 만든다.
+            /// ⚠️ 그래서 **분류기는 내보내는 노드에 딱 붙여야 한다**(2026-09-17 실측).
+            /// </summary>
+            public static Run Sorter(int x, int y) =>
+                new Run(x, y, PortFace.West, PortFace.East, BeltElementKind.Sorter);
         }
 
         /// <summary>
@@ -101,6 +139,9 @@ namespace MBI.Core
         public const string ProcId = "proc";
         public const string MuniId = "muni";
         public const string EnergyId = "ener";
+
+        /// <summary>부스터 노드 자산 id (2026-09-17 · 추진제 줄과 함께 배포에 들어왔다).</summary>
+        public const string BoosterId = "boost";
 
         // ────────────────────────────────────────────────────────────────────
         //  네 줄 배치 (2026-09-11 · `260911_W01` 2장 값 3)
@@ -142,6 +183,16 @@ namespace MBI.Core
         /// ⚠️ **이제 군수는 넷 다 놓여 있다** — 비우는 것이 노드가 아니게 됐으므로.
         /// </summary>
         public static readonly Vector2Int EmptySlot = new Vector2Int(6, 5);
+
+        /// <summary>
+        /// **마운트 바로 앞 칸** (2026-09-17 신설).
+        ///
+        /// ⚠️⚠️ **자리 번호로 짚지 않는다.** 시험 둘이 `Belts[Count - 2]` 로 이 칸을
+        /// 가리키고 있었는데, 09-17 에 추진제 줄을 **뒤에 붙이자** 그 번호가 엉뚱한 칸을
+        /// 가리켰다(추진제 벨트를 끊고 「마운트 도착이 0 이 아니다」로 빨개졌다).
+        /// 목록의 차례는 배치의 뜻이 아니다 — 뜻이 있는 칸은 이름을 준다.
+        /// </summary>
+        public static readonly Vector2Int MountApproach = new Vector2Int(1, 5);
 
         /// <summary>
         /// 빈 칸을 채우는 것 — **운반로 직선 벨트 한 칸**(동 → 서).
@@ -196,6 +247,28 @@ namespace MBI.Core
             new Slot(3, 2, EnergyId),
             new Slot(4, 2, EnergyId),
             new Slot(5, 2, EnergyId),
+
+            // ── 추진제 줄 + 부스터 둘 (2026-09-17 사용자 확정 · `260917_W03` 3장) ──
+            //
+            // 회피는 **자동**이고(전투 문서「회피」) 스택은 부스터가 든다. 시작 보드에
+            // 부스터가 없으면 회피가 **한 번도 안 난다** — 그래서 튜토리얼에 회피 수업을
+            // 두지 않고 줄을 이어 둔 채로 시작한다.
+            //
+            // ⚠️ 자리는 **구현 판단**이다(`260917_V01` 2-1 · 설계 역기입 자리).
+            //    코어의 **북면**을 쓴다 — 시작 보드가 넷 중 동·남 둘만 쓰므로 북이 비어 있다.
+            //    폐기된 북 줄 자리(5,9)~(7,9)를 되쓰고 어깨L 로 나간다.
+            //
+            //      y=10                                      부스터(9,10) ← 남면(회전 3)
+            //      y=9   벨(5,9)→ 가공(6,9)→ 벨(7,9)→ 군수(8,9)→ 분류기(9,9)→ 부스터(10,9)
+            //
+            // ⚠️ **분류기(9,9)는 군수 노드에 딱 붙어 있어야 한다.** `BeltAutoOrient` 가
+            //    입력면을 이웃에서 다시 잡는데, 노드를 먼저 보고 없으면 **면 차례대로
+            //    아무 벨트나** 고른다. 사이에 벨트를 한 칸 두었더니 북쪽 벨트가 입력면으로
+            //    뽑혀 추진제가 거꾸로 흘렀다(2026-09-17 실측 · 부스터가 집계에 0 대).
+            new Slot(6, 9, ProcId, AmmoKind.Pierce, RecipeKind.PowerMaterial),
+            new Slot(8, 9, MuniId, AmmoKind.Pierce, RecipeKind.Propellant),
+            new Slot(10, 9, BoosterId),
+            new Slot(9, 10, BoosterId, AmmoKind.Pierce, RecipeKind.None, rotation: 3),
         };
 
         /// <summary>
@@ -224,7 +297,7 @@ namespace MBI.Core
             // ⚠️ **병합기에서 곧은 벨트로 내렸다** — 북 줄이 빠져 **들어오는 것이 하나**다.
             // 입력이 하나인데 병합기를 두면 「무언가 더 들어올 자리」로 읽힌다.
             new Run(8, 8, PortFace.West, PortFace.South),   // 동 줄(서) + 북 줄(북)
-            new Run(8, 7, PortFace.North, PortFace.South, merger: true),   // 남 줄(서) + 위(북)
+            new Run(8, 7, PortFace.North, PortFace.South, BeltElementKind.Merger),   // 남 줄(서) + 위(북)
             new Run(8, 6, PortFace.North, PortFace.South),
             new Run(8, 5, PortFace.North, PortFace.West),
 
@@ -248,7 +321,74 @@ namespace MBI.Core
             new Run(1, 6, PortFace.East, PortFace.South),   // 코너
             new Run(1, 5, PortFace.North, PortFace.South),
             new Run(1, 4, PortFace.North, PortFace.South),  // 남쪽 면이 마운트 고정 포트다
+
+            // ── 추진제 줄 (2026-09-17) — 코어 북면에서 어깨L 로 ──
+            new Run(5, 9, PortFace.South, PortFace.East),
+            new Run(7, 9, PortFace.West, PortFace.East),
+            Run.Sorter(9, 9),
         };
+
+        /// <summary>
+        /// **놓는 문 하나** (2026-09-17 신설).
+        ///
+        /// ⚠️⚠️ **왜 모았나.** 이 배치를 각자 놓는 자리가 **열두 곳**이었다. 조합표가
+        /// 자리에 들어오면서(추진제 줄) **한 곳만 안 고르면 그 판은 추진제를 한 개도
+        /// 안 내고 회피가 0 이 된다** — 에러도 경고도 없이. 지침 §7 의
+        /// 「한 값이 두 곳에 살면 답이 둘이 된다」가 배치에도 그대로 걸린다.
+        ///
+        /// ⚠️ **튜토리얼이 비워 둔 칸은 안 채운다**(<see cref="FillsEmptySlot"/>) —
+        /// 그 칸을 채우는 것은 플레이어의 수업이다. 채워야 하는 쪽이 따로 부른다.
+        /// ⚠️ **면 풀기(`BeltAutoOrient` → `BeltFlow`)도 부르는 쪽 몫이다** —
+        /// 여기서 부르면 뒤에 더 놓는 판이 두 번 풀게 된다.
+        /// </summary>
+        /// <param name="nodeById">노드 자산을 대는 손. 못 대면 그 칸은 비고 수에 안 든다.</param>
+        /// <returns>실제로 놓인 노드 수. 자리 수와 다르면 무언가 못 섰다.</returns>
+        public static int Apply(BoardGrid grid, System.Func<string, NodeDefinition> nodeById)
+        {
+            if (grid == null || nodeById == null) return 0;
+
+            int placed = 0;
+            foreach (Slot slot in Nodes)
+            {
+                NodeDefinition def = nodeById(slot.nodeId);
+                if (def == null) continue;
+                if (!grid.TryPlace(slot.cell, def, out NodeInstance node)) continue;
+
+                node.AmmoKind = slot.ammo;
+                node.Rotation = slot.rotation;
+                if (slot.recipe != RecipeKind.None) node.SelectRecipe(slot.recipe);
+                placed++;
+            }
+
+            foreach (Run run in Belts) Place(grid, run);
+            return placed;
+        }
+
+        /// <summary>배선 한 칸. 병합기·분류기는 받는 면이 여럿이라 따로 간다.</summary>
+        public static void Place(BoardGrid grid, Run run)
+        {
+            if (grid == null) return;
+
+            switch (run.element)
+            {
+                case BeltElementKind.Merger:
+                    grid.TryPlaceBeltElement(run.cell, BeltElementKind.Merger,
+                        MergerInFaces(run.outFace), new[] { run.outFace }, FlowKind.None, out _);
+                    break;
+
+                case BeltElementKind.Sorter:
+                    // 면은 `BeltAutoOrient` 가 다시 잡는다 — 여기 적는 것은 놓기 위한 초기값이다.
+                    grid.TryPlaceBeltElement(run.cell, BeltElementKind.Sorter,
+                        new[] { run.inFace },
+                        new[] { PortFace.North, PortFace.East, PortFace.South },
+                        FlowKind.None, out _);
+                    break;
+
+                default:
+                    grid.TryPlaceBelt(run.cell, run.inFace, run.outFace, FlowKind.None, out _);
+                    break;
+            }
+        }
 
         /// <summary>
         /// 이 시작 보드의 **세대 표식** — 내용에서 뽑은 해시 (2026-09-16 사용자 결정 §74-9).
@@ -273,11 +413,15 @@ namespace MBI.Core
                 //    종전에는 여기에 FNV-1a 를 직접 적어 두었는데, 시작 보드가 둘이 되면서
                 //    B 도 같은 셈이 필요해졌다. 두 곳에 적으면 한쪽만 고쳐진다(지침 §7).
                 //
-                // ⚠️ **A 는 조합표를 안 싣는다** — 이 판은 조합표를 안 고르고,
-                //    비워 두어야 이 개정 때문에 **A 의 표식이 안 바뀐다**(A 저장 보존).
+                // ⚠️⚠️ **2026-09-17 부터 A 도 조합표를 섞는다.** 추진제 줄이 들어오면서
+                //    이 판에도 조합표로만 갈리는 노드가 생겼다(가공 = 발전재료 ·
+                //    기초 군수 = 추진제). 안 섞으면 조합표를 바꿔도 표식이 그대로여서
+                //    바뀐 판 위에 옛 저장이 올라온다.
+                //    🗑️ 구 규칙 「A 는 조합표를 안 싣는다(A 저장 보존)」는 폐기 — 오늘
+                //    배치 자체가 바뀌어 **어차피 A 저장도 한 번 버려진다**(사용자 감수).
                 var keys = new List<BoardGeneration.NodeKey>(Nodes.Count);
                 foreach (Slot n in Nodes)
-                    keys.Add(new BoardGeneration.NodeKey(n.cell, n.nodeId));
+                    keys.Add(new BoardGeneration.NodeKey(n.cell, n.nodeId, n.recipe));
 
                 _generation = BoardGeneration.Of(
                     PartLayout.Columns, PartLayout.Rows, keys, Belts);
