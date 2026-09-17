@@ -97,6 +97,12 @@ namespace MBI.Editor
                 tuning.hitStandardFrames  = LoadVfxFrames("vfx_hit_standard");
                 tuning.hitPierceFrames    = LoadVfxFrames("vfx_hit_pierce");
                 tuning.hitExplosiveFrames = LoadVfxFrames("vfx_hit_explosive");
+
+                // 광역형 드론 범위 고리 (2026-09-18 아트 설치 · 사용자 승인).
+                // ⚠️ **그림만 걸린다 — 켜는 것은 따로다.** 고리를 그리는 크기가 곧 판정 반경인데
+                //    그 값이 아직 없어(설계 `0918_W01` 대기) 지금은 드론 사거리를 쓰고 있다.
+                //    그래서 `droneAoeRingOn` 은 **꺼 둔 채**다 — 09-17 판단 그대로.
+                tuning.droneAoeSprite = LoadVfx("vfx_drone_aoe");
             }
 
             // 전투 배경 둘 (2026-09-09 배선). 보스 배경은 **S6에서만** 쓰인다 —

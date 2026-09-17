@@ -44,6 +44,7 @@ namespace MBI.Tests
             (NodeType.Energy, "node_energy"),
             (NodeType.Storage, "node_storage"),
             (NodeType.Booster, "node_booster"),
+            (NodeType.Shield, "node_shield"),   // 2026-09-18 설치
         };
 
         private static readonly (FlowKind kind, string file)[] ItemFiles =
@@ -241,12 +242,15 @@ namespace MBI.Tests
         }
 
         [Test]
-        public void ShieldNode_HasNoArt_AndThatIsCorrect()
+        public void ShieldNode_HasArtNow()
         {
-            // 쉴드는 스텁이다(NodeDefinition.implemented=false). 그림이 없는 것이 맞고,
-            // 나중에 누가 채워 넣으면 **구현 안 된 노드가 보드에 그려진다.**
+            // 🗑️ 구 시험 「쉴드는 그림이 없는 것이 맞다」 폐기(2026-09-18).
+            // 그때는 쉴드가 스텁이라 **구현 안 된 노드가 보드에 그려지는 것**을 막는 자리였다.
+            // 09-17 에 쉴드가 값까지 서서 배포 보드에 들어갔고, 09-18 에 그림이 왔다 —
+            // 이제는 **비어 있는 쪽이 사고**다(보드에 색 사각이 남는다).
             BoardArtSet art = Build();
-            Assert.IsNull(art.NodeSprite(NodeType.Shield));
+            Assert.IsNotNull(art.NodeSprite(NodeType.Shield),
+                "쉴드 노드 그림이 안 붙었다 — 보드에 색 사각이 남는다");
         }
     }
 }

@@ -1691,9 +1691,11 @@ namespace MBI.Combat
             // 📌 그리는 반경은 **판정이 실제로 쓴 수**다(`aoeJudgeRadius`).
             if (s.aoeJudgeRadius > 0f)
             {
-                Sprite ring = tuning.droneAoeSprite != null
-                    ? tuning.droneAoeSprite
-                    : tuning.droneAoeRingPlaceholder ? PlaceholderSprite.Ring() : null;
+                // ⚠️⚠️ **스위치가 먼저다.** 2026-09-18 에 아트가 들어오면서 그림이 채워졌는데,
+                //    구 순서(그림이 있으면 그린다)로 두면 **스위치를 안 거치고 켜졌다** —
+                //    크기를 정할 판정 반경 값이 아직 없어 반경 9.2 짜리 고리가 떴을 것이다.
+                Sprite ring = !tuning.droneAoeRingOn ? null
+                    : tuning.droneAoeSprite != null ? tuning.droneAoeSprite : PlaceholderSprite.Ring();
 
                 if (ring != null)
                 {

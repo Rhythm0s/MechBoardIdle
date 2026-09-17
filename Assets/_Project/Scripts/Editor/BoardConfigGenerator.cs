@@ -74,7 +74,10 @@ namespace MBI.Editor
             AddNode(art, NodeType.Energy, "node_energy");
             AddNode(art, NodeType.Storage, "node_storage");
             AddNode(art, NodeType.Booster, "node_booster");
-            // 쉴드(NodeType.Shield)는 스텁이라 그림이 없다 — 자리도 두지 않는다.
+            // 쉴드 발생 — 2026-09-18 아트 설치(사용자 승인 · `node_shield`).
+            // 🗑️ 구 「스텁이라 그림이 없다 — 자리도 두지 않는다」 폐기 — 09-17 에 쉴드가
+            //    배포 보드에 들어갔고 09-18 에 그림이 왔다.
+            AddNode(art, NodeType.Shield, "node_shield");
 
             art.beltStraight = LoadBoard("belt_straight");
             art.beltCorner = LoadBoard("belt_corner");
