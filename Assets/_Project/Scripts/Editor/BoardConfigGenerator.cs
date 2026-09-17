@@ -78,7 +78,8 @@ namespace MBI.Editor
 
             art.beltStraight = LoadBoard("belt_straight");
             art.beltCorner = LoadBoard("belt_corner");
-            art.beltEnd = LoadBoard("belt_end");
+            // 🗑️ 구 `art.beltEnd = LoadBoard("belt_end")` 폐기(2026-09-06 사용자 확정) —
+            //    담기만 하고 그리는 코드가 0건이었다.
             art.merger = LoadBoard("merger");
             art.sorter = LoadBoard("sorter");
 

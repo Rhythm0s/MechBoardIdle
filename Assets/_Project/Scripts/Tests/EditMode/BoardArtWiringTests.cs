@@ -130,7 +130,8 @@ namespace MBI.Tests
             {
                 { "belt_straight", art.beltStraight },
                 { "belt_corner", art.beltCorner },
-                { "belt_end", art.beltEnd },
+                // 🗑️ `belt_end` 폐기(2026-09-06 사용자 확정) — 칸을 걷었으므로 여기서도 뺀다.
+                //    ⚠️ 파일이 디스크에 남아 있어도 이 시험은 이제 그 파일을 안 본다.
                 { "merger", art.merger },
                 { "sorter", art.sorter },
                 { "port_input", art.portInput },

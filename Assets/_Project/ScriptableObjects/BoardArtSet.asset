@@ -29,7 +29,6 @@ MonoBehaviour:
     sprite: {fileID: 21300000, guid: 1f921c919117ce84582625cb698c3b8c, type: 3}
   beltStraight: {fileID: 21300000, guid: f8f51972309f92c4eb7db7581377aef1, type: 3}
   beltCorner: {fileID: 21300000, guid: 196a4e5713c6a96408e2fd16b7d3b960, type: 3}
-  beltEnd: {fileID: 21300000, guid: 7e3a4fb0117230344aa8c6965ec7dd38, type: 3}
   merger: {fileID: 21300000, guid: a6406c5bdb1684f43acd1c772da38e70, type: 3}
   sorter: {fileID: 21300000, guid: 107692b63dcb1dd4f9e653f8d9b755aa, type: 3}
   portArrow: {fileID: 21300000, guid: 07d63dd4fd330c54c92268374311a320, type: 3}

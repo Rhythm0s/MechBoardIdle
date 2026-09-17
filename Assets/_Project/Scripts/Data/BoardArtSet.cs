@@ -71,8 +71,10 @@ namespace MBI.Data
         [Header("벨트 부속")]
         public Sprite beltStraight;
         public Sprite beltCorner;
-        [Tooltip("끝단 — 이어지지 않은 벨트의 마지막 칸.")]
-        public Sprite beltEnd;
+        // 🗑️ **폐기 — 2026-09-06 사용자 확정.** `beltEnd`(끝단 그림)를 걷었다.
+        //    ⚠️ **칸만 있고 그리는 코드가 0건**이었다 — 자산을 읽어 담기만 하고 아무도 안 썼다.
+        //    끝단은 **곧은 벨트 그대로** 그린다(이어지지 않은 칸을 따로 표시하지 않는다).
+        //    재생성 금지 · 파일은 `Art/candidates` 로 (아트 몫).
         public Sprite merger;
         public Sprite sorter;
 
@@ -212,14 +214,14 @@ namespace MBI.Data
             }
         }
 
-        /// <summary>채워진 부속(벨트 다섯 · 포트 넷) 수.</summary>
+        /// <summary>채워진 부속(벨트 **넷** · 포트 넷) 수. 🗑️ 구 「벨트 다섯」은 끝단을 세던 수다.</summary>
         public int FilledPartCount
         {
             get
             {
                 Sprite[] parts =
                 {
-                    beltStraight, beltCorner, beltEnd, merger, sorter,
+                    beltStraight, beltCorner, merger, sorter,
                     portInput, portOutput, portPower, mountPort,
                 };
                 int n = 0;
