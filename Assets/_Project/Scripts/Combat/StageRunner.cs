@@ -2611,13 +2611,11 @@ namespace MBI.Combat
         private string ReqBadge()
         {
             float power = LogisticsOutputBridge.Output * _mountCoef;
-            switch (StageRequirement.Evaluate(stage.reqType, stage.req, stage.reqBand, power))
-            {
-                case ReqStatus.Below: return $"  [부족 {power:F0}]";
-                case ReqStatus.Met: return $"  [충족 {power:F0}]";
-                case ReqStatus.AboveBand: return $"  [밴드 초과 {power:F0}]";
-                default: return "";
-            }
+
+            // 🗑️ 구 꼴 「[부족 18]」 폐기 (2026-09-17 · 사용자 육안) — 괄호 안 수가
+            //    「모자란 양」으로 읽혔고, 반올림까지 겹쳐 「요구 18 · 부족 18」이 떴다.
+            //    문구는 `StageRequirement.Badge` 하나가 낸다(시험이 그것을 본다).
+            return StageRequirement.Badge(stage.reqType, stage.req, stage.reqBand, power);
         }
 
         private string ResultText()

@@ -24,6 +24,40 @@ namespace MBI.Core
     /// </summary>
     public static class StageRequirement
     {
+        /// <summary>
+        /// 배지 문구 (2026-09-17 · 사용자 육안 · 화면이 「요구 18 [부족 18]」로 떴다).
+        ///
+        /// ⚠️⚠️ **괄호 안의 수는 「모자란 양」이 아니라 「지금 전투력」이다.**
+        /// 그런데 **「충족 20」은 「20 으로 충족」으로 읽히고 「부족 18」은 「18 만큼 모자라다」로
+        /// 읽힌다** — 같은 자리의 수가 두 가지로 읽히는 자리였다.
+        ///
+        /// ⚠️ 거기에 **반올림이 모순을 얹었다.** 전투력 17.6 을 정수로 찍으면
+        /// 「요구 18 · 부족 18」이 되어 **화면이 스스로 모순돼 보인다.** 판정은 맞았다 —
+        /// 17.6 &lt; 18 이므로 부족이 옳다. 틀린 것은 **읽히는 방식**이었다.
+        ///
+        /// 📌 그래서 **지금 값과 요구치를 나란히** 찍고 **소수 한 자리**로 낸다.
+        /// 「무엇이 얼마인지」를 화면이 스스로 말하게 하는 것이지, 판정을 바꾼 것이 아니다.
+        /// ⚠️ 자릿수와 꼴은 **구현 판단**이다(설계 역기입 자리 · UI 문서에 배지 서식 절이 없다).
+        /// </summary>
+        public static string Badge(StageReqType type, float req, Vector2 band, float power)
+        {
+            switch (Evaluate(type, req, band, power))
+            {
+                case ReqStatus.Below:
+                    return $"  [부족 {power:F1} / {Target(type, req, band):F1}]";
+                case ReqStatus.Met:
+                    return $"  [충족 {power:F1} / {Target(type, req, band):F1}]";
+                case ReqStatus.AboveBand:
+                    return $"  [밴드 초과 {power:F1} / {band.y:F1}]";
+                default:
+                    return string.Empty;
+            }
+        }
+
+        /// <summary>견주는 대상 — 고정치면 그 값, 밴드면 하단이다.</summary>
+        private static float Target(StageReqType type, float req, Vector2 band)
+            => type == StageReqType.Band ? band.x : req;
+
         public static ReqStatus Evaluate(StageReqType type, float req, Vector2 band, float power)
         {
             switch (type)
