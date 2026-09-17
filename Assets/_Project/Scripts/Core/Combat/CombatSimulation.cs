@@ -775,7 +775,8 @@ namespace MBI.Core
         /// 교대 프레임에 1회 · **표적이 하나도 없으면 발동 보류**
         /// (false를 주면 마운트도 안 비워진다).
         ///
-        /// 피해 = 적재량 × 평균 발당피해(<see cref="GrandEntrance.Damage"/> 확정식).
+        /// **총** 피해 = 적재량 × 평균 발당피해(<see cref="GrandEntrance.Damage"/> 확정식)이고,
+        /// **표적마다 총 ÷ 표적 수**를 받는다 (2026-09-18 사용자 확정). 총은 표적이 늘어도 고정이다.
         /// 평균은 **마운트에 실린 것들로 가중**한다 — 실린 물건 하나가 타격 하나이고,
         /// 그 물건의 발당피해를 판정식에 태우는 것은 드론이 자기 충전량으로 때리는 것과 같은 규칙이다.
         /// </summary>
@@ -797,16 +798,19 @@ namespace MBI.Core
                 if (e.IsAlive && IsOnScreen(e)) _tagSkillTargets.Add(e);
             if (_tagSkillTargets.Count == 0) return false; // 재고는 만재로 남는다
 
-            // ⚠️ **가정 하나 — 「전부에 같은 피해」로 둔다** (260908_V05 판정 요청).
-            // W04 2-1 문안이 「적 전부를 친다」까지만 정하고 나누는지를 안 정했다.
-            // 판정식·공식은 그대로이며 표적 수만 늘어난다. 나누는 쪽으로 답이 오면
-            // 아래 한 줄(피해를 표적 수로 나눔)만 넣으면 된다 — 되돌릴 수 있는 크기다.
+            // ✅ **피해는 표적 수로 나눈다** (2026-09-18 사용자 확정 · `260917_W09` 3장 4번).
+            // **총 피해(적재량 × 평균 발당피해)가 고정**이고, 표적마다 그 총을 수로 나눈 몫을 받는다.
+            // 종전 가정은 「전부에 같은 값」이어서 적이 늘수록 총 피해가 함께 불어났다 —
+            // 적이 많을수록 세지는 스킬은 광역의 대가가 없다.
+            // ⚠️ 나눗셈은 **표적별 판정식 뒤**에 건다. 방어력이 표적마다 다르므로
+            //    총을 먼저 나눠 넣으면 방어 계산이 나눈 값을 밟는다.
+            int targetCount = _tagSkillTargets.Count;
             float dealt = 0f;
             bool anyHit = false;
             foreach (CombatEntity target in _tagSkillTargets)
             {
                 float avg = AverageDamagePerItem(side, target, loadedRounds);
-                float damage = GrandEntrance.Damage(true, loadedRounds, avg);
+                float damage = GrandEntrance.Damage(true, loadedRounds, avg) / targetCount;
                 if (damage <= 0f) continue;
 
                 target.hp -= damage;

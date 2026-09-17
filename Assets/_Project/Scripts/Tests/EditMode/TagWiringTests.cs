@@ -268,6 +268,81 @@ namespace MBI.Tests
             Assert.Greater(perTarget, 0f, "스킬이 실제로 들어갔다");
         }
 
+        // ---- 피해를 표적 수로 나눈다 (2026-09-18 사용자 확정 · 260917_W09 3장 4번) ----
+
+        /// <summary>제자리에 선 표적 n 체 — 방어 0 · 반격 없음.</summary>
+        private static List<EnemySpawn> Dummies(int count)
+        {
+            var list = new List<EnemySpawn>();
+            for (int i = 0; i < count; i++)
+                list.Add(new EnemySpawn { label = "표적", hp = 1000000f, def = 0f, atk = 0f,
+                    moveSpeed = 0f, attackRange = 0.5f, attackInterval = 1f });
+            return list;
+        }
+
+        /// <summary>
+        /// 평상시 사격이 **닿지 않는** 로봇 — 사거리 0.
+        /// 태그 스킬만 적을 때리므로 HP 감소분이 곧 스킬 몫이다.
+        /// </summary>
+        private static RobotSetup SkillOnlyRobot() => new RobotSetup
+        {
+            hp = 100000f, mountCoef = 1f, moduleMult = 1f,
+            attackRange = 0f, radius = 0f,
+            multiShotCount = 1, aoeRadius = 0f, aoeSplashFactor = 1f,
+            lines = new List<AmmoLine> { new AmmoLine(AmmoKind.Pierce, 20f, 1f) },
+            ammoCapacity = 40f,
+            droneSlots = 0, droneReleaseRate = 0f, droneCharge = 0f, droneAttackRange = 0f,
+        };
+
+        /// <summary>표적 n 체를 세우고 태그 스킬을 한 번 터뜨린다. 표적들의 HP 감소분을 준다.</summary>
+        private static float[] SkillDrops(int targets, out float reported)
+        {
+            var mountA = new MountLoad(1, Stacks());
+            var mountB = new MountLoad(1, Stacks());
+            var sim = new CombatSimulation(SkillOnlyRobot(), SkillOnlyRobot(), mountA, mountB,
+                Dummies(targets), arenaRadius: 6f, challengeTime: 120f, spawnCadence: 0f);
+
+            mountA.Load(MountItem.Pierce, 5f); // 소진 트리거를 막아 만충 경로를 본다
+            sim.AmmoSupplyRate = 0f;
+            sim.StandbyAmmoSupplyRate = 20f;
+
+            Run(sim, 2f);
+
+            Assert.IsTrue(sim.Tag.LastTagFiredSkill, "시험 전제가 깨졌다 — 스킬이 안 나갔다");
+            reported = sim.LastTagSkillDamage;
+
+            var drops = new float[sim.Enemies.Count];
+            for (int i = 0; i < drops.Length; i++) drops[i] = 1000000f - sim.Enemies[i].hp;
+            return drops;
+        }
+
+        /// <summary>
+        /// **총 피해는 표적 수와 무관하게 고정이고, 표적마다 총 ÷ 표적 수를 받는다**
+        /// (2026-09-18 사용자 확정 · `260917_W09` 3장 4번).
+        ///
+        /// 종전 가정은 「전부에 같은 값」이어서 **적이 많을수록 총 피해가 불어났다** —
+        /// 광역인데 대가가 없었다. 여기서 재는 것이 그 대가다.
+        /// </summary>
+        [Test]
+        public void TagSkill_SplitsDamageAmongTargets()
+        {
+            float[] one = SkillDrops(1, out float totalOne);
+            float[] two = SkillDrops(2, out float totalTwo);
+
+            Assert.Greater(totalOne, 0f, "시험 전제가 깨졌다 — 피해가 0이다");
+
+            // ① 표적 하나면 전량이다.
+            Assert.AreEqual(totalOne, one[0], 0.5f, "표적이 하나인데 전량이 안 들어갔다");
+
+            // ② 표적 둘이면 각 절반이다.
+            Assert.AreEqual(totalOne / 2f, two[0], 0.5f, "첫 표적이 절반을 안 받았다");
+            Assert.AreEqual(totalOne / 2f, two[1], 0.5f, "둘째 표적이 절반을 안 받았다");
+
+            // ③ 총은 고정이다 — 적이 늘었다고 스킬이 세지지 않는다.
+            Assert.AreEqual(totalOne, totalTwo, 0.5f, "표적이 늘자 총 피해가 함께 늘었다");
+            Assert.AreEqual(totalTwo, two[0] + two[1], 0.5f, "보고값이 실제 합과 갈렸다");
+        }
+
         /// <summary>
         /// **화면 밖의 적은 안 맞는다** (2026-09-08 · `260908_W05` 2-2).
         ///
