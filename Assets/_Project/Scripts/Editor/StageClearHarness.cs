@@ -84,9 +84,15 @@ namespace MBI.EditorTools
         public static string Run(string stageId) => Run(stageId, preloadMount: true);
 
         public static string Run(string stageId, bool preloadMount)
+            => Run(stageId, preloadMount, withBoosters: false);
+
+        public static string Run(string stageId, bool preloadMount, bool withBoosters)
         {
             var sb = new StringBuilder();
-            sb.AppendLine($"=== 스테이지 {stageId} 클리어 하네스 (2026-09-16) ===");
+            sb.AppendLine($"=== 스테이지 {stageId} 클리어 하네스 (2026-09-17) ===");
+            sb.AppendLine(withBoosters
+                ? "[판] **나** — A 시작 보드 + 부스터 둘 + 추진제 줄(하네스 전용)"
+                : "[판] **가** — 현행 A 시작 보드");
             sb.AppendLine(preloadMount
                 ? "[시작 조건] **튜토리얼 종료** — 마운트 적재 참(정상 경로) · 창고 빈손"
                 : "[시작 조건] **심사자 S1 점프** — 빈 칸 자동 채움 · 창고·마운트 **빈손**");
@@ -107,7 +113,8 @@ namespace MBI.EditorTools
                 catalog.Add(AssetDatabase.LoadAssetAtPath<EnemyDefinition>(AssetDatabase.GUIDToAssetPath(guid)));
 
             // ── 판 세우기 ──────────────────────────────────────────────────
-            BoardGrid grid = Board();
+            BoardGrid grid = Board(withBoosters, out string boosterNote);
+            if (boosterNote != null) sb.AppendLine("  " + boosterNote);
             var flow = new BeltItemFlow();
             flow.Rebuild(grid);
             var delivery = new MountDelivery();
@@ -271,6 +278,16 @@ namespace MBI.EditorTools
             float peakStore = 0f, peakMount = 0f, mountSum = 0f;
             int mountSamples = 0;
 
+            // ── 회피 축 (2026-09-17 · `260917_W02` 2-2) ────────────────────
+            //
+            // **회피 스택 최고** = 이 판에서 그릇에 가장 많이 담겼던 수. 상한은 대수 × 2 다.
+            // **추진제 소진 틱 비율** = 부스터가 있는데 **스택이 0 인** 틱 ÷ 전체 틱.
+            //   ⚠️ 부스터가 없는 판(가)에서는 뜻이 없어 **안 센다** — 0/0 을 0% 로 적으면
+            //   「소진이 없었다」로 읽혀 거짓말이 된다.
+            int peakDodgeStacks = 0;
+            int tickDodgeEmpty = 0;
+            int tickDodgeCountable = 0;
+
             var roll = new RollingWindow(1, ProviderRollingSeconds);
             var sample = new float[1];
             float peakRolled = 0f;
@@ -336,6 +353,15 @@ namespace MBI.EditorTools
                 else if (!sim.AimDirection.HasValue) tickNoTarget++;
                 else if (mount.Total <= 0f) tickNoAmmo++;
                 else tickGated++;
+
+                // 회피 — **틱마다 본다.** 끝에서 한 번 보면 마지막 값만 남는다.
+                DodgeSystem dodge = sim.Dodge;
+                if (dodge.Stacks > peakDodgeStacks) peakDodgeStacks = dodge.Stacks;
+                if (dodge.Capacity > 0)
+                {
+                    tickDodgeCountable++;
+                    if (dodge.Stacks <= 0) tickDodgeEmpty++;
+                }
 
                 if (sim.AmmoStock > peakStore) peakStore = sim.AmmoStock;
                 if (mount.Total > peakMount) peakMount = mount.Total;
@@ -419,6 +445,23 @@ namespace MBI.EditorTools
                 ? $"  첫 발사 {firstShotAt:F1}초"
                 : "  첫 발사 **없음**");
 
+            sb.AppendLine();
+            sb.AppendLine("[회피 축 — `260917_W02` 2-2]");
+            sb.AppendLine($"  부스터 {agg.boosterCount} 대 · 회피 스택 상한 {sim.Dodge.Capacity}"
+                          + $" · 추진제 유입 {agg.propellantProduce:F4} 개/초");
+            sb.AppendLine($"  **자동 회피 발동 {sim.Dodge.TotalDodges} 회**"
+                          + "  ← 측정법: `DodgeSystem.TotalDodges`(발동할 때마다 1 증가) 를 판 끝에서 읽는다");
+            sb.AppendLine($"  회피 스택 최고 {peakDodgeStacks}"
+                          + "  ← 측정법: 매 틱 `Dodge.Stacks` 를 보고 그중 최대");
+            sb.AppendLine(tickDodgeCountable > 0
+                ? $"  추진제 소진 틱 {tickDodgeEmpty}/{tickDodgeCountable}"
+                  + $" ({tickDodgeEmpty * 100f / tickDodgeCountable:F1}%)"
+                  + "  ← 측정법: 부스터가 있는 틱 중 `Stacks == 0` 인 틱의 비율"
+                : "  추진제 소진 틱 **못 잰다** — 부스터가 0 대라 그릇 자체가 없다");
+            sb.AppendLine($"  **전력 효율 {throttle.power:F3}** (공급 {agg.powerSupply:F0}"
+                          + $" · 수요 {agg.powerDraw:F1})"
+                          + "  ← 측정법: `LogisticsSimulation.Throttles` 의 `power` = min(1, 공급/수요)");
+
             sb.AppendLine($"  마운트 최고 도착률 {peakArrival:F2} 발/초");
             sb.AppendLine($"  재배분 {reallocs} 회 — 0 이면 라인이 시작값(빈 줄)으로 굳은 것이다");
 
@@ -469,6 +512,123 @@ namespace MBI.EditorTools
             return sb.ToString();
         }
 
+        /// <summary>
+        /// 【판 다】 **B 보드만 120초 가동** — 전투 없음 (`260917_W02` 2-2).
+        ///
+        /// ⚠️ S1 은 로봇 A 만 싸우므로 이 판은 S1 결과에 **안 들어간다.** 재는 것은
+        /// 「**부스터 줄이 B 드론 라인을 얼마나 깎는가**」 하나다.
+        ///
+        /// 📌 **현행 116 과 같은 방법으로 잰다** — `BoardItemTick.Step` 을 0.05 초씩 120 초,
+        /// `PendingMountArrivals` 의 수를 센다(`StartingBoardBTests` 와 같은 문).
+        /// 배율은 **둘 다 낸다**: 116 과 견주려면 그쪽과 같은 **1.0** 이어야 하고,
+        /// 전력이 실제로 어떤지는 **실제 배율**이 말한다. 하나만 적으면 둘 중 하나가 거짓이 된다.
+        /// </summary>
+        public static string RunBoardB(bool withBoosters)
+        {
+            const float Seconds = 120f;
+            var sb = new StringBuilder();
+            sb.AppendLine("=== 판 " + (withBoosters ? "다" : "다-기준")
+                          + " · B 보드 120초 가동 (전투 없음) ===");
+
+            BoardGrid grid = BoardB(withBoosters, out string boosterNote);
+            if (boosterNote != null) sb.AppendLine("  " + boosterNote);
+
+            var config = AssetDatabase.LoadAssetAtPath<LogisticsConfig>($"{SoRoot}/LogisticsConfig.asset");
+            ICollection<Vector2Int> connected = LogisticsReach.ConnectedNodes(grid);
+            WorkloadRate.Result work = WorkloadRate.Compute(grid, connected, null);
+            NetworkAggregate agg = LogisticsNetwork.Aggregate(grid, connected, work);
+            ProductionThrottle throttle = LogisticsSimulation.Throttles(
+                agg.powerSupply, agg.powerDraw,
+                agg.heatGenerate, config != null ? config.moduleCoolingTbd : 0f,
+                config != null ? config.heatThreshold : 12f);
+
+            sb.AppendLine($"  이어진 노드 {connected.Count} · 부스터 {agg.boosterCount} 대"
+                          + $" · 추진제 {agg.propellantProduce:F4} 개/초"
+                          + $" · 누적형 드론 {agg.droneStackProduce:F3} 기/초");
+            sb.AppendLine($"  **전력 효율 {throttle.power:F3}** (공급 {agg.powerSupply:F0}"
+                          + $" · 수요 {agg.powerDraw:F1})");
+
+            // 도착 — 두 배율로 각각 센다. 판을 새로 세워야 한다(앞 판의 버퍼가 남는다).
+            int arrivedUnit = CountArrivals(withBoosters, 1f, Seconds);
+            int arrivedReal = Mathf.Approximately(throttle.Scale, 1f)
+                ? arrivedUnit : CountArrivals(withBoosters, throttle.Scale, Seconds);
+
+            sb.AppendLine($"  **드론 도착 {arrivedUnit} 기**(배율 1.0 · 현행 116 과 같은 잣대)");
+            sb.AppendLine($"  드론 도착 {arrivedReal} 기(실제 배율 {throttle.Scale:F3})");
+            sb.AppendLine("  ← 측정법: `BoardItemTick.Step` 0.05초 × 2400 틱,"
+                          + " 매 틱 `PendingMountArrivals.Count` 를 더한다");
+
+            // 회피 스택 — **전투가 없어 쓰는 쪽이 없다.** 그래서 「최고」는 곧 상한이고,
+            // 뜻을 갖는 것은 **언제 상한에 닿는가**다.
+            if (agg.boosterCount > 0)
+            {
+                var dodge = new DodgeSystem { BoosterCount = agg.boosterCount };
+                float carry = 0f, t = 0f, fullAt = -1f;
+                int steps = Mathf.RoundToInt(Seconds / Dt);
+                for (int i = 0; i < steps; i++)
+                {
+                    carry += agg.propellantProduce * throttle.Scale * Dt;
+                    while (carry >= 1f) { if (dodge.AddStacks(1) == 0) { carry = 0f; break; } carry -= 1f; }
+                    t += Dt;
+                    if (fullAt < 0f && dodge.Stacks >= dodge.Capacity) fullAt = t;
+                }
+                sb.AppendLine($"  회피 스택 최고 {dodge.Stacks}/{dodge.Capacity}"
+                              + (fullAt >= 0f ? $" · 상한 도달 {fullAt:F1}초" : " · **120초 안에 상한에 못 닿았다**"));
+                sb.AppendLine("  ⚠️ 전투가 없어 **쓰는 쪽이 없다** — 이 수는 「채우는 속도」이지"
+                              + " 실전의 스택이 아니다.");
+            }
+            else
+            {
+                sb.AppendLine("  회피 스택 — 부스터가 0 대라 그릇이 없다");
+            }
+
+            return sb.ToString();
+        }
+
+        /// <summary>판을 새로 세워 도착 수만 센다 — 버퍼가 남지 않게 매번 다시 짓는다.</summary>
+        private static int CountArrivals(bool withBoosters, float scale, float seconds)
+        {
+            BoardGrid g = BoardB(withBoosters, out _);
+            var flow = new BeltItemFlow();
+            flow.Rebuild(g);
+
+            int arrived = 0;
+            int steps = Mathf.RoundToInt(seconds / Dt);
+            for (int i = 0; i < steps; i++)
+            {
+                BoardItemTick.Step(g, flow, Dt, scale);
+                arrived += flow.PendingMountArrivals.Count;
+                flow.ClearPendingMountArrivals();
+            }
+            return arrived;
+        }
+
+        /// <summary>
+        /// 【`260917_W02` 2-2】 **측정 세 판을 한 번에** — 가 · 나 · 다.
+        ///
+        /// 배치 실행: <c>-executeMethod MBI.EditorTools.StageClearHarness.RunW02Batch</c>
+        /// </summary>
+        [MenuItem("MBI/Harness W02 측정 세 판")]
+        public static void RunW02Menu() => Debug.Log(RunW02());
+
+        public static void RunW02Batch()
+        {
+            Debug.Log(RunW02());
+            if (Application.isBatchMode) EditorApplication.Exit(0);
+        }
+
+        public static string RunW02()
+        {
+            var sb = new StringBuilder();
+            sb.AppendLine("############ 260917_W02 2-2 측정 세 판 ############");
+            sb.AppendLine();
+            sb.AppendLine(Run("S1", preloadMount: true, withBoosters: false));
+            sb.AppendLine(Run("S1", preloadMount: true, withBoosters: true));
+            sb.AppendLine(RunBoardB(withBoosters: false));
+            sb.AppendLine(RunBoardB(withBoosters: true));
+            return sb.ToString();
+        }
+
         private static float DamageOf(AmmoKind kind)
         {
             var robot = AssetDatabase.LoadAssetAtPath<RobotDefinition>($"{SoRoot}/Robots/Robot_A.asset");
@@ -478,14 +638,50 @@ namespace MBI.EditorTools
         }
 
         /// <summary>시작 보드 + 튜토리얼 칸 — **운반로가 이어진 판**이다.</summary>
-        private static BoardGrid Board()
+        private static BoardGrid Board() => Board(withBoosters: false, out _);
+
+        /// <summary>
+        /// 시작 보드 + 튜토리얼 칸 · 선택으로 **부스터 둘 + 추진제 줄**
+        /// (2026-09-17 · `260917_W02` 2-2 나 판).
+        ///
+        /// ⚠️ **배포 시작 보드는 안 건드린다** — 줄은 <see cref="HarnessBoosterLine"/> 가
+        /// 하네스 안에서만 얹는다(세대 표식이 바뀌면 사용자 저장이 버려진다).
+        /// </summary>
+        private static BoardGrid Board(bool withBoosters, out string boosterNote)
         {
+            boosterNote = null;
             var g = new BoardGrid(PartLayout.Columns, PartLayout.Rows, 1f,
                 Vector2.zero, PartLayout.BuildMask());
             foreach (StartingBoard.Slot s in StartingBoard.Nodes)
                 g.TryPlace(s.cell, Node(s.nodeId), out _);
             foreach (StartingBoard.Run r in StartingBoard.Belts) Place(g, r);
             Place(g, StartingBoard.FillsEmptySlot);
+
+            if (withBoosters && !HarnessBoosterLine.ApplyToA(g, out boosterNote))
+                boosterNote = "⚠️ **부스터 줄을 못 얹었다** — " + boosterNote;
+
+            BeltAutoOrient.Resolve(g);
+            BeltFlow.Resolve(g);
+            return g;
+        }
+
+        /// <summary>B 시작 보드 · 선택으로 부스터 줄 (`260917_W02` 2-2 다 판).</summary>
+        private static BoardGrid BoardB(bool withBoosters, out string boosterNote)
+        {
+            boosterNote = null;
+            var g = new BoardGrid(PartLayout.Columns, PartLayout.Rows, 1f,
+                Vector2.zero, PartLayout.BuildMask(), MountOwner.RobotB);
+
+            foreach (StartingBoardB.Slot s in StartingBoardB.Nodes)
+            {
+                if (!g.TryPlace(s.cell, Node(s.nodeId), out NodeInstance placed)) continue;
+                if (s.recipe != RecipeKind.None) placed.SelectRecipe(s.recipe);
+            }
+            foreach (StartingBoard.Run r in StartingBoardB.Belts) Place(g, r);
+
+            if (withBoosters && !HarnessBoosterLine.ApplyToB(g, out boosterNote))
+                boosterNote = "⚠️ **부스터 줄을 못 얹었다** — " + boosterNote;
+
             BeltAutoOrient.Resolve(g);
             BeltFlow.Resolve(g);
             return g;
