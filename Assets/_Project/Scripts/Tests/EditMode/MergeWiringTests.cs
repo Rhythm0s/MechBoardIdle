@@ -229,5 +229,78 @@ namespace MBI.Tests
 
             Assert.AreEqual(Run(a, 3f), Run(b, 3f), D);
         }
-    }
+    
+        // ---- 회피 — 합체 중에는 두 보드의 스택을 모두 쓴다 (2026-09-17 · `260917_W03` 7-2 #1) ----
+
+        /// <summary>
+        /// **A 스택 0 · B 스택 2 인데 합체 중이면 피격이 무효가 된다.**
+        ///
+        /// ⚠️⚠️ **여기서 진짜 깨지기 쉬운 것은 무적 판정 쪽이다.** 대기 쪽이 피했는데
+        /// 판정이 `Act.dodge.IsInvincible` 만 보면 **피하고도 맞는다** —
+        /// 스택만 축나고 HP 는 그대로 깎이므로 화면에서는 「회피가 안 먹는다」로 보인다.
+        /// 무적은 진영이 아니라 **몸**에 걸린다.
+        /// </summary>
+        [Test]
+        public void 합체_중에는_대기_보드의_회피_스택도_쓴다()
+        {
+            CombatSimulation sim = Attacker();
+
+            sim.BoosterCount = 0;            // 활성 쪽 그릇 없음
+            sim.StandbyBoosterCount = 1;     // 대기 쪽 2 칸 (대수 × 2)
+            sim.StandbyDodge.AddStacks(2);
+
+            ChargeGauge(sim);
+            Assert.IsTrue(sim.TryMerge(), "합체가 안 걸렸다 — 시험 전제가 깨졌다");
+
+            float hp0 = sim.Robot.hp;
+            for (int i = 0; i < 60 && sim.Result == CombatResult.InProgress; i++) sim.Tick(0.05f);
+
+            Assert.Greater(sim.HitsTaken, 0, "맞지를 않았다 — 시험 전제가 깨졌다");
+            Assert.Greater(sim.DamageAvoided, 0f,
+                "대기 쪽 스택이 있는데 무효가 된 피해가 0 이다 — 합체가 그 그릇을 안 쓴다");
+            Assert.Less(sim.StandbyDodge.Stacks, 2, "대기 쪽 스택이 안 줄었다");
+            Assert.Greater(hp0 - sim.Robot.hp, -1f); // HP 는 줄 수도 있다(스택이 다 떨어진 뒤)
+        }
+
+        /// <summary>합체가 아니면 대기 쪽 스택은 **안 쓴다** — 로봇별 귀속이 기본이다.</summary>
+        [Test]
+        public void 합체가_아니면_대기_스택은_안_쓴다()
+        {
+            CombatSimulation sim = Attacker();
+
+            sim.BoosterCount = 0;
+            sim.StandbyBoosterCount = 1;
+            sim.StandbyDodge.AddStacks(2);
+
+            for (int i = 0; i < 60 && sim.Result == CombatResult.InProgress; i++) sim.Tick(0.05f);
+
+            Assert.AreEqual(2, sim.StandbyDodge.Stacks,
+                "합체도 아닌데 대기 로봇의 회피 스택이 줄었다 — 회피 재고는 로봇별이다");
+            Assert.AreEqual(0f, sim.DamageAvoided, D);
+        }
+
+        /// <summary>때리는 적을 세운 판 — 위 회피 시험 둘이 쓴다.</summary>
+        /// <summary>
+        /// 때리는 적을 세운 판.
+        ///
+        /// ⚠️⚠️ **자동 교대를 끈다.** 켜 두면 마운트가 비는 순간 **진영이 뒤바뀌어**
+        /// 「대기 쪽 스택」이 활성 쪽 스택이 된다 — 첫 판에서 그것 때문에
+        /// 「합체도 아닌데 대기 스택이 줄었다」로 빨개졌고, **틀린 것은 코드가 아니라
+        /// 시험의 전제**였다. 회피를 보는 시험에서 교대는 다른 축이다.
+        /// </summary>
+        private static CombatSimulation Attacker()
+        {
+            var spawns = new List<EnemySpawn>
+            {
+                new EnemySpawn { label = "때리는 적", hp = 100000f, def = 0f, atk = 5f,
+                    attackRange = 1f, attackInterval = 0.2f, moveSpeed = 20f },
+            };
+
+            var sim = new CombatSimulation(Robot(20f), Robot(30f),
+                new MountLoad(4, Stacks()), new MountLoad(4, Stacks()),
+                spawns, arenaRadius: 3f, challengeTime: 1000f, spawnCadence: 0f);
+            sim.AutoTagEnabled = false;
+            return sim;
+        }
+}
 }

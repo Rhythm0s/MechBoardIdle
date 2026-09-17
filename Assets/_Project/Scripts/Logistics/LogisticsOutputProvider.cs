@@ -126,7 +126,9 @@ namespace MBI.Logistics
             // ⚠️ 부스터의 「추진제 스택이 차면 0」은 여기서 못 읽는다(스택은 전투가 쥔다) → 잠정 1.
             WorkloadRate.Result work = WorkloadRate.Compute(grid, connected, robot.balanceRef);
 
-            NetworkAggregate agg = LogisticsNetwork.Aggregate(grid, connected, work);
+            // 합체 지속 중에는 두 보드 모든 노드의 산출량이 ×2 다(`260917_W03` 7-2 #2).
+            NetworkAggregate agg = LogisticsNetwork.Aggregate(grid, connected, work,
+                MergeSignals.OutputMultiplier);
 
             // ⚠️ **브릿지는 싸우는 판의 것만 싣는다**(2026-09-16). 둘 다 실으면 나중에
             //    도는 판이 앞의 것을 덮어 **대기 로봇의 보드가 전투 HUD 에 뜬다.**
@@ -143,6 +145,18 @@ namespace MBI.Logistics
             LogisticsOutputBridge.AoeDroneShare = agg.AoeShare;
             LogisticsOutputBridge.PropellantProduce = agg.propellantProduce;
             LogisticsOutputBridge.BoosterCount = agg.boosterCount;
+            }
+            else
+            {
+                // ⚠️ **대기 보드의 회피 재료는 따로 실어 보낸다**(2026-09-17 · `260917_W03` 7-2 #1).
+                //    합체 중에는 두 보드의 스택을 다 쓰므로, 이 두 칸이 비면 그 규칙이
+                //    코드에만 있고 화면에는 없는 것이 된다.
+                LogisticsOutputBridge.StandbyPropellantProduce = agg.propellantProduce;
+                LogisticsOutputBridge.StandbyBoosterCount = agg.boosterCount;
+            }
+
+            if (publishCombat)
+            {
 
             // 사용률(수요÷공급)의 재료 — **나누지 않고 그대로** 넘긴다(UI 문서 3-3의 「0으로 나누는 경우 셋」).
             // 코어 유무와 무관하게 게시한다: 발전소만 놓고 벨트를 안 이어도 막대는 읽혀야 한다.
@@ -188,7 +202,8 @@ namespace MBI.Logistics
             // **전력·발열을 여기서 곱한다.** 둘이 모자라면 노드가 덜 만들고, 덜 만들면 덜
             // 도착한다(`260903_W02` 2-2). 도착량을 출력으로 쓰는 이상 그 인과는 생산 단계에만
             // 있어야 하며, 조립에서 또 곱하면 제곱이 된다.
-            BoardItemTick.Step(grid, flow, Time.deltaTime, throttle.Scale);
+            BoardItemTick.Step(grid, flow, Time.deltaTime, throttle.Scale,
+                MergeSignals.OutputMultiplier);
 
             // ③ 마운트에 닿은 것을 센다. 읽고 나면 비운다 — 안 비우면 같은 도착이 계속 세어진다.
             // ⚠️ **도착의 주인은 판의 주인이다**(2026-09-16). 종전에는 `ActiveOwner` 를

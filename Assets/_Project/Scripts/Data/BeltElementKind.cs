@@ -5,7 +5,8 @@ namespace MBI.Data
     ///   - Straight : 1-in / 1-out(반대 면).
     ///   - Corner   : 1-in / 1-out(인접 면, 꺾임).
     ///   - Merger   : 다중-in / 1-out(여러 줄기 합류).
-    ///   - Sorter   : 1-in / 다중-out(분배 — 라운드로빈 or kind).
+    ///   - Sorter   : 1-in / 다중-out (균등 분배 — 도착 순서 라운드로빈 · 품목 무관).
+    ///     🗑️ 구 표기 「라운드로빈 or kind」 폐기 (2026-09-17) — 품목으로 가르는 갈래는 없다.
     /// 직선/코너는 BeltPath가 자동 배향, 병합기/분류기는 명시 배치(팔레트/에디터).
     /// </summary>
     public enum BeltElementKind

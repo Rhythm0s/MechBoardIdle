@@ -1097,9 +1097,22 @@ namespace MBI.Combat
                 _sim.PropellantSupplyRate = LogisticsOutputBridge.PropellantProduce;
                 // 회피 스택 상한은 부스터 대수의 파생값이다 — 노드를 뽑으면 그 자리에서 줄어든다.
                 _sim.BoosterCount = LogisticsOutputBridge.BoosterCount;
-                // ⚠️ 대기 로봇의 유입은 주입하지 않는다. 보드는 로봇의 몸이라 로봇마다 하나인데
-                // 지금 씬에는 보드가 한 장뿐이다 — 같은 값을 양쪽에 넣으면 보드 한 장이
-                // 두 배를 생산하게 된다. 두 번째 보드가 생기면 여기 한 줄이 붙는다.
+
+                // ✅ **두 번째 보드가 생겨 그 줄이 붙었다** (2026-09-17 · `260917_W03` 7-2 #1).
+                //    🗑️ 구 주석 「대기 로봇의 유입은 주입하지 않는다 — 보드가 한 장뿐이라
+                //    같은 값을 양쪽에 넣으면 한 장이 두 배를 생산한다」는 폐기.
+                //    보드는 09-16 에 로봇마다 하나가 됐고, 대기 보드의 값은 **제 판에서** 온다.
+                //    ⚠️ 이것이 없으면 합체 중 「두 보드의 회피 스택을 모두 쓴다」가
+                //    대기 그릇 0 칸이라 화면에서 한 번도 성립하지 않는다.
+                _sim.StandbyBoosterCount = LogisticsOutputBridge.StandbyBoosterCount;
+                _sim.StandbyPropellantSupplyRate = LogisticsOutputBridge.StandbyPropellantProduce;
+
+                // 합체 지속 중에는 두 보드 모든 노드의 산출량이 ×2 다(`260917_W03` 7-2 #2).
+                // ⚠️ **매 틱 다시 쓴다** — 켤 때만 쓰면 합체가 끝나도 공장이 영영 두 배다.
+                BalanceConfig bal = robot != null ? robot.balanceRef : null;
+                MergeSignals.OutputMultiplier = IsMerged && bal != null
+                    ? Mathf.Max(1f, bal.mergeOutputMult)
+                    : MergeSignals.None;
             }
 
             // 수동 회피(화면 플릭). 이동 명령이 아니라 **즉시 회피**라 이동 처리와 섞지 않는다.

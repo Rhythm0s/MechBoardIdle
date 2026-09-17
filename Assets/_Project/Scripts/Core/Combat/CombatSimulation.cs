@@ -457,6 +457,45 @@ namespace MBI.Core
         /// <summary>나가 있는 로봇의 회피. HUD는 HP 바 옆에 이 스택을 그린다.</summary>
         public DodgeSystem Dodge => Act.dodge;
 
+        /// <summary>대기 로봇의 회피 그릇 — **합체 중에만 쓰인다**(`260917_W03` 7-2 #1).</summary>
+        public DodgeSystem StandbyDodge => Standby.dodge;
+
+        /// <summary>
+        /// **합체 중에는 두 보드의 회피 스택을 모두 쓴다** (2026-09-17 사용자 결정 ·
+        /// `260917_W03` 7-2 #1 · 전투 시스템 문서「회피」 합체체 행).
+        ///
+        /// 📌 **어느 쪽부터 빼는가는 구현 판단이다 — 활성 쪽을 먼저 쓴다.**
+        /// 근거는 **눈에 보이는 것**이다. 화면의 회피 게이지는 활성 로봇의 것이므로,
+        /// 대기 쪽부터 빼면 플레이어가 **줄어드는 것을 못 보면서** 스택이 사라진다.
+        /// (값이 아니라 읽히는 방식의 문제라 설계 역기입 자리로 올린다.)
+        ///
+        /// ⚠️ **한 번에 하나만 나간다.** 활성 쪽이 실제로 발동했으면 거기서 끝이다 —
+        /// 「자동·수동이 겹쳐도 추진제는 1개」와 같은 규칙이고, 그래서 **떨어지면**
+        /// 대기 쪽을 본다. 둘 다 부르면 한 대 맞고 추진제가 둘 나간다.
+        ///
+        /// ⚠️⚠️ **무적도 두 쪽을 봐야 한다.** 대기 쪽이 피했는데 `Act.dodge.IsInvincible`
+        /// 만 보면 **피하고도 맞는다** — 무적은 진영이 아니라 **몸**에 걸리는 것이다.
+        /// </summary>
+        private bool MergedNow => Merge != null && Merge.IsActive;
+
+        /// <summary>지금 무적인가 — 합체 중이면 **어느 쪽이든** 무적이면 무적이다.</summary>
+        private bool BodyIsInvincible =>
+            Act.dodge.IsInvincible || (MergedNow && Standby.dodge.IsInvincible);
+
+        /// <summary>
+        /// 피격 판정에서의 회피 한 번. 활성 쪽을 먼저, 못 하면(합체 중에만) 대기 쪽을 본다.
+        /// </summary>
+        private void TryBodyDodge(Vector2 autoDirection)
+        {
+            if (Act.dodge.TryDodge(true, autoDirection, false, Vector2.zero)) return;
+            if (!MergedNow) return;
+
+            // 활성 쪽이 **진행 중**이어도 여기 온다 — 그때는 이미 무적이라 대기 쪽이
+            // 발동해도 추진제만 축난다. 진행 중이 아닐 때만 대기 쪽을 쓴다.
+            if (Act.dodge.IsDodging) return;
+            Standby.dodge.TryDodge(true, autoDirection, false, Vector2.zero);
+        }
+
         /// <summary>
         /// **맞은 횟수 — 회피로 무효가 된 것도 센다** (2026-09-17 · `260917_W03` 2-2).
         ///
@@ -1328,13 +1367,12 @@ namespace MBI.Core
 
                         // 자동 회피는 **명중 판정에 들어오는 순간** 판정한다. 위협 반대 방향으로 뺀다.
                         // 이미 수동으로 피하고 있으면 재발동 금지에 걸려 추진제가 두 번 나가지 않는다.
-                        Act.dodge.TryDodge(true, (Act.body.position - e.position).normalized,
-                            false, Vector2.zero);
+                        TryBodyDodge((Act.body.position - e.position).normalized);
 
                         // ⚠️ 무적은 **판정식의 항이 아니다.** 계산에 진입하지 않고 통째로 건너뛴다 —
                         // 판정식이 max(1, …)라 「방어 무한대」로 표현하면 여전히 1이 꽂힌다.
                         HitsTaken++;
-                        if (Act.dodge.IsInvincible) { DamageAvoided += e.atk; continue; }
+                        if (BodyIsInvincible) { DamageAvoided += e.atk; continue; }
 
                         DamageTaken += e.atk;
                         Act.body.hp -= e.atk; // 로봇 방어 스탯 없음 — 받는 피해 = 몬스터 공격력(§9)
@@ -1388,10 +1426,10 @@ namespace MBI.Core
                     _enemyProjectiles.RemoveAt(i);
 
                     // 회피·무적은 **여기서** 본다. 위협 방향은 포탄이 온 쪽이다.
-                    Act.dodge.TryDodge(true, -p.direction, false, Vector2.zero);
+                    TryBodyDodge(-p.direction);
 
                     HitsTaken++;
-                    if (Act.dodge.IsInvincible) { DamageAvoided += p.atk; continue; }
+                    if (BodyIsInvincible) { DamageAvoided += p.atk; continue; }
 
                     DamageTaken += p.atk;
                     Act.body.hp -= p.atk;

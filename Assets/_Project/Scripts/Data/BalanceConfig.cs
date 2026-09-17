@@ -65,6 +65,9 @@ namespace MBI.Data
         public float mountStackLimit = 10f;
 
         [Header("탄종별 생산 — 260824_V02 §1 확정")]
+        [Tooltip("합체 지속 중 두 보드 모든 노드의 산출량 배율. params.mergeOutputMult = 2 확정치. 재료·전력·생산 주기는 그대로이고 벨트는 제외다(12/초 고정). 합체가 끝나면 즉시 1.0.")]
+        public float mergeOutputMult = 2f;
+
         [Tooltip("군수 노드 1개당 생산(발/초). params.muniPerNode = 1 확정치. ⚠️ 소비 상한(capA 6)과 혼동 금지 — 여기에 6을 넣으면 노드 하나가 상한을 다 채워 보드가 출력을 못 바꾼다.")]
         public float muniPerNode = 1f;
 

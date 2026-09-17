@@ -49,6 +49,21 @@ namespace MBI.Core
         /// </summary>
         public static int BoosterCount;
 
+        /// <summary>
+        /// **대기 로봇 보드의** 부스터 대수와 추진제 산출 (2026-09-17 · `260917_W03` 7-2 #1).
+        ///
+        /// ⚠️⚠️ **합체 중에는 두 보드의 회피 스택을 모두 쓴다.** 대기 쪽 값이 안 오면
+        /// 그 그릇이 **0 칸**이라 「모두 쓴다」가 화면에서 한 번도 성립하지 않는다 —
+        /// 코드는 맞는데 게임에서는 없는 기능이 된다.
+        ///
+        /// 📌 이 두 칸이 「두 번째 보드가 생기면 여기 한 줄이 붙는다」던 그 줄이다
+        /// (`StageRunner` 옛 주석 · 09-16 에 보드가 둘이 됐다).
+        /// </summary>
+        public static int StandbyBoosterCount;
+
+        /// <summary>대기 로봇 보드의 추진제 산출(개/초).</summary>
+        public static float StandbyPropellantProduce;
+
         /// <summary>전역 병목 원인(변수 패널 아이콘·점멸용). Power → Heat 우선(§3-4-1). None = 정상.</summary>
         public static ConstraintCause GlobalCause;
 

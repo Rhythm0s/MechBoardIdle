@@ -23,6 +23,7 @@ MonoBehaviour:
   offlineCapHours: 36
   storeCapacity: 40
   mountStackLimit: 10
+  mergeOutputMult: 2
   muniPerNode: 1
   lineSpecShots: {x: 5, y: 6, z: 2}
   nodeProductionPower: 10

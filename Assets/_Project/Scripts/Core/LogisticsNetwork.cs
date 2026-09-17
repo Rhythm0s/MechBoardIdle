@@ -83,7 +83,8 @@ namespace MBI.Core
         /// </summary>
         public static NetworkAggregate Aggregate(BoardGrid grid,
             ICollection<Vector2Int> connectedOnly = null,
-            WorkloadRate.Result? workload = null)
+            WorkloadRate.Result? workload = null,
+            float outputMultiplier = 1f)
         {
             var a = new NetworkAggregate();
             if (grid == null) return a;
@@ -130,7 +131,11 @@ namespace MBI.Core
                 // 부하가 여기 들어오는 것이 모듈의 자기제한이다 — 이 곱이 없으면
                 // 모듈은 공짜 강화가 되어 「물류 무개입」이 깨진다(지침 §3).
                 float load = node.ModulePowerLoadMultiplier;
-                float gain = node.ModuleOutputMultiplier;
+
+                // ⚠️ **합체 배율은 모듈 배율과 같은 자리에 곱한다**(2026-09-17 · `260917_W03` 7-2 #2) —
+                //    둘 다 「산출만 늘리고 재료·전력은 그대로」라 성질이 같다.
+                //    ⚠️ 전력(`powerDraw`)에는 안 곱한다 — 합체는 전기를 더 먹지 않는다.
+                float gain = node.ModuleOutputMultiplier * Mathf.Max(1f, outputMultiplier);
 
                 a.powerSupply += r.powerSupply;
                 a.powerDraw += r.powerDraw * w * load;

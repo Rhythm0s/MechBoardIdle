@@ -39,6 +39,15 @@ namespace MBI.Core
         /// 재료 한도가 원래 값 그대로 걸리므로 상한 판정이 효율에 흔들리지 않는다.
         /// </summary>
         public static void Step(BoardGrid grid, BeltItemFlow flow, float dt, float powerEfficiency)
+            => Step(grid, flow, dt, powerEfficiency, MergeSignals.None);
+
+        /// <summary>
+        /// **산출량 배율이 걸린** 한 틱 (2026-09-17 · 합체 · `260917_W03` 7-2 #2).
+        /// ⚠️ **벨트는 배율을 안 받는다** — 한 줄 12/초 그대로다. 늘어난 산출을 벨트가
+        /// 못 나르면 그 자리에 쌓이고, 그것이 「상류 정체를 보여도 된다」(결정 7)이다.
+        /// </summary>
+        public static void Step(BoardGrid grid, BeltItemFlow flow, float dt,
+            float powerEfficiency, float outputMultiplier)
         {
             if (grid == null || flow == null || dt <= 0f) return;
 
@@ -72,11 +81,14 @@ namespace MBI.Core
 
                 // 버퍼가 가득하거나 재료가 없으면 0을 돌려준다 — 둘 다 정지다.
                 // 여기서 사유를 가리지 않는다. 가리는 것은 진단의 몫이다.
-                float made = NodeProduction.Produce(recipe, node.OutputBuffer, produceDt, node.InputBuffer);
+                float made = NodeProduction.Produce(recipe, node.OutputBuffer, produceDt,
+                    node.InputBuffer, outputMultiplier);
                 if (made <= 0f) return;
 
                 // 만든 만큼만 먹는다. 순서를 바꾸면 버릴 산출의 재료까지 먼저 사라진다.
-                NodeProduction.ConsumeFor(recipe, made, node.InputBuffer);
+                // ⚠️ **배율만큼 나눠 먹는다** — 재료는 배율을 안 받는다(합체 = 산출만 늘어난다).
+                NodeProduction.ConsumeFor(recipe, made / Mathf.Max(1f, outputMultiplier),
+                    node.InputBuffer);
 
                 node.OutputBuffer += made;
                 node.BufferKind = recipe.output;

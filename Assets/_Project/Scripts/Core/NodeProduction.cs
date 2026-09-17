@@ -41,11 +41,33 @@ namespace MBI.Core
         /// </summary>
         public static float Produce(in NodeRecipe recipe, float bufferNow, float dt,
             IReadOnlyDictionary<FlowKind, float> stock)
-        {
-            float byRoom = Produce(recipe, bufferNow, dt);
-            if (byRoom <= 0f) return 0f;
+            => Produce(recipe, bufferNow, dt, stock, 1f);
 
-            return Mathf.Min(byRoom, InputCap(recipe, stock));
+        /// <summary>
+        /// **산출량 배율이 걸린** 한 틱 산출 (2026-09-17 · 합체 · `260917_W03` 7-2 #2).
+        ///
+        /// ⚠️⚠️ **늘어나는 것은 나오는 개수뿐이다.** 재료도 주기도 그대로여서 같은 재료
+        /// 한 벌로 두 개가 나온다 — 모듈 M(산출 ×1.5 · 재료 그대로)과 같은 모양이다.
+        /// 그래서 재료 한도(<see cref="InputCap"/>)에도 배율을 곱한다: 재료 한 벌이면
+        /// **두 개까지** 만들 수 있다는 뜻이다.
+        ///
+        /// ⚠️ **먹는 양은 부르는 쪽이 <see cref="ConsumeFor"/> 에 「산출 ÷ 배율」로 넘긴다** —
+        /// 여기서 같이 먹으면 산출을 버릴 때 재료만 사라진다(이 함수를 가른 원래 까닭).
+        ///
+        /// ⚠️ **버퍼 상한은 배율을 안 받는다.** 그릇이 커지는 것이 아니라 **빨리 차는** 것이다.
+        /// </summary>
+        public static float Produce(in NodeRecipe recipe, float bufferNow, float dt,
+            IReadOnlyDictionary<FlowKind, float> stock, float outputMultiplier)
+        {
+            float mult = Mathf.Max(1f, outputMultiplier);
+
+            if (!recipe.IsRunnable || dt <= 0f) return 0f;
+            float room = FreeSpace(recipe, bufferNow);
+            if (room <= 0f) return 0f;
+
+            float byRate = recipe.outputPerSec * dt * mult;
+            float byInput = InputCap(recipe, stock) * mult;
+            return Mathf.Min(Mathf.Min(byRate, byInput), room);
         }
 
         /// <summary>
