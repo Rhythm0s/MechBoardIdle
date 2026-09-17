@@ -269,36 +269,18 @@ namespace MBI.Core
             {
                 if (_generation != null) return _generation;
 
-                // FNV-1a 32 비트. 암호용이 아니라 **달라졌는가**만 보면 되므로 짧게 둔다.
-                unchecked
-                {
-                    uint h = 2166136261u;
-                    void Mix(int v)
-                    {
-                        for (int b = 0; b < 4; b++)
-                        {
-                            h ^= (uint)((v >> (b * 8)) & 0xFF);
-                            h *= 16777619u;
-                        }
-                    }
+                // ⚠️ **셈하는 자리는 `BoardGeneration` 하나다**(2026-09-17).
+                //    종전에는 여기에 FNV-1a 를 직접 적어 두었는데, 시작 보드가 둘이 되면서
+                //    B 도 같은 셈이 필요해졌다. 두 곳에 적으면 한쪽만 고쳐진다(지침 §7).
+                //
+                // ⚠️ **A 는 조합표를 안 싣는다** — 이 판은 조합표를 안 고르고,
+                //    비워 두어야 이 개정 때문에 **A 의 표식이 안 바뀐다**(A 저장 보존).
+                var keys = new List<BoardGeneration.NodeKey>(Nodes.Count);
+                foreach (Slot n in Nodes)
+                    keys.Add(new BoardGeneration.NodeKey(n.cell, n.nodeId));
 
-                    Mix(PartLayout.Columns);
-                    Mix(PartLayout.Rows);
-
-                    foreach (Slot n in Nodes)
-                    {
-                        foreach (char c in n.nodeId ?? string.Empty) Mix(c);
-                        Mix(n.cell.x); Mix(n.cell.y);
-                    }
-                    foreach (Run r in Belts)
-                    {
-                        Mix(r.cell.x); Mix(r.cell.y);
-                        Mix((int)r.inFace); Mix((int)r.outFace);
-                        Mix(r.merger ? 1 : 0);
-                    }
-
-                    _generation = h.ToString("x8");
-                }
+                _generation = BoardGeneration.Of(
+                    PartLayout.Columns, PartLayout.Rows, keys, Belts);
                 return _generation;
             }
         }

@@ -53,7 +53,9 @@ namespace MBI.Core
             {
                 columns = grid.Columns,
                 rows = grid.Rows,
-                generation = StartingBoard.Generation,
+                // ⚠️ **주인의 판을 본다**(2026-09-17). A 의 표식을 B 저장에 찍으면
+                //    B 시작 보드를 고쳐도 표식이 안 바뀌어 규칙 5 가 B 에서 안 선다.
+                generation = BoardGeneration.Of(grid.Owner),
                 owner = (int)grid.Owner,   // 판이 자기 주인을 들고 간다(2026-09-16)
             };
 
@@ -98,7 +100,7 @@ namespace MBI.Core
         public static bool Fits(BoardStateV1 state, BoardGrid grid)
             => state != null && grid != null
                && state.columns == grid.Columns && state.rows == grid.Rows
-               && state.generation == StartingBoard.Generation
+               && state.generation == BoardGeneration.Of(grid.Owner)
                && state.owner == (int)grid.Owner;
 
         /// <summary>
@@ -113,12 +115,20 @@ namespace MBI.Core
             if (grid == null) return "격자가 없다";
             if (state.columns != grid.Columns || state.rows != grid.Rows)
                 return $"격자 크기가 다르다 — 저장 {state.columns}x{state.rows} · 지금 {grid.Columns}x{grid.Rows}";
-            if (state.generation != StartingBoard.Generation)
-                return $"시작 보드 세대가 다르다 — 저장 '{state.generation ?? "(없음)"}' · 지금 '{StartingBoard.Generation}'";
-            // ⚠️ 주인이 어긋나면 **판이 통째로 남의 것**이다 — 크기도 세대도 같으므로
-            //    이것을 안 보면 A 판이 B 자리에 조용히 들어앉는다.
+            // ⚠️ 주인이 어긋나면 **판이 통째로 남의 것**이다 — 이것을 안 보면
+            //    A 판이 B 자리에 조용히 들어앉는다.
+            //
+            // ⚠️⚠️ **주인을 세대보다 먼저 본다**(2026-09-17). 표식이 주인별이 되면서
+            //    남의 판은 **세대도 함께 어긋난다** — 세대를 먼저 보면 까닭이
+            //    「세대가 다르다」로 적히고, 그것은 참이지만 **덜 정확한 말**이다.
+            //    진짜 까닭은 판이 남의 것이라는 쪽이고, 읽는 사람이 고칠 자리도 그쪽이다.
             if (state.owner != (int)grid.Owner)
                 return $"판의 주인이 다르다 — 저장 {(MountOwner)state.owner} · 지금 {grid.Owner}";
+
+            // ⚠️ **견주는 것도 주인의 판이다** — 뜰 때와 다른 판을 보면 늘 어긋난다.
+            string want = BoardGeneration.Of(grid.Owner);
+            if (state.generation != want)
+                return $"시작 보드 세대가 다르다({grid.Owner}) — 저장 '{state.generation ?? "(없음)"}' · 지금 '{want}'";
             return null;
         }
 

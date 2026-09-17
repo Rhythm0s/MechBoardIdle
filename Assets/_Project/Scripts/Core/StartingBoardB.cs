@@ -114,5 +114,35 @@ namespace MBI.Core
             new StartingBoard.Run(10, 10, PortFace.South, PortFace.West),
             new StartingBoard.Run(9, 10, PortFace.East, PortFace.West),
         };
+
+        /// <summary>
+        /// 이 판의 **세대 표식** (2026-09-17 신설 · 사용자 결정 · `260917_V01` 6-1).
+        ///
+        /// ⚠️⚠️ **없어서 규칙 5 가 B 에서 안 섰다.** 저장을 뜰 때도 견줄 때도
+        /// `StartingBoard.Generation`(= A 의 표식) 하나를 보고 있었으므로,
+        /// **이 판을 고쳐도 표식이 안 바뀌었다.** 크기도 주인도 같으니 옛 B 저장이
+        /// 새 B 시작 보드 위에 조용히 올라온다 — 09-15 에 A 에서 났던 사고 그대로다.
+        ///
+        /// ⚠️ **조합표를 함께 섞는다.** 이 판은 가공 노드 셋이 **같은 자산**이고
+        /// 조합표만 다르다(부품 · 발전재료 · 배터리). 조합표를 안 섞으면 둘을 맞바꿔도
+        /// 표식이 그대로여서, 바뀐 판 위에 옛 저장이 올라온다.
+        /// </summary>
+        public static string Generation
+        {
+            get
+            {
+                if (_generation != null) return _generation;
+
+                var keys = new List<BoardGeneration.NodeKey>(Nodes.Count);
+                foreach (Slot n in Nodes)
+                    keys.Add(new BoardGeneration.NodeKey(n.cell, n.nodeId, n.recipe));
+
+                _generation = BoardGeneration.Of(
+                    PartLayout.Columns, PartLayout.Rows, keys, Belts);
+                return _generation;
+            }
+        }
+
+        private static string _generation;
     }
 }
