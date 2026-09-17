@@ -107,7 +107,7 @@ namespace MBI.EditorTools
         /// </summary>
         public static string Run(string stageId, bool preloadMount, float propellantNeed,
             float hpOverride)
-            => Run(stageId, preloadMount, propellantNeed, hpOverride, shieldMaxPerNode: 0f);
+            => Run(stageId, preloadMount, propellantNeed, hpOverride, shieldOff: false);
 
         /// <summary>
         /// 【스위프】 위에 **쉴드 최대치·재료 1개당 충전량**을 얹은 판
@@ -122,10 +122,20 @@ namespace MBI.EditorTools
         /// 고정 그릇) 폐기 — 최대치는 이제 **놓인 발생 노드 수 × 이 값**이다. 하네스가 제 수를
         /// 들면 러너와 다른 판을 재게 된다(`ShieldSystem.MaxFrom` 이 둘의 하나뿐인 문이다).
         ///
-        /// <paramref name="shieldMaxPerNode"/> 가 0 이면 쉴드 줄을 **아예 안 놓는다** — 그 판이 기준선이다.
+        /// <paramref name="shieldOff"/> 가 참이면 **배포 보드에서 쉴드 줄만 뽑아** 돌린다 —
+        /// 견주기 위한 기준선이고 배포 거동이 아니다.
         /// </summary>
         public static string Run(string stageId, bool preloadMount, float propellantNeed,
-            float hpOverride, float shieldMaxPerNode)
+            float hpOverride, bool shieldOff)
+            => Run(stageId, preloadMount, propellantNeed, hpOverride, shieldOff, autoPilot: true);
+
+        /// <summary>
+        /// 위와 같되 **자동 조종을 끄고** 돌릴 수 있다(2026-09-17).
+        /// ⚠️ 끈 판은 **게임과 다른 판**이다 — 09-17 이전 측정이 전부 그 상태였다는 것을
+        /// 드러내려고 남긴다. 견주기 위한 것이지 기준이 아니다.
+        /// </summary>
+        public static string Run(string stageId, bool preloadMount, float propellantNeed,
+            float hpOverride, bool shieldOff, bool autoPilot)
         {
             var sb = new StringBuilder();
             sb.AppendLine($"=== 스테이지 {stageId} 클리어 하네스 (2026-09-17) ===");
@@ -135,11 +145,12 @@ namespace MBI.EditorTools
                           + $" (자산 {needBase:F0} 대비 ×{needBase / propellantNeed:F2}"
                           + (Mathf.Approximately(propellantNeed, needBase) ? " · 기준)" : ")"));
             if (hpOverride > 0f) sb.AppendLine($"[판] 로봇 HP **{hpOverride:F0}**(하네스 전용 · 자산은 그대로)");
-            if (shieldMaxPerNode > 0f)
-                sb.AppendLine($"[판] 쉴드 노드 대당 최대치 **{shieldMaxPerNode:F0}**"
-                              + " · 충전 비율은 **자산**이 든다(하네스 전용 · 자산·시작 보드는 그대로)");
-            else
-                sb.AppendLine("[판] 쉴드 **없음**(줄을 안 놓았다) — 기준선");
+            sb.AppendLine(shieldOff
+                ? "[판] 쉴드 **줄을 뽑았다** — 견주기 위한 기준선(배포 거동이 아니다)"
+                : "[판] 쉴드 줄 **배포 보드에 포함** — 값은 자산이 든다(대당 최대치 · 충전 비율)");
+            sb.AppendLine(autoPilot
+                ? "[판] 자동 조종 **켬** — 게임과 같은 문(2026-09-17 신설)"
+                : "[판] 자동 조종 **끔** — 로봇이 제자리에 선다(09-17 이전 하네스가 이 상태였다)");
             sb.AppendLine(preloadMount
                 ? "[시작 조건] **튜토리얼 종료** — 마운트 적재 참(정상 경로) · 창고 빈손"
                 : "[시작 조건] **심사자 S1 점프** — 빈 칸 자동 채움 · 창고·마운트 **빈손**");
@@ -166,9 +177,15 @@ namespace MBI.EditorTools
 
             // ── 판 세우기 ──────────────────────────────────────────────────
             BoardGrid grid = Board(propellantNeed);
-            int shieldCells = shieldMaxPerNode > 0f ? PlaceShieldLine(grid) : 0;
-            if (shieldCells > 0)
+            // 🗑️ **구 `PlaceShieldLine(grid)` 폐기 — 2026-09-17.** 쉴드 줄이 **배포 보드에
+            //    들어왔으므로**(`260917_W07` 4장 1번) 하네스가 제 줄을 따로 놓으면
+            //    **같은 일을 하는 자리 둘**이 된다. 지금은 시작 보드가 가진 것을 그대로 잰다.
+            //
+            // ⚠️ `shieldOff` 는 **견주기 위한 기준선**이다 — 배포 보드에서 쉴드 줄만 뽑아
+            //    「쉴드가 얼마를 바꿨나」를 같은 판에서 본다. 배포 거동이 아니다.
+            if (shieldOff)
             {
+                RemoveShieldNode(grid);
                 BeltAutoOrient.Resolve(grid);
                 BeltFlow.Resolve(grid);
             }
@@ -269,6 +286,7 @@ namespace MBI.EditorTools
             NetworkAggregate agg = LogisticsNetwork.Aggregate(grid, connected, work);
 
             // 쉴드 그릇 — **보드가 정한다**(`ShieldSystem.MaxFrom` · 러너와 같은 문).
+            float shieldMaxPerNode = robot.balanceRef != null ? robot.balanceRef.shieldMaxPerNode : 0f;
             float shieldMax = ShieldSystem.MaxFrom(agg.shieldNodeCount, shieldMaxPerNode);
 
             float heatThreshold = config != null ? config.heatThreshold : 12f;
@@ -416,6 +434,31 @@ namespace MBI.EditorTools
                 sim.ShieldChargeRate = ShieldSystem.ChargeFrom(
                     shieldMax, shieldChargeRatio,
                     agg.shieldMaterialProduce, agg.shieldNodeCount, shieldMaterialPerSec);
+
+                // 4-0) **자동 조종** — 게임이 지나는 문을 여기서도 지난다
+                //      (2026-09-17 · `260917_W07` 3장 재측정).
+                //
+                // ⚠️⚠️ **여태 하네스에는 이 단이 없었다.** 로봇이 **한 발짝도 안 움직이는** 판을
+                //    재고 있었고, 그래도 수가 맞아 보였던 까닭은 회피가 자리를 안 바꿨기 때문이다.
+                //    09-17 에 회피 이동이 붙으면서 **밀린 자리에서 영영 안 돌아오는** 판이 됐고,
+                //    S1 이 타임아웃으로 졌다. 게임에서는 자동 조종이 곧바로 걸어서 돌아온다.
+                //    09-15 §7 등재: 「재는 것과 보는 것은 다른 일 — 프로브는 사람이 지나는 문을 안 지난다」.
+                //
+                // ⚠️ **회피로 밀리는 동안은 양보한다** — 러너와 같은 규칙이다.
+                if (autoPilot && sim.Robot != null && !sim.DodgeMotionActive)
+                {
+                    var ctx = new AutoPilotContext
+                    {
+                        robotPos = sim.Robot.position,
+                        enemies = sim.Enemies,
+                        arenaRadius = tuning.arenaRadiusTbd,
+                        attackRange = tuning.robotAttackRangeTbd,
+                        moveSpeed = tuning.robotMoveSpeedTbd,
+                        holdWhenMoreThan = tuning.autoPilotHoldWhenMoreThanTbd,
+                        dt = Dt,
+                    };
+                    sim.Robot.position = AutoPilotPolicy.NextPosition(ctx);
+                }
 
                 // 4) 전투
                 sim.Tick(Dt);
@@ -571,9 +614,9 @@ namespace MBI.EditorTools
             sb.AppendLine("[쉴드 축]");
             if (shieldMax <= 0f)
             {
-                sb.AppendLine(shieldCells > 0
-                    ? "  ⚠️ 쉴드 줄을 놓았는데 **최대치가 0** 이다 — 발생 노드가 안 이어졌다"
-                    : "  쉴드 **없음**(줄을 안 놓았다) — 이 판이 기준선이다");
+                sb.AppendLine(shieldOff
+                    ? "  쉴드 **줄을 뽑았다** — 이 판이 기준선이다"
+                    : "  ⚠️ 쉴드 줄이 배포 보드에 있는데 **최대치가 0** 이다 — 발생 노드가 안 이어졌다");
             }
             else
             {
@@ -595,9 +638,9 @@ namespace MBI.EditorTools
                 sb.AppendLine($"  쉴드 만충 틱 {tickShieldFull}/{tickShieldCountable}"
                               + $" ({tickShieldFull * 100f / Mathf.Max(1, tickShieldCountable):F1}%)"
                               + "  ← 측정법: 매 틱 `Shield.IsFull` 인 틱의 비율 · **그릇이 남아돈다는 뜻**");
-                sb.AppendLine($"  쉴드 줄이 쓴 칸 {shieldCells} 칸"
-                              + "  ← 측정법: 하네스가 실제로 놓은 칸 수(벨트 3 + 가공 1 + 군수 1 + 발생 1)."
-                              + " ⚠️ **가공을 공유하지 않는 판정**이라 한 칸이 더 든다(구현 판단)");
+                sb.AppendLine("  쉴드 줄이 쓴 칸 6 칸(벨트 3 + 가공 1 + 군수 1 + 발생 1)"
+                              + "  ← 측정법: **시작 보드 배치**에서 센다(하네스가 따로 안 놓는다)."
+                              + " ⚠️ **가공을 표준탄 줄과 공유하지 않는 판정**이라 한 칸이 더 든다");
             }
 
             sb.AppendLine();
@@ -827,10 +870,16 @@ namespace MBI.EditorTools
             sb.AppendLine();
             // 🗑️ 구 「두 판(개당 충전 5 · 10)」 폐기 — 충전률이 **최대치의 고정 비율**이 되면서
             //    개당 충전량이 파생값이 됐다. 이제 움직일 손잡이가 하나뿐이라 한 판이다.
+            // 기준선(쉴드 줄을 뽑은 판) · 배포 보드 — 둘 다 **자동 조종 켠** 판이다.
             sb.AppendLine(Run("S1", preloadMount: true, propellantNeed: 30f, hpOverride: 1000f,
-                              shieldMaxPerNode: 0f));
+                              shieldOff: true));
             sb.AppendLine(Run("S1", preloadMount: true, propellantNeed: 30f, hpOverride: 1000f,
-                              shieldMaxPerNode: 200f));
+                              shieldOff: false));
+
+            // ⚠️ **자동 조종을 끈 판** — 09-17 이전 하네스와 같은 조건이다.
+            //    V04 6장의 수와 이 판을 견줘야 「무엇이 달라졌나」가 갈린다.
+            sb.AppendLine(Run("S1", preloadMount: true, propellantNeed: 30f, hpOverride: 1000f,
+                              shieldOff: false, autoPilot: false));
             return sb.ToString();
         }
 
@@ -920,66 +969,25 @@ namespace MBI.EditorTools
         }
 
         /// <summary>시작 보드 + 튜토리얼 칸 — **운반로가 이어진 판**이다.</summary>
-        /// <summary>
-        /// **하네스 전용 쉴드 줄** — 놓인 칸 수를 돌려준다
-        /// (2026-09-17 · `260917_W06` 5장 「군수 1 · 발생 1 · 배치는 구현 판단」).
-        ///
-        /// 자리는 A 판의 **폐기된 서 줄**을 되쓴다. 코어 서면에서 내려가 동쪽으로 되돌아온다.
-        ///
-        ///     y=8   벨(4,8) 동→남
-        ///     y=7   벨(4,7) 북→남
-        ///     y=6   벨(4,6) 북→동 → 가공(5,6) → 군수(6,6) 방어 재료 → 쉴드 발생(7,6)
-        ///
-        /// 📌 **가공을 공유하지 않는다**(구현 판단 · 설계가 뒤집을 수 있는 자리).
-        ///    남 줄의 가공을 나눠 쓰면 **표준탄이 줄어** 쉴드가 화력을 깎은 것인지
-        ///    쉴드 자체가 모자란 것인지 구분이 안 된다. 재는 판에서는 축을 하나만 움직인다.
-        ///    ⚠️ 그 대신 **가공 한 대만큼 코어 에너지를 더 먹는다** — 그 대가는 전력 줄에 나온다.
-        ///
-        /// ⚠️ **쉴드 발생 노드는 입력면이 서쪽 하나뿐이다**(`Node_shield`). 군수 바로 동쪽에
-        ///    붙여야 받는다 — 사이에 벨트를 두면 `BeltAutoOrient` 가 다른 면을 입력으로
-        ///    뽑아 09-17 의 분류기 사고가 그대로 되풀이된다.
-        /// </summary>
-        private static int PlaceShieldLine(BoardGrid g)
-        {
-            var belts = new[]
-            {
-                new StartingBoard.Run(4, 8, PortFace.East, PortFace.South),
-                new StartingBoard.Run(4, 7, PortFace.North, PortFace.South),
-                new StartingBoard.Run(4, 6, PortFace.North, PortFace.East),
-            };
-
-            int cells = 0;
-            foreach (StartingBoard.Run r in belts)
-            {
-                StartingBoard.Place(g, r);   // 놓는 문은 하나다 — 여기서 따로 깔지 않는다
-                cells++;
-            }
-
-            if (g.TryPlace(new Vector2Int(5, 6), Node(StartingBoard.ProcId), out _)) cells++;
-
-            NodeDefinition muni = MuniWith(RecipeKind.DefenseMaterial);
-            if (muni != null && g.TryPlace(new Vector2Int(6, 6), muni, out NodeInstance made))
-            {
-                made.SelectRecipe(RecipeKind.DefenseMaterial);
-                cells++;
-            }
-
-            if (g.TryPlace(new Vector2Int(7, 6), Node("shield"), out _)) cells++;
-            return cells;
-        }
+        // 🗑️ **폐기 — 2026-09-17.** `PlaceShieldLine(BoardGrid)` 와 `MuniWith(RecipeKind)` 를
+        //    걷었다. 쉴드 줄이 **배포 보드**에 들어가면서(`260917_W07` 4장 1번) 하네스가
+        //    제 줄을 따로 놓을 까닭이 사라졌다 — 두면 **같은 배치가 두 곳에 사는** 자리가 된다.
+        //    자리 · 조합표 · 「가공을 안 나눠 쓴다」는 이제 `StartingBoard` 주석이 든다.
 
         /// <summary>
-        /// 기초 군수 자산을 **복제해** 조합표를 갈아 끼운다 — 디스크의 자산은 안 건드린다
-        /// (`NodeResolver` 와 같은 수법 · 추진제 줄에서 쓴 것).
+        /// **쉴드 줄을 뽑는다** — 견주기 위한 기준선을 만드는 자리다(배포 거동이 아니다).
+        /// 발생 노드 하나만 걷는다: 그릇이 0 이 되고 벨트·군수는 그대로라 **한 축만 움직인다**.
         /// </summary>
-        private static NodeDefinition MuniWith(RecipeKind kind)
+        private static void RemoveShieldNode(BoardGrid g)
         {
-            NodeDefinition src = Node(StartingBoard.MuniId);
-            if (src == null) return null;
-
-            var clone = Object.Instantiate(src);
-            clone.name = src.name + "_" + kind;
-            return clone;
+            for (int x = 0; x < g.Columns; x++)
+            for (int y = 0; y < g.Rows; y++)
+            {
+                var cell = new Vector2Int(x, y);
+                NodeInstance n = g.GetAt(cell);
+                if (n != null && n.Definition != null && n.Definition.type == NodeType.Shield)
+                    g.TryRemove(cell);
+            }
         }
 
         private static BoardGrid Board() => Board(BasePropellantNeed);

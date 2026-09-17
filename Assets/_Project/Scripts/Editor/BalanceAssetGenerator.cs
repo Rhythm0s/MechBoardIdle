@@ -165,6 +165,8 @@ namespace MBI.Editor
             // 없는 것과 같아 배포 거동이 지금 그대로다(`260917_W05` 4-2).
             c.shieldMax = json.Param("shieldMax");
             c.shieldMaxPerNode = json.Param("shieldMaxPerNode");
+            c.dodgeMoveDistance = json.Param("dodgeMoveDistance");
+            c.dodgeMoveSeconds = json.Param("dodgeMoveSeconds");
             c.shieldChargePerMaterial = json.Param("shieldChargePerMaterial");
             c.shieldChargeRatioPerSec = json.Param("shieldChargeRatioPerSec");
             c.shieldMaterialPerSec = json.Param("shieldMaterialPerSec");

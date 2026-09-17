@@ -161,6 +161,9 @@ namespace MBI.Core
 
             /// <summary>생존 세 층의 가운데 — 이 로봇의 보드가 채운다(2026-09-17).</summary>
             public readonly ShieldSystem shield = new ShieldSystem();
+
+            /// <summary>회피할 때 밀려나는 몫(2026-09-17 · `260917_W07` 3장).</summary>
+            public readonly DodgeMotion dodgeMotion = new DodgeMotion();
             public float propellantSupplyRate;  // 부스터 유입(개/초)
             public float propellantCarry;       // 소수분 이월 — 15초에 1개라 한 틱에 1개가 안 나온다
         }
@@ -568,13 +571,74 @@ namespace MBI.Core
         /// </summary>
         private void TryBodyDodge(Vector2 autoDirection)
         {
-            if (Act.dodge.TryDodge(true, autoDirection, false, Vector2.zero)) return;
+            // ⚠️ **미는 것은 어느 쪽 스택을 썼든 몸 하나다** — 합체체도 같은 규칙으로 밀린다
+            //    (`260917_W07` 3장). 그래서 밀기는 `Act.dodgeMotion` 하나만 쓴다.
+            if (Act.dodge.TryDodge(true, autoDirection, false, Vector2.zero))
+            {
+                BeginDodgeMotion(autoDirection);
+                return;
+            }
             if (!MergedNow) return;
 
             // 활성 쪽이 **진행 중**이어도 여기 온다 — 그때는 이미 무적이라 대기 쪽이
             // 발동해도 추진제만 축난다. 진행 중이 아닐 때만 대기 쪽을 쓴다.
             if (Act.dodge.IsDodging) return;
-            Standby.dodge.TryDodge(true, autoDirection, false, Vector2.zero);
+            if (Standby.dodge.TryDodge(true, autoDirection, false, Vector2.zero))
+                BeginDodgeMotion(autoDirection);
+        }
+
+        /// <summary>
+        /// 회피가 났으니 **몸을 민다** (2026-09-17 · `260917_W07` 3장).
+        ///
+        /// 방향은 자동이면 **가장 가까운 적의 반대쪽**이다 — 부르는 쪽이 이미 그 방향을 준다
+        /// (피격 자리에서 `(내 자리 − 때린 놈 자리)`). 수동 회피는 러너가 드래그 방향을 준다.
+        ///
+        /// ⚠️ **무적은 여기서 안 건드린다** — 못 움직여도 회피는 성립한다.
+        /// </summary>
+        private void BeginDodgeMotion(Vector2 direction) => Act.dodgeMotion.Begin(direction);
+
+        // 🗑️ 구 `BeginManualDodgeMotion(Vector2)` 폐기 — 수동 회피도 **시뮬 안에서**
+        //    `RequestDodge` → 플릭 소비 자리에서 걸린다. 밖에 창구를 하나 더 두면
+        //    「같은 일을 하는 자리 둘」이 되고, 러너가 안 부르는 날 이동만 빠진다.
+
+        /// <summary>지금 회피로 밀려나는 중인가 — **러너의 자동 조종이 이 틱을 양보한다**.</summary>
+        public bool DodgeMotionActive => Act.dodgeMotion.IsMoving;
+
+        /// <summary>직전 회피가 실제로 나아간 거리(칸) — 막히면 0.5칸에 못 미친다(진단용).</summary>
+        public float DodgeMovedDistance => Act.dodgeMotion.MovedDistance;
+
+        /// <summary>회피 이동 값 — 러너·하네스가 자산에서 읽어 넣는다(⚠️ 넷 다 설계 가정).</summary>
+        public float DodgeMoveDistance
+        {
+            get => Act.dodgeMotion.Distance;
+            set { Act.dodgeMotion.Distance = value; Standby.dodgeMotion.Distance = value; }
+        }
+
+        /// <summary>회피 이동에 걸리는 시간(초).</summary>
+        public float DodgeMoveSeconds
+        {
+            get => Act.dodgeMotion.Seconds;
+            set { Act.dodgeMotion.Seconds = value; Standby.dodgeMotion.Seconds = value; }
+        }
+
+        /// <summary>
+        /// 밀려나는 몫을 몸에 먹인다 — **충돌 규칙대로 막히면 멈춘다**(`260917_W07` 3장).
+        ///
+        /// ⚠️ 막는 것은 적의 몸이다(`GridMovement.IsBlocked` — 적들이 서로 막는 데 쓰는
+        /// 그 규칙 그대로). **밀어내기도 통과도 없다.**
+        /// </summary>
+        private void StepDodgeMotion(float dt)
+        {
+            if (Act.body == null || !Act.dodgeMotion.IsMoving) return;
+
+            Vector2 delta = Act.dodgeMotion.Step(dt);
+            if (delta == Vector2.zero) return;
+
+            Vector2 target = Act.body.position + delta;
+            if (GridMovement.IsBlocked(target, Act.body.radius, Act.body, _enemies, null)) return;
+
+            Act.body.position = target;
+            Act.dodgeMotion.ReportMoved(delta.magnitude);
         }
 
         /// <summary>
@@ -1145,10 +1209,16 @@ namespace MBI.Core
             //    대기 보드도 계속 채우는 것이 「다친 로봇을 빼서 회복」의 근거다.
             for (int i = 0; i < _sides.Length; i++) _sides[i].shield.Tick(dt);
 
+            // 회피 이동 — **무적과 같이 흐른다**(`260917_W07` 3장).
+            StepDodgeMotion(dt);
+
             ProducePropellantInto(Act, dt);
 
             if (!_pendingFlick) return;
-            Act.dodge.TryDodge(false, Vector2.zero, true, _pendingFlickDirection);
+            // ⚠️ **수동 회피는 드래그한 방향으로 민다**(`260917_W07` 3장) —
+            //    자동(적의 반대쪽)과 방향만 다르고 나머지는 같은 규칙이다.
+            if (Act.dodge.TryDodge(false, Vector2.zero, true, _pendingFlickDirection))
+                BeginDodgeMotion(_pendingFlickDirection);
             _pendingFlick = false;
         }
 

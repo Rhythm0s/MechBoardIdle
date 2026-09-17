@@ -83,6 +83,12 @@ namespace MBI.Data
         [Tooltip("추진제 필요 생산치. params.propellantNeed = 30 확정치(구 150). 산출률 = 노드 생산력 ÷ 이 값이라 기초 군수 1대가 3초에 1개를 낸다.")]
         public float propellantNeed = 30f;
 
+        [Tooltip("회피할 때 밀려나는 거리(칸). params.dodgeMoveDistance = 0.5. ⚠️ 설계 가정 · 미확정.")]
+        public float dodgeMoveDistance = 0.5f;
+
+        [Tooltip("회피 이동에 걸리는 시간(초). params.dodgeMoveSeconds = 0.167 — 무적과 같이 끝난다. ⚠️ 설계 가정.")]
+        public float dodgeMoveSeconds = 0.167f;
+
         [Tooltip("부스터 1대당 회피 스택 칸. params.dodgeStacksPerBooster = 4 확정치(구 2). 회피 스택 상한 = 부스터 노드 대수 × 이 값. 시작 보드는 부스터 둘이라 상한 8.")]
         public int dodgeStacksPerBooster = 4;
 

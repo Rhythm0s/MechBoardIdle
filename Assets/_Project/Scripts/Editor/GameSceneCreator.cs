@@ -251,7 +251,12 @@ namespace MBI.Editor
             //
             // ⚠️ `startingNodePool` 과 **다른 목록**이다 — 이쪽은 「플레이어가 놓을 수 있는 것」,
             //    저쪽은 「판을 세울 때 필요한 자산」이다. 뜻이 달라 합치지 않는다.
-            foreach (string id in new[] { "core", "proc", "muni", "munix", "ener", "stor", "boost" })
+            // ✅ **쉴드 발생(`shield`)을 넣었다**(2026-09-17 사용자 확정 · `260917_W07` 4장 3번).
+            //    팔레트가 **여덟**이 된다. 탭은 안 만든다 — `PaletteCategories.Of` 가
+            //    **입력면 수**로 가르고 쉴드는 입력면 하나라 그리로 자동으로 간다.
+            //    ⚠️ 시작 보드에 쉴드 줄이 들어왔으므로, 팔레트에 없으면 플레이어가
+            //    **뽑은 노드를 다시 못 놓는** 판이 된다.
+            foreach (string id in new[] { "core", "proc", "muni", "munix", "ener", "stor", "boost", "shield" })
             {
                 var n = Load<NodeDefinition>($"{SoRoot}/Nodes/Node_{id}.asset");
                 if (n == null) continue;

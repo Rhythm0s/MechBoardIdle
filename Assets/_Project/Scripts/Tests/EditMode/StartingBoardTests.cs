@@ -31,6 +31,9 @@ namespace MBI.Tests
     /// </summary>
     public sealed class StartingBoardTests
     {
+        // 🗑️ 구 `CountOf(nodeId)` 폐기 — **배치를 배치로 견주는 동어반복**이었다.
+        //    이 파일이 지키는 것은 배치 그 자체라 수를 박는 쪽이 맞다.
+
         private const float D = 0.01f;
 
         private BalanceConfig _bal;
@@ -221,8 +224,9 @@ namespace MBI.Tests
             foreach (StartingBoard.Slot slot in StartingBoard.Nodes)
                 if (slot.nodeId == StartingBoard.MuniId) placed++;
             // ⚠️ 2026-09-17 — **셋이다.** 표준탄 둘 + **추진제 하나**(부스터 줄이 배포에 들어왔다).
-            Assert.AreEqual(3, placed,
-                "기초 군수 셋 — 표준탄 둘(두 줄) + 추진제 하나(2026-09-17 부스터 줄)");
+            // 🗑️ 구 「셋」 폐기 — 09-17 에 쉴드 줄이 들어와 **넷**이 됐다.
+            Assert.AreEqual(4, placed,
+                "기초 군수 넷 — 표준탄 둘(두 줄) + 추진제(부스터 줄) + 방어 재료(쉴드 줄)");
 
             BoardGrid g = Build(fillEmptySlot: false);
             NetworkAggregate agg = LogisticsNetwork.Aggregate(g, LogisticsReach.ConnectedNodes(g));
@@ -341,7 +345,7 @@ namespace MBI.Tests
 
             // ✅ 군수는 다 놓여 있다 — 플레이어 몫은 **벨트 한 칸**이다(2026-09-11).
             // ⚠️ 2026-09-17 — 셋이다(표준탄 둘 + 추진제 하나).
-            Assert.AreEqual(3, muni, "기초 군수 셋이 다 놓여 있다");
+            Assert.AreEqual(4, muni, "기초 군수 넷이 다 놓여 있다");
         }
 
         private NetworkAggregate Aggregate(BoardGrid g)
@@ -362,24 +366,38 @@ namespace MBI.Tests
         [Test]
         public void StartingBoard_IsCoreProcessingEnergy()
         {
-            int core = 0, proc = 0, ener = 0, stor = 0;
+            int core = 0, proc = 0, muni = 0, ener = 0, stor = 0, boost = 0, shield = 0;
             foreach (StartingBoard.Slot slot in StartingBoard.Nodes)
             {
                 if (slot.nodeId == StartingBoard.CoreId) core++;
                 if (slot.nodeId == StartingBoard.ProcId) proc++;
+                if (slot.nodeId == StartingBoard.MuniId) muni++;
                 if (slot.nodeId == StartingBoard.EnergyId) ener++;
                 if (slot.nodeId == "stor") stor++;
+                if (slot.nodeId == StartingBoard.BoosterId) boost++;
+                if (slot.nodeId == StartingBoard.ShieldId) shield++;
             }
 
             // ⚠️ 네 줄 보드다(2026-09-11 · `260911_W01` 값 3) — 코어 하나가 네 방향으로
             // 라인을 세우므로 가공도 넷이다. 에너지 셋은 **벨트를 안 물고** 놓여만 있다.
+            // 📌 **여기 수는 박는 것이 맞다** — 배치 그 자체를 지키는 시험이라,
+            //    줄이 늘면 이 줄이 빨개지는 것이 **알림**이지 헛짚음이 아니다.
+            //    (파생값을 박는 것과 다르다 — 그쪽은 `BalanceFixture` 가 맡는다.)
             Assert.AreEqual(1, core, "코어 1대");
-            // ⚠️ 2026-09-17 — 가공도 하나 늘었다(추진제 줄의 **발전재료** 가공).
-            Assert.AreEqual(3, proc, "가공 3대 — 표준탄 두 줄 + 추진제 줄 하나");
+            // ⚠️ 2026-09-17 — 가공이 둘 늘었다: 추진제 줄(**발전재료**) · 쉴드 줄(**기초재료·부품**).
+            Assert.AreEqual(4, proc, "가공 4대 — 표준탄 두 줄 + 추진제 줄 + 쉴드 줄");
+            Assert.AreEqual(4, muni, "기초 군수 4대 — 표준탄 둘 + 추진제 + 방어 재료");
             Assert.AreEqual(3, ener, "에너지 3대 — 전력망은 전역이라 안 이어도 발전한다");
             Assert.AreEqual(0, stor, "저장 노드 없음");
-            Assert.AreEqual(12, StartingBoard.Nodes.Count,
-                "코어1 + 가공3 + 군수3 + 에너지3 + **부스터2** — 2026-09-17 추진제 줄이 들어왔다");
+            Assert.AreEqual(2, boost, "부스터 2대 — 회피 스택 상한 8 의 뿌리");
+            Assert.AreEqual(1, shield, "쉴드 발생 1대 — 그릇 200 · 충전 5/초");
+            // 🗑️ 구 「12 = 코어1 + 가공3 + 군수3 + 에너지3 + 부스터2」 폐기 —
+            //    09-17 에 **쉴드 줄**이 들어와 가공 · 군수 · 쉴드가 하나씩 늘었다.
+            // 📌 총계는 **종별 합**으로 센다 — 종별이 다 세어졌는지를 보는 것이 뜻이고,
+            //    합을 따로 박으면 다음에 줄이 늘 때 또 이 자리가 헛짚게 만든다.
+            Assert.AreEqual(core + proc + muni + ener + stor + boost + shield,
+                StartingBoard.Nodes.Count,
+                "배치에 위 종별 어디에도 안 세어진 노드가 있다");
         }
     }
 }

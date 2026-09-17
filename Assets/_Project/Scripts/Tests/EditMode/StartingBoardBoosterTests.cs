@@ -196,6 +196,70 @@ namespace MBI.Tests
                 "열을 넘겼는데 꼬리표가 없다 — 접힌 것을 화면이 안 말한다");
         }
 
+        // ── 쉴드 줄 배포 (2026-09-17 사용자 확정 · `260917_W07` 4장) ──
+
+        [Test]
+        public void 두_판_다_쉴드_발생_하나와_방어_재료를_낸다()
+        {
+            // ⚠️⚠️ **부스터 줄과 같은 함정이 걸리는 자리다.** 줄이 놓이기만 하고 군수가
+            //    표준탄으로 남으면 방어 재료가 **한 개도 안 나오고** 쉴드는 영영 빈 그릇이 된다 —
+            //    에러도 경고도 없이 최대치만 200 으로 뜬다.
+            //    그래서 보는 것은 배치가 아니라 **집계**다.
+            foreach (MountOwner owner in new[] { MountOwner.RobotA, MountOwner.RobotB })
+            {
+                NetworkAggregate a = Aggregate(Build(owner, fillEmptySlot: true));
+
+                Assert.AreEqual(1, a.shieldNodeCount,
+                    $"{owner} 판의 쉴드 발생 노드가 하나가 아니다 — 안 이어졌으면 집계에서 빠진다");
+                Assert.Greater(a.shieldMaterialProduce, 0f,
+                    $"{owner} 방어 재료 산출이 0 이다 — 군수가 기본값(표준탄)으로 돌고 있다");
+            }
+        }
+
+        [Test]
+        public void 쉴드_그릇은_노드_수를_따른다()
+        {
+            // 최대치 = 노드 수 × 대당(200). 발생 하나면 **200** 이고, 충전률은 그 2.5%(5/초)다.
+            var bal = AssetDatabase.LoadAssetAtPath<BalanceConfig>(
+                "Assets/_Project/ScriptableObjects/BalanceConfig.asset");
+            Assert.IsNotNull(bal, "BalanceConfig 자산이 없다");
+
+            NetworkAggregate a = Aggregate(Build(MountOwner.RobotA, fillEmptySlot: true));
+            float max = ShieldSystem.MaxFrom(a.shieldNodeCount, bal.shieldMaxPerNode);
+
+            Assert.AreEqual(200f, max, 0.001f, "발생 하나인데 그릇이 200 이 아니다");
+            Assert.AreEqual(5f, ShieldSystem.ChargeFrom(max, bal.shieldChargeRatioPerSec,
+                a.shieldMaterialProduce, a.shieldNodeCount, bal.shieldMaterialPerSec), 0.001f,
+                "충전률이 5/초가 아니다 — 재료가 모자라거나 비율이 갈렸다");
+        }
+
+        [Test]
+        public void 쉴드_줄이_들어오며_두_판의_세대가_바뀌었고_까닭이_판마다_적힌다()
+        {
+            // ⚠️⚠️ **사용자가 감수한 자리다** — A · B 저장이 한 번씩 버려진다
+            //    (`260917_W07` 4장 2번). 지키는 것은 「버려진다」가 아니라
+            //    **「왜 버렸는지가 판마다 따로 적힌다」**이다.
+            foreach (MountOwner owner in new[] { MountOwner.RobotA, MountOwner.RobotB })
+            {
+                var g = new BoardGrid(PartLayout.Columns, PartLayout.Rows, 1f, Vector2.zero,
+                    PartLayout.BuildMask(), owner);
+
+                var stale = new BoardStateV1
+                {
+                    columns = g.Columns, rows = g.Rows,
+                    owner = (int)owner,
+                    generation = "구세대-쉴드줄-이전",
+                };
+
+                Assert.IsFalse(BoardStateCodec.Fits(stale, g), $"{owner} 옛 저장이 그대로 맞는다");
+
+                string why = BoardStateCodec.WhyNotFit(stale, g);
+                StringAssert.Contains("세대가 다르다", why, $"{owner} 까닭이 세대가 아니다 — {why}");
+                StringAssert.Contains(owner.ToString(), why,
+                    $"까닭에 어느 판인지가 없다 — A · B 가 한 줄로 뭉치면 무엇이 버려졌는지 못 읽는다");
+            }
+        }
+
         [Test]
         public void 분류기가_직선으로_깔리지_않았다()
         {

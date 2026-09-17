@@ -29,6 +29,8 @@ MonoBehaviour:
   shieldChargeRatioPerSec: 0.025
   shieldMaterialPerSec: 1
   propellantNeed: 30
+  dodgeMoveDistance: 0.5
+  dodgeMoveSeconds: 0.167
   dodgeStacksPerBooster: 4
   mergeOutputMult: 2
   muniPerNode: 1

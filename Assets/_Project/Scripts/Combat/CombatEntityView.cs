@@ -16,6 +16,20 @@ namespace MBI.Combat
         private float _size;
         private Transform _hpFill;
 
+        // ── 쉴드 바 (2026-09-17 · `260917_W07` 4장 4번) ───────────────────────
+        //
+        // ⚠️⚠️ **규격이 문서에 없었다.** UI 문서 · UI 아트 요청 문서를 찾아보니
+        //    쉴드 게이지 규격이 없고, 회피 스택만 「HP 바 인접」으로 정해져 있다.
+        //    설계 지시대로 **HP 바 규칙을 그대로** 쓴다 — 같은 너비 · 같은 높이 ·
+        //    같은 「왼쪽에 붙여 줄인다」 · **HP 바 바로 위** 한 칸.
+        //    색만 다르다(청록) — 층이 다른 것을 색으로 가른다. **구현 가정 · 역기입 자리.**
+        //
+        // ⚠️ **최대치가 0 이면 아예 안 보인다** — 쉴드 줄이 없는 판에서 빈 막대가
+        //    떠 있으면 「고장 났다」로 읽힌다.
+        private Transform _shieldFill;
+        private GameObject _shieldBar;
+        private float _shieldRatio = -1f;   // 음수 = 쉴드 없음(그리지 않는다)
+
         // 본체 — 반동(위치)·피격 점멸(색)이 여기에 걸린다. 스프라이트를 갈아끼우지 않는다.
         private Transform _body;
         private SpriteRenderer _bodyRenderer;
@@ -158,6 +172,31 @@ namespace MBI.Combat
             fill.sortingOrder = SortingLayers.Hud + 1; // 배경 위 채움(같은 층 안 미세 조정)
             _hpFill = fillGo.transform;
 
+            // 쉴드 바 — **HP 바 규칙 그대로 · 바로 위 한 칸**(2026-09-17 구현 가정).
+            float shieldY = barY + barH * 1.25f;
+            _shieldBar = new GameObject("ShieldBar");
+            _shieldBar.transform.SetParent(transform, false);
+            _shieldBar.transform.localPosition = new Vector3(0f, shieldY, 0f);
+
+            var sBgGo = new GameObject("ShieldBg");
+            sBgGo.transform.SetParent(_shieldBar.transform, false);
+            sBgGo.transform.localScale = new Vector3(barW, barH, 1f);
+            var sBg = sBgGo.AddComponent<SpriteRenderer>();
+            sBg.sprite = PlaceholderSprite.White();
+            sBg.color = new Color(0.1f, 0.1f, 0.1f, 0.85f);
+            sBg.sortingOrder = SortingLayers.Hud;
+
+            var sFillGo = new GameObject("ShieldFill");
+            sFillGo.transform.SetParent(_shieldBar.transform, false);
+            sFillGo.transform.localScale = new Vector3(barW, barH, 1f);
+            var sFill = sFillGo.AddComponent<SpriteRenderer>();
+            sFill.sprite = PlaceholderSprite.White();
+            sFill.color = new Color(0.35f, 0.8f, 0.95f, 1f);   // 청록 — HP(초록)와 가른다
+            sFill.sortingOrder = SortingLayers.Hud + 1;
+            _shieldFill = sFillGo.transform;
+
+            _shieldBar.SetActive(false);   // 쉴드가 없는 판에서는 안 뜬다
+
             Sync();
         }
 
@@ -209,7 +248,22 @@ namespace MBI.Combat
                 Vector3 lp = _hpFill.localPosition;
                 _hpFill.localPosition = new Vector3(-_size * (1f - ratio) * 0.5f, lp.y, lp.z);
             }
+
+            if (_shieldBar != null) _shieldBar.SetActive(_shieldRatio >= 0f);
+            if (_shieldFill != null && _shieldRatio >= 0f)
+            {
+                // HP 바와 **같은 규칙**이다 — 왼변을 제자리에 두고 오른쪽에서 줄인다.
+                float r = Mathf.Clamp01(_shieldRatio);
+                _shieldFill.localScale = new Vector3(_size * r, _size * 0.14f, 1f);
+                _shieldFill.localPosition = new Vector3(-_size * (1f - r) * 0.5f, 0f, 0f);
+            }
         }
+
+        /// <summary>
+        /// 쉴드 비율을 건다(0~1). **음수를 주면 막대가 사라진다** — 쉴드가 없는 판이다.
+        /// ⚠️ 이 뷰는 쉴드를 **모른다** — 값은 러너가 시뮬에서 읽어 넣는다(§7).
+        /// </summary>
+        public void SetShieldRatio(float ratio) => _shieldRatio = ratio;
 
         /// <summary>
         /// 상태 한 벌을 고른다. 요청한 방향이 없으면 남면으로 내린다.

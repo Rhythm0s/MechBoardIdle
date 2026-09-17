@@ -815,6 +815,24 @@ namespace MBI.Combat
         }
 
         /// <summary>
+        /// 로봇 머리 위 **쉴드 막대**에 비율을 건다 — HP 바 바로 위 한 칸이다.
+        /// 최대치가 0 이면 음수를 줘 **막대를 지운다**(쉴드 줄이 없는 판).
+        /// </summary>
+        private void SyncShieldBar()
+        {
+            if (_robotView == null || _sim == null) return;
+
+            float max = _sim.ShieldMax, now = _sim.Shield.Value;
+            if (IsMerged && _sim.HasTagPartner)
+            {
+                max += _sim.StandbyShieldMax;
+                now += _sim.StandbyShield.Value;
+            }
+
+            _robotView.SetShieldRatio(max > 0f ? now / max : -1f);
+        }
+
+        /// <summary>
         /// 탄약 소진 표시(`vfx_ammoout`) — **마운트가 통째로 빈 동안** 계속 떠 있는다.
         ///
         /// ⚠️ **이 조건은 가정이다**(2026-09-09 · `❓`7-1 (가)). 연출 문서가 이 자산을
@@ -1119,6 +1137,14 @@ namespace MBI.Combat
                 // ⚠️ 매 틱 넣는 까닭 — 자산을 인스펙터에서 고치면 그 자리에서 반영돼야 한다.
                 if (bal != null && bal.dodgeStacksPerBooster > 0)
                     DodgeSystem.StacksPerBooster = bal.dodgeStacksPerBooster;
+
+                // 회피 이동 값 둘 — **자산이 원천**이다(⚠️ 설계 가정 · `260917_W07` 3장).
+                //    매 틱 넣는 까닭은 계수와 같다 — 인스펙터에서 고치면 그 자리에서 반영돼야 한다.
+                if (bal != null)
+                {
+                    _sim.DodgeMoveDistance = bal.dodgeMoveDistance;
+                    _sim.DodgeMoveSeconds = bal.dodgeMoveSeconds;
+                }
                 MergeSignals.OutputMultiplier = IsMerged && bal != null
                     ? Mathf.Max(1f, bal.mergeOutputMult)
                     : MergeSignals.None;
@@ -1160,7 +1186,11 @@ namespace MBI.Combat
 
                 UpdateRobotFacing(mv != Vector2.zero || Time.time < _manualHoldUntil);
 
-                if (mv == Vector2.zero && autoPilot && Time.time >= _manualHoldUntil)
+                // ⚠️⚠️ **회피로 밀리는 동안은 자동 조종이 양보한다**(2026-09-17 · `260917_W07` 3장).
+                //    안 그러면 같은 틱에 자동 조종이 제 자리를 써 버려 **밀린 것이 지워진다** —
+                //    시뮬은 밀었는데 화면은 안 움직이는, 가장 찾기 어려운 꼴이 된다.
+                if (mv == Vector2.zero && autoPilot && Time.time >= _manualHoldUntil
+                    && !_sim.DodgeMotionActive)
                 {
                     var ctx = new AutoPilotContext
                     {
@@ -1257,6 +1287,8 @@ namespace MBI.Combat
             if (_sim.TagSkillResolvedThisTick) PlayTagSkillEffect();
 
             PlayInstalledVfx();
+            // 쉴드 막대 — 매 프레임 비율을 다시 건다(HP 바와 같은 결).
+            SyncShieldBar();
             SyncEnemyProjectileViews();
 
             // 날아가는 탄환은 **연출 전용**이라 시뮬 배속이 아니라 실제 시간으로 간다 —
@@ -1804,7 +1836,7 @@ namespace MBI.Combat
             string lineAmmo = AmmoLine();
             string lineStore = $"저장고(군수 생산) {LogisticsOutputBridge.AmmoProduce:F1} 발/초";
             string lineEnemy = $"적 {_sim.Remaining}/{_sim.TotalEnemies}   로봇 HP {_sim.Robot.hp:F0}/{_sim.Robot.maxHp:F0}" +
-                               $"   {DodgeLine()}";
+                               $"{ShieldLine()}   {DodgeLine()}";
             string lineTag = robotB != null ? TagLine() : null;
             string lineElapsed = $"경과 {_sim.Elapsed:F1}s / {stage.challengeTime:F0}s";
             string lineWallet = $"고철 {IdleSignals.WalletScrap:N0}   ·   강화재료 {IdleSignals.WalletEnhMaterial:N0}";
@@ -2379,6 +2411,33 @@ namespace MBI.Combat
         /// 상한이 열을 넘으면 눈금은 열에서 멈추고 옆에 `10+`가 붙는다. 실제로 그 위쪽이
         /// 차는 일은 스테이지 제한 시간 안에서는 거의 없다(<see cref="HudMeters.TickCount"/> 주석).
         /// </summary>
+        /// <summary>
+        /// HUD 의 쉴드 칸 — **HP 바로 뒤에 붙인다**(2026-09-17 · `260917_W07` 4장 4번).
+        ///
+        /// ⚠️⚠️ **규격이 문서에 없었다.** UI 문서 · UI 아트 요청 문서를 찾아보니 쉴드 게이지
+        /// 규격이 없다(회피 스택만 「HP 바 인접」으로 서 있다). 설계 지시대로
+        /// **HP 와 같은 규칙**(현재/최대 · 같은 줄 · 바로 옆)으로 넣었다. **구현 가정 · 역기입 자리.**
+        ///
+        /// ⚠️ **합체 중에는 두 보드의 게이지를 합산해 보인다**(사용자 확정 · `260917_W06` 5장) —
+        /// 쓰는 규칙이 합산인데 화면이 한쪽만 보이면 **남은 것보다 더 버티는** 꼴이 된다.
+        ///
+        /// 쉴드가 없는 판(최대치 0)에서는 **빈 문자열**이다 — 없는 층을 0/0 으로 그리면
+        /// 고장으로 읽힌다.
+        /// </summary>
+        private string ShieldLine()
+        {
+            float max = _sim.ShieldMax, now = _sim.Shield.Value;
+            if (IsMerged && _sim.HasTagPartner)
+            {
+                max += _sim.StandbyShieldMax;
+                now += _sim.StandbyShield.Value;
+            }
+            if (max <= 0f) return string.Empty;
+
+            string merged = IsMerged && _sim.HasTagPartner ? "(합산)" : string.Empty;
+            return $"   쉴드{merged} {now:F0}/{max:F0}";
+        }
+
         private void DrawDodgeTicks()
         {
             DodgeSystem d = _sim.Dodge;

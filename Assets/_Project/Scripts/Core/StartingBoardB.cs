@@ -103,6 +103,21 @@ namespace MBI.Core
             new Slot(6, 6, StartingBoard.MuniId, RecipeKind.Propellant),
             new Slot(8, 6, StartingBoard.BoosterId),
             new Slot(8, 5, StartingBoard.BoosterId),
+
+            // ── 쉴드 줄 (2026-09-17 사용자 확정 · `260917_W07` 4장) ──
+            //
+            // ⚠️ **A 와 자리가 다르다.** A 는 코어 **서면**을 쓰는데 B 는 그 자리에 추진제 줄이
+            //    이미 있다(서 줄 (4,8)~(4,6)). B 는 **북면**이 비어 있어 그쪽으로 낸다 —
+            //    쓰이는 것은 같은 노드 셋(가공 1 · 기초 군수 1 · 발생 1)이다.
+            //
+            //      y=9   벨(5,9) 남→동 → 가공(6,9) → 군수(7,9) 방어 재료 → 쉴드(8,9)
+            //
+            // 📌 **로봇 B 의 정체성이 에너지와 쉴드**라는 사용자 말이 여기 걸린다 —
+            //    B 는 이제 배터리 줄(에너지)과 쉴드 줄을 다 갖는다.
+            // ⚠️ 가공은 표준탄·드론 줄과 **안 나눠 쓴다**(사용자 확정 · A 와 같은 규칙).
+            new Slot(6, 9, StartingBoard.ProcId, RecipeKind.BasicParts),
+            new Slot(7, 9, StartingBoard.MuniId, RecipeKind.DefenseMaterial),
+            new Slot(8, 9, StartingBoard.ShieldId),
         };
 
         /// <summary>
@@ -140,6 +155,9 @@ namespace MBI.Core
             new StartingBoard.Run(4, 6, PortFace.North, PortFace.East),
             StartingBoard.Run.Sorter(7, 6),
             new StartingBoard.Run(7, 5, PortFace.North, PortFace.East),
+
+            // ── 쉴드 줄 (2026-09-17) — 코어 북면에서 동으로 ──
+            new StartingBoard.Run(5, 9, PortFace.South, PortFace.East),
         };
 
         /// <summary>

@@ -143,6 +143,9 @@ namespace MBI.Core
         /// <summary>부스터 노드 자산 id (2026-09-17 · 추진제 줄과 함께 배포에 들어왔다).</summary>
         public const string BoosterId = "boost";
 
+        /// <summary>쉴드 발생 노드 자산 id (2026-09-17 · 쉴드 줄과 함께 배포에 들어왔다).</summary>
+        public const string ShieldId = "shield";
+
         // ────────────────────────────────────────────────────────────────────
         //  네 줄 배치 (2026-09-11 · `260911_W01` 2장 값 3)
         //
@@ -269,6 +272,29 @@ namespace MBI.Core
             new Slot(8, 9, MuniId, AmmoKind.Pierce, RecipeKind.Propellant),
             new Slot(10, 9, BoosterId),
             new Slot(9, 10, BoosterId, AmmoKind.Pierce, RecipeKind.None, rotation: 3),
+
+            // ── 쉴드 줄 (2026-09-17 사용자 확정 · `260917_W07` 4장) ──
+            //
+            // 생존 세 층의 가운데가 배포에 들어온다. 최대치 = 발생 노드 × 200 이므로
+            // **발생 노드 하나 = 그릇 200** 이고, 충전률은 그 2.5%(5/초 · 빈 게이지 40초)다.
+            //
+            // ⚠️ 자리는 **구현 판단**이다(설계 역기입 자리). 코어의 **서면**을 쓴다 —
+            //    폐기된 서 줄 자리(4,8)~(4,6) 를 되쓰고 동쪽으로 되돌아온다.
+            //
+            //      y=8   벨(4,8) 동→남
+            //      y=7   벨(4,7) 북→남
+            //      y=6   벨(4,6) 북→동 → 가공(5,6) → 군수(6,6) 방어 재료 → 쉴드(7,6)
+            //
+            // 📌 **가공을 표준탄 줄과 안 나눠 쓴다**(사용자 확정). 나눠 쓰면 쉴드를 놓는 순간
+            //    표준탄이 줄어 「쉴드가 화력을 깎았나」와 「쉴드가 모자랐나」가 섞인다.
+            //    대가는 **전력**으로 낸다(수요 13.0 → 17.0 · 하네스 실측).
+            //
+            // ⚠️⚠️ **쉴드 발생 노드는 입력면이 서쪽 하나뿐이다.** 군수 바로 동쪽에 붙여야
+            //    받는다 — 사이에 벨트를 두면 `BeltAutoOrient` 가 다른 면을 입력으로 뽑아
+            //    09-17 의 분류기 사고가 그대로 되풀이된다.
+            new Slot(5, 6, ProcId, AmmoKind.Pierce, RecipeKind.BasicParts),
+            new Slot(6, 6, MuniId, AmmoKind.Pierce, RecipeKind.DefenseMaterial),
+            new Slot(7, 6, ShieldId),
         };
 
         /// <summary>
@@ -326,6 +352,11 @@ namespace MBI.Core
             new Run(5, 9, PortFace.South, PortFace.East),
             new Run(7, 9, PortFace.West, PortFace.East),
             Run.Sorter(9, 9),
+
+            // ── 쉴드 줄 (2026-09-17) — 코어 서면에서 몸통 아래로 ──
+            new Run(4, 8, PortFace.East, PortFace.South),
+            new Run(4, 7, PortFace.North, PortFace.South),
+            new Run(4, 6, PortFace.North, PortFace.East),
         };
 
         /// <summary>
