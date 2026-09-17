@@ -35,9 +35,14 @@ namespace MBI.Core.Combat
         /// 투사체 속도(유닛/초). ⚠️ **가정 · 하나뿐이다** — 병종마다 다른 속도를 두면
         /// 값이 늘어나는 만큼 확정할 것도 늘어난다. 지금은 「날아오는 것이 보인다」가 목표다.
         ///
-        /// 적 이동 속도(1.2)의 다섯 배로 둔다 — 걸어오는 적보다 빠르지만 눈으로 쫓을 수 있다.
+        /// ✅ **6 → 4.2**(2026-09-18 사용자 확정 · 육안 뒤 「지금 속도의 70%」).
+        /// 🗑️ 구 6 폐기 — 적 이동 속도(1.2)의 다섯 배였는데 **눈으로 못 쫓았다.**
+        /// 지금은 3.5 배다(1.2 × 3.5 = 4.2). 걸어오는 적보다는 여전히 빠르다.
+        ///
+        /// 📌 **명중 판정은 그대로 둔다** — 느려지는 쪽이라 「한 틱에 로봇을 뛰어넘는」
+        /// 걱정은 멀어졌다(아래 <see cref="Hits"/> 주석이 경고하던 자리는 빨라질 때다).
         /// </summary>
-        public const float ProjectileSpeedAssumed = 6f;
+        public const float ProjectileSpeedAssumed = 4.2f;
 
         /// <summary>이 병종이 투사체를 쏘는가. **포격만이다**(그 외는 즉발 현행).</summary>
         public static bool UsesProjectile(EnemyRole role) => role == EnemyRole.Artillery;

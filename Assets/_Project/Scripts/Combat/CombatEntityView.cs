@@ -362,7 +362,8 @@ namespace MBI.Combat
                 // 120° 는 ±60° 라 1.5 보다 조금 더 붙들지만, 표적이 그 밖으로 나가면 **그 틱에**
                 // 돈다 — 발사를 기다리지 않는다.
                 _lastDirection = DirectionHysteresis.Resolve(FacingOverride.Value, _lastDirection);
-                PlayState(IsMoving(delta, dt) ? UnitAnimState.Move : UnitAnimState.Idle, _lastDirection);
+                PlayState(!ForceIdlePose && IsMoving(delta, dt) ? UnitAnimState.Move : UnitAnimState.Idle,
+                          _lastDirection);
                 return;
             }
 
@@ -398,6 +399,32 @@ namespace MBI.Combat
         /// 몬스터는 아무도 안 넣으므로 `null` 인 채로 돈다.
         /// </summary>
         public Vector2? FacingOverride;
+
+        /// <summary>
+        /// **무적인 동안 몸이 깜빡인다** (2026-09-18 사용자 확정 — 「부스트의 느낌이 들도록」).
+        ///
+        /// 📌 깜빡이는 것은 **알파**뿐이다. 색을 바꾸면 피격 섬광(빨강·하양)과 섞여
+        /// 두 사건이 한 빛으로 읽힌다 — 무적은 「안 맞는다」이고 섬광은 「맞았다」다.
+        /// ⚠️ 값 둘은 **구현 가정**이다(`CombatTuning` 이 든다 · 러너가 넣어 준다).
+        /// </summary>
+        public bool Invincible;
+
+        /// <summary>깜빡임 반 주기(초). 이 시간만큼 흐리고 같은 시간만큼 뚜렷하다.</summary>
+        public float InvincibleBlinkSeconds = 0.06f;
+
+        /// <summary>가장 흐릴 때의 알파. 0 이면 완전히 사라져 「죽은 것」으로 보인다.</summary>
+        public float InvincibleBlinkMinAlpha = 0.3f;
+
+        private float _invincibleElapsed;
+
+        /// <summary>
+        /// **선 자세를 강제한다** — 회피로 밀리는 동안 걷는 벌을 돌리지 않으려는 자리
+        /// (2026-09-18 사용자 확정 — 「회피로 움직이는 방향으로 Idle 로 바라보도록」).
+        ///
+        /// 📌 회피는 **걸음이 아니라 튕김**이다. 0.167초 동안 반 칸을 가는데 그걸 걸음으로
+        /// 그리면 벌 한 바퀴가 그 안에 다 돌아 **다리가 파르르 떠는 것처럼** 보인다.
+        /// </summary>
+        public bool ForceIdlePose;
 
         /// <summary>걷고 있는가 — 벌을 고르는 데만 쓴다(방향은 위에서 이미 정했다).</summary>
         private static bool IsMoving(Vector2 delta, float dt) =>
@@ -456,6 +483,33 @@ namespace MBI.Combat
                 if (_flashElapsed >= EffectTiming.HitFlashDuration)
                     _bodyRenderer.color = _bodyBaseColor;
             }
+
+            // ⚠️ **섬광 뒤에 건다.** 섬광이 색을 되돌릴 때 알파까지 1 로 돌려놓으므로,
+            //    앞에 두면 맞은 순간 깜빡임이 한 프레임씩 끊긴다.
+            if (_bodyRenderer != null) StepInvincibleBlink(dt);
+        }
+
+        /// <summary>무적인 동안 알파만 껐다 켠다. 무적이 끝나면 **반드시 1 로 되돌린다.**</summary>
+        private void StepInvincibleBlink(float dt)
+        {
+            Color c = _bodyRenderer.color;
+            float alpha = 1f;
+
+            if (Invincible && InvincibleBlinkSeconds > 0f)
+            {
+                _invincibleElapsed += dt;
+                float period = InvincibleBlinkSeconds * 2f;
+                alpha = Mathf.Repeat(_invincibleElapsed, period) < InvincibleBlinkSeconds
+                    ? Mathf.Clamp01(InvincibleBlinkMinAlpha) : 1f;
+            }
+            else
+            {
+                // 다음 무적이 **흐린 쪽 중간에서** 시작하지 않게 되감는다.
+                _invincibleElapsed = 0f;
+            }
+
+            if (!Mathf.Approximately(c.a, alpha))
+                _bodyRenderer.color = new Color(c.r, c.g, c.b, alpha);
         }
     }
 }

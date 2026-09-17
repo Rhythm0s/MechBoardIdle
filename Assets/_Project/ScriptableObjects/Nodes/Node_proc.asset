@@ -13,7 +13,7 @@ MonoBehaviour:
   m_Name: Node_proc
   m_EditorClassIdentifier: MBI.Data::MBI.Data.NodeDefinition
   nodeId: proc
-  displayName: "\uAC00\uACF5"
+  displayName: "\uBCC0\uD658\uAE30"
   type: 1
   implemented: 1
   resources:

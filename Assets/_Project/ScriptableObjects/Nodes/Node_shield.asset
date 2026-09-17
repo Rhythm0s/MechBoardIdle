@@ -13,7 +13,7 @@ MonoBehaviour:
   m_Name: Node_shield
   m_EditorClassIdentifier: MBI.Data::MBI.Data.NodeDefinition
   nodeId: shield
-  displayName: "\uC274\uB4DC \uBC1C\uC0DD"
+  displayName: "\uBCF4\uD638\uB9C9"
   type: 5
   implemented: 1
   resources:

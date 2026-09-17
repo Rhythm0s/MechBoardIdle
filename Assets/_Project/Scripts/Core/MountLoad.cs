@@ -60,16 +60,40 @@ namespace MBI.Core
         /// 저장은 태그 주기를 만들고 만충 판정에 세지 않으며, 만충은 이 마운트 층이 본다.
         /// </summary>
         public static System.Collections.Generic.Dictionary<MountItem, float> StandardStacks(float limit)
+            => StandardStacks(limit, limit);
+
+        /// <summary>
+        /// 드론 두 종만 다른 상한을 쓰는 판.
+        ///
+        /// ✅ **로봇 B 의 드론 스택을 절반으로**(2026-09-18 사용자 확정 · 육안 뒤).
+        /// 🗑️ 구 「탄약 3종·드론 2종 공통 10」 중 **드론 쪽만** 폐기 — 공통이던 까닭은
+        /// 「값이 하나면 확정할 것도 하나」였는데, 그 때문에 B 의 만충이 8 × 10 = 80 이라
+        /// **한 판 안에 태그 스킬을 한 번도 못 보는** 일이 났다(사용자 보고 ⑫).
+        /// 절반이면 8 × 5 = 40 이라 A 와 같은 크기가 된다.
+        ///
+        /// ⚠️ **적재량이 줄어든 만큼 한 번의 태그 스킬도 약해진다** — 피해가 적재량 ×
+        /// 평균 발당피해이기 때문이다. 자주 터지고 약해지는 쪽으로 옮긴 것이고,
+        /// **등가선 재산출이 필요한 자리**다(설계 몫).
+        /// </summary>
+        public static System.Collections.Generic.Dictionary<MountItem, float> StandardStacks(
+            float limit, float droneLimit)
         {
             return new System.Collections.Generic.Dictionary<MountItem, float>
             {
                 { MountItem.Pierce, limit }, { MountItem.Standard, limit },
-                { MountItem.Explosive, limit }, { MountItem.Drone, limit },
+                { MountItem.Explosive, limit }, { MountItem.Drone, droneLimit },
                 // ⚠️ **광역형도 같은 스택 규칙이다**(2026-09-16) — 상한이 없으면
                 //    한 칸이 얼마든 받아 나머지 칸이 안 열리고 만충이 영영 안 선다.
-                { MountItem.DroneAoe, limit },
+                { MountItem.DroneAoe, droneLimit },
             };
         }
+
+        /// <summary>
+        /// 드론 스택이 탄약의 몇 분의 1인가. ✅ **1/2**(2026-09-18 사용자 확정).
+        /// ⚠️ 코드 상수인 까닭 — 이것은 값이 아니라 **비**이고, 밸런스 json 에 칸이 없다.
+        /// 설계가 칸을 내면 그때 자산으로 옮긴다.
+        /// </summary>
+        public const float DroneStackFactor = 0.5f;
 
         /// <summary>슬롯 수. 로봇 A = 4 · 로봇 B = 8.</summary>
         public int SlotCount { get; }

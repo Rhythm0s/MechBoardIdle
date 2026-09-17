@@ -454,8 +454,11 @@ namespace MBI.Combat
         private MountLoad MountA(float stack) =>
             _mountA ?? (_mountA = new MountLoad(MountLoad.SlotsRobotA, MountLoad.StandardStacks(stack)));
 
+        // ⚠️ **B 의 드론 스택만 절반이다**(2026-09-18 사용자 확정 · 보고 ⑫⑬) —
+        //    8 × 10 = 80 이라 한 판에 만충이 한 번도 안 서던 자리다.
         private MountLoad MountB(float stack) =>
-            _mountB ?? (_mountB = new MountLoad(MountLoad.SlotsRobotB, MountLoad.StandardStacks(stack)));
+            _mountB ?? (_mountB = new MountLoad(MountLoad.SlotsRobotB,
+                MountLoad.StandardStacks(stack, stack * MountLoad.DroneStackFactor)));
 
         private void Begin()
         {
@@ -581,6 +584,26 @@ namespace MBI.Combat
         {
             if (_robotView == null || _sim == null) return;
 
+            // 무적인 동안 몸이 깜빡인다 (2026-09-18 사용자 — 「부스트의 느낌이 들도록」).
+            _robotView.Invincible = _sim.RobotInvincible;
+            _robotView.InvincibleBlinkSeconds = tuning != null ? tuning.invincibleBlinkSecondsTbd : 0.06f;
+            _robotView.InvincibleBlinkMinAlpha = tuning != null ? tuning.invincibleBlinkMinAlphaTbd : 0.3f;
+
+            // ⚠️ **회피로 밀리는 동안에는 가는 쪽을 본다 — 선 자세로**
+            //    (2026-09-18 사용자 확정). 표적도 수동 입력도 이것보다 뒤다:
+            //    밀리는 0.167초 동안 얼굴이 표적을 향하면 **옆걸음으로 미끄러지는 것**처럼
+            //    보여 「튕겼다」가 안 읽힌다.
+            _robotView.ForceIdlePose = _sim.DodgeMotionActive;
+            if (_sim.DodgeMotionActive)
+            {
+                Vector2 pushed = _sim.DodgeMotionDirection;
+                if (pushed.sqrMagnitude > 1e-6f)
+                {
+                    _robotView.FacingOverride = pushed;
+                    return;
+                }
+            }
+
             if (manualActive)
             {
                 _robotView.FacingOverride = null;   // 조종 중에는 가는 쪽을 본다
@@ -698,27 +721,19 @@ namespace MBI.Combat
             // 마운트가 만재가 아니어서 스킬이 안 터졌으면 연출도 없다 — 사건 종속(10-1).
             if (_sim.LastTagSkillDamage <= 0f) return;
 
-            Vector2 origin = _sim.Robot != null ? _sim.Robot.position : Vector2.zero;
             bool bEntering = _sim.ActiveRobotIndex == 1;
             Color c = bEntering ? RobotBColor : RobotAColor;
 
-            // ⚠️⚠️ **화면 끝까지 닿는 길이**로 그린다 (2026-09-18) — 종전에는 투기장 반경(6)을
-            //    썼는데, 그 수는 화면과 아무 상관이 없어 **판정이 닿는 데까지 그림이 안 갔다.**
-            float radius = TagSkillReachRadius(origin);
+            // ⚠️⚠️ **화면 사각형을 그대로 받는다** (2026-09-18 사용자 육안 · 「소용돌이 말고
+            //    화면 전체」). 종전에는 로봇 자리에서 길이를 재어 **원점에서 뻗는 그림**을
+            //    그렸는데, 줄기가 몇이든 원점이 있으면 **소용돌이로 읽힌다.**
+            //    화면은 여기서 짓지 않는다 — 카메라에서 재고, 판정이 쓰는 범위와 같은 사각형이다.
+            Rect screen = VisibleRect();
 
             if (bEntering)
             {
-                // 빔은 **때린 적 하나마다 한 줄기**다(2026-09-18 사용자 확정).
-                // 자리는 시뮬이 판정에 쓴 목록 그대로다 — 여기서 화면을 다시 재지 않는다.
-                int maxBeams = tuning != null ? tuning.tagLaserMaxBeamsTbd : 16;
-                float[] beams = TagSkillEffect.AnglesToward(origin, _sim.LastTagSkillTargets, maxBeams);
-
-                // 레이저는 자산이 없다 — 흰 사각을 늘여 그리는 것이 곧 완성형이다(연출 3-1).
-                TagSkillEffect fx = TagSkillEffect.PlayLaser(
-                    transform, origin, radius, tuning, PlaceholderSprite.White(), c, beams);
-
-                // 목록이 비었을 때만(그 사이 전부 죽은 경우) 옛 길로 한 줄기 뻗는다.
-                if (beams.Length == 0) fx.AimDegrees = TagSkillAimDegrees(origin, radius);
+                // 섬광은 자산이 없다 — 흰 사각을 화면 크기로 늘여 그리는 것이 곧 완성형이다.
+                TagSkillEffect.PlayFlash(transform, screen, tuning, PlaceholderSprite.White(), c);
             }
             else
             {
@@ -728,62 +743,34 @@ namespace MBI.Combat
                 bool real = bullet != PlaceholderSprite.White();
                 // 자산에는 색이 이미 실려 있다 — 흰 사각일 때만 색을 입힌다.
                 Color tint = real ? Color.white : c;
-                // 탄환비는 **한 바퀴 전부**에 깐다 — 방향을 고르지 않으므로 겨냥이 없다.
-                TagSkillEffect.PlayBulletRain(
-                    transform, origin, radius, tuning, bullet, tint, real, fullScreen: true);
+                TagSkillEffect.PlayBulletRain(transform, screen, tuning, bullet, tint, real);
             }
         }
 
         /// <summary>
-        /// 태그 스킬 연출이 **화면 끝까지 닿는 길이**(2026-09-18).
+        /// 지금 화면이 덮는 사각형(월드). **판정이 쓰는 것과 같은 수**다 —
+        /// 러너가 매 틱 <c>SetVisibleBounds</c> 로 넣어 주는 그 사각형을 여기서도 만든다.
         ///
-        /// 📌 판정이 「화면 안 적 전부」이므로 연출도 화면 끝까지 가야 한다.
-        /// 원점이 화면 가운데가 아니므로 **먼 쪽 귀까지**로 잡는다 — 그래야 어느 방향으로도 닿는다.
-        /// ⚠️ 수를 지어내지 않는다 — 카메라에서 잰다. 카메라가 없으면 옛 값(투기장 반경)으로 떨어진다.
+        /// ⚠️ 카메라가 없거나 원근이면 옛 값(투기장 반경)으로 떨어진다 — 수를 지어내지 않는다.
         /// </summary>
-        private float TagSkillReachRadius(Vector2 origin)
+        private Rect VisibleRect()
         {
             Camera cam = Camera.main;
-            if (cam == null || !cam.orthographic) return tuning != null ? tuning.arenaRadiusTbd : 6f;
+            if (cam == null || !cam.orthographic)
+            {
+                float r = tuning != null ? tuning.arenaRadiusTbd : 6f;
+                return new Rect(-r, -r, r * 2f, r * 2f);
+            }
 
             float halfH = cam.orthographicSize;
             float halfW = halfH * cam.aspect;
             Vector3 c = cam.transform.position;
-            float dx = Mathf.Abs(origin.x - c.x) + halfW;
-            float dy = Mathf.Abs(origin.y - c.y) + halfH;
-            return Mathf.Sqrt(dx * dx + dy * dy);
+            return new Rect(c.x - halfW, c.y - halfH, halfW * 2f, halfH * 2f);
         }
 
-        /// <summary>
-        /// **적 무리가 어느 쪽인가**(도) — 태그 스킬이 나갈 방향
-        /// (2026-09-16 사용자 육안 4차 ①② · 회전 폐기와 한 쌍).
-        ///
-        /// 📌 **한 마리가 아니라 무리다.** 최근접 하나를 향하면 그 옆에 다섯이 서 있어도
-        /// 부채꼴이 한쪽으로 치우친다. 사거리 안 적들의 **가운데**를 향한다.
-        ///
-        /// ⚠️ 적이 하나도 없으면 **로봇이 보던 쪽**을 쓰고, 그것도 없으면 오른쪽(0°)이다 —
-        /// 스킬은 이미 터졌으므로 연출을 건너뛰지 않는다.
-        /// </summary>
-        private float TagSkillAimDegrees(Vector2 origin, float radius)
-        {
-            Vector2 sum = Vector2.zero;
-            int n = 0;
-            if (_sim != null && _sim.Enemies != null)
-                foreach (CombatEntity e in _sim.Enemies)
-                {
-                    if (!e.IsAlive) continue;
-                    if ((e.position - origin).sqrMagnitude > radius * radius) continue;
-                    sum += e.position;
-                    n++;
-                }
-
-            Vector2 dir = n > 0 ? (sum / n - origin) : Vector2.zero;
-            if (dir.sqrMagnitude <= 1e-6f && _sim != null && _sim.AimDirection.HasValue)
-                dir = _sim.AimDirection.Value;
-            if (dir.sqrMagnitude <= 1e-6f) return 0f;
-
-            return Mathf.Atan2(dir.y, dir.x) * Mathf.Rad2Deg;
-        }
+        // 🗑️ **`TagSkillAimDegrees` 폐기**(2026-09-18 사용자 육안) — 연출이 화면 전체를
+        //    덮으면서 「어느 쪽으로 나가는가」를 재는 자리가 없어졌다. 부르는 곳이 0건이라
+        //    남겨 두면 다음 사람이 「겨냥이 있다」고 읽는다.
 
         /// <summary>마지막으로 본 회피 횟수 — 늘어난 프레임이 곧 회피 발동 순간이다.</summary>
         private int _seenDodges;
@@ -1026,8 +1013,9 @@ namespace MBI.Combat
                 // ⚠️ **자산은 무채색이다 — 색은 코드가 입힌다**(2026-09-16 아트 규약).
                 //    자리표시(흰 사각)일 때도 같은 색이라 **틴트를 갈래로 안 나눈다.**
                 sr.color = EnemyShellTint;
-                // ⚠️ **크기는 가정 0.25 유닛**(격자 한 칸의 1/4). 연출 문서에 적 포탄 절이 없다.
-                //    ⚠️ 자산이 64px 라 제 크기로 두면 격자 한 칸의 1/3 이다 — 그래도 가정을 지킨다.
+                // ⚠️ **크기는 가정**이고 값은 자산이 든다(`enemyProjectileViewUnitsTbd`).
+                //    연출 문서에 적 포탄 절이 없어 확정이 아니다 — 2026-09-18 에 사용자가
+                //    「안 보인다」로 키웠다(0.25 → 0.5).
                 go.transform.localScale = Vector3.one * ProjectileViewUnits;
                 _projectileViews.Add(sr);
             }
@@ -1094,8 +1082,14 @@ namespace MBI.Combat
         /// <summary>
         /// 앞의 것이 0 이 아니면 그것을 쓴다. **0 은 「안 정했다」는 뜻**이지 0 이라는 값이 아니다.
         /// </summary>
-        /// <summary>적 포탄 자리표시의 한 변(월드 유닛). ⚠️ 가정 — 연출 문서에 절이 없다.</summary>
-        private const float ProjectileViewUnits = 0.25f;
+        /// <summary>
+        /// 적 포탄의 한 변(월드 유닛). ⚠️ 가정 — 연출 문서에 절이 없다.
+        /// 🗑️ 구 `const 0.25f` 폐기(2026-09-18) — **값이 코드에 살면 손댈 때마다 코드를 고친다.**
+        /// 자산 칸을 못 읽는 판을 위한 기본값만 여기 남는다.
+        /// </summary>
+        private float ProjectileViewUnits =>
+            tuning != null && tuning.enemyProjectileViewUnitsTbd > 0f
+                ? tuning.enemyProjectileViewUnitsTbd : 0.5f;
 
         /// <summary>
         /// 적 포탄 색 — ⚠️ **가정**(연출 문서에 적 포탄 절이 없다 · 2026-09-16).
@@ -1155,6 +1149,12 @@ namespace MBI.Combat
                 //    대기 그릇 0 칸이라 화면에서 한 번도 성립하지 않는다.
                 _sim.StandbyBoosterCount = LogisticsOutputBridge.StandbyBoosterCount;
                 _sim.StandbyPropellantSupplyRate = LogisticsOutputBridge.StandbyPropellantProduce;
+
+                // ⚠️⚠️ **대기 보드의 드론 도착**(2026-09-18 사용자 보고 ⑪). 이 두 줄이 없어
+                //    A 로 싸우는 동안 B 의 마운트가 영영 비어 있었다 — **만충이 안 서니
+                //    태그 스킬도 안 나갔다.** 추진제·부스터가 09-17 에 얻은 길을 드론도 얻는다.
+                _sim.StandbyStackDroneArrivalRate = LogisticsOutputBridge.StandbyStackDroneArrivalRate;
+                _sim.StandbyAoeDroneArrivalRate = LogisticsOutputBridge.StandbyAoeDroneArrivalRate;
 
                 // 합체 지속 중에는 두 보드 모든 노드의 산출량이 ×2 다(`260917_W03` 7-2 #2).
                 // ⚠️ **매 틱 다시 쓴다** — 켤 때만 쓰면 합체가 끝나도 공장이 영영 두 배다.

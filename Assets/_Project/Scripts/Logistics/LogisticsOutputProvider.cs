@@ -227,6 +227,14 @@ namespace MBI.Logistics
                 LogisticsOutputBridge.StackDroneArrivalRate = delivery.StackDroneRate;
                 LogisticsOutputBridge.AoeDroneArrivalRate = delivery.AoeDroneRate;
             }
+            else
+            {
+                // ⚠️⚠️ **대기 판의 도착도 실어 보낸다**(2026-09-18 사용자 보고 ⑪).
+                //    종전에는 여기가 없어서 **대기 로봇이 만든 드론이 그대로 버려졌다** —
+                //    A 로 싸우는 내내 B 의 마운트가 비어 만충이 안 섰다.
+                LogisticsOutputBridge.StandbyStackDroneArrivalRate = delivery.StackDroneRate;
+                LogisticsOutputBridge.StandbyAoeDroneArrivalRate = delivery.AoeDroneRate;
+            }
 
             // ④ 조립. actual은 계산이 아니라 위에서 잰 값이다.
             LogisticsResult r = LogisticsSimulation.Compute(baseEff, throttle, deliveredRate, origin);

@@ -192,17 +192,10 @@ namespace MBI.Core
         /// <summary>태그 스킬이 한 번에 치는 표적 모음 — 광역이라 틱마다 다시 담는다.</summary>
         private readonly List<CombatEntity> _tagSkillTargets = new List<CombatEntity>();
 
-        private readonly List<Vector2> _tagSkillTargetPositions = new List<Vector2>();
-
-        /// <summary>
-        /// 직전 태그 스킬이 **실제로 때린 자리들**. 연출이 어디로 나갈지를 여기서 읽는다
-        /// (2026-09-18 · 연출을 화면 전부로 넓히면서 신설).
-        ///
-        /// ⚠️⚠️ **연출이 판정 범위를 다시 재지 않게 하려고 둔 자리다.** 러너가 카메라로
-        /// 화면 범위를 다시 재면 같은 값이 두 곳에 살고, 어제 광역형 드론에서 난 일
-        /// (그림은 고쳐지고 판정은 옛 수를 쓰던 것)이 방향만 바꿔 되풀이된다.
-        /// </summary>
-        public IReadOnlyList<Vector2> LastTagSkillTargets => _tagSkillTargetPositions;
+        // 🗑️ **`LastTagSkillTargets` 폐기**(2026-09-18 · 같은 날 오전에 냈다가 오후에 걷음).
+        //    연출이 「때린 적 하나마다」 그리던 동안에는 판정 목록을 그대로 읽는 것이 옳았는데,
+        //    사용자 육안에서 연출이 **화면 한 장을 덮는 쪽**으로 바뀌면서 읽는 곳이 0건이 됐다.
+        //    자리를 남겨 두면 다음 사람이 「연출이 표적을 안다」고 읽는다.
 
         /// <summary>
         /// **화면 안**의 범위 — 태그 스킬 광역이 여기 든 적만 친다
@@ -629,6 +622,12 @@ namespace MBI.Core
         /// <summary>지금 회피로 밀려나는 중인가 — **러너의 자동 조종이 이 틱을 양보한다**.</summary>
         public bool DodgeMotionActive => Act.dodgeMotion.IsMoving;
 
+        /// <summary>지금 밀려나는 쪽(4방향). 연출이 얼굴을 그쪽으로 돌릴 때 쓴다 — 2026-09-18.</summary>
+        public Vector2 DodgeMotionDirection => Act.dodgeMotion.Direction;
+
+        /// <summary>몸이 지금 무적인가(합체 중이면 두 쪽을 다 본다). 연출이 깜빡임에 쓴다.</summary>
+        public bool RobotInvincible => BodyIsInvincible;
+
         /// <summary>직전 회피가 실제로 나아간 거리(칸) — 막히면 0.5칸에 못 미친다(진단용).</summary>
         public float DodgeMovedDistance => Act.dodgeMotion.MovedDistance;
 
@@ -819,7 +818,6 @@ namespace MBI.Core
             int targetCount = _tagSkillTargets.Count;
             float dealt = 0f;
             bool anyHit = false;
-            _tagSkillTargetPositions.Clear();
             foreach (CombatEntity target in _tagSkillTargets)
             {
                 float avg = AverageDamagePerItem(side, target, loadedRounds);
@@ -829,7 +827,6 @@ namespace MBI.Core
                 target.hp -= damage;
                 dealt += damage;
                 anyHit = true;
-                _tagSkillTargetPositions.Add(target.position); // 연출이 읽는 자리(판정과 같은 목록)
 
                 _shots.Add(new ShotEvent
                 {

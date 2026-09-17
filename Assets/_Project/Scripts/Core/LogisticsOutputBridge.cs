@@ -40,6 +40,16 @@ namespace MBI.Core
         public static float StackDroneArrivalRate;
         public static float AoeDroneArrivalRate;
 
+        // ⚠️⚠️ **대기 보드의 드론 도착이 아무 데도 안 실리고 있었다**
+        // (2026-09-18 사용자 보고 ⑪ — 「로봇 A 로 플레이하면 로봇 B 의 드론이 안 채워진다」).
+        //
+        // 브릿지는 **싸우는 판의 것만** 싣는데, 드론에는 대기 쪽 칸이 아예 없었다.
+        // 그래서 A 로 싸우는 동안 B 판이 만들어 마운트에 **닿은 드론이 그 자리에서 사라졌고**,
+        // B 의 만충은 영영 안 섰다 — 태그 스킬을 못 보던 까닭이 여기다.
+        // 📌 추진제·부스터·쉴드는 09-17 에 같은 이유로 이미 대기 칸을 얻었다. 드론만 남아 있었다.
+        public static float StandbyStackDroneArrivalRate;
+        public static float StandbyAoeDroneArrivalRate;
+
         /// <summary>라이브 추진제 산출(개/초). 부스터가 받아 회피 스택으로 바꾼다.</summary>
         public static float PropellantProduce;
 
@@ -135,6 +145,8 @@ namespace MBI.Core
             ShieldNodeCount = 0;
             StandbyShieldMaterialProduce = 0f;
             StandbyShieldNodeCount = 0;
+            StandbyStackDroneArrivalRate = 0f;
+            StandbyAoeDroneArrivalRate = 0f;
             GlobalCause = ConstraintCause.None;
             PowerSupply = 0f;
             PowerDraw = 0f;
