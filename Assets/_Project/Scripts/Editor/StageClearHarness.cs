@@ -1215,6 +1215,10 @@ namespace MBI.EditorTools
             // 추진제 줄과 보호막 줄이 굶지 않는지 본다(2026-09-18 · 설계 요청 「기존 줄 산출 불변」).
             int peakDodgeB = 0;
             float peakShieldB = 0f;
+            // 포트 둘로 **얼마나 들어왔나** — 도착률을 판 내내 적분한다.
+            // ⚠️ 마지막 순간의 도착률만 보면 0 으로 읽힌다(0.1초 창이라 그 틱에 없으면 0 이다) —
+            //    첫 판에서 「누적형 0.00」으로 잘못 읽힌 자리다.
+            double arrivedStack = 0d, arrivedAoe = 0d;
 
             // ── 적 간격 (2026-09-18 · 설계 요청) ───────────────────────────
             //
@@ -1243,6 +1247,8 @@ namespace MBI.EditorTools
                 deliveryB.Observe(flowB.PendingMountArrivals, DamageOf, Dt, MountOwner.RobotB);
                 flowB.ClearPendingMountArrivals();
                 deliveryB.TryDrain(DeliverySampleSeconds, out _);
+                arrivedStack += deliveryB.StackDroneRate * Dt;
+                arrivedAoe += deliveryB.AoeDroneRate * Dt;
 
                 // 2) 각 보드의 산출을 **제 로봇에** 넣는다 — 활성이 누구냐로 자리가 갈린다.
                 if (aActive)
@@ -1381,6 +1387,12 @@ namespace MBI.EditorTools
             sb.AppendLine($"    평균 적재 — 누적형 {avgStack:F1} · 광역형 {avgAoe:F1}"
                           + (both > 0f ? $" · 광역 비율 {avgAoe / both:F2}" : " · 비율 없음(둘 다 0)"));
             sb.AppendLine($"    보드 산출 몫 — 광역 {aggB.AoeShare:F2} (비율이 이 수와 갈리면 마운트가 유입대로 안 찬 것이다)");
+
+            sb.AppendLine();
+            sb.AppendLine("[B 포트 둘 — 도착이 있는가]  ← 측정법: 종별 도착률을 판 내내 적분한 것. 종마다 다른 포트로 들어온다");
+            sb.AppendLine($"    누적형 **{arrivedStack:F0} 기** (포트 (9,10) 서면) · "
+                          + $"광역형 **{arrivedAoe:F0} 기** (포트 (2,10) 동면)");
+            sb.AppendLine("    ⚠️ 한쪽이 0 이면 그 포트로 가는 줄이 끊긴 것이다.");
 
             sb.AppendLine();
             sb.AppendLine("[기존 줄 산출 불변]  ← 측정법: B 가 나가 있는 동안의 회피 스택 최고 · 보호막 최고");

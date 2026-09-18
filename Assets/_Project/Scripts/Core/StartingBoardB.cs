@@ -33,11 +33,23 @@ namespace MBI.Core
             public readonly string nodeId;
             public readonly RecipeKind recipe;
 
-            public Slot(int x, int y, string nodeId, RecipeKind recipe = RecipeKind.None)
+            /// <summary>
+            /// 놓인 방향(90도 단위 0~3) — 2026-09-18 신설. A 쪽 `StartingBoard.Slot` 에는
+            /// 09-15 부터 있던 칸인데 **B 에는 없었다.**
+            ///
+            /// 📌 **왜 이제 쓰나.** 노드는 서면으로 받아 동면으로 낸다 — 산물이 늘 동쪽으로
+            /// 흐른다. 그런데 둘째 드론 줄의 도착지(B 포트 (2,10))는 **판 서쪽 끝**이라,
+            /// 안 돌리면 판을 가로질러 되돌아와야 한다. **180도 돌리면 동으로 먹고 서로 낸다.**
+            /// </summary>
+            public readonly int rotation;
+
+            public Slot(int x, int y, string nodeId, RecipeKind recipe = RecipeKind.None,
+                        int rotation = 0)
             {
                 cell = new Vector2Int(x, y);
                 this.nodeId = nodeId;
                 this.recipe = recipe;
+                this.rotation = rotation;
             }
         }
 
@@ -121,21 +133,27 @@ namespace MBI.Core
 
             // ── 둘째 드론 줄 — **광역형** (2026-09-18 사용자 확정 · `260918_W01` 2장) ──
             //
-            // ⚠️⚠️ **왜 이렇게 멀리 도나.** 노드는 **서면으로만 먹고 동면으로만 낸다**
-            //    (복합만 서면 + 남면). 코어는 x5 인데 빈 자리는 몸통 아래·다리·팔L 이라,
-            //    줄이 서쪽으로 나갔다가 **동쪽으로 도로 오는** 모양이 된다. 팔R(x0~2)로
-            //    끌면 통로가 세 칸이라 두 갈래가 반드시 겹친다 — 그 자리를 스무 번쯤
-            //    놔 보고 **몸통 아래 + 다리**로 내려온 것이다.
+            // 🗑️ **구 배치 폐기**(같은 날 오후) — 몸통 아래·다리에 깔고 팔L 에서 **병합기로
+            //    기존 줄에 합류**시켰던 판이다. 사용자가 **비워 둔 포트 (2,10) 을 쓰는 쪽**으로
+            //    닫았다. 그 포트는 판 **서쪽 끝**이라 안 돌린 노드로는 못 간다.
             //
-            //      y=4   변환기(4,4) 부품 → 기초변환기(5,4) 드론 몸체 → **복합(6,4) 광역형**
-            //      y=3   변환기(4,3) 발전재료 → 변환기(5,3) 배터리 → 벨(6,3)↑ 복합 남면
+            // ✅ **노드를 180도 돌린다** — 돌리면 **동으로 먹고 서로 낸다**(09-15 회전 코드).
+            //    그러면 줄이 코어(동)에서 포트(서)로 **한 방향으로** 흐른다. 그 덕에
+            //    분류기도 **하나면 된다**(코어 서면 하나가 셋으로 갈린다 — 기존 추진제 줄 ·
+            //    부품 줄 · 발전재료 줄). 🗑️ 구 「분류기 둘」 폐기.
             //
-            // 📌 **조합표만 다르고 모양은 한 벌 더**다 — 두 드론은 입력이 같다(배터리 + 드론 몸체).
-            new Slot(4, 4, StartingBoard.ProcId, RecipeKind.BasicParts),
-            new Slot(5, 4, StartingBoard.MuniId, RecipeKind.DroneBody),
-            new Slot(4, 3, StartingBoard.ProcId, RecipeKind.PowerMaterial),
-            new Slot(5, 3, StartingBoard.ProcId, RecipeKind.Battery),
-            new Slot(6, 4, ComplexId, RecipeKind.AoeDrone),
+            //      y=9   벨(4,9)← 코어 북동 갈래 → 변환기R(3,9) 발전재료 → 변환기R(2,9) 배터리
+            //                                                              → 벨(1,9)↑
+            //      y=8   분류기(4,8) → 변환기R(3,8) 부품 → 기초변환기R(2,8) 몸체 → 벨(1,8)→(0,8)↑
+            //      y=10  벨(0,10)→ **복합(1,10) 광역형** → 벨(2,10)→ **포트 (2,10) 동면**
+            //
+            // 📌 복합만 **안 돌린다** — 서면(몸체)·남면(배터리)으로 받아 **동면**으로 내야
+            //    포트가 있는 동쪽으로 나간다.
+            new Slot(3, 8, StartingBoard.ProcId, RecipeKind.BasicParts, rotation: 2),
+            new Slot(2, 8, StartingBoard.MuniId, RecipeKind.DroneBody, rotation: 2),
+            new Slot(3, 9, StartingBoard.ProcId, RecipeKind.PowerMaterial, rotation: 2),
+            new Slot(2, 9, StartingBoard.ProcId, RecipeKind.Battery, rotation: 2),
+            new Slot(1, 10, ComplexId, RecipeKind.AoeDrone),
         };
 
         /// <summary>
@@ -162,8 +180,10 @@ namespace MBI.Core
             new StartingBoard.Run(9, 7, PortFace.West, PortFace.North),
 
             // 복합 가공소 → 어깨L 을 타고 올라가 마운트 고정 포트 (9,10) **서면**으로
-            // 🗑️ 구 벨트 (10,8) 폐기(2026-09-18) — **병합기로 바뀌었다.** 둘째 드론 줄이
-            //    아래에서 올라와 여기서 합류한다(같은 포트를 쓴다).
+            // ⚠️⚠️ **이 한 줄이 빠지자 기존 드론 줄이 통째로 끊겼다**(2026-09-18 · 오후에
+            //    병합기로 바꿨다가 되돌리면서 복구를 빠뜨렸다). 하네스가 「광역 몫 1.00 ·
+            //    누적형 0」으로 잡았다 — **이어진 노드 수가 하나 줄어드는 것**이 그 신호였다.
+            new StartingBoard.Run(10, 8, PortFace.West, PortFace.North),
             new StartingBoard.Run(10, 9, PortFace.South, PortFace.North),
             new StartingBoard.Run(10, 10, PortFace.South, PortFace.West),
             new StartingBoard.Run(9, 10, PortFace.East, PortFace.West),
@@ -179,46 +199,29 @@ namespace MBI.Core
             // ── 쉴드 줄 (2026-09-17) — 코어 북면에서 동으로 ──
             new StartingBoard.Run(5, 9, PortFace.South, PortFace.East),
 
-            // ── 둘째 드론 줄 (2026-09-18 사용자 확정 · 분류기 둘) ──────────
+            // ── 둘째 드론 줄 (2026-09-18 사용자 확정 · 포트 (2,10) 로 나간다) ──
             //
-            // ⚠️⚠️ **분류기는 코어 에너지를 나눈다 — 드론 비율을 나누는 것이 아니다.**
-            //    누적형과 광역형의 비율은 여전히 **두 복합 노드의 생산 속도**가 정한다
-            //    (사용자 확정 09-18). 이 둘은 전력 줄을 가르는 자리다.
+            // ⚠️⚠️ **분류기는 코어 에너지를 가르는 자리다 — 드론 비율을 가르는 자리가 아니다.**
+            //    누적형과 광역형의 비율은 **두 복합 노드의 생산 속도**가 정한다(사용자 확정).
             //
-            //  ① 코어 서면 (4,8) — 남(기존 추진제 줄 그대로) + 서(새 줄)
-            //  ② 다리 어귀 (3,4) — 동(부품 줄) + 남(발전재료 줄)
+            // 🗑️ 구 「분류기 둘 + 병합기 하나」 폐기(같은 날 오후) — 노드를 돌리자
+            //    **분류기 하나로 셋이 갈리고** 병합기가 필요 없어졌다.
             //
-            //      (4,8)⇄ → 벨(3,8)↓(3,7)↓(3,6)↓(3,5)↓ → 분류기(3,4)
-            //                                              ├ 동 → 변환기(4,4)
-            //                                              └ 남 → 벨(3,3)→ 변환기(4,3)
+            //  분류기 (4,8) — 남(기존 추진제 줄 그대로) · 서(부품 줄) · 북(발전재료 줄)
             StartingBoard.Run.Sorter(4, 8),
-            new StartingBoard.Run(3, 8, PortFace.East, PortFace.South),
-            new StartingBoard.Run(3, 7, PortFace.North, PortFace.South),
-            new StartingBoard.Run(3, 6, PortFace.North, PortFace.South),
-            new StartingBoard.Run(3, 5, PortFace.North, PortFace.South),
-            StartingBoard.Run.Sorter(3, 4),
-            new StartingBoard.Run(3, 3, PortFace.North, PortFace.East),
+            new StartingBoard.Run(4, 9, PortFace.South, PortFace.West),
 
-            // 배터리가 다리에서 올라와 복합 **남면**으로 들어간다
-            new StartingBoard.Run(6, 3, PortFace.West, PortFace.North),
+            // 드론 몸체 — 돌린 노드 둘을 지나 서쪽으로 나와 어깨R 로 올라간다
+            new StartingBoard.Run(1, 8, PortFace.East, PortFace.West),
+            new StartingBoard.Run(0, 8, PortFace.East, PortFace.North),
+            new StartingBoard.Run(0, 9, PortFace.South, PortFace.North),
+            new StartingBoard.Run(0, 10, PortFace.South, PortFace.East),
 
-            // 광역형 드론 → 동쪽으로 나가 팔L 을 타고 올라가 **기존 줄에 합류**한다
-            //
-            // ⚠️ **포트를 새로 쓰지 않고 병합기로 합친다**(구현 판단 · 설계 사후 확인 요청).
-            //    비워 둔 포트는 (2,10) 인데 **판 서쪽 끝**이고, 복합은 동면으로만 내므로
-            //    거기까지 가려면 판을 가로질러 되돌아와야 한다. 기존 줄이 이미
-            //    (10,8)→(10,9)→(10,10)→(9,10) 으로 올라가고 있어 **한 칸을 병합기로
-            //    바꾸는 것**이 가장 짧다. 벨트 처리량은 12/초이고 두 줄 합이 2/초다.
-            new StartingBoard.Run(7, 4, PortFace.West, PortFace.East),
-            new StartingBoard.Run(8, 4, PortFace.West, PortFace.East),
-            new StartingBoard.Run(9, 4, PortFace.West, PortFace.East),
-            new StartingBoard.Run(10, 4, PortFace.West, PortFace.North),
-            new StartingBoard.Run(10, 5, PortFace.South, PortFace.North),
-            new StartingBoard.Run(10, 6, PortFace.South, PortFace.North),
-            new StartingBoard.Run(10, 7, PortFace.South, PortFace.North),
-            // ⚠️ **내는 면은 북쪽이다.** `Run.Merger` 의 기본 출력면은 동쪽이라 그대로 쓰면
-            //    드론이 판 밖(11,8)으로 나간다 — 첫 판에서 광역형이 마운트에 0 으로 찍힌 자리다.
-            new StartingBoard.Run(10, 8, PortFace.West, PortFace.North, BeltElementKind.Merger),
+            // 배터리 — 돌린 노드 둘을 지나 한 칸 올라가 복합 **남면**으로
+            new StartingBoard.Run(1, 9, PortFace.East, PortFace.North),
+
+            // 광역형 드론 → **B 포트 (2,10) 동면**. 어깨R 안이라 실루엣 안에서 적재 칸이 선다
+            new StartingBoard.Run(2, 10, PortFace.West, PortFace.East),
         };
 
         /// <summary>
@@ -235,6 +238,7 @@ namespace MBI.Core
                 NodeDefinition def = nodeById(slot.nodeId);
                 if (def == null) continue;
                 if (!grid.TryPlace(slot.cell, def, out NodeInstance node)) continue;
+                node.Rotation = slot.rotation;   // 2026-09-18 — 안 돌리면 둘째 드론 줄이 못 선다
                 if (slot.recipe != RecipeKind.None) node.SelectRecipe(slot.recipe);
                 placed++;
             }
