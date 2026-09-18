@@ -252,6 +252,10 @@ namespace MBI.Combat
             //    `AudioOptionsPanel` 이 제 버튼을 거기에 그린다 — 같은 일을 하는 자리를
             //    둘로 만들지 않기 위해서다(되풀이되는 결함 종류).
             //
+            // ✅ **되살렸다**(2026-09-18 사용자 확정) — 누르면 **설정 패널**이 열린다.
+            //    담는 것은 **심사자용 바로가기**와 **「메인 메뉴로」** 둘이고,
+            //    **소리는 안 담는다**(제 버튼이 이미 있다 · 중복 금지).
+            //
             // 🗑️🗑️ **폐기 — 설정 버튼이 메인 메뉴를 열던 것**(2026-09-18 사용자 육안 · 결함).
             //
             // ⚠️⚠️ **누르면 HUD 가 통째로 사라졌다.** `MainMenuGate.IsOpen` 은 `OnGUI` 일곱을
@@ -260,10 +264,19 @@ namespace MBI.Combat
             //    화면이라 그 억제가 맞는데, **전투 중에 다시 열면** 억제만 남고 볼륨 패널
             //    하나가 빈 화면에 뜬다. 사용자가 본 것이 그 자리다.
             //
-            // 📌 **자리는 비워 둔다.** 설정에 무엇을 담을지는 문서에 없다 —
-            //    소리는 이미 제 아이콘이 있고, 그것 말고 담을 것이 정해지면 그때 되살린다.
-            //    ⚠️ **같은 일을 하는 버튼을 둘로 두지 않는다** — 소리 패널을 여는 버튼을
-            //    하나 더 두는 것이 지금 당장은 쉽지만, 그것이 이 리포의 되풀이되는 결함이다.
+            // 📌 **그래서 빗장을 따로 둔다**(`SettingsGate`) — **얹기만 하고 억제하지 않는다.**
+            //    설정이 열려 있어도 칩 줄·배지·원형·상태 띠는 그대로 산다.
+            Rect settings = UiLayout.ChipSettingsRect(Screen.width, Screen.height);
+            UiBlockers.Add(settings);
+            var icon = new GUIStyle(GUI.skin.button)
+            {
+                fontSize = KoreanFont.Snap(Mathf.Max(10, Mathf.Min(
+                    Mathf.RoundToInt(settings.height * 0.28f),
+                    Mathf.RoundToInt(settings.width / 3.2f)))),
+                clipping = TextClipping.Overflow,
+            };
+            if (UiSkin.Button(settings, SettingsGate.IsOpen ? "닫기" : "설정", icon))
+                SettingsGate.Toggle();
         }
 
         /// <summary>

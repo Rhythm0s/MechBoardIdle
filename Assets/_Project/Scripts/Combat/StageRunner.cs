@@ -1193,6 +1193,16 @@ namespace MBI.Combat
             if (!_ready && !TryBeginWhenAllowed()) return;
             if (!_ready) return;
 
+            // ⚠️⚠️ **메뉴가 떠 있는 동안에는 전투를 세운다**(2026-09-18 사용자 확정 ·
+            //    「메인 메뉴로」). 종전에는 메뉴를 다시 열어도 **뒤에서 판이 계속 돌았다** —
+            //    화면은 메뉴인데 적은 다가오고 HP 는 깎인다. 메뉴를 보고 돌아왔더니
+            //    져 있는 일이 나는 자리다.
+            //
+            // ⚠️ **시작 깃발은 안 내린다** — 되돌아온 메뉴는 「다시 시작」이 아니라
+            //    「보고 있는 중」이다(`MainMenuGate.TryStart` 주석).
+            // ⚠️ **설정 패널은 안 세운다** — 그쪽은 얹기만 하는 빗장이다(`SettingsGate`).
+            if (MainMenuGate.IsOpen) return;
+
             // 결과가 나도 끝까지 튼다 — 버스트로 마지막 적이 죽으면 연출이 그 프레임에 끊긴다.
             _cutscene.Tick(Time.deltaTime);
 

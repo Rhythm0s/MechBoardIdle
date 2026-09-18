@@ -42,15 +42,26 @@ namespace MBI.Combat
         /// 배포 빌드(심사자용)와 촬영용 빌드는 같은 코드이므로 여기서 갈린다.
         /// <c>Debug.isDebugBuild</c>는 에디터와 Development Build에서만 참이다.
         /// </summary>
-        private static bool ShowTutorial => Debug.isDebugBuild;
-
-        private bool _open;
+        /// 🗑️ **폐기 — 개발 빌드 게이트**(2026-09-18 사용자 확정 · ⚠️ 구현 가정 · 되돌릴 수 있다).
+        ///
+        /// 📌 **심사자는 배포 빌드를 본다.** 바로가기가 심사자용인데 배포 빌드에서 안 보이면
+        /// 그 이름이 무색해진다 — 튜토리얼 복귀도 같은 무리이므로 함께 연다.
+        /// ⚠️ 사용자가 다르게 말하면 이 한 줄을 `Debug.isDebugBuild` 로 되돌리면 된다.
+        private static bool ShowTutorial => true;
 
         private void OnGUI()
         {
             // 메인 메뉴가 덮고 있으면 그리지 않는다 — IMGUI 는 뒤에 그리는 쪽이 위로 온다
             // (2026-09-10 · 실측: 오프라인 대화상자가 「게임 시작」 버튼을 덮었다).
             if (MainMenuGate.IsOpen) return;
+
+            // ⚠️⚠️ **여는 손잡이가 칩 줄의 「설정」로 옮겨 갔다**(2026-09-18 사용자 확정).
+            //
+            // 🗑️ **제 토글 버튼 폐기** — 「심사자용 바로가기 >」가 화면 왼쪽 아래에 늘 떠
+            //    있던 것이다. 여는 자리가 둘이면 **어느 쪽이 참인지**를 둘이 따로 들게 되고,
+            //    그 상태가 갈리는 날이 온다(이 리포의 되풀이되는 결함).
+            //    이제 열림 여부는 `SettingsGate` **한 곳**이 든다.
+            if (!SettingsGate.IsOpen) return;
             // ⚠️ **조립 화면에서는 그리지 않는다.** 우측 하단이 조립 화면에서는 노드 팔레트 자리라,
             // 그대로 두면 「병합기」 버튼을 통째로 덮어 **보드에서 병합기를 고를 수 없다**
             // (2026-09-02 브라우저 실측 — A구간 촬영이 막혔다).
@@ -80,13 +91,16 @@ namespace MBI.Combat
             float x = 12f;
             float y = Screen.height - 190f;
 
-            if (!_open)
-            {
-                if (UiSkin.Button(new Rect(x, y, w, h), "심사자용 바로가기 >", button)) _open = true;
-                return;
-            }
+            // ⚠️ **판을 깐다**(2026-09-18) — 볼륨 패널과 같은 문법이다. 종전에는 버튼만
+            //    흙바닥 위에 떠 있어 어디까지가 이 패널인지가 안 읽혔다.
+            //    높이는 **줄 수에서 낸다** — 고정값을 박으면 줄이 늘 때 마지막이 잘린다.
+            int rows = 6 + (ShowTutorial ? 1 : 0);   // 제목·안내·스테이지·게이지·전멸·초기화·덤프·메뉴
+            var plate = new Rect(x - 8f, y - 8f, w + 16f, (h + pad) * (rows + 2) + 48f);
+            UiPlate.Draw(plate);
+            UiBlockers.Add(plate);
 
-            if (UiSkin.Button(new Rect(x, y, w, h), "심사자용 바로가기 v", button)) _open = false;
+            var title = new GUIStyle(GUI.skin.label) { fontSize = 14, fontStyle = FontStyle.Bold };
+            GUI.Label(new Rect(x, y, w, h), "설정", title);
             y += h + pad;
 
             // 안내 한 줄 — 이것이 있어야 「밸런스를 못 맞춰 넣었나」로 안 읽힌다.
@@ -108,6 +122,16 @@ namespace MBI.Combat
             y += h + pad;
 
             DrawBoardDumpButton(y, x, w, h, button);
+            y += h + pad;
+
+            // ── 「메인 메뉴로」 (2026-09-18 사용자 확정) ────────────────────
+            //
+            // ⚠️ **전투를 세우는 일은 러너가 한다** — 여기서는 빗장만 건다.
+            //    러너가 `MainMenuGate.IsOpen` 을 보고 틱을 멈춘다(그러지 않으면
+            //    메뉴 뒤에서 판이 계속 돌아 돌아왔을 때 져 있다).
+            // ⚠️ **시작 깃발은 안 내린다** — 되돌아온 메뉴는 「보고 있는 중」이다.
+            if (UiSkin.Button(new Rect(x, y, w, h), "메인 메뉴로", button))
+                SettingsGate.ReturnToMainMenu();
         }
 
         /// <summary>

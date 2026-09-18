@@ -48,6 +48,10 @@ namespace MBI.UI
         {
             MainMenuGate.Reset();
             MainMenuGate.Open();
+
+            // ⚠️ **설정 빗장도 같이 내린다**(2026-09-18). 정적 값이라 도메인 리로드를 끄면
+            //    지난 Play 의 「열려 있음」이 남아, 씬을 다시 열자마자 패널이 떠 있다.
+            SettingsGate.Reset();
         }
 
         /// <summary>세로 기준 캔버스의 길이를 지금 창 길이로 환산한다.</summary>
