@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using System.IO;
+using MBI.Core;
 using MBI.Core.Audio;
 using MBI.Data;
 using UnityEditor;
@@ -126,12 +127,46 @@ namespace MBI.Editor
             // shotsPerSec = 물류 생산 발사율(대표 상태 pA, mock). 무기 기계 최대치 아님(§물류 제약).
             // 출력 = Σ pA×dA = 1×20 + 1×25 + 2×50 = 145 (mock). 벨트/시뮬 완성 시 동적 산출로 교체.
             // ⚠️ 「= s3Break」 표기는 폐기 — 앵커가 없어졌다(260910_W02 2-2).
-            var weapons = new List<WeaponSpec>
+            // ⚠️⚠️ **무기 값의 원천도 표다**(2026-09-18 · `WEAPON_DATA`).
+            //    🗑️ json `params` 의 `dA*`·`pA*` 는 폐기 표기 대상 — 값은 남기되 안 읽는다.
+            //    ⚠️ 드론 줄(`AmmoKind` 4·5)은 **탄종이 아니라** 건너뛴다.
+            CsvTable weaponTable = GameDataTables.Load("WEAPON_DATA");
+            weaponTable.Require("RobotID", "AmmoKind", "Damage", "ShotsPerSec",
+                                "ShotsPerRound", "ShotDamageFactor",
+                                "HitInterval", "DamageFraction");
+
+            var weapons = new List<WeaponSpec>();
+            foreach (CsvTable.Row w in weaponTable.Rows)
             {
-                new WeaponSpec(AmmoKind.Pierce, json.Param("dA0"), json.Param("pA0")),    // 20 × 1
-                new WeaponSpec(AmmoKind.Standard, json.Param("dA1"), json.Param("pA1")),     // 25 × 1
-                new WeaponSpec(AmmoKind.Explosive, json.Param("dA2"), json.Param("pA2")), // 50 × 2
-            };
+                if (w.Int("RobotID") != 1) continue;              // 로봇A 만
+                AmmoKind? kind = GameDataTables.AmmoKindOf(w.Int("AmmoKind"));
+                if (kind == null) continue;                        // 드론 줄
+                weapons.Add(new WeaponSpec(kind.Value, w.Num("Damage"), w.Num("ShotsPerSec")));
+            }
+            if (weapons.Count == 0)
+                throw new System.FormatException("[WEAPON_DATA] 로봇A 의 탄종 줄이 하나도 없다");
+
+            // ⚠️⚠️ **`CombatTuning` 의 네 칸도 표가 준다** — 여기서 `LoadOrCreate` 계약이 갈린다.
+            //    그 자산은 「생성기가 만들기만 하고 값은 안 덮는다」였는데(미확정치를 인스펙터에서
+            //    만져 보려고), **이 넷은 이제 표가 원천**이라 덮는 것이 맞다.
+            //    📌 나머지 TBD 칸은 그대로 안 덮는다 — 갈린 것은 이 넷뿐이다.
+            if (tuning != null)
+            {
+                foreach (CsvTable.Row w in weaponTable.Rows)
+                {
+                    if (w.Int("RobotID") == 1 && GameDataTables.AmmoKindOf(w.Int("AmmoKind")) != null)
+                    {
+                        tuning.shotsPerRound = w.Int("ShotsPerRound", 1);
+                        tuning.shotDamageFactor = w.Num("ShotDamageFactor", 1f);
+                    }
+                    if (w.Int("RobotID") == 2)
+                    {
+                        tuning.droneHitIntervalTbd = w.Num("HitInterval");
+                        tuning.droneDamageFractionTbd = w.Num("DamageFraction");
+                    }
+                }
+                EditorUtility.SetDirty(tuning);
+            }
 
             RobotDefinition r = LoadOrCreate<RobotDefinition>($"{RobotsDir}/Robot_A.asset");
             r.robotId = "robotA";
@@ -435,6 +470,16 @@ namespace MBI.Editor
             // 벌의 재생 시간은 조율 SO 에서 온다(로봇과 같은 값). 없으면 LoadAnimClips 가 기본을 쓴다.
             CombatTuning tuning = AssetDatabase.LoadAssetAtPath<CombatTuning>(TuningPath);
             if (json.enemies == null) return 0;
+
+            // **표를 연다** — 없으면 여기서 죽는다(json 으로 되돌아가면 누가 값을 냈는지 모른다).
+            CsvTable enemyTable = GameDataTables.Load("ENEMY_DATA");
+            enemyTable.Require("EnemyKey", "Atk", "MoveSpeed", "AttackRange",
+                               "AttackInterval", "ProjectileSpeed", "ViewScale", "Confirmed");
+
+            var enemyRows = new System.Collections.Generic.Dictionary<string, CsvTable.Row>();
+            foreach (CsvTable.Row r in enemyTable.Rows)
+                enemyRows[GameDataTables.EnemyKeyOf(r.Int("EnemyKey"))] = r;
+
             int n = 0;
             foreach (EnemyEntry e in json.enemies)
             {
@@ -446,6 +491,31 @@ namespace MBI.Editor
                 d.atk = e.atk;
                 d.atkConfirmed = e.confirmed;
 
+                // ⚠️⚠️ **여기서부터 값의 원천은 표다**(2026-09-18 사용자 확정 · 플랜 §85-12).
+                //
+                // `ENEMY_DATA` 가 종류별 값을 준다 — 공격력과 **자산에 처음 채워지는 넷**
+                // (이동 속도 · 사거리 · 공격 주기 · 투사체 속도)과 그림 배율.
+                //
+                // 🗑️ 구 거동 — 넷이 **전부 0** 이라 `StageSpawnFactory.Pick` 이 2단(병종 규칙)
+                //    이나 3단(`CombatTuning` 폴백)으로 떨어졌다. 표가 1단을 채우므로 **자산이 이긴다.**
+                //    ⚠️ **0 = 안 정함 규약은 그대로다** — 표의 칸이 비면 0 이 들어가고 폴백이 산다.
+                //
+                // ⚠️ json 의 `enemies[].atk` 는 표가 덮는다(폐기 표기 대상 · 값은 json 에 남는다).
+                if (enemyRows.TryGetValue(e.key, out CsvTable.Row er))
+                {
+                    d.atk = er.Num("Atk");
+                    d.moveSpeed = er.Num("MoveSpeed");
+                    d.attackRange = er.Num("AttackRange");
+                    d.attackInterval = er.Num("AttackInterval");
+                    d.projectileSpeed = er.Num("ProjectileSpeed");
+                    d.atkConfirmed = er.Bool("Confirmed");
+                }
+                else
+                {
+                    // **없는 줄을 지어내지 않는다** — 표에 없으면 그 사실이 보여야 한다.
+                    Debug.LogWarning($"[MBI] ENEMY_DATA 에 '{e.key}' 줄이 없다 — json 값으로 굽는다");
+                }
+
                 // 그림 — 로봇과 같은 길로 주입한다. 경로는 생성기에만 있고 런타임은 참조만 본다.
                 string artName = ArtNameFor(e.key);
                 d.sprite = LoadUnitStill(StillNameFor(e.key));
@@ -454,7 +524,10 @@ namespace MBI.Editor
                     : new System.Collections.Generic.List<UnitAnimClip>();
                 // 화면 배율 — 보스만 2다(2026-09-10 사용자 확정). 값의 원천은 상수 하나이며
                 // 여기서 SO 로 옮긴다. 코드가 배율을 직접 들고 있지 않게 하려는 것이다(§3).
-                d.viewScale = d.role == EnemyRole.Boss ? ArtSpec.BossViewScale : 1;
+                // 화면 배율도 표가 든다(구 「보스만 2」 상수 갈래는 표의 한 열이 됐다).
+                d.viewScale = enemyRows.TryGetValue(e.key, out CsvTable.Row vr)
+                    ? Mathf.Max(1, vr.Int("ViewScale", 1))
+                    : (d.role == EnemyRole.Boss ? ArtSpec.BossViewScale : 1);
 
                 // ⚠️ **적 포탄 그림 — 자산이 오면 여기서 들어간다**(2026-09-16 · 육안 2차 ②).
                 //    지금은 없어 `null` 이고 러너가 흰 사각으로 떨어진다. 파일만 놓으면
@@ -471,6 +544,11 @@ namespace MBI.Editor
         private static int BuildStages(BalanceJson json)
         {
             if (json.stages == null) return 0;
+
+            // **구성 표를 연다** — 스테이지마다 여러 줄이라 `StageID` 로 묶어 받는다.
+            var compByStage = GameDataTables.CompositionByStage(
+                GameDataTables.Load("STAGE_COMP_DATA"));
+
             int n = 0;
             foreach (StageEntry s in json.stages)
             {
@@ -493,20 +571,22 @@ namespace MBI.Editor
                 d.spawnInterval = s.spawnInterval;
                 d.spawnConfirmed = s.spawnConfirmed;
 
+                // ⚠️⚠️ **구성의 원천도 표다**(2026-09-18 · `STAGE_COMP_DATA`).
+                //    🗑️ json `stages[].composition` 은 폐기 표기 대상이다 — **값은 남기되**
+                //    굽는 데는 안 쓴다. 표에 그 스테이지 줄이 없으면 **빈 구성**이며,
+                //    그것은 「적이 없는 판」(S0)이라는 뜻이라 지어내지 않는다.
                 var comp = new List<StageComposition>();
-                if (s.composition != null)
+                if (compByStage.TryGetValue(s.id ?? string.Empty,
+                        out System.Collections.Generic.List<CsvTable.Row> rows))
                 {
-                    foreach (CompEntry c in s.composition)
-                    {
-                        if (c == null) continue;
+                    foreach (CsvTable.Row c in rows)
                         comp.Add(new StageComposition
                         {
-                            enemyKey = c.enemy,
-                            count = c.count,
-                            hp = c.hp,
-                            def = c.def,
+                            enemyKey = GameDataTables.EnemyKeyOf(c.Int("EnemyKey")),
+                            count = c.Int("Count"),
+                            hp = c.Num("Hp"),
+                            def = c.Num("Def"),
                         });
-                    }
                 }
                 d.composition = comp;
                 EditorUtility.SetDirty(d);

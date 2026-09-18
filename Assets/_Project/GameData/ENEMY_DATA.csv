@@ -1,0 +1,5 @@
+ID,EnemyKey,TID_Name,Role,Atk,MoveSpeed,AttackRange,AttackInterval,ProjectileSpeed,ViewScale,ArtKey,Confirmed
+1,1,보병,1,6,1.5,1,1,0,1,mob_infantry,0
+2,2,포격,2,10,1.5,7,1,4.2,1,mob_cannon,0
+3,3,장갑,3,8,1.5,1,1,0,1,mob_armor,0
+4,4,강적,4,20,1.5,1,1,0,2,boss,0
