@@ -1133,6 +1133,8 @@ namespace MBI.EditorTools
             ProductionThrottle throttleB = LogisticsSimulation.Throttles(
                 aggB.powerSupply, aggB.powerDraw, aggB.heatGenerate, cooling, heatThreshold);
 
+            // 세대 표식 — 시작 보드를 고치면 이 수가 바뀌고, 옛 저장은 그때 버려진다.
+            sb.AppendLine($"  B 세대 표식 {StartingBoardB.Generation}");
             sb.AppendLine($"  A 보드 — 이어진 노드 {connA.Count} · 탄약 {aggA.ammoProduce:F2} 발/초"
                           + $" · 전력 {aggA.powerSupply:F0}/{aggA.powerDraw:F0}");
             sb.AppendLine($"  B 보드 — 이어진 노드 {connB.Count} · 드론 {aggB.droneProduce:F2} 기/초"
