@@ -89,6 +89,22 @@ namespace MBI.Core
         /// <summary>지갑 잔액 게시 — 골드(2026-09-18). <see cref="WalletScrap"/>와 같은 규약이다.</summary>
         public static double WalletGold;
 
+        /// <summary>
+        /// 「돌아왔다」 창이 지금 화면에 있는가와 그 자리 — **방치 HUD 가 쓰고 전투 화면이 읽는다**
+        /// (2026-09-18 사용자 육안 · 결함 ③).
+        ///
+        /// ⚠️⚠️ **이것이 없어서 창이 로봇의 계기를 덮었다.** 창은 화면 한가운데에 서고
+        /// 로봇도 화면 한가운데에 선다 — **자리를 서로 모르면 반드시 겹친다.**
+        /// 전투 화면은 이 사각을 읽어 **계기를 창 아래로 밀어 놓는다**(가리지도, 감추지도 않는다).
+        ///
+        /// ⚠️ 한 프레임 늦을 수 있다(두 `OnGUI` 의 차례는 정해져 있지 않다). 창은 사람이
+        /// 닫을 때까지 떠 있으므로 그 한 프레임은 눈에 안 띈다.
+        /// </summary>
+        public static bool OfflinePopupOpen;
+
+        /// <summary>그 창이 차지한 자리(GUI 좌표). <see cref="OfflinePopupOpen"/> 이 거짓이면 뜻이 없다.</summary>
+        public static UnityEngine.Rect OfflinePopupRect;
+
         /// <summary>다음 골드까지 얼마나 남았는가를 화면이 읽는다 — **상태**(비우지 않는다).</summary>
         public static int KillsTowardGold;
 
@@ -211,6 +227,8 @@ namespace MBI.Core
             WalletEnhMaterial = 0d;
             WalletGold = 0d;
             KillsTowardGold = 0;
+            OfflinePopupOpen = false;
+            OfflinePopupRect = default;
             ScrapPerKill = 0d;
             _goldAwarded = 0;
             _milestoneGold = 0;

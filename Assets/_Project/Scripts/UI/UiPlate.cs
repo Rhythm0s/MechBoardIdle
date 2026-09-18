@@ -32,9 +32,42 @@ namespace MBI.UI
         /// </summary>
         public static void Draw(Rect area)
         {
+            Rect r = Padded(area);
+
+            // ⚠️⚠️ **그림이 있으면 그림을 깐다**(2026-09-18 사용자 육안 · 시안 4 ①).
+            //
+            // 종전에는 **흰 사각에 색만 입혔다** — 모서리가 각지고 테두리가 없어
+            // 화면에서 「판」이 아니라 **글자 밑의 어두운 자국**으로 읽혔다.
+            // 패널 자산이 이미 리포에 있고(`UiSkinAssets.panel`) 9-슬라이스로 깔리므로
+            // **새 자산 없이** 둥근 모서리와 테두리가 선다.
+            //
+            // 📌 **자리를 한 곳으로 모은 값이 여기서 돌아온다** — 칩·배지·카드·띠가 전부
+            // 이 함수를 지나므로, 여기 한 줄이 화면 전체의 꼴을 바꾼다.
+            //
+            // ⚠️ 그림이 없으면 **종전 그대로** 떨어진다 — 자산이 없다고 화면이 사라지면 안 된다.
+            if (UiSkin.UsingArt && UiSkin.PlateTexture != null)
+            {
+                UiSkin.DrawPlate(r);
+                return;
+            }
+
             Color prev = GUI.color;
             GUI.color = Tint;
-            GUI.DrawTexture(Padded(area), Texture2D.whiteTexture);
+            GUI.DrawTexture(r, Texture2D.whiteTexture);
+            GUI.color = prev;
+        }
+
+        /// <summary>
+        /// 색을 입힌 판 — **배지처럼 눈에 띄어야 하는 자리**(2026-09-18 · 시안 4 ①).
+        ///
+        /// ⚠️ 9-슬라이스 그림에 `GUI.color` 를 곱한다 — 새 그림을 만들지 않고 **같은 판에
+        /// 색만 태운다.** 색이 무엇을 뜻하는지는 부르는 쪽이 정한다(여기는 그리기만 한다).
+        /// </summary>
+        public static void DrawTinted(Rect area, Color tint)
+        {
+            Color prev = GUI.color;
+            GUI.color = tint;
+            Draw(area);
             GUI.color = prev;
         }
 

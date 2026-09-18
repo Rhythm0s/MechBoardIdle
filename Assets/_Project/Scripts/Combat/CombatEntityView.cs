@@ -54,6 +54,21 @@ namespace MBI.Combat
 
         public CombatEntity Entity => _entity;
 
+        /// <summary>
+        /// 지금 몸이 쓰는 그림과 좌우 뒤집힘 — **회피 잔상이 읽는다**(2026-09-18).
+        ///
+        /// ⚠️ 잔상은 **그때 그 그림**이어야 한다. 기본 스프라이트를 쓰면 걷는 중에 회피했을 때
+        /// 잔상만 다른 자세로 서서 「누구의 자국인가」가 흐려진다.
+        /// ⚠️ 뷰가 아직 안 묶였으면 <c>null</c> 이다 — 부르는 쪽이 그때 아무것도 안 그린다.
+        /// </summary>
+        public Sprite BodySprite => _bodyRenderer != null ? _bodyRenderer.sprite : null;
+
+        /// <summary>몸 그림이 좌우로 뒤집혀 있는가(서면을 동면 미러로 그리는 경우).</summary>
+        public bool BodyFlipX => _bodyRenderer != null && _bodyRenderer.flipX;
+
+        /// <summary>몸 그림의 크기 — 잔상이 같은 크기로 서야 한다.</summary>
+        public Vector3 BodyScale => _body != null ? _body.lossyScale : Vector3.one;
+
         /// <summary>발사 반동 시작(UI 문서「연출 표현 규칙」). 표적 방향을 주면 반대로 밀린다.</summary>
         public void Recoil(Vector2 fireDirection)
         {

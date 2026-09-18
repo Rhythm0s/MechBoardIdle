@@ -91,5 +91,45 @@ namespace MBI.Combat
             _ring.name = "MBI_Ring";
             return _ring;
         }
+
+        /// <summary>
+        /// **줄기** — 회피 잔상을 잇는 빛줄기 (2026-09-18 사용자 확정 · 참고 이미지).
+        ///
+        /// ⚠️ **가운데가 굵고 양끝이 가늘다.** 고른 굵기의 막대를 늘이면 「막대기」로 읽히고
+        /// 「지나간 자국」으로 안 읽힌다 — 두께를 x 방향 사인으로 준다.
+        ///
+        /// ⚠️ **자산이 아니라 코드 생성이다** — 연출 아트 문서에 줄기 절이 없다.
+        /// 그림이 오면 이 함수를 안 부르면 된다(부르는 쪽이 자산을 먼저 본다).
+        /// </summary>
+        public static Sprite Streak()
+        {
+            if (_streak != null) return _streak;
+
+            const int w = 128, h = 32;
+            var tex = new Texture2D(w, h, TextureFormat.RGBA32, false) { filterMode = FilterMode.Bilinear };
+            float half = h * 0.5f;
+
+            for (int x = 0; x < w; x++)
+            {
+                // 양끝 0, 가운데 1 — 그 값이 그 자리의 **반두께**다.
+                float t = Mathf.Sin(Mathf.PI * (x + 0.5f) / w);
+                float halfThick = Mathf.Max(1f, t * half);
+
+                for (int y = 0; y < h; y++)
+                {
+                    float d = Mathf.Abs(y + 0.5f - half);
+                    // 가장자리를 부드럽게 — 딱 자르면 늘였을 때 계단이 보인다.
+                    float a = Mathf.Clamp01(1f - d / halfThick);
+                    tex.SetPixel(x, y, new Color(1f, 1f, 1f, a * a));
+                }
+            }
+            tex.Apply();
+
+            _streak = Sprite.Create(tex, new Rect(0, 0, w, h), new Vector2(0.5f, 0.5f), w);
+            _streak.name = "MBI_Streak";
+            return _streak;
+        }
+
+        private static Sprite _streak;
     }
 }

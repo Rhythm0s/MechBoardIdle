@@ -388,6 +388,24 @@ namespace MBI.Data
         [Tooltip("⚠️ 미확정(설계 판정 대기) — 0 이면 전투력 = 물류 출력 그대로. >0 이면 (1 + 적재율 × 이 값) 을 곱한다.")]
         public float combatPowerMountFactorTbd = 0f;
 
+        // ── 회피 잔상·줄기 (2026-09-18 사용자 확정 · ⚠️ 값 넷 전부 가정) ────────
+        //
+        // 사용자가 준 것은 **꼴**이다 — 「대시 잔상과 그것을 잇는 빛줄기」. 장수·초·굵기·옅기는
+        // 문서에 절이 없다(연출 문서 `vfx_booster` 행을 설계가 사후 개정한다).
+        //
+        // ⚠️ **회피 판정은 안 건드린다** — 무적 0.167초 · 거리 1.25칸은 그대로다.
+        [Tooltip("⚠️ 가정 — 회피 잔상 장수(사용자 「2~3장」). 0 이면 규칙 기본값 3.")]
+        public int dodgeAfterimageCountTbd = 3;
+
+        [Tooltip("⚠️ 가정 — 잔상·줄기가 사라지는 시간(초). 이동 0.167초보다 길어야 자국으로 읽힌다.")]
+        public float dodgeTrailSecondsTbd = 0.4f;
+
+        [Tooltip("⚠️ 가정 — 가장 진한 잔상의 옅기(0~1). 1 이면 로봇이 여럿으로 보인다.")]
+        public float dodgeAfterimageAlphaTbd = 0.45f;
+
+        [Tooltip("⚠️ 가정 — 줄기 두께(유닛). 길이는 회피 거리가 정한다.")]
+        public float dodgeStreakThicknessTbd = 0.35f;
+
         [Header("히트 패턴 (로봇A 탄종 = 단일 표적)")]
         // 플레이어블 로봇 기획서「무기 스펙트럼」(스테이징): 등가선은 단일 표적 기준, 표적 수/광역은 스펙트럼 밖 역할 축(드론 2종 한정).
         // → 로봇A 관통/표준/폭발은 전부 단일 표적. 멀티샷/AoE 메커니즘(HitResolver)은 드론용으로 보존.

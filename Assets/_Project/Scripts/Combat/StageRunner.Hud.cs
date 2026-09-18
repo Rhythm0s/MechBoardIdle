@@ -183,6 +183,16 @@ namespace MBI.Combat
             UiBlockers.Add(left);
 
             var face = new Rect(left.x + 6f * sc, left.y + 4f, h - 8f, h - 8f);
+
+            // ⚠️ **둥근 테두리를 두른다**(2026-09-18 사용자 육안 · 시안 4 ①).
+            //    맨 그림 하나만 놓으면 판 위에 **붙여 놓은 조각**으로 보인다.
+            //    자산이 없으므로 이미 있는 고리 그림(`PlaceholderSprite.Ring`)을 쓴다.
+            Color ringPrev = GUI.color;
+            GUI.color = new Color(0.95f, 0.80f, 0.45f, 0.95f);
+            GUI.DrawTexture(Grow(face, 3f * sc), PlaceholderSprite.Ring().texture,
+                            ScaleMode.StretchToFill);
+            GUI.color = ringPrev;
+
             Sprite portrait = robot != null ? robot.sprite : null;
             if (portrait != null && portrait.texture != null)
                 GUI.DrawTextureWithTexCoords(face, portrait.texture, SpriteUv(portrait), true);
@@ -215,8 +225,18 @@ namespace MBI.Combat
                 fontStyle = FontStyle.Bold,
             };
             goldStyle.normal.textColor = GoldColor;
-            GUI.Label(new Rect(chip.x, chip.y, chip.width, chip.height * 0.58f),
-                      "골드 " + IdleSignals.WalletGold.ToString("N0"), goldStyle);
+            // 동전 자리 — ⚠️ **코인 스프라이트는 아트 몫**이고 오기 전에는 **원형 폴백**이다.
+            float coin = chip.height * 0.42f;
+            var coinRect = new Rect(chip.x + 10f * sc, chip.y + (chip.height * 0.58f - coin) * 0.5f,
+                                    coin, coin);
+            Color coinPrev = GUI.color;
+            GUI.color = GoldColor;
+            GUI.DrawTexture(coinRect, PlaceholderSprite.SoftDisc().texture, ScaleMode.ScaleToFit);
+            GUI.color = coinPrev;
+
+            GUI.Label(new Rect(coinRect.xMax + 6f * sc, chip.y,
+                               chip.width - coinRect.width - 20f * sc, chip.height * 0.58f),
+                      IdleSignals.WalletGold.ToString("N0"), goldStyle);
 
             var rateStyle = new GUIStyle(text)
             {
@@ -296,7 +316,16 @@ namespace MBI.Combat
 
             float pad = 10f * sc;
             float rowH = r.height / 3f;
-            GUI.Label(new Rect(r.x + pad, r.y, r.width - pad * 2f, rowH), StageTitle(), badge);
+
+            // ⚠️ **배지는 알약이다**(2026-09-18 사용자 육안 · 시안 4 ① — 「S1 주황 배지」).
+            //    글자만 두면 판 위의 다른 줄과 무게가 같아 **어느 판인지가 안 튄다.**
+            //    ⚠️ 색·크기는 가정(설계 역기입 자리).
+            var pill = new Rect(r.x + pad, r.y + 4f * sc,
+                                Mathf.Min(220f * sc, r.width * 0.42f), rowH - 8f * sc);
+            UiPlate.DrawTinted(pill, BadgeTint);
+            var pillText = new GUIStyle(badge) { alignment = TextAnchor.MiddleCenter };
+            pillText.normal.textColor = Color.white;
+            GUI.Label(pill, StageTitle(), pillText);
 
             // 목표 한 줄 — 값은 `balance_v4.json` 의 topic·req 다(지어내지 않는다).
             string goal = HasRequirement
@@ -343,6 +372,17 @@ namespace MBI.Combat
             float w = 420f * sc;
             float x = sp.x - w * 0.5f;
             float y = Screen.height - sp.y;
+
+            // ⚠️ **「돌아왔다」 창을 피해 앉는다**(2026-09-18 사용자 육안 · 결함 ③).
+            //    창과 로봇이 둘 다 화면 한가운데라 자리를 서로 모르면 반드시 겹친다.
+            //    감추지 않고 **창 아래로 민다** — 둘 다 읽혀야 한다.
+            if (IdleSignals.OfflinePopupOpen)
+            {
+                Rect popup = IdleSignals.OfflinePopupRect;
+                float blockH = 28f * sc * 3f;
+                if (popup.Overlaps(new Rect(x, y, w, blockH)))
+                    y = popup.yMax + 8f * sc;
+            }
 
             var style = new GUIStyle(GUI.skin.label)
             {
@@ -559,6 +599,13 @@ namespace MBI.Combat
             run = Mathf.Min(filled, h);
             HudBars.Fill(new Rect(outer.x, outer.yMax - run, t, run), color);
         }
+
+        /// <summary>배지 색 — 주황(사용자 육안 「S1 주황 배지」). ⚠️ 값은 가정이다.</summary>
+        private static readonly Color BadgeTint = new Color(1.25f, 0.62f, 0.18f, 1f);
+
+        /// <summary>사방으로 넓힌 자리. 테두리를 두를 때 쓴다.</summary>
+        private static Rect Grow(Rect r, float by) =>
+            new Rect(r.x - by, r.y - by, r.width + by * 2f, r.height + by * 2f);
 
         /// <summary>스프라이트가 아틀라스 안 어디에 있는지 — 그 조각만 그린다.</summary>
         private static Rect SpriteUv(Sprite s)

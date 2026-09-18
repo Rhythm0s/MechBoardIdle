@@ -856,10 +856,33 @@ namespace MBI.Combat
             // ⚠️ **분사는 제 지속을 쓴다**(2026-09-17 · `260917_W06` 3장) — 다른 한 방 그림과
             //    같은 `life` 를 쓰면 **무적만큼도 안 남아** 발동해도 안 보인다.
             //    사용자 보고 「부스터가 발생하지 않음」의 정체가 그 자리였다.
-            if (dodge.TotalDodges > _seenDodges && tuning.boosterSprite != null &&
-                _sim.Robot != null)
-                SpawnOneShot(tuning.boosterSprite, _sim.Robot.position,
-                    Mathf.Max(life, tuning.dodgeVfxSeconds));
+            if (dodge.TotalDodges > _seenDodges && _sim.Robot != null)
+            {
+                // ③ 끝점 한 방 — **그림 자산이 있는 유일한 회피 연출**이라 그대로 둔다.
+                if (tuning.boosterSprite != null)
+                    SpawnOneShot(tuning.boosterSprite, _sim.Robot.position,
+                        Mathf.Max(life, tuning.dodgeVfxSeconds));
+
+                // ①② **잔상과 줄기**(2026-09-18 사용자 확정 · 참고 이미지).
+                //
+                // ⚠️⚠️ **시작점을 여기서 잰다.** 회피는 이미 끝난 뒤에 이 줄을 지나므로
+                //    지금 자리는 **끝점**이다 — 시작점은 거기서 **회피 방향으로 거리만큼
+                //    되짚어** 낸다. 값을 지어내지 않고 `DodgeMotion` 의 거리를 그대로 쓴다.
+                //
+                // ⚠️ 방향은 **회피 방향**이다(사용자 지시) — 바라보는 쪽이 아니다.
+                Vector2 to = _sim.Robot.position;
+                Vector2 dir = _sim.DodgeMotionDirection;
+                BalanceConfig dodgeBal = robot != null ? robot.balanceRef : null;
+                float dist = dodgeBal != null && dodgeBal.dodgeMoveDistance > 0f
+                    ? dodgeBal.dodgeMoveDistance : DodgeMotion.DefaultDistance;
+                Vector2 from = dir.sqrMagnitude > 0f ? to - dir.normalized * dist : to;
+
+                DodgeTrail.Play(transform, from, to,
+                    _robotView != null ? _robotView.BodySprite : null,
+                    _robotView != null && _robotView.BodyFlipX,
+                    _robotView != null ? _robotView.BodyScale : Vector3.one,
+                    tuning);
+            }
 
             _seenDodges = dodge.TotalDodges;
         }
@@ -1929,6 +1952,12 @@ namespace MBI.Combat
             DrawPops();
             DrawMilestoneCard();
             DrawDevPanel(style);
+
+            // 고철 + 물류 문제 요약 — **하단 큰 버튼 바로 위**(2026-09-18 사용자 육안 · 시안 4 ②).
+            // ⚠️ 조립 화면과 **같은 자리 · 같은 함수**다. 경고가 캐릭터 옆에 뜨던 것은 폐기 —
+            //    「나가는 곳이 없다」는 물류의 말이지 로봇의 말이 아니다.
+            StatusStrip.Draw(StatusStrip.RectAbove(
+                UiLayout.EnterBoardRect(Screen.width, Screen.height), Screen.width, Screen.height));
 
             if (_sim.Result != CombatResult.InProgress)
             {

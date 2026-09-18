@@ -52,10 +52,14 @@ namespace MBI.Idle
             // 메인 메뉴가 덮고 있으면 그리지 않는다 — IMGUI 는 뒤에 그리는 쪽이 위로 온다
             // (2026-09-10 · 실측: 오프라인 대화상자가 「게임 시작」 버튼을 덮었다).
             if (MainMenuGate.IsOpen) return;
-            if (_dismissed || _idle == null) return;
+            if (_dismissed || _idle == null) { IdleSignals.OfflinePopupOpen = false; return; }
 
             OfflineRewardResult r = _idle.LastOfflineReward;
-            if (r.creditedHours < minHoursToShow) return; // 방금 껐다 켠 것 — 알릴 것이 없다
+            if (r.creditedHours < minHoursToShow)
+            {
+                IdleSignals.OfflinePopupOpen = false;
+                return; // 방금 껐다 켠 것 — 알릴 것이 없다
+            }
 
             UiSkin.Apply(); // 껍데기 + 한글 폰트 — WebGL엔 시스템 폰트 폴백이 없다
             EnsureStyles();
@@ -88,7 +92,22 @@ namespace MBI.Idle
 
             float h = Mathf.Min(bodyH + inset * 2.4f + btnH + 24f * boxScale,
                 Screen.height - 48f * boxScale);
-            var box = new Rect((Screen.width - w) * 0.5f, (Screen.height - h) * 0.5f, w, h);
+            // ⚠️⚠️ **한가운데를 피한다**(2026-09-18 사용자 육안 · 결함 ③).
+            //
+            // 종전에는 세로도 한가운데였다. 그런데 **로봇도 화면 한가운데에 선다** —
+            // 그래서 창이 로봇 몸 밑의 HP·보호막 계기를 그대로 덮었다(스크린샷 1).
+            // 위로 올려 붙인다: 상단 칩 줄 바로 아래에서 시작한다.
+            //
+            // ⚠️ **높이는 안 줄인다.** 줄이면 `BeginArea` 가 본문 마지막 줄을 말없이 자른다 —
+            // 09-06 과 09-15 에 「확인」 버튼을 그렇게 잃었다. 자리만 옮긴다.
+            // 아래로 넘치면 화면 안으로 끌어올린다.
+            float top = MBI.UI.UiLayout.ChipBarHeight * boxScale + 12f * boxScale;
+            if (top + h > Screen.height) top = Mathf.Max(0f, Screen.height - h);
+            var box = new Rect((Screen.width - w) * 0.5f, top, w, h);
+
+            // 자리를 전투 화면에 알린다 — 계기가 이 사각을 피해 앉는다.
+            IdleSignals.OfflinePopupOpen = true;
+            IdleSignals.OfflinePopupRect = box;
 
             // 창 뒤로 클릭이 새면 안 된다 — 창을 닫으려다 그 아래 칸에 노드가 놓인다.
             UiBlockers.Add(box);
