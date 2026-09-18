@@ -26,14 +26,14 @@ MonoBehaviour:
   composition:
   - enemyKey: infantry
     count: 160
-    hp: 60
+    hp: 40
     def: 5
   - enemyKey: artillery
     count: 25
-    hp: 180
+    hp: 120
     def: 5
   - enemyKey: armor
     count: 12
-    hp: 400
+    hp: 500
     def: 5
   bossHp: 0

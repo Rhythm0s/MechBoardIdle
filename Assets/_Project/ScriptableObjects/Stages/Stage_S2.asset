@@ -26,7 +26,7 @@ MonoBehaviour:
   composition:
   - enemyKey: infantry
     count: 100
-    hp: 30
+    hp: 25
     def: 1
   - enemyKey: artillery
     count: 10
