@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using MBI.Core;
 using MBI.Data;
 using NUnit.Framework;
@@ -35,21 +36,37 @@ namespace MBI.Tests
                 if (slot.recipe != RecipeKind.None)
                     Assert.IsTrue(placed.SelectRecipe(slot.recipe));
             }
+            // ⚠️⚠️ **놓는 문을 그대로 지난다**(2026-09-18 정정). 종전에는 `TryPlaceBelt` 로
+            //    직접 깔아서 **분류기·병합기가 전부 직선 벨트**로 깔렸다 — 09-18 에 B 판에
+            //    분류기 둘과 병합기 하나가 생기자 줄이 끊겨 이 시험이 먼저 빨갛게 됐다.
+            //    「프로브가 사람이 지나는 문을 안 지난다」(지침 §7 ［09-15］)의 실례다.
             foreach (StartingBoard.Run run in StartingBoardB.Belts)
-                Assert.IsTrue(g.TryPlaceBelt(run.cell, run.inFace, run.outFace, FlowKind.None, out _));
+                StartingBoard.Place(g, run);
 
             BeltAutoOrient.Resolve(g);
             BeltFlow.Resolve(g);
             return g;
         }
 
-        private static NodeInstance Complex(BoardGrid g)
+        /// <summary>
+        /// 판에 선 복합 변환기 **전부** (2026-09-18 정정).
+        ///
+        /// 🗑️ 구 「하나만 돌려준다」 폐기 — 둘째 드론 줄이 서면서 **복합이 둘**이 됐고,
+        /// 옛 함수는 마지막 것만 집어 「하나를 바꿨는데 몫이 1 이 아니다」로 빨갛게 됐다.
+        /// 그것은 결함이 아니라 **판이 바뀐 것**이다.
+        /// </summary>
+        private static List<NodeInstance> Complexes(BoardGrid g)
         {
-            NodeInstance n = null;
+            var list = new List<NodeInstance>();
             foreach (StartingBoardB.Slot slot in StartingBoardB.Nodes)
-                if (slot.nodeId == StartingBoardB.ComplexId) n = g.GetAt(slot.cell);
-            Assert.IsNotNull(n, "복합 가공소가 판에 없다");
-            return n;
+                if (slot.nodeId == StartingBoardB.ComplexId)
+                {
+                    NodeInstance n = g.GetAt(slot.cell);
+                    Assert.IsNotNull(n, $"복합 변환기가 {slot.cell} 에 없다");
+                    list.Add(n);
+                }
+            Assert.AreEqual(2, list.Count, "복합 변환기가 둘이 아니다 — 시작 보드가 바뀌었다");
+            return list;
         }
 
         private static NetworkAggregate Aggregate(BoardGrid g)
@@ -64,13 +81,14 @@ namespace MBI.Tests
         {
             // ① 조합표 자체를 못 받으면 나머지는 볼 것도 없다.
             BoardGrid g = BuildB();
-            NodeInstance n = Complex(g);
+            foreach (NodeInstance n in Complexes(g))
+            {
+                Assert.IsTrue(n.SelectRecipe(RecipeKind.AoeDrone), "광역형을 못 받는다");
+                Assert.AreEqual(RecipeKind.AoeDrone, n.SelectedRecipe);
 
-            Assert.IsTrue(n.SelectRecipe(RecipeKind.AoeDrone), "광역형을 못 받는다");
-            Assert.AreEqual(RecipeKind.AoeDrone, n.SelectedRecipe);
-
-            Assert.IsTrue(n.SelectRecipe(RecipeKind.StackDrone), "누적형을 못 받는다");
-            Assert.AreEqual(RecipeKind.StackDrone, n.SelectedRecipe);
+                Assert.IsTrue(n.SelectRecipe(RecipeKind.StackDrone), "누적형을 못 받는다");
+                Assert.AreEqual(RecipeKind.StackDrone, n.SelectedRecipe);
+            }
         }
 
         [Test]
@@ -78,15 +96,21 @@ namespace MBI.Tests
         {
             // ②③ — 집계가 세고, 몫이 갈린다. **여기가 끊기면 화면이 안 바뀐다.**
             BoardGrid g = BuildB();
-            NodeInstance n = Complex(g);
+            List<NodeInstance> all = Complexes(g);
 
-            Assert.IsTrue(n.SelectRecipe(RecipeKind.AoeDrone));
+            // ✅ **시작 배치는 반반이다**(2026-09-18) — 누적형 한 대 · 광역형 한 대.
+            //    비율을 분류기가 아니라 **노드 수(생산 속도)**가 정한다는 것이 여기 있다.
+            NetworkAggregate preset = Aggregate(g);
+            Assert.AreEqual(0.5f, preset.AoeShare, 0.0001f,
+                "시작 배치의 광역 몫이 반이 아니다 — 둘째 드론 줄이 안 돈다");
+
+            foreach (NodeInstance n in all) Assert.IsTrue(n.SelectRecipe(RecipeKind.AoeDrone));
             BeltFlow.Resolve(g);   // 산출 품목이 바뀌면 벨트 품목도 다시 푼다
             NetworkAggregate aoe = Aggregate(g);
             Assert.AreEqual(1f, aoe.AoeShare, 0.0001f,
                 "광역형만 도는데 몫이 1 이 아니다 — 집계가 조합표를 못 본다");
 
-            Assert.IsTrue(n.SelectRecipe(RecipeKind.StackDrone));
+            foreach (NodeInstance n in all) Assert.IsTrue(n.SelectRecipe(RecipeKind.StackDrone));
             BeltFlow.Resolve(g);
             NetworkAggregate stack = Aggregate(g);
             Assert.AreEqual(0f, stack.AoeShare, 0.0001f,
@@ -99,16 +123,17 @@ namespace MBI.Tests
             // ⚠️ **끊기면 집계에서 통째로 빠진다** — 그러면 몫이 0/0 이 되어
             //    「누적형」으로 읽히고, 무엇이 잘못됐는지가 안 보인다.
             BoardGrid g = BuildB();
-            NodeInstance n = Complex(g);
+            List<NodeInstance> all = Complexes(g);
 
             foreach (RecipeKind k in new[] { RecipeKind.AoeDrone, RecipeKind.StackDrone })
-            {
-                Assert.IsTrue(n.SelectRecipe(k));
-                BeltFlow.Resolve(g);
-                var connected = LogisticsReach.ConnectedNodes(g);
-                Assert.IsTrue(connected.Contains(n.Cell),
-                    $"{k} 로 바꾸니 복합 가공소가 이어진 노드에서 빠졌다");
-            }
+                foreach (NodeInstance n in all)
+                {
+                    Assert.IsTrue(n.SelectRecipe(k));
+                    BeltFlow.Resolve(g);
+                    var connected = LogisticsReach.ConnectedNodes(g);
+                    Assert.IsTrue(connected.Contains(n.Cell),
+                        $"{k} 로 바꾸니 복합 변환기 {n.Cell} 가 이어진 노드에서 빠졌다");
+                }
         }
 
         [Test]

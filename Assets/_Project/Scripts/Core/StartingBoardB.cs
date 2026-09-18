@@ -118,6 +118,24 @@ namespace MBI.Core
             new Slot(6, 9, StartingBoard.ProcId, RecipeKind.BasicParts),
             new Slot(7, 9, StartingBoard.MuniId, RecipeKind.DefenseMaterial),
             new Slot(8, 9, StartingBoard.ShieldId),
+
+            // ── 둘째 드론 줄 — **광역형** (2026-09-18 사용자 확정 · `260918_W01` 2장) ──
+            //
+            // ⚠️⚠️ **왜 이렇게 멀리 도나.** 노드는 **서면으로만 먹고 동면으로만 낸다**
+            //    (복합만 서면 + 남면). 코어는 x5 인데 빈 자리는 몸통 아래·다리·팔L 이라,
+            //    줄이 서쪽으로 나갔다가 **동쪽으로 도로 오는** 모양이 된다. 팔R(x0~2)로
+            //    끌면 통로가 세 칸이라 두 갈래가 반드시 겹친다 — 그 자리를 스무 번쯤
+            //    놔 보고 **몸통 아래 + 다리**로 내려온 것이다.
+            //
+            //      y=4   변환기(4,4) 부품 → 기초변환기(5,4) 드론 몸체 → **복합(6,4) 광역형**
+            //      y=3   변환기(4,3) 발전재료 → 변환기(5,3) 배터리 → 벨(6,3)↑ 복합 남면
+            //
+            // 📌 **조합표만 다르고 모양은 한 벌 더**다 — 두 드론은 입력이 같다(배터리 + 드론 몸체).
+            new Slot(4, 4, StartingBoard.ProcId, RecipeKind.BasicParts),
+            new Slot(5, 4, StartingBoard.MuniId, RecipeKind.DroneBody),
+            new Slot(4, 3, StartingBoard.ProcId, RecipeKind.PowerMaterial),
+            new Slot(5, 3, StartingBoard.ProcId, RecipeKind.Battery),
+            new Slot(6, 4, ComplexId, RecipeKind.AoeDrone),
         };
 
         /// <summary>
@@ -144,13 +162,15 @@ namespace MBI.Core
             new StartingBoard.Run(9, 7, PortFace.West, PortFace.North),
 
             // 복합 가공소 → 어깨L 을 타고 올라가 마운트 고정 포트 (9,10) **서면**으로
-            new StartingBoard.Run(10, 8, PortFace.West, PortFace.North),
+            // 🗑️ 구 벨트 (10,8) 폐기(2026-09-18) — **병합기로 바뀌었다.** 둘째 드론 줄이
+            //    아래에서 올라와 여기서 합류한다(같은 포트를 쓴다).
             new StartingBoard.Run(10, 9, PortFace.South, PortFace.North),
             new StartingBoard.Run(10, 10, PortFace.South, PortFace.West),
             new StartingBoard.Run(9, 10, PortFace.East, PortFace.West),
 
             // ── 추진제 줄 (2026-09-17) — 코어 서면에서 몸통 아래로 ──
-            new StartingBoard.Run(4, 8, PortFace.East, PortFace.South),
+            // 🗑️ 구 벨트 (4,8) 폐기(2026-09-18) — **분류기로 바뀌었다**(아래 둘째 드론 줄).
+            //    남면 출력은 그대로라 추진제 줄은 안 흔들린다.
             new StartingBoard.Run(4, 7, PortFace.North, PortFace.South),
             new StartingBoard.Run(4, 6, PortFace.North, PortFace.East),
             StartingBoard.Run.Sorter(7, 6),
@@ -158,6 +178,47 @@ namespace MBI.Core
 
             // ── 쉴드 줄 (2026-09-17) — 코어 북면에서 동으로 ──
             new StartingBoard.Run(5, 9, PortFace.South, PortFace.East),
+
+            // ── 둘째 드론 줄 (2026-09-18 사용자 확정 · 분류기 둘) ──────────
+            //
+            // ⚠️⚠️ **분류기는 코어 에너지를 나눈다 — 드론 비율을 나누는 것이 아니다.**
+            //    누적형과 광역형의 비율은 여전히 **두 복합 노드의 생산 속도**가 정한다
+            //    (사용자 확정 09-18). 이 둘은 전력 줄을 가르는 자리다.
+            //
+            //  ① 코어 서면 (4,8) — 남(기존 추진제 줄 그대로) + 서(새 줄)
+            //  ② 다리 어귀 (3,4) — 동(부품 줄) + 남(발전재료 줄)
+            //
+            //      (4,8)⇄ → 벨(3,8)↓(3,7)↓(3,6)↓(3,5)↓ → 분류기(3,4)
+            //                                              ├ 동 → 변환기(4,4)
+            //                                              └ 남 → 벨(3,3)→ 변환기(4,3)
+            StartingBoard.Run.Sorter(4, 8),
+            new StartingBoard.Run(3, 8, PortFace.East, PortFace.South),
+            new StartingBoard.Run(3, 7, PortFace.North, PortFace.South),
+            new StartingBoard.Run(3, 6, PortFace.North, PortFace.South),
+            new StartingBoard.Run(3, 5, PortFace.North, PortFace.South),
+            StartingBoard.Run.Sorter(3, 4),
+            new StartingBoard.Run(3, 3, PortFace.North, PortFace.East),
+
+            // 배터리가 다리에서 올라와 복합 **남면**으로 들어간다
+            new StartingBoard.Run(6, 3, PortFace.West, PortFace.North),
+
+            // 광역형 드론 → 동쪽으로 나가 팔L 을 타고 올라가 **기존 줄에 합류**한다
+            //
+            // ⚠️ **포트를 새로 쓰지 않고 병합기로 합친다**(구현 판단 · 설계 사후 확인 요청).
+            //    비워 둔 포트는 (2,10) 인데 **판 서쪽 끝**이고, 복합은 동면으로만 내므로
+            //    거기까지 가려면 판을 가로질러 되돌아와야 한다. 기존 줄이 이미
+            //    (10,8)→(10,9)→(10,10)→(9,10) 으로 올라가고 있어 **한 칸을 병합기로
+            //    바꾸는 것**이 가장 짧다. 벨트 처리량은 12/초이고 두 줄 합이 2/초다.
+            new StartingBoard.Run(7, 4, PortFace.West, PortFace.East),
+            new StartingBoard.Run(8, 4, PortFace.West, PortFace.East),
+            new StartingBoard.Run(9, 4, PortFace.West, PortFace.East),
+            new StartingBoard.Run(10, 4, PortFace.West, PortFace.North),
+            new StartingBoard.Run(10, 5, PortFace.South, PortFace.North),
+            new StartingBoard.Run(10, 6, PortFace.South, PortFace.North),
+            new StartingBoard.Run(10, 7, PortFace.South, PortFace.North),
+            // ⚠️ **내는 면은 북쪽이다.** `Run.Merger` 의 기본 출력면은 동쪽이라 그대로 쓰면
+            //    드론이 판 밖(11,8)으로 나간다 — 첫 판에서 광역형이 마운트에 0 으로 찍힌 자리다.
+            new StartingBoard.Run(10, 8, PortFace.West, PortFace.North, BeltElementKind.Merger),
         };
 
         /// <summary>

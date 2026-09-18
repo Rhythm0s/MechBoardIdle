@@ -265,6 +265,11 @@ namespace MBI.Tests
         {
             // 🗑️ 구 `Run.merger`(참/거짓)로는 분류기를 못 적었다 — 값으로 바꾼 까닭이다.
             //    참/거짓만 보던 옛 자리가 남아 있으면 분류기가 **직선 벨트**로 조용히 깔린다.
+            // ✅ **B 판은 셋이다**(2026-09-18 사용자 확정 · 둘째 드론 줄).
+            //    추진제 줄 하나 + **코어 에너지를 가르는 둘**(코어 서면 · 다리 어귀).
+            //    🗑️ 구 「둘 다 하나」 폐기.
+            //    📌 이 둘은 **전력을 가르는 자리**이지 드론 비율을 가르는 자리가 아니다 —
+            //       누적형·광역형 비율은 두 복합 노드의 **생산 속도**가 정한다.
             foreach (MountOwner owner in new[] { MountOwner.RobotA, MountOwner.RobotB })
             {
                 BoardGrid g = Build(owner, fillEmptySlot: true);
@@ -277,8 +282,9 @@ namespace MBI.Tests
                         sorters.Add(new Vector2Int(x, y));
                 }
 
-                Assert.AreEqual(1, sorters.Count,
-                    $"{owner} 판의 분류기 수가 하나가 아니다 — 실제 {sorters.Count}");
+                int want = owner == MountOwner.RobotB ? 3 : 1;
+                Assert.AreEqual(want, sorters.Count,
+                    $"{owner} 판의 분류기 수가 {want} 가 아니다 — 실제 {sorters.Count}");
             }
         }
     }

@@ -1210,6 +1210,10 @@ namespace MBI.EditorTools
             var strikeLog = new List<string>();
             float stackSum = 0f, aoeSum = 0f;
             int mountSamples = 0;
+            // 기존 줄이 **여전히 도는가** — 코어 서면에 분류기가 생겨 갈래가 하나 늘었으므로
+            // 추진제 줄과 보호막 줄이 굶지 않는지 본다(2026-09-18 · 설계 요청 「기존 줄 산출 불변」).
+            int peakDodgeB = 0;
+            float peakShieldB = 0f;
 
             for (int i = 0; i < steps && sim.Result == CombatResult.InProgress; i++)
             {
@@ -1288,6 +1292,11 @@ namespace MBI.EditorTools
 
                 // 4) 표본
                 stackSum += bStack; aoeSum += bAoe; mountSamples++;
+                if (!aActive)   // B 가 나가 있는 동안의 값이라야 B 보드의 줄을 잰다
+                {
+                    peakDodgeB = Mathf.Max(peakDodgeB, sim.Dodge.Stacks);
+                    peakShieldB = Mathf.Max(peakShieldB, sim.Shield != null ? sim.Shield.Value : 0f);
+                }
                 if (sim.ActiveRobotIndex != lastActive) { tagSwaps++; lastActive = sim.ActiveRobotIndex; }
                 if (sim.TagSkillStrikes > strikesBefore)
                 {
@@ -1331,6 +1340,11 @@ namespace MBI.EditorTools
             sb.AppendLine($"    평균 적재 — 누적형 {avgStack:F1} · 광역형 {avgAoe:F1}"
                           + (both > 0f ? $" · 광역 비율 {avgAoe / both:F2}" : " · 비율 없음(둘 다 0)"));
             sb.AppendLine($"    보드 산출 몫 — 광역 {aggB.AoeShare:F2} (비율이 이 수와 갈리면 마운트가 유입대로 안 찬 것이다)");
+
+            sb.AppendLine();
+            sb.AppendLine("[기존 줄 산출 불변]  ← 측정법: B 가 나가 있는 동안의 회피 스택 최고 · 보호막 최고");
+            sb.AppendLine($"    회피 스택 최고 {peakDodgeB} (추진제 줄) · 보호막 최고 {peakShieldB:F0} (보호막 줄)");
+            sb.AppendLine("    ⚠️ 둘 다 0 이면 코어 서면 분류기가 기존 줄을 굶긴 것이다.");
 
             sb.AppendLine();
             sb.AppendLine("[목적 4 — 광역형 한 기의 평균 표적 수]  ← 측정법: 광역 타격마다 (주 표적 1 + 곁에 닿은 수)");

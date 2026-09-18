@@ -892,7 +892,18 @@ namespace MBI.Core
         {
             if (loadedRounds <= 0f || side.mount == null) return 0f;
 
-            float sum = side.mount.AmountOf(MountItem.Drone) *
+            // ⚠️⚠️ **광역형도 센다**(2026-09-18 정정 · 하네스가 잡았다).
+            //
+            // 🗑️ 구 코드는 `MountItem.Drone`(누적형)만 셌다. 09-16 에 드론이 2종이 되면서
+            //    **마운트에 실린 광역형이 평균에서 통째로 빠졌고**, 그래서 태그 스킬은
+            //    광역형을 **소진하면서 피해에는 안 넣었다** — 둘째 드론 줄을 깔자
+            //    총 피해가 4,000 에서 2,500 으로 떨어져 드러난 자리다.
+            //
+            // ⚠️ **기당 피해는 둘이 같은 값을 쓴다**(`droneCharge`) — 설계 문서의
+            //    「광역형은 표적 하나당 절반」은 **코드에 없다.** 여기서 지어내지 않는다
+            //    (설계 판정 자리 · `260918_V02`).
+            float sum = (side.mount.AmountOf(MountItem.Drone) +
+                         side.mount.AmountOf(MountItem.DroneAoe)) *
                         DamageFormula.PerHit(side.setup.droneCharge,
                             side.setup.mountCoef, side.setup.moduleMult, target.def);
 
