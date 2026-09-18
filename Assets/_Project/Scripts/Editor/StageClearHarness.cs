@@ -242,6 +242,76 @@ namespace MBI.EditorTools
             return head.ToString();
         }
 
+        /// <summary>
+        /// 【확인】 **탄종이 여럿이면 화력 천장이 열리는가** (2026-09-18 사용자 물음 ③).
+        ///
+        /// ⚠️⚠️ **왜 재나.** 키운 판 스위프에서 **탄약을 여덟 배로 만들어도 쏜 발이 240 에서
+        /// 안 움직였다.** 발사는 **줄마다 제 주기**로 나가고(`FireSide`) 소비는 **그 탄종의**
+        /// 재고를 보는데(`ConsumeRound`), 마운트에 한 탄종만 있으면 **나머지 두 줄은 영영
+        /// 못 쏜다** — 그 짐작이 맞는지 **같은 판을 두 번 돌려** 가른다.
+        ///
+        /// ⚠️ **게임의 거동을 재는 것이 아니다.** 게임은 창고에 있는 것을 싣고, 창고에는
+        /// 보드가 만든 것만 있다. 여기서 여는 것은 **기계의 상한**이고, 그것을 실제로 쓰려면
+        /// **보드가 다른 탄종을 만들어야** 한다 — 그 배치는 설계 몫이다.
+        ///
+        /// 배치 실행: <c>-executeMethod MBI.EditorTools.StageClearHarness.RunAmmoMixProbeBatch</c>
+        /// </summary>
+        [MenuItem("MBI/Harness 탄종 섞기 확인")]
+        public static void RunAmmoMixProbeMenu() => Debug.Log(RunAmmoMixProbe());
+
+        public static void RunAmmoMixProbeBatch()
+        {
+            Debug.Log(RunAmmoMixProbe());
+            if (Application.isBatchMode) EditorApplication.Exit(0);
+        }
+
+        public static string RunAmmoMixProbe()
+        {
+            var head = new StringBuilder();
+            var body = new StringBuilder();
+
+            head.AppendLine("############ 탄종 섞기 — 천장이 열리는가 (2026-09-18) ############");
+            head.AppendLine();
+            head.AppendLine("| 판 | 마운트 | 판정 | 쏜 발 |");
+            head.AppendLine("|---|---|---|---|");
+
+            try
+            {
+                foreach (string id in new[] { "S1", "S2", "S3" })
+                    foreach (bool mixed in new[] { false, true })
+                    {
+                        PreloadMixed = mixed;
+                        string report = Run(id, preloadMount: true);
+                        StageVerdict v = LastVerdict;
+
+                        // 쏜 발은 보고문에만 있다 — **수로 넘기는 칸이 없어** 여기서만 읽는다.
+                        string shots = "?";
+                        foreach (string line in report.Split('\n'))
+                            if (line.TrimStart().StartsWith("쏜 발"))
+                            { shots = line.Trim(); break; }
+
+                        head.AppendLine("| " + id + " | " + (mixed ? "**세 탄종**" : "표준탄만")
+                            + " | " + (v.ok ? "✅ " : "") + v.result + " · "
+                            + v.seconds.ToString("F1") + "초 · 남은 적 " + v.remaining + "/" + v.total
+                            + " | " + shots + " |");
+
+                        body.AppendLine();
+                        body.AppendLine("======== " + id + " · "
+                            + (mixed ? "세 탄종" : "표준탄만") + " ========");
+                        body.AppendLine(report);
+                    }
+            }
+            finally { PreloadMixed = false; }
+
+            head.AppendLine();
+            head.AppendLine("⚠️ **게임의 거동이 아니다** — 게임은 창고에 있는 것을 싣고,");
+            head.AppendLine("창고에는 **보드가 만든 것**만 있다. 여기서 여는 것은 **기계의 상한**이다.");
+            head.AppendLine();
+            head.AppendLine(body.ToString());
+            head.AppendLine("############ 끝 ############");
+            return head.ToString();
+        }
+
         private static string VerdictRow(StageVerdict v)
         {
             string mark = v.result == CombatResult.InProgress
@@ -443,7 +513,24 @@ namespace MBI.EditorTools
                 // 마운트를 표준탄으로 가득 채운다 — 용량 그대로(A 4칸 × 스택 10 = 40).
                 // ⚠️ 창고는 **안 채운다.** 튜토리얼은 마운트까지 나르고 끝나며,
                 //    창고 재고는 그 뒤 보드가 대는 것이다 — 지어 넣으면 판이 물러진다.
-                mount.Load(MountItem.Standard, mount.SlotCount * stack);
+                if (PreloadMixed)
+                {
+                    // ⚠️⚠️ **세 탄종을 고르게 싣는다**(2026-09-18 사용자 물음 ③ 확인용).
+                    //    발사는 **줄마다 제 주기**로 나가고 `ConsumeRound` 는 **그 탄종의**
+                    //    재고를 본다 — 한 탄종만 실으면 나머지 두 줄은 영영 못 쏜다.
+                    //    그 짐작이 맞는지 재려고 둔 갈림이다.
+                    float each = mount.SlotCount * stack / 3f;
+                    mount.Load(MountItem.Pierce, each);
+                    mount.Load(MountItem.Standard, each);
+                    mount.Load(MountItem.Explosive, each);
+                }
+                else
+                {
+                    // 마운트를 표준탄으로 가득 채운다 — 용량 그대로(A 4칸 × 스택 10 = 40).
+                    // ⚠️ 창고는 **안 채운다.** 튜토리얼은 마운트까지 나르고 끝나며,
+                    //    창고 재고는 그 뒤 보드가 대는 것이다 — 지어 넣으면 판이 물러진다.
+                    mount.Load(MountItem.Standard, mount.SlotCount * stack);
+                }
             }
             List<EnemySpawn> spawns = StageSpawnFactory.Build(stage, catalog, tuning);
 
@@ -455,6 +542,8 @@ namespace MBI.EditorTools
             //    게임과 다른 판을 재게 된다(2026-09-15 사용자 확정 · §72-40).
             // 게임과 같은 값으로 곁눈질을 붙든다 — 안 넣으면 떨림 잣대가 다른 판을 잰다.
             sim.SetSideStepHold(tuning.enemySideStepHoldTbd);
+            // ⚠️ 누적형 활동 범위도 러너와 같게 건다(2026-09-18) — 안 걸면 다른 판을 잰다.
+            sim.DroneLeashRadius = tuning.droneLeashRadiusTbd;
 
             // ⚠️⚠️ **웨이브를 러너와 같게 건다**(2026-09-18 · 시안 3 ③).
             //    안 걸면 하네스는 **한 마리씩** 오는 판을, 게임은 **묶음으로** 오는 판을 돌린다 —
@@ -1257,6 +1346,14 @@ namespace MBI.EditorTools
         /// ⚠️ **1 이면 아무 일도 안 일어난다** — 배포 자산 그대로다.
         /// </summary>
         public static float PlantScale = 1f;
+
+        /// <summary>
+        /// 마운트를 **세 탄종으로** 채우는가 (2026-09-18 사용자 물음 ③ 확인용 · 기본 거짓).
+        ///
+        /// ⚠️ **게임의 거동이 아니다** — 게임은 창고에 있는 것을 싣고, 창고에는 보드가
+        /// 만든 것만 있다. 이 갈림은 **「탄종이 여럿이면 천장이 열리는가」**만 잰다.
+        /// </summary>
+        public static bool PreloadMixed;
 
         private static NodeDefinition Node(string id)
         {

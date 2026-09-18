@@ -1955,15 +1955,37 @@ namespace MBI.Core
                 }
 
                 // ── 누적형 ────────────────────────────────────────────────
+                //
+                // ⚠️⚠️ **활동 범위는 플레이어 기준 N 이다**(2026-09-18 사용자 확정 ·
+                //    <see cref="DroneLeashRule"/>). 🗑️ **구 거동 폐기** — 표적을 **드론
+                //    자신의 자리**에서 골랐다. 그러면 한 번 날아간 드론이 그 자리에서 또
+                //    사거리 안을 보므로 **적을 타고 한없이 멀어진다.**
+                float leash = DroneLeashRule.Radius(DroneLeashRadius, d.AttackRange);
+
                 var target = d.Target as CombatEntity;
+
+                // 붙잡고 있던 적이 **범위 밖으로 나가면 놓는다** — 따라 나가지 않는다.
+                if (target != null && target.IsAlive
+                    && !DroneLeashRule.KeepsTarget(robot, target.position, leash))
+                {
+                    target = null;
+                    d.Target = null;
+                    d.Attached = false;
+                }
+
                 if (target == null || !target.IsAlive)
                 {
-                    // ⚠️ **표적은 드론 자신을 기준으로 고른다** — 로봇 기준으로 고르면
-                    //    멀리 날아간 드론이 등 뒤의 적으로 되돌아온다.
-                    target = NearestLivingEnemyWithin(d.Position, d.AttackRange);
+                    // 고르는 잣대 둘 — **드론 사거리 안**이면서 **로봇에서 N 안**.
+                    target = NearestLivingEnemyWithin(d.Position, d.AttackRange, robot, leash);
                     d.Target = target;
                     d.Attached = false;
-                    if (target == null) continue;   // 칠 것이 없으면 제자리에 뜬다
+                    if (target == null)
+                    {
+                        // 칠 것이 없으면 제자리에 뜨되 **범위 안으로 끌어당긴다** —
+                        // 표적을 잃은 자리가 이미 밖일 수 있다.
+                        d.Position = DroneLeashRule.Clamp(robot, d.Position, leash);
+                        continue;
+                    }
                 }
 
                 Vector2 to = target.position - d.Position;
@@ -1978,6 +2000,7 @@ namespace MBI.Core
                 d.Attached = false;
                 float step = Mathf.Min(DroneFlySpeed * dt, dist);
                 d.Position += to / Mathf.Max(dist, 1e-5f) * step;
+                d.Position = DroneLeashRule.Clamp(robot, d.Position, leash);
             }
         }
 
@@ -1992,6 +2015,13 @@ namespace MBI.Core
 
         /// <summary>누적형이 붙었다고 보는 거리 — ⚠️ 가정.</summary>
         public float DroneAttachDistance { get; set; } = 0.35f;
+
+        /// <summary>
+        /// **누적형의 활동 범위 — 플레이어 기준 N**(2026-09-18 사용자 확정).
+        /// 0 이면 **드론 사거리**를 그대로 쓴다(<see cref="DroneLeashRule.Radius"/>).
+        /// ⚠️ 값은 미정 — 러너가 `CombatTuning` 에서 넣는다.
+        /// </summary>
+        public float DroneLeashRadius { get; set; }
 
         /// <summary>
         /// 드론 **타격 간격**(초) — ⚠️ 가정 0.5 (2026-09-16 사용자 육안 3차).
@@ -2022,6 +2052,27 @@ namespace MBI.Core
             foreach (CombatEntity e in _enemies)
             {
                 if (!e.IsAlive) continue;
+                float sqr = (e.position - origin).sqrMagnitude;
+                if (sqr < bestSqr) { bestSqr = sqr; best = e; }
+            }
+            return best;
+        }
+
+        /// <summary>
+        /// 잣대 **둘**을 다 지나는 최근접 생존 적 (2026-09-18 · 누적형 활동 범위).
+        ///
+        /// ⚠️ **드론 사거리 안**이면서 **로봇에서 N 안**이라야 고른다 — 하나만 보면
+        /// 멀리 나간 드론이 저 혼자 사거리 안이라며 더 멀리 나간다.
+        /// </summary>
+        private CombatEntity NearestLivingEnemyWithin(Vector2 origin, float range,
+                                                      Vector2 anchor, float leash)
+        {
+            CombatEntity best = null;
+            float bestSqr = range * range;
+            foreach (CombatEntity e in _enemies)
+            {
+                if (!e.IsAlive) continue;
+                if (!DroneLeashRule.Inside(anchor, e.position, leash)) continue;
                 float sqr = (e.position - origin).sqrMagnitude;
                 if (sqr < bestSqr) { bestSqr = sqr; best = e; }
             }
