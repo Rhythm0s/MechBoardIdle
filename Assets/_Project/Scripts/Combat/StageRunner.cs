@@ -1993,9 +1993,10 @@ namespace MBI.Combat
                     _hudSmall.fontSize = hudPx;
                 }
             }
+            // ⚠️ **제목·경과는 이제 헤더가 든다**(2026-09-18 사용자 리허설 ⑧) — 높이 셈에서 뺀다.
             float need = HudTextHeight(style, hudW - 10f,
-                             lineTitle, lineOutput, lineAmmo, lineStore, lineEnemy, lineTag,
-                             lineElapsed, lineWallet, lineHelp)
+                             lineOutput, lineAmmo, lineStore, lineEnemy, lineTag,
+                             lineWallet, lineHelp)
                          + (HudBars.BarHeight + 4f) * 2f   // 탄약 막대 · 회피 눈금
                          + 10f;                            // 아랫변 여백
 
@@ -2030,8 +2031,8 @@ namespace MBI.Combat
                 {
                     style.fontSize = KoreanFont.Snap(shrunk);
                     need = HudTextHeight(style, hudW - 10f,
-                               lineTitle, lineOutput, lineAmmo, lineStore, lineEnemy, lineTag,
-                               lineElapsed, lineWallet, lineHelp)
+                               lineOutput, lineAmmo, lineStore, lineEnemy, lineTag,
+                               lineWallet, lineHelp)
                            + (HudBars.BarHeight + 4f) * 2f + 10f;
                 }
             }
@@ -2071,16 +2072,8 @@ namespace MBI.Combat
             // 그래서 HUD 첫 줄보다 **앞**에 오고, 아무것도 밀어내지 않는다.
             //
             // ⚠️ **임시물이다** — 얼굴 방향의 원인이 잡히면 이 메서드를 통째로 걷는다.
-            DrawFacingDiagnostic(combatBand, hudScale, hudLeft, hudW, lineFace);
-
-            // 태그 스킬 진단 줄 — **개발 빌드에서만** 잠깐 뜬다(2026-09-18 ⑫).
-            if (Debug.isDebugBuild && Time.time < _tagSkillNoteUntil && !string.IsNullOrEmpty(_tagSkillNote))
-            {
-                var noteStyle = new GUIStyle(style) { fontStyle = FontStyle.Bold };
-                noteStyle.normal.textColor = new Color(1f, 0.92f, 0.45f);
-                GUI.Label(new Rect(hudLeft, combatBand.y + 4f, hudW, 34f * hudScale),
-                          _tagSkillNote, noteStyle);
-            }
+            // ⚠️ **헤더 자리를 비운다**(2026-09-18 ⑧) — 진단 둘은 **아래 블록 끝**으로 내려간다.
+            //    진단물이 헤더에 앉아 있으면 「지금 무엇을 하는 판인가」보다 위에 놓인다.
 
             bool foldable = GameViewSignals.BoardViewActive;
             if (foldable)
@@ -2098,10 +2091,31 @@ namespace MBI.Combat
                 return;
             }
 
+            // ── 헤더 (2026-09-18 사용자 리허설 ⑧ · ⚠️ 무엇을 올릴지는 **구현 가정**) ──
+            //
+            // 📌 가른 잣대는 하나다 — **판이 무엇이고 얼마나 남았는가**는 헤더에,
+            //    **지금 이 로봇이 어떤 상태인가**는 아래 블록에.
+            //    헤더 = 스테이지·목표·요구 · 경과 (소리 버튼은 이미 이 띠의 오른쪽 구석이다)
+            //    아래 = 물류 출력 · 탄약 · 저장고 · 적/HP/보호막/회피 · 태그 · 재화 · 조작
+            //
+            // ⚠️ 자리는 `UiLayout.InfoBarHeight`(120) 띠다 — 09-15 에 「아무도 안 쓰는 빈 자리」로
+            //    확인한 그 자리이고, 진단 줄이 임시로 쓰던 것을 **본래 쓰임으로 돌린다.**
+            var header = new Rect(hudLeft, combatBand.y + 6f * hudScale,
+                                  hudW, UiLayout.InfoBarHeight * hudScale - 12f * hudScale);
+            {
+                var headStyle = new GUIStyle(style) { fontStyle = FontStyle.Bold, wordWrap = true };
+                var subStyle = new GUIStyle(style) { wordWrap = false };
+                UiPlate.Draw(header);
+                GUILayout.BeginArea(new Rect(header.x + 8f, header.y + 4f,
+                                             header.width - 16f, header.height - 8f));
+                GUILayout.Label(lineTitle, headStyle);
+                GUILayout.Label(lineElapsed, subStyle);
+                GUILayout.EndArea();
+            }
+
             if (GameViewSignals.BoardViewActive) UiPlate.Draw(hud);
 
             GUILayout.BeginArea(hud);
-            GUILayout.Label(lineTitle, style);
             GUILayout.Label(lineOutput, style);
             GUILayout.Label(lineAmmo, style);
             // 탄약 줄 — **저장 노드 재고를 막대 하나로**(UI 문서 3-3). 재고가 0인 탄종은 칸이 없다.
@@ -2112,13 +2126,29 @@ namespace MBI.Combat
             // 회피 눈금 바 — 숫자 옆에 붙인 줄을 그림으로 한 번 더 준다(UI 문서 11-3).
             DrawDodgeTicks();
             if (lineTag != null) GUILayout.Label(lineTag, style);
-            GUILayout.Label(lineElapsed, style);
             // 재화는 방치 런타임이 게시한 값을 그대로 읽는다(IdleSignals). 여기서 계산하지 않는다 —
             // 적립 규칙은 방치 런타임 한 곳에만 산다. 화면에 새 패널을 놓을 자리가 없어
             // 이 상태 칸에 붙였다. 방치 씬이 없는 격리 전투 씬에서는 둘 다 0으로 뜬다.
             GUILayout.Label(lineWallet, style);
             GUILayout.Label(lineHelp, style);
             GUILayout.EndArea();
+
+            // ── 진단 둘 — **아래 블록 끝**(2026-09-18 ⑧) ──────────────────────
+            //
+            // ⚠️ 블록 **안**에 넣지 않는다 — `GUILayout.BeginArea` 는 넘치는 것을 말없이
+            //    자르고, 잘리는 것은 늘 마지막 줄이다(09-14 에 세 줄을 그렇게 잃었다).
+            //    자리만 블록 끝이고, 그리는 것은 블록 밖이다.
+            float diagY = hud.yMax + 4f * hudScale;
+            DrawFacingDiagnosticAt(hudLeft, diagY, hudW, hudScale, lineFace);
+
+            if (Debug.isDebugBuild && Time.time < _tagSkillNoteUntil && !string.IsNullOrEmpty(_tagSkillNote))
+            {
+                var noteStyle = new GUIStyle(style) { fontStyle = FontStyle.Bold };
+                noteStyle.normal.textColor = new Color(1f, 0.92f, 0.45f);
+                var noteRect = new Rect(hudLeft, diagY + 30f * hudScale, hudW, 34f * hudScale);
+                UiPlate.Draw(noteRect);
+                GUI.Label(noteRect, _tagSkillNote, noteStyle);
+            }
 
             // ⚠️ **전투 조작 버튼은 조립 화면에서 그리지 않는다**(260902_W09 §5-3).
             //
@@ -2169,14 +2199,18 @@ namespace MBI.Combat
         /// ⚠️ 크기는 **두 변**에서 잡는다 — 높이로만 정하면 좁고 긴 창에서 글자가
         /// 한 자씩 쌓인다(오늘 네 번째 같은 병이다).
         /// </summary>
-        private void DrawFacingDiagnostic(Rect combatBand, float scale, float left, float width,
+        /// <summary>
+        /// 🗑️ 구 자리(헤더 띠) 폐기 — 2026-09-18 ⑧ 에서 그 자리를 **헤더가** 가져갔다.
+        /// 이제 **아래 블록 끝**에 그린다. 자리를 부르는 쪽이 정하므로 y 를 받는다.
+        /// </summary>
+        private void DrawFacingDiagnosticAt(float left, float top, float width, float scale,
             string text, string second = null)
         {
             if (string.IsNullOrEmpty(text)) return;
 
             float pad = 4f * scale;
-            float h = Mathf.Max(16f, UiLayout.InfoBarHeight * scale - pad * 2f);
-            var r = new Rect(left, combatBand.y + pad, width, h);
+            float h = Mathf.Max(16f, 30f * scale);
+            var r = new Rect(left, top, width, h);
             if (r.yMax > Screen.height) r.y = Mathf.Max(0f, Screen.height - r.height);
 
             UiPlate.Draw(r);
