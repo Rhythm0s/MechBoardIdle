@@ -29,6 +29,15 @@ namespace MBI.EditorTools
         private const float Dt = 0.05f;
         private const float Seconds = 90f;
 
+        /// <summary>마지막 측정의 마운트 도착 개수 — S0~S5 자체 시험이 읽는다.</summary>
+        public static int LastArrivals;
+
+        /// <summary>마지막 측정의 첫 도착 시각(초). 음수면 **한 알도 안 닿았다.**</summary>
+        public static float LastFirstAt = -1f;
+
+        /// <summary>마지막 측정의 「나가는 곳이 없다」 칸 수. 0 이 정상이다.</summary>
+        public static int LastDangling;
+
         [MenuItem("MBI/Probe Tutorial Goal")]
         public static void RunMenu() => Debug.Log(Run());
 
@@ -103,6 +112,14 @@ namespace MBI.EditorTools
             }
             sb.AppendLine($"  「나가는 곳이 없다」 칸 **{stuck.Count}개**"
                           + (stuck.Count > 0 ? " — " + string.Join(" · ", stuck) : ""));
+
+            // ⚠️ **마지막으로 잰 수를 남긴다**(2026-09-18 · S0~S5 자체 시험).
+            //    글로 찍은 것을 다시 파싱하면 문구를 고칠 때마다 시험이 깨진다 —
+            //    수는 수로 넘긴다. `Run` 이 안 채운 판 → 채운 판 차례로 부르므로
+            //    **남는 것은 채운 판(정상 경로)의 수**다.
+            LastArrivals = total;
+            LastFirstAt = firstAt;
+            LastDangling = stuck.Count;
 
             // ── 「생산이 멈췄습니다」 는 **창고 재고**로 뜨고, 창고는 **노드 집계**가 채운다.
             //    벨트 위에 물건이 흘러도 이 집계가 0 이면 띠가 뜬다 — 그 자리를 가른다.

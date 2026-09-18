@@ -52,6 +52,120 @@ namespace MBI.EditorTools
         /// </summary>
         private const float ProviderRollingSeconds = 60f;
 
+        /// <summary>
+        /// 한 판의 **판정 한 줄** — S0~S5 자체 시험이 읽는다 (2026-09-18 사용자 지시).
+        ///
+        /// ⚠️⚠️ **글을 다시 파싱하지 않는다.** 보고문에서 「Win」을 찾아 읽게 두면
+        /// 문구를 고칠 때마다 시험이 조용히 깨진다 — **수는 수로 넘긴다.**
+        /// </summary>
+        public struct StageVerdict
+        {
+            public string stageId;
+            public string how;          // 어떤 판으로 쟀나(한 로봇 · 두 로봇)
+            public bool ok;             // 이겼는가
+            public CombatResult result;
+            public float seconds;
+            public int remaining;
+            public int total;
+            public float hp;
+            public float maxHp;
+        }
+
+        /// <summary>마지막으로 돌린 판의 판정. 판마다 덮어쓴다.</summary>
+        public static StageVerdict LastVerdict;
+
+        // ───────────────────── S0~S5 자체 시험 (2026-09-18 사용자 지시) ─────────────────────
+
+        /// <summary>
+        /// 【자체 시험】 **S0(튜토리얼)부터 S5까지 한 번에 돌린다** (2026-09-18 사용자 지시).
+        ///
+        /// ⚠️⚠️ **새 판을 짓지 않는다.** 판마다 **이미 있는 문**을 지난다 —
+        /// S0 은 <see cref="TutorialGoalProbe"/>, S1~S4 는 이 파일의 <c>Run</c>,
+        /// S5 는 <c>RunTag</c> 다. 시험이 제 판을 따로 지으면 **게임과 다른 것을 재게 된다**
+        /// (09-15 에 여러 번 겪었다).
+        ///
+        /// 📌 **판마다 재는 것이 다르다** — 그것을 숨기지 않고 표에 적는다.
+        /// · **S0** 은 전투가 없다(적 구성이 비어 있다). 그래서 「이겼나」가 아니라
+        ///   **「빈 칸을 채우면 마운트에 물건이 닿는가」**를 본다 — 그것이 튜토리얼의 목표다.
+        /// · **S5** 는 **태그 학습** 판이라(<c>reqType 2</c>) **두 로봇**으로 돌린다.
+        ///   한 로봇으로 재면 게임이 세우지 않는 판을 재게 된다.
+        /// · S1~S4 는 **튜토리얼을 마친 상태**(마운트 적재)로 돈다 — 정상 경로다.
+        ///
+        /// ⚠️ **안 끝난 판은 「졌다」가 아니다** — 상한에서 끊긴 것이며 그렇게 적는다.
+        /// ⚠️ **값을 하나도 안 고친다.** 자산도 저장도 안 건드린다.
+        ///
+        /// 배치 실행: <c>-executeMethod MBI.EditorTools.StageClearHarness.RunStageSweepBatch</c>
+        /// </summary>
+        [MenuItem("MBI/Harness S0~S5 자체 시험")]
+        public static void RunStageSweepMenu() => Debug.Log(RunStageSweep());
+
+        public static void RunStageSweepBatch()
+        {
+            Debug.Log(RunStageSweep());
+            if (Application.isBatchMode) EditorApplication.Exit(0);
+        }
+
+        public static string RunStageSweep()
+        {
+            var head = new StringBuilder();
+            var body = new StringBuilder();
+            var rows = new List<string>();
+
+            head.AppendLine("############ S0~S5 자체 시험 (2026-09-18) ############");
+            head.AppendLine();
+            head.AppendLine("| 판 | 어떻게 쟀나 | 판정 | 수 |");
+            head.AppendLine("|---|---|---|---|");
+
+            // ── S0 — 전투가 없다. 「마운트에 닿는가」를 본다 ──
+            body.AppendLine("======== S0 — 튜토리얼 (전투 없음 · 목표는 「이으면 만들어진다」) ========");
+            body.AppendLine(TutorialGoalProbe.Run());
+
+            bool s0Ok = TutorialGoalProbe.LastArrivals > 0 && TutorialGoalProbe.LastDangling == 0;
+            rows.Add("| **S0** | 채운 판에서 마운트 도착을 잰다 | "
+                     + (s0Ok ? "✅ 닿는다" : "❌ **안 닿는다**")
+                     + " | 도착 " + TutorialGoalProbe.LastArrivals + "개 · 첫 도착 "
+                     + (TutorialGoalProbe.LastFirstAt < 0f
+                         ? "**없음**" : TutorialGoalProbe.LastFirstAt.ToString("F1") + "초")
+                     + " · 끊긴 칸 " + TutorialGoalProbe.LastDangling + " |");
+
+            // ── S1~S4 — 한 로봇 · 튜토리얼 종료 조건 ──
+            foreach (string id in new[] { "S1", "S2", "S3", "S4" })
+            {
+                body.AppendLine();
+                body.AppendLine("======== " + id + " — 한 로봇 · 튜토리얼 종료 적재 ========");
+                body.AppendLine(Run(id, preloadMount: true));
+                rows.Add(VerdictRow(LastVerdict));
+            }
+
+            // ── S5 — 태그 학습 판이라 두 로봇으로 ──
+            body.AppendLine();
+            body.AppendLine("======== S5 — **두 로봇**(태그 학습 판이라 한 로봇으로 안 잰다) ========");
+            body.AppendLine(RunTag("S5"));
+            rows.Add(VerdictRow(LastVerdict));
+
+            foreach (string r in rows) head.AppendLine(r);
+
+            head.AppendLine();
+            head.AppendLine("⚠️ **「안 끝났다」는 「졌다」가 아니다** — " + HardCapSeconds.ToString("F0")
+                            + "초 상한에서 끊은 것이다.");
+            head.AppendLine("⚠️ **값을 하나도 안 고쳤다** — 자산·저장 그대로이고 여기 수는 **센 것**이다.");
+            head.AppendLine();
+            head.AppendLine(body.ToString());
+            head.AppendLine("############ 끝 ############");
+            return head.ToString();
+        }
+
+        private static string VerdictRow(StageVerdict v)
+        {
+            string mark = v.result == CombatResult.InProgress
+                ? "⚠️ **안 끝났다**"
+                : (v.ok ? "✅ " + v.result : "❌ **" + v.result + "**");
+
+            return "| **" + v.stageId + "** | " + v.how + " | " + mark + " | "
+                   + v.seconds.ToString("F1") + "초 · 남은 적 " + v.remaining + "/" + v.total
+                   + " · HP " + v.hp.ToString("F0") + "/" + v.maxHp.ToString("F0") + " |";
+        }
+
         [MenuItem("MBI/Harness S1 Clear")]
         public static void RunMenu() => Debug.Log(RunBoth("S1"));
 
@@ -569,6 +683,14 @@ namespace MBI.EditorTools
             }
 
             // ── 보고 ──────────────────────────────────────────────────────
+            LastVerdict = new StageVerdict
+            {
+                stageId = stageId, how = "한 로봇",
+                ok = result == CombatResult.Win, result = result, seconds = elapsed,
+                remaining = sim.Remaining, total = sim.TotalEnemies,
+                hp = sim.Robot.hp, maxHp = sim.Robot.maxHp,
+            };
+
             sb.AppendLine();
             sb.AppendLine("[결과]");
             bool capped = result == CombatResult.InProgress;
@@ -1415,6 +1537,14 @@ namespace MBI.EditorTools
             }
 
             // ── 보고 ───────────────────────────────────────────────────────
+            LastVerdict = new StageVerdict
+            {
+                stageId = stageId, how = "두 로봇",
+                ok = sim.Result == CombatResult.Win, result = sim.Result, seconds = elapsed,
+                remaining = sim.Remaining, total = sim.TotalEnemies,
+                hp = sim.Robot.hp, maxHp = sim.Robot.maxHp,
+            };
+
             sb.AppendLine();
             sb.AppendLine("[결과]");
             sb.AppendLine($"  {sim.Result} · {elapsed:F1}초 · 남은 적 {sim.Remaining}/{sim.TotalEnemies}"
