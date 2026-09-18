@@ -15,9 +15,11 @@ namespace MBI.Combat
     /// ⚠️⚠️ **판정에 손대지 않는다.** 무적 0.167초 · 거리 1.25칸은 그대로다 —
     /// 이 파일은 시뮬이 이미 끝낸 이동의 **자국만** 그린다(전투 시스템 문서 10-1 판정 무개입).
     ///
-    /// ⚠️ **가산 합성은 되면 쓴다.** 레거시 `Particles/Additive` 는 빌드에 **안 실릴 수 있고**,
-    /// 없는 셰이더를 찾으면 분홍 사각이 뜬다. 그래서 찾아보고 없으면 **보통 알파**로 떨어진다 —
-    /// 화면이 덜 화려해질 뿐 안 깨진다. 이 갈림은 실측 대상이다(웹빌드에서 눈으로 확인).
+    /// ⚠️ **가산 합성은 자산으로 실어 보낸다.** `Resources/DodgeStreakAdditive.mat` 하나가
+    /// 레거시 가산 셰이더를 물고 있어 웹빌드가 그것을 **스트립하지 않는다** —
+    /// `Shader.Find` 로 이름만 부르면 **에디터에서는 빛나고 빌드에서는 안 빛난다**
+    /// (2026-09-18 설계 지적 · 그 머티리얼은 `DodgeStreakMaterialGenerator` 가 굽는다).
+    /// 자산이 없으면 **보통 알파**로 떨어진다 — 덜 화려할 뿐 안 깨진다.
     /// </summary>
     public sealed class DodgeTrail : MonoBehaviour
     {
@@ -108,16 +110,31 @@ namespace MBI.Combat
         /// <summary>
         /// 가산 합성을 **있으면** 건다.
         ///
-        /// ⚠️ 없는 셰이더를 물리면 **분홍 사각**이 뜬다 — 그것이 안 깨진 것보다 나쁘다.
-        /// 그래서 찾고, 못 찾으면 아무것도 안 한다(보통 알파로 그려진다).
+        /// ⚠️⚠️ **`Shader.Find` 로 찾지 않는다**(2026-09-18 · 설계 지적). 그 이름을 무는
+        /// 머티리얼이 하나도 없으면 웹빌드가 셰이더를 **통째로 스트립**해서 `null` 이 된다 —
+        /// **에디터에서는 빛나고 빌드에서는 안 빛나는** 갈림이 그렇게 난다.
+        ///
+        /// 📌 그래서 `Resources/` 에 **머티리얼 자산 하나**를 두고 그것을 읽는다. 자산이
+        /// 셰이더를 물고 있으므로 빌드가 둘 다 싣는다(`DodgeStreakMaterialGenerator` 가 굽는다).
+        ///
+        /// ⚠️ **자산이 없어도 안 깨진다** — 못 찾으면 아무것도 안 하고 보통 알파로 그려진다.
+        ///    없는 셰이더를 억지로 물리면 **분홍 사각**이 되는데, 그건 덜 화려한 것보다 나쁘다.
+        ///
+        /// ⚠️ 머티리얼을 **한 벌만 만들어 나눠 쓴다** — 회피마다 새로 지으면 잔상 하나에
+        ///    머티리얼 하나가 새어 나간다.
         /// </summary>
         private static void ApplyAdditive(SpriteRenderer sr)
         {
-            Shader s = Shader.Find("Particles/Additive");
-            if (s == null) s = Shader.Find("Legacy Shaders/Particles/Additive");
-            if (s == null) return;
-            sr.material = new Material(s);
+            if (!_additiveLooked)
+            {
+                _additiveLooked = true;
+                _additive = Resources.Load<Material>("DodgeStreakAdditive");
+            }
+            if (_additive != null) sr.sharedMaterial = _additive;
         }
+
+        private static Material _additive;
+        private static bool _additiveLooked;
 
         private void Update()
         {
