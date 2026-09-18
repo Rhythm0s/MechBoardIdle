@@ -155,6 +155,93 @@ namespace MBI.EditorTools
             return head.ToString();
         }
 
+        /// <summary>
+        /// 【자체 시험 · 키운 판】 **스테이지마다 판을 키워 가며 이기는 배수를 찾는다**
+        /// (2026-09-18 사용자 지시).
+        ///
+        /// ⚠️⚠️ **배치를 지어내지 않았다.** 「S2 에서는 보드가 어디까지 커져 있다」가 문서에
+        /// 없으므로, 판 전체를 **k 배**로 보는 모형을 쓴다(<see cref="PlantScale"/> 주석).
+        /// 그래서 이 판이 답하는 것은 「어떤 배치여야 하나」가 **아니라**
+        /// **「지금의 몇 배가 있어야 이기나」**다 — 그 둘은 다른 물음이다.
+        ///
+        /// ⚠️ **배수는 오름차순으로 훑고 처음 이긴 데서 멈춘다** — 더 키워도 이기는 것은
+        /// 당연해서 잴 것이 없다.
+        ///
+        /// 배치 실행: <c>-executeMethod MBI.EditorTools.StageClearHarness.RunGrownSweepBatch</c>
+        /// </summary>
+        [MenuItem("MBI/Harness 키운 판 S1~S5")]
+        public static void RunGrownSweepMenu() => Debug.Log(RunGrownSweep());
+
+        public static void RunGrownSweepBatch()
+        {
+            Debug.Log(RunGrownSweep());
+            if (Application.isBatchMode) EditorApplication.Exit(0);
+        }
+
+        /// <summary>훑을 배수 — ⚠️ **가정**(촘촘히 훑으면 판이 수십 번 돈다).</summary>
+        private static readonly float[] PlantSteps = { 1f, 1.5f, 2f, 3f, 4f, 6f, 8f };
+
+        public static string RunGrownSweep()
+        {
+            var head = new StringBuilder();
+            var body = new StringBuilder();
+
+            head.AppendLine("############ 키운 판 — 스테이지마다 몇 배가 필요한가 (2026-09-18) ############");
+            head.AppendLine();
+            head.AppendLine("⚠️⚠️ **배치가 아니라 배수다.** 「그 스테이지의 보드가 어떻게 생겼나」는 문서에 없어");
+            head.AppendLine("**판 전체를 k 배**(산출 · 전력 수요 · 전력 공급 함께)로 보는 모형으로 쟀다.");
+            head.AppendLine("답하는 물음은 **「지금의 몇 배가 있어야 이기나」** 하나다. ⚠️ 자산은 안 건드렸다.");
+            head.AppendLine();
+            head.AppendLine("| 판 | 이긴 배수 | 그때 | 배수 1 일 때 |");
+            head.AppendLine("|---|---|---|---|");
+
+            try
+            {
+                foreach (string id in new[] { "S1", "S2", "S3", "S4", "S5" })
+                {
+                    bool two = id == "S5";   // 태그 학습 판은 두 로봇이다
+                    string baseLine = null;
+                    string wonAt = null, wonLine = null;
+
+                    foreach (float k in PlantSteps)
+                    {
+                        PlantScale = k;
+                        string report = two ? RunTag(id) : Run(id, preloadMount: true);
+                        StageVerdict v = LastVerdict;
+
+                        string line = v.result + " · " + v.seconds.ToString("F1") + "초 · 남은 적 "
+                                      + v.remaining + "/" + v.total
+                                      + " · HP " + v.hp.ToString("F0") + "/" + v.maxHp.ToString("F0");
+                        if (baseLine == null) baseLine = line;
+
+                        body.AppendLine();
+                        body.AppendLine("======== " + id + " · 판 배수 " + k.ToString("F1")
+                                        + " (" + (two ? "두 로봇" : "한 로봇") + ") ========");
+                        body.AppendLine(report);
+
+                        if (v.ok) { wonAt = k.ToString("F1"); wonLine = line; break; }
+                    }
+
+                    head.AppendLine("| **" + id + "** | "
+                        + (wonAt != null ? "**" + wonAt + "배**" : "❌ **8배까지 못 이김**")
+                        + " | " + (wonLine ?? "—") + " | " + baseLine + " |");
+                }
+            }
+            finally
+            {
+                // ⚠️ **반드시 되돌린다** — 안 되돌리면 다음 측정이 키운 판을 재고,
+                //    그 수가 실측처럼 남는다.
+                PlantScale = 1f;
+            }
+
+            head.AppendLine();
+            head.AppendLine("⚠️ 훑은 배수 — 1 · 1.5 · 2 · 3 · 4 · 6 · 8 (⚠️ 가정 · 처음 이긴 데서 멈춘다).");
+            head.AppendLine();
+            head.AppendLine(body.ToString());
+            head.AppendLine("############ 끝 ############");
+            return head.ToString();
+        }
+
         private static string VerdictRow(StageVerdict v)
         {
             string mark = v.result == CombatResult.InProgress
@@ -1153,8 +1240,56 @@ namespace MBI.EditorTools
         }
 
 
+        /// <summary>
+        /// **판 배수** — 「보드를 스테이지마다 키웠다」를 재기 위한 한 손잡이
+        /// (2026-09-18 사용자 지시 · ⚠️⚠️ **모형이다 · 설계 판정 자리**).
+        ///
+        /// ⚠️⚠️ **왜 배치를 안 짓고 배수를 쓰나.** 「S2 에서는 보드가 어디까지 커져 있다」는
+        /// **문서에 없다.** 배치를 지어내면 **게임이 세우지 않는 판**을 재게 되고, 그 수는
+        /// 실측처럼 보이지만 아무것도 안 말한다 — 09-15 에 「프로브는 초록인데 화면은 낡았다」로
+        /// 겪은 자리다.
+        ///
+        /// 📌 그래서 **판 전체를 k 배**로 본다 — 산출·전력 수요·전력 공급을 함께 곱한다.
+        /// 「노드를 k 배로 늘리고 발전도 그만큼 늘린 판」과 **같은 수**가 나오는 모형이고,
+        /// 답하는 물음은 하나다 — **「그 판을 이기려면 지금의 몇 배가 필요한가」**.
+        ///
+        /// ⚠️ **자산을 안 건드린다** — 복제본의 수만 바꾼다(추진제 스위프와 같은 수법).
+        /// ⚠️ **1 이면 아무 일도 안 일어난다** — 배포 자산 그대로다.
+        /// </summary>
+        public static float PlantScale = 1f;
+
         private static NodeDefinition Node(string id)
-            => AssetDatabase.LoadAssetAtPath<NodeDefinition>(NodeRoot + "/Node_" + id + ".asset");
+        {
+            var src = AssetDatabase.LoadAssetAtPath<NodeDefinition>(NodeRoot + "/Node_" + id + ".asset");
+            if (src == null || Mathf.Approximately(PlantScale, 1f)) return src;
+
+            // ⚠️ 판마다 새로 복제하면 한 판에 수십 개가 생긴다 — id 마다 한 벌만 든다.
+            string key = id + "@" + PlantScale.ToString("F2");
+            if (_scaled.TryGetValue(key, out NodeDefinition got) && got != null) return got;
+
+            var clone = Object.Instantiate(src);
+            clone.name = src.name;
+
+            NodeResourceProfile res = clone.resources;
+            res.ammoProduce *= PlantScale;
+            res.powerDraw *= PlantScale;
+            res.powerSupply *= PlantScale;
+            clone.resources = res;
+
+            if (clone.recipes != null)
+                for (int i = 0; i < clone.recipes.Count; i++)
+                {
+                    NodeRecipe r = clone.recipes[i];
+                    r.outputPerSec *= PlantScale;
+                    clone.recipes[i] = r;
+                }
+
+            _scaled[key] = clone;
+            return clone;
+        }
+
+        private static readonly Dictionary<string, NodeDefinition> _scaled =
+            new Dictionary<string, NodeDefinition>();
 
         /// <summary>
         /// 이 판이 **코어 에너지를 초당 몇 개 먹는가** (2026-09-17 · `260917_W03` 4장).
