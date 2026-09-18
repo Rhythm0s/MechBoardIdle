@@ -859,9 +859,11 @@ namespace MBI.Combat
             if (dodge.TotalDodges > _seenDodges && _sim.Robot != null)
             {
                 // ③ 끝점 한 방 — **그림 자산이 있는 유일한 회피 연출**이라 그대로 둔다.
+                // ⚠️ **알파가 빠지며 사라진다**(2026-09-18 사용자 육안 ② — 「부스트도 동일하게」).
+                //    잔상·줄기가 옅어져 걷히는데 분사만 툭 없어지면 **둘이 따로 논다.**
                 if (tuning.boosterSprite != null)
                     SpawnOneShot(tuning.boosterSprite, _sim.Robot.position,
-                        Mathf.Max(life, tuning.dodgeVfxSeconds));
+                        Mathf.Max(life, tuning.dodgeVfxSeconds), fade: true);
 
                 // ①② **잔상과 줄기**(2026-09-18 사용자 확정 · 참고 이미지).
                 //
@@ -1096,7 +1098,18 @@ namespace MBI.Combat
             }
         }
 
-        private void SpawnOneShot(Sprite sprite, Vector2 position, float seconds, float scale = 1f)
+        /// <param name="fade">
+        /// 참이면 **알파가 빠지며** 사라진다(2026-09-18 사용자 육안 ② — 「부스트도 동일하게」).
+        ///
+        /// ⚠️ 거짓이면 종전대로 **시간이 되면 툭 없어진다.** 한 방 그림 대부분은 제 안에
+        /// 사라짐이 그려져 있어 밖에서 또 옅게 하면 두 번 사라진다 — 그래서 **기본은 거짓**이고
+        /// 부르는 쪽이 고른다.
+        ///
+        /// ⚠️ 옅게 하는 일은 <see cref="FadeOutAndDestroy"/> 가 든다 — **같은 일을 하는 자리를
+        /// 또 만들지 않는다**(태그 퇴장에 쓰려고 지어 두고 부르는 곳이 없던 것을 여기서 쓴다).
+        /// </param>
+        private void SpawnOneShot(Sprite sprite, Vector2 position, float seconds,
+                                  float scale = 1f, bool fade = false)
         {
             var go = new GameObject("Vfx");
             go.transform.SetParent(transform, false);
@@ -1107,7 +1120,9 @@ namespace MBI.Combat
             var sr = go.AddComponent<SpriteRenderer>();
             sr.sprite = sprite;
             sr.sortingOrder = SortingLayers.EffectOver;
-            Destroy(go, seconds);
+
+            if (fade) go.AddComponent<FadeOutAndDestroy>().Begin(sr, seconds);
+            else Destroy(go, seconds);
         }
 
         /// <summary>

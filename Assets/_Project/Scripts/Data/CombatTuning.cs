@@ -394,11 +394,15 @@ namespace MBI.Data
         // 문서에 절이 없다(연출 문서 `vfx_booster` 행을 설계가 사후 개정한다).
         //
         // ⚠️ **회피 판정은 안 건드린다** — 무적 0.167초 · 거리 1.25칸은 그대로다.
-        [Tooltip("⚠️ 가정 — 회피 잔상 장수(사용자 「2~3장」). 0 이면 규칙 기본값 3.")]
-        public int dodgeAfterimageCountTbd = 3;
+        // ✅ **사용자 육안 ③ — 「잔상 개수 추가 · 잔여시간 50% 증가」**(2026-09-18).
+        //    🗑️ 구 3장·0.4초 폐기. 장수는 다섯으로, 시간은 0.4 × 1.5 = **0.6초**다.
+        //    ⚠️ 50% 는 사용자가 준 **비**이고, 그 비가 걸린 밑값(0.4)은 가정이었다 —
+        //    그래서 새 값도 가정 표기로 남는다.
+        [Tooltip("⚠️ 가정 — 회피 잔상 장수. 사용자 육안으로 3 에서 5 로(09-18). 0 이면 규칙 기본값 3.")]
+        public int dodgeAfterimageCountTbd = 5;
 
-        [Tooltip("⚠️ 가정 — 잔상·줄기가 사라지는 시간(초). 이동 0.167초보다 길어야 자국으로 읽힌다.")]
-        public float dodgeTrailSecondsTbd = 0.4f;
+        [Tooltip("⚠️ 가정 — 잔상·줄기가 사라지는 시간(초). 사용자 육안 50% 증가 — 0.4 에서 0.6(09-18).")]
+        public float dodgeTrailSecondsTbd = 0.6f;
 
         [Tooltip("⚠️ 가정 — 가장 진한 잔상의 옅기(0~1). 1 이면 로봇이 여럿으로 보인다.")]
         public float dodgeAfterimageAlphaTbd = 0.45f;

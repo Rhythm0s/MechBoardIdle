@@ -93,9 +93,12 @@ namespace MBI.UI
             float pad = 18f * sc;
             float rowH = strip.height * 0.5f;
 
+            // ✅ **작게**(2026-09-18 사용자 육안 ④ — 「하단 고철 개수가 너무 큼」).
+            //    🗑️ 구 0.58 폐기. 이 줄은 **읽는 수**이지 화면의 머리글이 아니다 —
+            //    크게 두면 그 아래 문제 요약보다 무거워져 눈이 수부터 읽는다.
             var head = new GUIStyle(GUI.skin.label)
             {
-                fontSize = KoreanFont.Snap(Mathf.Max(12, Mathf.RoundToInt(rowH * 0.58f))),
+                fontSize = KoreanFont.Snap(Mathf.Max(11, Mathf.RoundToInt(rowH * 0.40f))),
                 fontStyle = FontStyle.Bold,
                 alignment = TextAnchor.MiddleLeft,
                 clipping = TextClipping.Overflow,
@@ -106,9 +109,11 @@ namespace MBI.UI
             GUI.Label(new Rect(strip.x + pad, strip.y, strip.width - pad * 2f, rowH),
                       "고철 " + IdleSignals.WalletScrap.ToString("N0"), head);
 
+            // ⚠️ **머리 줄보다 작아야 한다.** 고철을 0.40 으로 줄였으니 이 줄도 같이 내린다 —
+            //    안 내리면 요약이 수보다 커져 무게가 뒤집힌다(구 0.46 폐기).
             var row = new GUIStyle(head)
             {
-                fontSize = KoreanFont.Snap(Mathf.Max(10, Mathf.RoundToInt(rowH * 0.46f))),
+                fontSize = KoreanFont.Snap(Mathf.Max(10, Mathf.RoundToInt(rowH * 0.34f))),
                 fontStyle = FontStyle.Normal,
             };
             row.normal.textColor = warn ? WarnText : QuietText;
