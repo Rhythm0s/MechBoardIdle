@@ -60,6 +60,11 @@ namespace MBI.UI
         /// 슬라이더 **셋** 이 들어간다 (2026-09-11 · 사운드 문서 7장 채널 셋).
         /// 한 줄 = 이름표 26 + 슬라이더 20 + 사이 6 = 52. 위아래 여백 16.
         /// </summary>
+        /// <summary>
+        /// 🗑️ **폐기 — 날 픽셀 줄을 전제한 높이**(2026-09-18). 줄을 배율에 태우면서
+        /// 높이도 **줄에서 낸다**(그리는 자리 참조). 값을 남기는 것은 **왜 바뀌었는지**를
+        /// 읽는 사람이 알 수 있게 하려는 것이고, **읽는 곳은 없다.**
+        /// </summary>
         private const float PanelH = 16f + 52f * 3f;
         private const float Margin = 12f;
 
@@ -179,9 +184,15 @@ namespace MBI.UI
             var button = UiLayout.ChipSoundRect(Screen.width, Screen.height);
             float bh = button.height;
             UiBlockers.Add(button);
+            // ⚠️ **글자가 칸을 넘었다**(2026-09-18 사용자 육안 — 「소리 닫기」가 「리 닫」으로).
+            //    칩 줄 자리는 한 변이 최소 버튼(150)이라 **네 글자가 안 들어간다.**
+            //    크기를 **두 변에서** 잡고 문구도 **두 글자**로 줄인다(09-15 부터 네 번째 같은 병).
             var btnStyle = new GUIStyle(GUI.skin.button)
             {
-                fontSize = KoreanFont.Snap(Mathf.Max(10, Mathf.RoundToInt(bh * 0.28f))),
+                fontSize = KoreanFont.Snap(Mathf.Max(10, Mathf.Min(
+                    Mathf.RoundToInt(bh * 0.28f),
+                    Mathf.RoundToInt(button.width / 3.2f)))),
+                clipping = TextClipping.Overflow,
             };
             if (!_loggedRect)
             {
@@ -192,20 +203,41 @@ namespace MBI.UI
             // 🗑️ **자홍 사각 진단 폐기**(2026-09-18 리허설 ⑧) — 「자리는 맞는데 아무것도
             //    없다」의 답이 나왔고(버튼이 화면에 뜬다), 진단물은 답이 나오면 걷는 것이
             //    규칙이다. 09-15 주석에 「답이 나오면 이 블록을 걷는다」고 적어 두었다.
-            if (UiSkin.Button(button, _open ? "소리 닫기" : "소리", btnStyle)) _open = !_open;
+            if (UiSkin.Button(button, _open ? "닫기" : "소리", btnStyle)) _open = !_open;
 
             if (!_open) return;
 
             // ⚠️ **슬라이더는 버튼 아래로 편다** — 우상단이라 위로 펴면 화면 밖이다.
             // 패널도 기준 캔버스 값으로 — 구 240×172 는 날 픽셀이라 작은 창에서 못 읽었다.
-            float pw = PanelW * 2.4f * scale, ph = PanelH * 2.4f * scale;
+            // ⚠️ **높이를 줄에서 낸다**(2026-09-18). 구 `PanelH`(16 + 52×3)는 **날 픽셀 줄**을
+            //    전제한 수라, 줄을 배율에 태우자 패널이 내용보다 작아진다 —
+            //    그러면 마지막 슬라이더가 상자 밖으로 밀린다(09-06·09-15 와 같은 병).
+            float pw = PanelW * 2.4f * scale;
+            float ph = (10f + (30f + 26f + 14f) * 3f + 10f) * scale;
             var panel = new Rect(Screen.width - margin - pw, button.yMax + 4f * scale, pw, ph);
             UiBlockers.Add(panel);
             GUI.Box(panel, GUIContent.none);
 
             // 채널 셋 — 사운드 문서 7장. **하나로 묶지 않는다**: 셋은 사람이 서로 다른
             // 이유로 줄이는 것이라, 묶으면 하나가 거슬려도 나머지 둘까지 함께 잃는다.
-            float y = panel.y + 8f;
+            // ⚠️⚠️ **날 픽셀 줄을 걷는다**(2026-09-18 사용자 육안 · 「효과음」이 「호과음」으로).
+            //
+            // 패널은 `2.4 × 배율` 로 커지는데 **줄 높이만 22 · 26 · 52 날 픽셀**이었다.
+            // 큰 창에서는 글자가 줄보다 커져 **위가 잘렸다** — 잘린 자리가 받침처럼 보여
+            // 다른 글자로 읽힌다. 이름표·슬라이더·줄 간격을 **전부 배율에 태운다.**
+            float rowLabel = 30f * scale;    // 이름표 한 줄
+            float rowSlider = 26f * scale;   // 슬라이더
+            float rowGap = 14f * scale;      // 줄 사이
+            float padX = 14f * scale;
+
+            var labelStyle = new GUIStyle(GUI.skin.label)
+            {
+                fontSize = KoreanFont.Snap(Mathf.Max(11, Mathf.RoundToInt(rowLabel * 0.62f))),
+                alignment = TextAnchor.MiddleLeft,
+                clipping = TextClipping.Overflow,   // 재기 전에 잘리는 함정을 피한다
+            };
+
+            float y = panel.y + 10f * scale;
             foreach (AudioChannels.Channel ch in new[]
             {
                 AudioChannels.Channel.Music,
@@ -214,11 +246,12 @@ namespace MBI.UI
             })
             {
                 float now = AudioChannels.Value(ch);
-                GUI.Label(new Rect(panel.x + 10f, y, panel.width - 20f, 22f),
-                    $"{AudioChannels.Label(ch)}  {MusicVolume.Label(now)}");
+                GUI.Label(new Rect(panel.x + padX, y, panel.width - padX * 2f, rowLabel),
+                    $"{AudioChannels.Label(ch)}  {MusicVolume.Label(now)}", labelStyle);
 
                 float next = GUI.HorizontalSlider(
-                    new Rect(panel.x + 10f, y + 26f, panel.width - 20f, 20f), now, 0f, 1f);
+                    new Rect(panel.x + padX, y + rowLabel, panel.width - padX * 2f, rowSlider),
+                    now, 0f, 1f);
 
                 // ⚠️ **바뀐 프레임에만 남긴다.** 매 프레임 `PlayerPrefs` 를 쓰면 디스크를 계속 두드린다.
                 if (!Mathf.Approximately(next, now))
@@ -232,7 +265,7 @@ namespace MBI.UI
                     MusicVolume.PreviewRequested = true;
                 }
 
-                y += 52f;
+                y += rowLabel + rowSlider + rowGap;
             }
         }
     }
