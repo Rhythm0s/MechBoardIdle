@@ -1362,6 +1362,9 @@ namespace MBI.Combat
                 _sim.DroneAttachDistance = tuning.droneAttachDistanceTbd;
                 // ⚠️ **누적형 활동 범위**(2026-09-18 사용자 확정) — 0 이면 드론 사거리를 쓴다.
                 _sim.DroneLeashRadius = tuning.droneLeashRadiusTbd;
+                // ⚠️ **한 발을 쪼개 쏘기**(2026-09-18 사용자 확정 — 세 발 · 대미지 1/2).
+                _sim.ShotsPerRound = tuning.shotsPerRound;
+                _sim.ShotDamageFactor = tuning.shotDamageFactor;
                 _sim.DroneHitInterval = tuning.droneHitIntervalTbd;
             }
             // 종을 가르는 몫 — 보드가 정한다.

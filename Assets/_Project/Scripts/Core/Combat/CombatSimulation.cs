@@ -2017,6 +2017,19 @@ namespace MBI.Core
         public float DroneAttachDistance { get; set; } = 0.35f;
 
         /// <summary>
+        /// 소비 한 번에 나가는 발 수 — **사용자 확정 3**(2026-09-18 · 자산이 든다).
+        ///
+        /// ⚠️⚠️ **기본값은 구 거동(1)이다.** 값은 러너와 하네스가 `CombatTuning` 에서 넣는다 —
+        /// 시뮬이 스스로 새 거동을 기본으로 삼으면 **순수 계약 시험**(「1초 피해 = 명목 출력」)이
+        /// 통째로 다른 것을 재게 된다. 웨이브 스폰을 들일 때와 **같은 규약**이다:
+        /// **되돌릴 길을 값 하나로 남긴다.**
+        /// </summary>
+        public int ShotsPerRound { get; set; } = 1;
+
+        /// <summary>한 발의 피해 배수 — **사용자 확정 1/2**(자산이 든다 · 기본값은 구 거동 1).</summary>
+        public float ShotDamageFactor { get; set; } = 1f;
+
+        /// <summary>
         /// **누적형의 활동 범위 — 플레이어 기준 N**(2026-09-18 사용자 확정).
         /// 0 이면 **드론 사거리**를 그대로 쓴다(<see cref="DroneLeashRule.Radius"/>).
         /// ⚠️ 값은 미정 — 러너가 `CombatTuning` 에서 넣는다.
@@ -2128,11 +2141,28 @@ namespace MBI.Core
                     // 마운트가 없는 구성(격리 전투·단일 로봇)은 창고에서 바로 쓴다.
                     if (!ConsumeRound(side, shot.kind)) { side.lineTimers[li] = 0f; break; }
 
-                    // **실제로 나간 발**만 센다 — 배분과 발사는 다르다(2026-09-15).
-                    int fi = (int)shot.kind;
-                    if (fi >= 0 && fi < _firedCount.Length) _firedCount[fi]++;
+                    // ⚠️⚠️ **한 발을 쪼개 쏜다**(2026-09-18 사용자 확정 — 「세 발 · 대미지 1/2」).
+                    //    소비는 **위에서 이미 한 발**이고, 여기서 갈라지는 것은
+                    //    **몇 번 꽂히는가**와 **한 번이 얼마나 아픈가**뿐이다(`ShotSplitRule`).
+                    int burst = ShotSplitRule.ShotsPerRound(ShotsPerRound);
+                    float split = ShotSplitRule.DamageFactor(ShotDamageFactor);
 
-                    FireOne(side, shot, target, damageMultiplier);
+                    for (int b = 0; b < burst; b++)
+                    {
+                        // ⚠️ **발마다 표적을 다시 고른다** — 첫 발에 죽으면 남은 둘이
+                        //    시체를 때린다. 쪼갠 뜻이 사라지는 자리다.
+                        if (b > 0)
+                        {
+                            target = NearestLivingEnemyInRange();
+                            if (target == null) break;
+                        }
+
+                        // **실제로 나간 발**만 센다 — 배분과 발사는 다르다(2026-09-15).
+                        int fi = (int)shot.kind;
+                        if (fi >= 0 && fi < _firedCount.Length) _firedCount[fi]++;
+
+                        FireOne(side, shot, target, damageMultiplier * split);
+                    }
                 }
             }
         }
