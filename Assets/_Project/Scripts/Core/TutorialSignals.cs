@@ -123,6 +123,25 @@ namespace MBI.Core
         /// </summary>
         public static bool BoardViewOpen;
 
+        /// <summary>
+        /// 튜토리얼 목표 둘 — **스테이지 0 세션이 쓰고 전투 화면의 마일스톤 카드가 읽는다**
+        /// (2026-09-18 설계 지시 ④).
+        ///
+        /// ⚠️⚠️ **판정은 여기 없다.** 걸쇠는 <see cref="Stage0Goal"/> 하나가 쥐고,
+        /// 이 칸들은 그 값을 **옮기는 관**이다 — 화면이 제 걸쇠를 따로 두면
+        /// 카드와 스테이지가 서로 다른 달성 상태를 믿게 된다(지침 §7).
+        ///
+        /// ⚠️ <see cref="GoalActive"/> 가 거짓이면 카드를 **안 그린다** — 튜토리얼이 아닌
+        /// 판에서 「끊긴 자리를 잇는다」가 떠 있으면 그것은 없는 목표다.
+        /// </summary>
+        public static bool GoalActive;
+
+        /// <summary>목표 ① — 끊긴 자리를 잇는다.</summary>
+        public static bool GoalSlotFilled;
+
+        /// <summary>목표 ② — 마운트가 가득 찬다.</summary>
+        public static bool GoalMountFilled;
+
         /// <summary>도메인 리로드 비활성 시 이전 Play의 값이 남는 것을 막는다.</summary>
         public static void Reset()
         {
@@ -135,6 +154,9 @@ namespace MBI.Core
             FillEmptySlotRequested = false;
             BoardInBuildMode = false;
             BoardViewOpen = false;
+            GoalActive = false;
+            GoalSlotFilled = false;
+            GoalMountFilled = false;
         }
     }
 }

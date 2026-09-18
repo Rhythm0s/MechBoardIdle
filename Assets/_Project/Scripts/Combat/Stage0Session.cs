@@ -109,13 +109,19 @@ namespace MBI.Combat
             _goal.Observe(TutorialSignals.GhostCellFilled,
                 sim.ActiveMount != null && sim.ActiveMount.IsFull);
 
+            // 목표 둘을 화면 쪽에 게시한다 — **마일스톤 카드가 읽는다**(2026-09-18 ④).
+            // ⚠️ 걸쇠는 여기 `_goal` 하나가 쥔다. 카드는 이 값을 그릴 뿐이다.
+            TutorialSignals.GoalActive = true;
+            TutorialSignals.GoalSlotFilled = _goal.SlotFilled;
+            TutorialSignals.GoalMountFilled = _goal.MountFilled;
+
             if (_goal.IsComplete) Finish();
         }
 
         private void Finish()
         {
             _finished = true;
-            TutorialSignals.Reset(); // 고스트와 강조를 끈다
+            TutorialSignals.Reset(); // 고스트·강조·목표 게시를 함께 끈다
 
             // **끝냈다는 사실을 저장에 남긴다**(260902_W08 §2-2). 보상은 없다 —
             // 스테이지가 아니므로 요구치·보상·파밍 규칙의 대상이 아니다(§2-1).
@@ -133,65 +139,18 @@ namespace MBI.Combat
         // ---- 최소 표시 ----
 
         /// <summary>
-        /// 진행 표시. **안내 문구는 넣지 않는다**(구현 범위 확정) — 무엇을 했고 무엇이 남았는지만
-        /// 두 줄로 보여 준다. 어디에 놓을지는 보드의 고스트가 말한다.
+        /// 🗑️ **폐기 — 진행 표시 두 줄은 마일스톤 카드로 갔다**(2026-09-18 설계 지시 ④).
+        ///
+        /// ⚠️⚠️ **같은 것을 두 곳이 그리면 안 된다.** 우하단 카드가 같은 두 줄을 보이는데
+        /// 여기서도 그리면 화면에 목표가 두 벌 뜨고, 자리·문구가 갈라지는 날이 온다 —
+        /// 이 리포에서 되풀이된 결함 종류 그대로다.
+        ///
+        /// 📌 **판정은 여기 남는다**(<see cref="Stage0Goal"/> · <c>Update</c>). 옮긴 것은
+        /// **그리는 일**뿐이고, 카드는 `TutorialSignals` 로 건너간 값을 읽는다.
+        ///
+        /// 🗑️ 함께 폐기 — 마운트 수 진단 한 줄(09-15 육안 4차 ⑤). 그 자리는 이제
+        /// 개발 빌드 전용 「i」 패널이 든다.
         /// </summary>
-        private void OnGUI()
-        {
-            // 메인 메뉴가 덮고 있으면 그리지 않는다 — IMGUI 는 뒤에 그리는 쪽이 위로 온다
-            // (2026-09-10 · 실측: 오프라인 대화상자가 「게임 시작」 버튼을 덮었다).
-            if (MainMenuGate.IsOpen) return;
-            if (_finished) return;
-            UiSkin.Apply(); // 껍데기 + 한글 폰트 — WebGL엔 시스템 폰트 폴백이 없다
-
-            var style = new GUIStyle(GUI.skin.label) { fontSize = 16, fontStyle = FontStyle.Bold };
-
-            // ⚠️ **날 픽셀 자리를 걷었다**(2026-09-15 육안 ④ · 결함).
-            //
-            // 종전은 `Rect(12, Screen.height − 96, 420, 84)` 였다. 띠 체계 밖이라 창 높이만
-            // 따라갔고 화면이 낮으면 **HUD 첫 줄과 겹쳤다** — 09-14 하단 넷과 같은 병이다.
-            // 자리는 `UiLayout` 이 낸다(부유 띠 왼쪽 · 배율 막대 옆).
-            // ⚠️ **바탕을 깐다**(2026-09-15 · 육안 7차 ② 이행 뒤 확인).
-            //
-            // 자리를 부유 띠에서 **보드 띠**로 내보내면서 이 세 줄이 **노드 그림 위**에
-            // 얹히게 됐다 — 겹침은 풀렸는데 **읽히지가 않는다.** 부유 띠에는 판이 이미
-            // 깔려 있어 필요 없던 것이고, 보드 위는 그렇지 않다.
-            //
-            // 📌 자리를 옮기면 **바탕도 같이 옮겨야 한다** — 글자만 옮기면 「보이는데
-            // 안 읽히는」 상태가 된다.
-            Rect progress = MBI.UI.UiLayout.TutorialProgressRect(Screen.width, Screen.height);
-            MBI.UI.UiPlate.Draw(progress);
-            MBI.UI.UiBlockers.Add(progress);   // 판 밑의 칸이 눌리지 않게
-
-            GUILayout.BeginArea(progress);
-            // ⚠️ **이 문구는 벨트로 바뀐 뒤에도 맞는다** — 「끊긴 자리를 잇는다」는 노드보다
-            // 벨트일 때 오히려 더 정확하다. 안내 문구를 따로 두지 않는 것도 그대로다.
-            GUILayout.Label(Mark(_goal.SlotFilled) + " 끊긴 자리를 잇는다", style);
-            GUILayout.Label(Mark(_goal.MountFilled) + " 마운트가 가득 찬다", style);
-
-            // ⚠️ **왜 수를 같이 띄우는가**(2026-09-15 · 육안 4차 ⑤ · 진단).
-            //
-            // 「목표가 안 닫힌다」는 보고를 받고 배치모드로 두 단을 다 쟀는데 **둘 다
-            // 멀쩡했다** — 보드는 마운트에 90초 339개를 보냈고(`TutorialGoalProbe`),
-            // 창고→마운트 사슬은 **15.9초에 만충**이 됐다(`TutorialMountProbe`).
-            // 값도 게임과 같다(스택 상한 10 · 슬롯 4).
-            //
-            // ⚠️ **그러면 남은 것은 배치모드가 못 보는 자리다.** 재현되는 판에서는 멀쩡한데
-            // 실제 화면에서만 안 되는 것이라, 다음 육안이 **어느 줄이 왜 막혔는지**를
-            // 바로 말해 주어야 한다. 그게 없으면 또 한 바퀴를 돌게 된다.
-            //
-            // 📌 **둘째 줄이 안 서는 이유는 둘뿐이다** — 첫째 줄이 아직 안 섰거나
-            // (차례가 규칙이다), 마운트가 안 찼거나. 그 둘을 수로 가른다.
-            var thin = new GUIStyle(GUI.skin.label) { fontSize = 12 };
-            MountLoad mount = runner != null && runner.Sim != null ? runner.Sim.ActiveMount : null;
-            GUILayout.Label(mount == null
-                    ? "   마운트 없음 — 전투가 아직 안 섰다"
-                    : $"   마운트 {mount.Total:F0} · 만충판정 {(mount.CanJudgeFullness ? "가능" : "불가")}",
-                thin);
-            GUILayout.EndArea();
-        }
-
-        private static string Mark(bool done) => done ? "[v]" : "[  ]";
 
         /// <summary>
         /// 튜토리얼로 다시 들어간다 — **개발 빌드 전용**(260902_W08 §2-2).

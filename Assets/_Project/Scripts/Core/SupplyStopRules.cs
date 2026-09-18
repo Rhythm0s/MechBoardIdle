@@ -24,8 +24,18 @@ namespace MBI.Core
         /// <summary>띠가 시작하는 세로 (기준 캔버스). 그 위 0~768은 전투 화면이다(9-4).</summary>
         public const float DesignBandTop = 768f;
 
-        /// <summary>띠의 높이 (기준 캔버스). **격자 반 칸**이며 구역 이름표가 이미 쓰는 눈금이다.</summary>
-        public const float DesignBandHeight = 96f;
+        /// <summary>
+        /// 띠의 높이 (기준 캔버스).
+        ///
+        /// 🗑️ **구 96 폐기**(2026-09-18 사용자 확정 · 시안 3). 이 띠는 이제 경고 한 줄이
+        /// 아니라 **조립 화면의 상단 상태 영역**이다 — 고철 수치와 **문제 목록**(미연결 ·
+        /// 생산 정지 · 전력 부족)이 들어온다. 한 줄 높이로는 목록이 안 들어간다.
+        ///
+        /// ⚠️ **새 높이는 가정이다**(설계 사후 역기입 자리). 격자 반 칸(96)의 **두 칸 반**으로
+        /// 잡았다 — 머리 한 줄 + 목록 석 줄이 들어가는 최소다. 윗변 768 은 그대로라
+        /// 인셋과 맞닿는 관계(<c>CombatInsetView.ClearsBand</c>)는 안 바뀐다.
+        /// </summary>
+        public const float DesignBandHeight = 240f;
 
         /// <summary>
         /// 실제 창에서 띠가 앉을 자리. **화면 좌표다** — 보드를 스크롤해도 따라가지 않는다(12-2).
@@ -122,9 +132,36 @@ namespace MBI.Core
         public static bool MountIsEmpty(bool hasCombat, float mountTotal) =>
             hasCombat && mountTotal <= 0f;
 
-        /// <summary>띠를 그리는가. **경고가 있을 때만 뜨고 없으면 자리를 안 먹는다**(12-2).</summary>
+        /// <summary>
+        /// 띠에 **경고**가 있는가.
+        ///
+        /// ⚠️ **「띠를 그리는가」와 갈랐다**(2026-09-18 · 시안 3). 자리 자체는 이제
+        /// 조립 화면에서 **늘 확보된다**(고철 수치가 거기 산다) — 달라지는 것은
+        /// **경고를 적는가**이며, 그 판정이 이 함수다. 이름을 바꾸지 않은 까닭은
+        /// 부르는 자리와 시험이 이 이름을 이미 쓰기 때문이다.
+        /// </summary>
         public static bool BandIsVisible(bool storageEmpty, bool powerShort) =>
             storageEmpty || powerShort;
+
+        /// <summary>
+        /// 상단 영역에 적을 **문제 목록** (2026-09-18 설계 지시 · 조립 화면 상단).
+        ///
+        /// ⚠️⚠️ **여기서 새로 판정하지 않는다.** 셋 다 이미 다른 함수가 내는 참·거짓이고
+        /// 이 함수는 **말로 옮기기만** 한다 — 판정이 두 곳에 살면 화면과 띠가 서로 다른
+        /// 것을 믿게 된다(지침 §7).
+        ///
+        /// ⚠️ **빈 목록이 곧 「문제 없음」이다** — 없는 문제를 지어내 채우지 않는다.
+        /// </summary>
+        public static System.Collections.Generic.List<string> Problems(
+            bool notConnected, bool productionStopped, bool powerShort, bool mountEmpty)
+        {
+            var list = new System.Collections.Generic.List<string>(4);
+            if (notConnected) list.Add("미연결 — 나가는 곳이 없는 노드가 있다");
+            if (productionStopped) list.Add("생산 정지 — 만드는 것이 없다");
+            if (powerShort) list.Add("전력 부족 — 수요가 공급을 넘었다");
+            if (mountEmpty) list.Add("마운트 빔 — 싣고 나갈 것이 없다");
+            return list;
+        }
 
         // ---- 띠에 적을 것 ----
 

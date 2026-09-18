@@ -255,6 +255,13 @@ namespace MBI.EditorTools
             // 게임과 같은 값으로 곁눈질을 붙든다 — 안 넣으면 떨림 잣대가 다른 판을 잰다.
             sim.SetSideStepHold(tuning.enemySideStepHoldTbd);
 
+            // ⚠️⚠️ **웨이브를 러너와 같게 건다**(2026-09-18 · 시안 3 ③).
+            //    안 걸면 하네스는 **한 마리씩** 오는 판을, 게임은 **묶음으로** 오는 판을 돌린다 —
+            //    09-15 에 「프로브는 초록인데 화면은 낡았다」로 겪은 그 모양이다.
+            sim.SetWave(tuning.waveSizeTbd,
+                WaveSpawnRule.Interval(tuning.waveIntervalSecondsTbd,
+                                       tuning.waveSizeTbd, tuning.spawnCadenceTbd));
+
             if (tuning.spawnRingMinTbd > 0f && tuning.spawnRingMaxTbd > 0f)
                 sim.SetSpawnBand(tuning.spawnRingMinTbd, tuning.spawnRingMaxTbd);
             else if (tuning.spawnRingRadiusTbd > 0f)
@@ -1236,6 +1243,13 @@ namespace MBI.EditorTools
                 tuning.arenaRadiusTbd, stage.challengeTime, tuning.spawnCadenceTbd);
             sim.AutoTagEnabled = true;
             sim.SetSideStepHold(tuning.enemySideStepHoldTbd);
+
+            // ⚠️⚠️ **웨이브를 러너와 같게 건다**(2026-09-18 · 시안 3 ③).
+            //    안 걸면 하네스는 **한 마리씩** 오는 판을, 게임은 **묶음으로** 오는 판을 돌린다 —
+            //    09-15 에 「프로브는 초록인데 화면은 낡았다」로 겪은 그 모양이다.
+            sim.SetWave(tuning.waveSizeTbd,
+                WaveSpawnRule.Interval(tuning.waveIntervalSecondsTbd,
+                                       tuning.waveSizeTbd, tuning.spawnCadenceTbd));
             if (tuning.spawnRingMinTbd > 0f && tuning.spawnRingMaxTbd > 0f)
                 sim.SetSpawnBand(tuning.spawnRingMinTbd, tuning.spawnRingMaxTbd);
 

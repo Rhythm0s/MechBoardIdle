@@ -26,6 +26,13 @@ namespace MBI.Data
         [Tooltip("TBD — 상주 스테이지에 파밍 기록이 없을 때 쓰는 시급(고철/시간). 0 = 미측정 센티넬(지급 0).")]
         public double offlineBaseRateTbd = 0d;
 
+        [Header("골드 (2026-09-18 사용자 확정 — TBD 아님)")]
+        [Tooltip("몇 마리마다 골드를 주는가. 사용자 확정 20 — 「몬스터 20처치마다 5골드」.")]
+        public int killsPerGoldAward = 20;
+
+        [Tooltip("한 번에 주는 골드. 사용자 확정 5. ⚠️ 활용처는 아직 없다(설계 몫).")]
+        public int goldPerAward = 5;
+
         [Header("운영 (비밸런스 — §3 분리)")]
         [Tooltip("자동 저장 주기(초). 웹빌드엔 원자적 쓰기가 없어 너무 잦으면 손상 위험만 커진다.")]
         public float autosaveIntervalSeconds = 30f;

@@ -342,6 +342,48 @@ namespace MBI.Data
         [Tooltip("위 셋이 한 번 그려지고 사라지는 데 걸리는 초. 이펙트는 로봇보다 짧게 끝난다(연출 2장).")]
         public float vfxOneShotSeconds = 0.2f;
 
+
+        // ── 웨이브 스폰 (2026-09-18 · ⚠️ 가정 · 설계 판정 자리) ────────────────
+        //
+        // ⚠️⚠️ **화면의 리젠 타이머가 이 모델을 요구했다.** 종전의 「한 마리씩 끊임없이」
+        // 에는 「다음 리젠까지」라는 것이 없다 — 늘 0.8초 뒤에 하나가 나오므로 타이머가
+        // 같은 수만 되풀이한다. 묶음과 묶음 사이에 **빈 시간**이 있어야 셀 것이 생긴다.
+        //
+        // 📌 **평균 속도는 안 바꾼다.** 간격 0 이면 `묶음 × spawnCadenceTbd` 로 끌어오므로
+        // 평균 마리/초가 종전과 같다 — 값을 지어내지 않고 이미 있는 값에서 끈다.
+        // 달라지는 것은 **고르게 오던 것이 뭉쳐 온다**는 것 하나이며, 그것이 클리어에
+        // 닿는지는 하네스가 재서 답한다(S1 Win 유지).
+        //
+        // ⚠️ **묶음 1 이면 종전 모델 그대로다** — 되돌릴 길을 값 하나로 남겨 둔다.
+        [Tooltip("⚠️ 가정 — 한 묶음에 나오는 적 수. 1 이면 종전(한 마리씩) 모델과 같다.")]
+        public int waveSizeTbd = 4;
+
+        [Tooltip("⚠️ 가정 — 묶음 간격(초). 0 이면 waveSizeTbd × spawnCadenceTbd 로 끌어온다(평균 불변).")]
+        public float waveIntervalSecondsTbd = 0f;
+
+        // ── 드롭·마그넷 (2026-09-18 설계 지시 ① · ⚠️ 연출값 전부 가정) ─────────
+        //
+        // 처치한 자리에 재화가 **떨어졌다가 로봇에게 빨려 들어온다.** 판정은 없다 —
+        // 적립은 `KillRewardRule`·`GoldRewardRule` 이 이미 했고 이 값들은 **그림의 속도**다.
+        [Tooltip("⚠️ 가정 — 떨어져 멈춰 있는 시간(초). 이 동안은 안 빨린다.")]
+        public float dropRestSecondsTbd = 0.25f;
+
+        [Tooltip("⚠️ 가정 — 로봇에게 빨려 들어가는 데 걸리는 시간(초).")]
+        public float dropMagnetSecondsTbd = 0.45f;
+
+        [Tooltip("⚠️ 가정 — 떨어진 재화의 화면 크기(유닛).")]
+        public float dropViewUnitsTbd = 0.3f;
+
+        [Tooltip("⚠️ 가정 — 「+12 스크랩」 글자가 떠 있는 시간(초).")]
+        public float dropPopSecondsTbd = 0.9f;
+
+        [Tooltip("⚠️ 가정 — 팝 글자가 떠오르는 높이(유닛).")]
+        public float dropPopRiseUnitsTbd = 0.8f;
+
+        // ── 상단 칩 줄 (2026-09-18 설계 지시 · ⚠️ 가정) ────────────────────────
+        [Tooltip("⚠️ 가정 — 전투력 = 물류 출력 × (1 + 마운트 적재율 × 이 값). CombatPower 가 쓴다.")]
+        public float combatPowerMountFactorTbd = 1f;
+
         [Header("히트 패턴 (로봇A 탄종 = 단일 표적)")]
         // 플레이어블 로봇 기획서「무기 스펙트럼」(스테이징): 등가선은 단일 표적 기준, 표적 수/광역은 스펙트럼 밖 역할 축(드론 2종 한정).
         // → 로봇A 관통/표준/폭발은 전부 단일 표적. 멀티샷/AoE 메커니즘(HitResolver)은 드론용으로 보존.

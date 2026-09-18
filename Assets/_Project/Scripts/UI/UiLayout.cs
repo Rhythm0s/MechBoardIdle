@@ -188,14 +188,157 @@ namespace MBI.UI
         /// <summary>상태창 왼윗모서리 (기준 캔버스). ⚠️ **크기는 문서에 없다** — 그리는 쪽이 잰다.</summary>
         public static Vector2 StatusPanelOrigin => new Vector2(40f, 160f);
 
-        /// <summary>태그 원형의 **가운데** (기준 캔버스).</summary>
-        public static Vector2 TagButtonCenter => new Vector2(1280f, 2080f);
+        /// <summary>
+        /// 태그 원형의 **가운데** (기준 캔버스).
+        ///
+        /// 🗑️ **구 y2080 폐기**(2026-09-18 사용자 확정 · 시안 3). 오른쪽 기둥에
+        /// **자동 토글과 마일스톤 카드**가 들어오면서 넷이 세로로 서야 했다 —
+        /// 위에서부터 **태그 → 자동 → 합체 → 마일스톤 → 조립 막대**(설계가 준 차례 그대로).
+        /// 종전 2080/2300 사이는 **20** 뿐이라 토글이 들어갈 자리가 없었다.
+        ///
+        /// ⚠️ **새 y 는 가정이다**(설계 사후 역기입 자리). 정한 법은 하나다 —
+        /// 아래에서부터 쌓아 올리며 **아무것도 안 겹치게** 한다(조립 막대 윗변 2380 이 바닥).
+        /// </summary>
+        public static Vector2 TagButtonCenter => new Vector2(1280f, 1680f);
 
-        /// <summary>합체 원형의 **가운데** (기준 캔버스). 태그 아래 220 — 지름 200 이라 20 이 뜬다.</summary>
-        public static Vector2 MergeButtonCenter => new Vector2(1280f, 2300f);
+        /// <summary>
+        /// 합체 원형의 **가운데** (기준 캔버스). 🗑️ 구 y2300 폐기 — 위 주석과 같은 이유다.
+        /// 태그(1680) → 토글(1800~1880) → 합체(2000) 차례다.
+        /// </summary>
+        public static Vector2 MergeButtonCenter => new Vector2(1280f, 2000f);
+
+        /// <summary>
+        /// **자동 교대 토글** — 태그 원형 **바로 아래**(2026-09-18 사용자 확정 · 시안 3).
+        ///
+        /// 🗑️ **구 자리(태그 원형 위) 폐기** — 설계가 준 차례는 「태그 원형 → 바로 아래 자동」이다.
+        /// ⚠️ 크기는 가정이다. 폭은 원형 지름보다 조금 넓게, 높이는 눌리는 최소의 절반을 넘긴다.
+        /// </summary>
+        public static Rect TagAutoToggleRect(float screenWidth, float screenHeight)
+        {
+            const float w = 300f, h = 80f;
+            return Centered(new Vector2(TagButtonCenter.x, 1840f), w, h, screenWidth, screenHeight);
+        }
 
         /// <summary>조립 진입 막대의 **가운데** (기준 캔버스). x720 = 화면 한가운데.</summary>
         public static Vector2 EnterBoardCenter => new Vector2(720f, 2460f);
+
+        // ── 시안 3 — 칩 줄 · 배지 · 마일스톤 · 진단 (2026-09-18 사용자 확정 · 플랜 §85-8) ──
+        //
+        //  ⚠️⚠️ **여기 수는 전부 가정이다**(설계 사후 역기입 자리). 확정된 것은 **무엇이
+        //  어디에 오는가**이고(좌: 썸네일·닉네임·전투력 / 우: 골드·소리·설정 …),
+        //  **몇 픽셀인가**는 문서에 없다. 그래서 이미 있는 수에서 끈다 —
+        //  칩 줄 높이는 상단 정보줄 120 을 그대로 쓰고, 누를 것은 전부 최소 150 을 넘긴다.
+        //
+        //  📌 **헤더는 없다**(11f2ef9 「헤더 + 아래 블록」 폐기 · 2026-09-18 사용자 확정).
+        //  판 정보는 칩 줄 아래 **배지 + 한 줄**로 내려가고, 로봇 상태는 **글자가 아니라
+        //  몸에 붙은 막대**가 말한다. 좌상단 글자 블록은 통째로 사라진다.
+
+        /// <summary>상단 칩 줄 — 높이는 상단 정보줄과 같다(기준 캔버스 · ⚠️ 가정).</summary>
+        public const float ChipBarHeight = InfoBarHeight;
+
+        /// <summary>칩 줄 좌우 여백 (기준 캔버스 · ⚠️ 가정 · 상태창 x40 과 같은 값).</summary>
+        public const float ChipBarPad = 40f;
+
+        /// <summary>상단 칩 줄 전체.</summary>
+        public static Rect ChipBarRect(float screenWidth, float screenHeight)
+        {
+            float sc = Scale(screenHeight);
+            return new Rect(ChipBarPad * sc, 8f * sc,
+                            screenWidth - ChipBarPad * 2f * sc, ChipBarHeight * sc - 16f * sc);
+        }
+
+        /// <summary>칩 줄 오른쪽 아이콘 한 칸의 한 변 (기준 캔버스 · ⚠️ 가정 · 최소 150 이다).</summary>
+        public const float ChipIconSide = MinButton;
+
+        /// <summary>
+        /// 칩 줄 **왼쪽 무리** — 썸네일 + 닉네임 + 전투력.
+        /// ⚠️ 판을 **무리마다** 깐다 — 줄 전체를 덮으면 오른쪽 버튼들이 판 밑으로 들어간다.
+        /// </summary>
+        public static Rect ChipLeftRect(float screenWidth, float screenHeight)
+        {
+            Rect bar = ChipBarRect(screenWidth, screenHeight);
+            float sc = Scale(screenHeight);
+            return new Rect(bar.x, bar.y, Mathf.Min(620f * sc, bar.width * 0.5f), bar.height);
+        }
+
+        /// <summary>
+        /// 칩 줄 **소리 아이콘** — ⚠️⚠️ **`AudioOptionsPanel` 이 여기에 제 버튼을 그린다.**
+        ///
+        /// 📌 소리 버튼을 칩 줄이 **따로 그리지 않는다.** 그리면 같은 일을 하는 자리가 둘이
+        /// 되고(되풀이되는 결함 종류다), 한쪽만 고쳐지는 날이 온다 — 자리만 여기서 정하고
+        /// 그리는 것은 패널 하나가 한다.
+        /// </summary>
+        public static Rect ChipSoundRect(float screenWidth, float screenHeight)
+        {
+            Rect bar = ChipBarRect(screenWidth, screenHeight);
+            float sc = Scale(screenHeight);
+            float side = Mathf.Min(bar.height, ChipIconSide * sc);
+            return new Rect(bar.xMax - side * 2f - 8f * sc, bar.y, side, bar.height);
+        }
+
+        /// <summary>칩 줄 **설정 아이콘** — 맨 오른쪽 구석. 메인 메뉴를 다시 연다.</summary>
+        public static Rect ChipSettingsRect(float screenWidth, float screenHeight)
+        {
+            Rect bar = ChipBarRect(screenWidth, screenHeight);
+            float sc = Scale(screenHeight);
+            float side = Mathf.Min(bar.height, ChipIconSide * sc);
+            return new Rect(bar.xMax - side, bar.y, side, bar.height);
+        }
+
+        /// <summary>칩 줄 **골드 칩** — 소리 아이콘 왼쪽.</summary>
+        public static Rect ChipGoldRect(float screenWidth, float screenHeight)
+        {
+            Rect bar = ChipBarRect(screenWidth, screenHeight);
+            Rect sound = ChipSoundRect(screenWidth, screenHeight);
+            float sc = Scale(screenHeight);
+            float w = Mathf.Min(360f * sc, bar.width * 0.28f);
+            return new Rect(sound.x - 12f * sc - w, bar.y, w, bar.height);
+        }
+
+        /// <summary>
+        /// 스테이지 배지 + 목표 한 줄 + 「남은 몬스터 · 리젠」 — 칩 줄 **바로 아래 왼쪽**.
+        /// ⚠️ 가정 — 폭은 상태창과 같은 760(화면 절반을 안 넘긴다).
+        /// </summary>
+        public static Rect StageBadgeRect(float screenWidth, float screenHeight)
+        {
+            float sc = Scale(screenHeight);
+            float w = Mathf.Min(760f * sc, screenWidth - ChipBarPad * 2f * sc);
+            return new Rect(ChipBarPad * sc, (ChipBarHeight + 16f) * sc, w, 210f * sc);
+        }
+
+        /// <summary>
+        /// 좌측 「i」 — **개발 빌드 전용** 접이식 진단 패널의 손잡이.
+        /// ⚠️ 가정 — 배지 아래, 최소 버튼 한 변.
+        /// </summary>
+        public static Rect DevToggleRect(float screenWidth, float screenHeight)
+        {
+            float sc = Scale(screenHeight);
+            Rect badge = StageBadgeRect(screenWidth, screenHeight);
+            return new Rect(badge.x, badge.yMax + 12f * sc, MinButton * sc * 0.6f, MinButton * sc * 0.6f);
+        }
+
+        /// <summary>펼친 진단 패널. ⚠️ 가정 — 손잡이 아래로 흐르고 화면 안에서 잘린다.</summary>
+        public static Rect DevPanelRect(float screenWidth, float screenHeight)
+        {
+            float sc = Scale(screenHeight);
+            Rect toggle = DevToggleRect(screenWidth, screenHeight);
+            float top = toggle.yMax + 8f * sc;
+            float w = Mathf.Min(760f * sc, screenWidth - ChipBarPad * 2f * sc);
+            return new Rect(toggle.x, top, w, Mathf.Max(0f, screenHeight - top - 40f * sc));
+        }
+
+        /// <summary>
+        /// 마일스톤 카드 — **우하단**. 원형 둘(x1280) 아래, 조립 막대(y2460) 위에 든다.
+        /// ⚠️ 가정 — 460×300 · 오른 여백 40.
+        /// </summary>
+        public static Rect MilestoneCardRect(float screenWidth, float screenHeight)
+        {
+            // 오른쪽 기둥의 **넷째 칸**이다 — 합체 원형(아랫변 2100) 아래, 조립 막대
+            // (윗변 2380) 위. ⚠️ 크기·자리 전부 가정이며 겹치지 않는 것이 정한 법이다.
+            const float w = 560f, h = 240f;
+            float top = 2120f, right = DesignWidth - ChipBarPad;
+            return Px(new Rect(right - w, top, w, h), screenWidth, screenHeight);
+        }
 
         // ───────────────────────────── 요소 치수 ─────────────────────────────
         //
@@ -620,6 +763,10 @@ namespace MBI.UI
         ///
         /// ⚠️ **가정이다** — 문서에 튜토리얼 진행 자리 절이 없다(설계 역기입 자리).
         /// 배율 막대와 안 겹치게 폭을 그 왼쪽까지로 자른다.
+        ///
+        /// 🗑️ **폐기 — 부르는 곳이 0 건이다**(2026-09-18 · 시안 3). 튜토리얼 목표 두 줄은
+        /// **우하단 마일스톤 카드**로 갔다(<c>UiLayout.MilestoneCardRect</c>).
+        /// 자리 계산은 남긴다 — 시험이 이 치수를 잡고 있고, 카드가 안 맞으면 되돌아올 자리다.
         /// </summary>
         public static Rect TutorialProgressRect(float screenWidth, float screenHeight)
         {

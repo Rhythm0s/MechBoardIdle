@@ -140,12 +140,20 @@ namespace MBI.Tests
             Assert.AreEqual(tag.width, tag.height, D, "원형이라 정사각이다");
             Assert.AreEqual(1280f, tag.center.x, D, "둘 다 x1280");
             Assert.AreEqual(1280f, merge.center.x, D);
-            Assert.AreEqual(2080f, tag.center.y, D, "태그가 위");
-            Assert.AreEqual(2300f, merge.center.y, D, "합체가 아래");
+            // 🗑️ 구 2080/2300 폐기 — 2026-09-18 시안 3 에서 오른쪽 기둥이 **넷**이 됐다
+            //    (태그 → 자동 토글 → 합체 → 마일스톤 카드 → 조립 막대). 종전 사이 20 에는
+            //    토글이 못 들어간다. ⚠️ 새 y 는 가정(설계 사후 역기입).
+            Assert.AreEqual(1680f, tag.center.y, D, "태그가 위");
+            Assert.AreEqual(2000f, merge.center.y, D, "합체가 아래");
 
-            // 가운데 사이가 220 이고 지름이 200 이라 20 이 뜬다 — 붙으면 오조작이 난다.
             Assert.IsFalse(tag.Overlaps(merge), "태그와 합체가 겹치면 오조작이 난다");
-            Assert.AreEqual(20f, merge.y - tag.yMax, D, "사이 20");
+
+            // 사이에 자동 교대 토글이 든다 — **셋이 서로 안 겹쳐야** 차례가 성립한다.
+            Rect auto = UiLayout.TagAutoToggleRect(1440f, 2560f);
+            Assert.IsFalse(tag.Overlaps(auto), "태그와 토글이 겹치면 오조작이 난다");
+            Assert.IsFalse(merge.Overlaps(auto), "합체와 토글이 겹치면 오조작이 난다");
+            Assert.Greater(auto.y, tag.yMax, "토글은 태그 아래");
+            Assert.Less(auto.yMax, merge.y, "토글은 합체 위");
         }
 
         [Test]
@@ -159,8 +167,8 @@ namespace MBI.Tests
             // 레이어 1 의 셋은 **띠 소속이 아니라 좌표**다. 좌표가 어느 띠와 겹치든 그것은
             // 다른 화면의 자리라 충돌이 아니다 — 겹침을 단언하지 **않는** 것이 이 시험의 내용이다.
             Assert.AreEqual(2460f, UiLayout.EnterBoardCenter.y, D);
-            Assert.AreEqual(2080f, UiLayout.TagButtonCenter.y, D);
-            Assert.AreEqual(2300f, UiLayout.MergeButtonCenter.y, D);
+            Assert.AreEqual(1680f, UiLayout.TagButtonCenter.y, D);
+            Assert.AreEqual(2000f, UiLayout.MergeButtonCenter.y, D);
             Assert.AreEqual(120f, UiLayout.InfoBarHeight, D, "상단 정보줄 120");
             Assert.AreEqual(new Vector2(40f, 160f), UiLayout.StatusPanelOrigin, "상태창 x40 y160");
         }

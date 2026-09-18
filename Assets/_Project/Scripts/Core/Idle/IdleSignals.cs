@@ -86,6 +86,69 @@ namespace MBI.Core
         /// <summary>지갑 잔액 게시 — 강화재료. <see cref="WalletScrap"/>와 같은 규약이다.</summary>
         public static double WalletEnhMaterial;
 
+        /// <summary>지갑 잔액 게시 — 골드(2026-09-18). <see cref="WalletScrap"/>와 같은 규약이다.</summary>
+        public static double WalletGold;
+
+        /// <summary>다음 골드까지 얼마나 남았는가를 화면이 읽는다 — **상태**(비우지 않는다).</summary>
+        public static int KillsTowardGold;
+
+        /// <summary>
+        /// 마리당 고철 — **방치 런타임이 게시하고 전투 화면이 읽는다**(2026-09-18).
+        ///
+        /// ⚠️ 전투가 `EconomyConfig` 를 직접 들면 같은 값이 두 자산 경로로 읽힌다.
+        /// 값이 사는 곳은 자산 하나이고, 이 칸은 그 값을 **옮기는 관**이다.
+        /// </summary>
+        public static double ScrapPerKill;
+
+        /// <summary>
+        /// 방금 지급된 골드 — **사건**이라 가져가며 비운다(2026-09-18).
+        ///
+        /// ⚠️⚠️ 화면의 골드 드롭이 이것을 읽는다. 잔액 증가를 보고 짐작하지 않는 까닭은
+        /// 오프라인 정산·마일스톤 보상도 잔액을 올리기 때문이다 — **처치로 떨어진 골드**만
+        /// 바닥에 떨어져야 한다.
+        /// </summary>
+        private static int _goldAwarded;
+
+        /// <summary>골드 지급 보고(방치 런타임만 부른다).</summary>
+        public static void ReportGoldAwarded(int gold)
+        {
+            if (gold > 0) _goldAwarded += gold;
+        }
+
+        /// <summary>지급된 골드를 가져가며 비운다.</summary>
+        public static int DrainGoldAwarded()
+        {
+            int g = _goldAwarded;
+            _goldAwarded = 0;
+            return g;
+        }
+
+        /// <summary>
+        /// 마일스톤 보상 청구 — **사건**이라 가져가며 비운다(2026-09-18 설계 지시 ④).
+        ///
+        /// ⚠️⚠️ **전투가 지갑을 직접 안 만진다.** 카드는 「받았다」만 제 안에서 잠그고
+        /// 실제 적립은 방치 런타임이 한다 — 적립 규칙이 한 곳에 사는 규약 그대로다.
+        /// </summary>
+        private static int _milestoneGold;
+        private static double _milestoneScrap;
+
+        /// <summary>보상 청구를 올린다(전투 화면만 부른다).</summary>
+        public static void ReportMilestoneReward(int gold, double scrap)
+        {
+            if (gold > 0) _milestoneGold += gold;
+            if (scrap > 0d) _milestoneScrap += scrap;
+        }
+
+        /// <summary>청구를 가져가며 비운다. 아무것도 없으면 false.</summary>
+        public static bool TryDrainMilestoneReward(out int gold, out double scrap)
+        {
+            gold = _milestoneGold;
+            scrap = _milestoneScrap;
+            _milestoneGold = 0;
+            _milestoneScrap = 0d;
+            return gold > 0 || scrap > 0d;
+        }
+
         /// <summary>
         /// 저장을 지워 달라 — **개발 빌드 전용 촬영 도구**(260902_W09 §1-2 승인).
         /// 방치 런타임이 가져가며 내린다.
@@ -146,6 +209,12 @@ namespace MBI.Core
             for (int i = 0; i < _boardStates.Length; i++) _boardStates[i] = null;
             WalletScrap = 0d;
             WalletEnhMaterial = 0d;
+            WalletGold = 0d;
+            KillsTowardGold = 0;
+            ScrapPerKill = 0d;
+            _goldAwarded = 0;
+            _milestoneGold = 0;
+            _milestoneScrap = 0d;
         }
     }
 }

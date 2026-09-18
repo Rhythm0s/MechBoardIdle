@@ -32,6 +32,16 @@ namespace MBI.Core
         public long lastSeenUtcTicks;              // DateTimeOffset.UtcNow.Ticks
         public double scrap;                       // 고철
         public double enhMaterial;                 // 강화재료 — 오프라인으로는 절대 늘지 않는다(닫힌 곡선)
+        public double gold;                        // 골드 — 처치 20마리마다 5(2026-09-18 사용자 확정)
+
+        /// <summary>
+        /// 아직 골드가 안 된 처치 수 (2026-09-18 · <see cref="GoldRewardRule"/>).
+        ///
+        /// ⚠️⚠️ **이 칸이 없으면 19 마리가 매번 사라진다.** 골드는 스무 마리를 모아야 나오므로
+        /// 남은 수를 어딘가 들고 있어야 하고, 그 자리는 **저장**이다 — 끄고 켜면 0 으로
+        /// 돌아가는 카운터는 「스무 마리마다」라는 약속을 못 지킨다.
+        /// </summary>
+        public int killsTowardGold;
         public string lastFarmStageId = "";        // 끈 시점의 상주 스테이지
         public int totalKills;
 

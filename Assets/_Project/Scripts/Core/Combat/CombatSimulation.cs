@@ -409,6 +409,36 @@ namespace MBI.Core
         private readonly float _challengeTime;
         private readonly float _spawnCadence;
 
+        /// <summary>
+        /// 웨이브 스폰 (2026-09-18 · <see cref="WaveSpawnRule"/> · ⚠️ 가정 · 설계 판정 자리).
+        ///
+        /// ⚠️⚠️ **기본값이 종전 모델이다** — 묶음 1 · 간격 = cadence 이면 식이
+        /// <c>index × cadence</c> 로 돌아간다. 그래서 <see cref="SetWave"/> 를 안 부르는
+        /// 자리(하네스·시험·격리 씬)는 **아무것도 안 바뀐다.**
+        /// </summary>
+        private int _waveSize = 1;
+        private float _waveInterval = -1f;
+
+        /// <summary>묶음 크기·간격을 건다. 러너가 튜닝에서 읽어 넣는다.</summary>
+        public void SetWave(int waveSize, float waveInterval)
+        {
+            _waveSize = waveSize > 0 ? waveSize : 1;
+            _waveInterval = waveInterval > 0f ? waveInterval : -1f;
+        }
+
+        /// <summary>지금 쓰는 묶음 간격 — 안 걸었으면 종전 cadence 다.</summary>
+        public float WaveInterval => _waveInterval > 0f ? _waveInterval : _spawnCadence;
+
+        /// <summary>지금 쓰는 묶음 크기.</summary>
+        public int WaveSize => _waveSize;
+
+        /// <summary>
+        /// 다음 묶음까지 남은 초. **더 나올 적이 없으면 음수**다(화면이 그때 타이머를 안 그린다).
+        /// 셈은 <see cref="WaveSpawnRule"/> 하나가 쥔다 — 화면이 따로 세면 답이 둘이 된다.
+        /// </summary>
+        public float SecondsToNextWave => WaveSpawnRule.SecondsToNextWave(
+            Elapsed, _spawnedCount, _spawnQueue.Count, _waveSize, WaveInterval);
+
         private int _spawnedCount;
         // 라인별 발사 누산기는 로봇마다 따로 든다 — 교대해도 위상이 보존돼야 한다.
         private const float FireEpsilon = 1e-4f; // float 누적 오차로 발사를 흘리지 않기 위한 허용오차
@@ -1545,14 +1575,15 @@ namespace MBI.Core
             }
         }
 
-        // 스폰 시각 = index * spawnCadence. cadence<=0 이면 전원 t=0.
+        // 스폰 시각은 `WaveSpawnRule` 이 낸다(2026-09-18). 간격이 0 이하면 전원 t=0.
         private readonly List<EnemyProjectile> _enemyProjectiles = new List<EnemyProjectile>();
 
         private void SpawnDue()
         {
             while (_spawnedCount < _spawnQueue.Count)
             {
-                float spawnAt = _spawnCadence > 0f ? _spawnedCount * _spawnCadence : 0f;
+                // ⚠️ **웨이브다**(2026-09-18) — 묶음 1 이면 종전 식과 같은 수가 나온다.
+                float spawnAt = WaveSpawnRule.SpawnTime(_spawnedCount, _waveSize, WaveInterval);
                 if (Elapsed < spawnAt) break;
 
                 EnemySpawn s = _spawnQueue[_spawnedCount];
@@ -2134,10 +2165,34 @@ namespace MBI.Core
             for (int i = _enemies.Count - 1; i >= 0; i--)
             {
                 if (_enemies[i].IsAlive) continue;
+                // ⚠️ **자리를 먼저 적는다** — 목록에서 빼고 나면 어디서 죽었는지가 사라진다.
+                //    드롭이 떨어질 곳이고, 세는 것과 **같은 자리**라야 수와 그림이 안 어긋난다.
+                // ⚠️ **상한을 둔다** — 아무도 안 가져가는 자리(하네스·격리 시뮬)에서
+                //    이 목록이 한없이 자란다. 그림 몫이라 넘치는 것은 버려도 된다.
+                if (_killPositions.Count < KillPositionCap) _killPositions.Add(_enemies[i].position);
                 _enemies.RemoveAt(i);
                 KillsThisTick++;
                 TotalKills++;
             }
+        }
+
+        /// <summary>
+        /// 이번에 죽은 적들이 **서 있던 자리** (2026-09-18 · 드롭·마그넷).
+        ///
+        /// ⚠️ <see cref="ConsumeKills"/> 와 같은 규약이다 — **가져가며 비운다.**
+        /// 그냥 읽게 두면 같은 처치에서 재화가 매 프레임 다시 떨어진다.
+        ///
+        /// ⚠️ **판정이 아니다.** 적립은 `KillRewardRule`·`GoldRewardRule` 이 하고
+        /// 이 목록은 **어디에 그릴지**만 말한다.
+        /// </summary>
+        private const int KillPositionCap = 256;
+        private readonly List<Vector2> _killPositions = new List<Vector2>();
+
+        /// <summary>죽은 자리를 가져가며 비운다. 부른 쪽이 그 목록을 다 쓰고 버린다.</summary>
+        public void ConsumeKillPositions(List<Vector2> into)
+        {
+            if (into != null) into.AddRange(_killPositions);
+            _killPositions.Clear();
         }
 
         private void Evaluate()

@@ -19,10 +19,22 @@ namespace MBI.Core
         /// <summary>강화재료 — 스테이지 최초 클리어 보상 한정.</summary>
         public double EnhMaterial { get; private set; }
 
-        public CurrencyWallet(double scrap = 0d, double enhMaterial = 0d)
+        /// <summary>
+        /// 골드 — **처치 스무 마리마다 5**(2026-09-18 사용자 확정 · <see cref="GoldRewardRule"/>).
+        ///
+        /// ⚠️ **활용처가 아직 없다.** 쌓이기만 하며 쓰는 곳은 설계가 정한다 —
+        /// 그래도 지갑에 들이는 까닭은 **적립 규칙이 생겼기 때문**이고, 규칙이 있는데
+        /// 담을 데가 없으면 화면이 제 수를 따로 세게 된다(지침 §7 이 막는 자리).
+        ///
+        /// ⚠️ 고철·강화재료와 **서로 안 바뀐다** — 이 클래스가 변환 메서드를 안 두는 이유 그대로다.
+        /// </summary>
+        public double Gold { get; private set; }
+
+        public CurrencyWallet(double scrap = 0d, double enhMaterial = 0d, double gold = 0d)
         {
             Scrap = scrap < 0d ? 0d : scrap;
             EnhMaterial = enhMaterial < 0d ? 0d : enhMaterial;
+            Gold = gold < 0d ? 0d : gold;
         }
 
         /// <summary>고철 적립. 음수는 무시한다 — 차감은 TrySpend로만(경로를 하나로 묶는다).</summary>
@@ -34,6 +46,19 @@ namespace MBI.Core
         public void AddEnhMaterial(double amount)
         {
             if (amount > 0d) EnhMaterial += amount;
+        }
+
+        /// <summary>골드 적립. 고철과 같은 규약이다 — 음수는 무시하고 차감은 TrySpend 로만.</summary>
+        public void AddGold(double amount)
+        {
+            if (amount > 0d) Gold += amount;
+        }
+
+        public bool TrySpendGold(double amount)
+        {
+            if (amount <= 0d || Gold < amount) return false;
+            Gold -= amount;
+            return true;
         }
 
         /// <summary>고철 지출. 모자라면 아무것도 깎지 않고 false.</summary>

@@ -166,12 +166,18 @@ namespace MBI.UI
             // 값도 **기준 캔버스 값**이어야 한다. 96 은 그 값이 아니었다.
             //
             // 한 변을 `MinButton`(150)으로 잡는다 — UI 6-2 규격이고, 눌리는 크기다.
+            // ⚠️⚠️ **자리는 이제 상단 칩 줄이 정한다**(2026-09-18 · 시안 3).
+            //
+            // 칩 줄 오른쪽에 「소리 아이콘」 자리가 났고, 그 자리를 **이 버튼이 채운다** —
+            // 칩 줄이 제 소리 버튼을 따로 그리면 **같은 일을 하는 자리가 둘**이 되고,
+            // 한쪽만 고쳐지는 날이 온다(이 리포에서 되풀이된 결함 종류다).
+            // 그래서 자리는 `UiLayout.ChipSoundRect` 한 곳이 내고 그리는 것은 여기 하나다.
+            //
+            // 🗑️ 구 자리(우상단 여백 24 · MinButton×1.4)는 폐기 — 칩 줄이 그 자리를 덮는다.
             float scale = UiLayout.Scale(Screen.height);
-            float bw = UiLayout.MinButton * 1.4f * scale;   // 「소리」 두 글자가 들어갈 폭
-            float bh = UiLayout.MinButton * scale;
             float margin = 24f * scale;
-            float top = margin;
-            var button = new Rect(Screen.width - margin - bw, top, bw, bh);
+            var button = UiLayout.ChipSoundRect(Screen.width, Screen.height);
+            float bh = button.height;
             UiBlockers.Add(button);
             var btnStyle = new GUIStyle(GUI.skin.button)
             {

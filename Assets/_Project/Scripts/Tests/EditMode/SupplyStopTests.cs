@@ -24,7 +24,9 @@ namespace MBI.Tests
             Rect band = SupplyStopRules.BandRect(1440f, 2560f);
 
             Assert.AreEqual(768f, band.y, D, "세로 768부터");
-            Assert.AreEqual(96f, band.height, D, "높이 96 — 격자 반 칸");
+            // 🗑️ 구 96(격자 반 칸) 폐기 — 2026-09-18 시안 3 에서 이 띠가 **조립 화면 상단
+            //    상태 영역**이 됐다(고철 수치 + 문제 목록). 한 줄 높이로는 목록이 안 들어간다.
+            Assert.AreEqual(240f, band.height, D, "높이 240 — 격자 반 칸 두 칸 반(⚠️ 가정)");
             Assert.AreEqual(1440f, band.width, D, "가로는 창 전체");
             Assert.AreEqual(0f, band.x, D);
         }
@@ -39,7 +41,7 @@ namespace MBI.Tests
             Rect small = SupplyStopRules.BandRect(960f, 600f);
 
             Assert.AreEqual(600f * 768f / 2560f, small.y, D, "비율로 앉는다");
-            Assert.AreEqual(600f * 96f / 2560f, small.height, D);
+            Assert.AreEqual(600f * 240f / 2560f, small.height, D);
             Assert.Less(small.yMax, 600f, "띠가 창 안에 들어온다");
         }
 

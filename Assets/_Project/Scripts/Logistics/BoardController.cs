@@ -4147,36 +4147,93 @@ namespace MBI.Logistics
         /// </summary>
         private void DrawSupplyWarningBand()
         {
-            // ⚠️ **재고가 아니라 생산을 본다**(2026-09-15 사용자 육안 · `ProductionIsStopped` 주석).
+            // ⚠️⚠️ **이 띠는 이제 「조립 화면 상단 상태 영역」이다**(2026-09-18 사용자 확정 · 시안 3).
             //
-            // 종전에는 **창고 0** 으로 띄우면서 「생산이 멈췄습니다」라고 적었다. 그래서
-            // ① 멀쩡한 판의 **처음 18초**(첫 도착이 5.6초라 창고가 아직 0)와
-            // ② **운반로만 끊긴 판**(노드는 만들고 있는데 못 닿는다)에서 거짓말을 했다.
-            // 끊긴 것은 「나가는 곳이 없다」가 이미 따로 말한다 — 두 띠가 서로 다른 것을 말해야
-            // 읽는 사람이 고칠 자리를 안다.
-            // ⚠️ **만재는 경고가 아니다**(2026-09-16 사용자 확정 · §74-21 ③).
-            //    손에 든 것(창고 + 마운트)이 남아 있으면 멈춘 생산은 고칠 거리가 아니다 —
-            //    받을 데가 없어 상류가 스스로 멈춘, **잘 돌아가는 판의 정상 상태**다.
-            //    ⚠️ 둘 다 **싸우는 로봇의 것**이다(`SupplySignals` 가 그렇게 싣는다).
+            // 🗑️ **폐기 — 「경고가 있을 때만 뜬다」**. 자리를 늘 확보하는 쪽으로 뒤집었다.
+            //    까닭은 그 자리에 **고철 수치**가 들어왔기 때문이다 — 수치는 문제가 없을 때도
+            //    보여야 하고, 있다 없다 하는 자리에 수치를 얹으면 「왜 사라졌나」가 생긴다.
+            //
+            // ⚠️ **판정은 여전히 `SupplyStopRules` 가 낸다.** 여기는 픽셀만 그린다.
+            // ⚠️ 화면 좌표다 — 보드를 스크롤해도 안 따라가므로 `UiBlockers` 에 넣는다.
+
+            // ⚠️ **재고가 아니라 생산을 본다**(2026-09-15 사용자 육안 · `ProductionIsStopped` 주석).
+            //    ⚠️ **만재는 경고가 아니다**(2026-09-16 · §74-21 ③) — 손에 든 것이 남아 있으면
+            //    멈춘 생산은 잘 돌아가는 판의 정상 상태다.
             float stockOnHand = SupplySignals.StorageStock + SupplySignals.MountTotal;
             bool stopped = SupplyStopRules.ProductionIsStopped(
                 SupplySignals.HasCombat, LogisticsOutputBridge.AmmoProduce, stockOnHand);
             bool powerShort = SupplyStopRules.PowerIsShort(
                 LogisticsOutputBridge.PowerSupply, LogisticsOutputBridge.PowerDraw);
-
-            if (!SupplyStopRules.BandIsVisible(stopped, powerShort)) return;
+            // 미연결 — **물류가 이미 낸 원인**을 옮길 뿐이다(여기서 그래프를 다시 안 본다).
+            ConstraintCause cause = LogisticsOutputBridge.GlobalCause;
+            bool notConnected = cause == ConstraintCause.Blocked || cause == ConstraintCause.NoInput;
+            bool mountEmpty = SupplyStopRules.MountIsEmpty(
+                SupplySignals.HasCombat, SupplySignals.MountTotal);
 
             Rect band = SupplyStopRules.BandRect(Screen.width, Screen.height);
             UiBlockers.Add(band);
 
-            HudBars.Fill(band, WarningBandColor);
-            GUI.Label(band, SupplyStopRules.BandText,
-                new GUIStyle(GUI.skin.label)
-                {
-                    fontSize = KoreanFont.Snap(Mathf.Max(14, Mathf.RoundToInt(band.height * 0.45f))),
-                    alignment = TextAnchor.MiddleCenter,
-                    normal = { textColor = WarningBandText },
-                });
+            bool warn = SupplyStopRules.BandIsVisible(stopped, powerShort);
+            // 경고가 있으면 빨강(조립 층의 색 축 · 「못 쓴다」 · 12-6), 없으면 어두운 판.
+            if (warn) HudBars.Fill(band, WarningBandColor);
+            else UiPlate.Draw(band);
+
+            float sc = UiLayout.Scale(Screen.height);
+            float pad = 16f * sc;
+            float headH = band.height * 0.42f;
+
+            var head = new GUIStyle(GUI.skin.label)
+            {
+                fontSize = KoreanFont.Snap(Mathf.Max(12, Mathf.RoundToInt(headH * 0.62f))),
+                fontStyle = FontStyle.Bold,
+                alignment = TextAnchor.MiddleLeft,
+                clipping = TextClipping.Overflow,
+            };
+            head.normal.textColor = warn ? WarningBandText : Color.white;
+
+            // ── 고철 수치 (설계 지시 · 조립 화면 상단) ──
+            // ⚠️ **방치 런타임이 게시한 잔액을 그대로 읽는다** — 여기서 세지 않는다.
+            GUI.Label(new Rect(band.x + pad, band.y, band.width * 0.5f, headH),
+                      "고철 " + IdleSignals.WalletScrap.ToString("N0"), head);
+
+            // ── 문제 목록 ──
+            // ⚠️ 목록이 비면 「문제 없음」 한 줄이다 — 없는 문제를 지어내 채우지 않는다.
+            var problems = SupplyStopRules.Problems(notConnected, stopped, powerShort, mountEmpty);
+
+            var row = new GUIStyle(GUI.skin.label)
+            {
+                fontSize = KoreanFont.Snap(Mathf.Max(10, Mathf.RoundToInt(headH * 0.46f))),
+                alignment = TextAnchor.MiddleLeft,
+                clipping = TextClipping.Overflow,
+            };
+            row.normal.textColor = warn ? WarningBandText : new Color(0.86f, 0.86f, 0.86f);
+
+            var title = new GUIStyle(head)
+            {
+                alignment = TextAnchor.MiddleRight,
+            };
+            GUI.Label(new Rect(band.x + band.width * 0.5f - pad, band.y, band.width * 0.5f, headH),
+                      warn ? SupplyStopRules.BandText : "물류·조립", title);
+
+            float rowH = (band.height - headH) / 3f;
+            if (problems.Count == 0)
+            {
+                GUI.Label(new Rect(band.x + pad, band.y + headH, band.width - pad * 2f, rowH),
+                          "· 문제 없음", row);
+                return;
+            }
+
+            // ⚠️ **석 줄까지만 적는다** — 넘치면 잘리는데, 잘리는 것은 늘 마지막 줄이다.
+            //    넘친 수를 마지막 줄이 말한다.
+            int shown = Mathf.Min(problems.Count, 3);
+            for (int i = 0; i < shown; i++)
+            {
+                string text = (i == 2 && problems.Count > 3)
+                    ? "· 외 " + (problems.Count - 2) + "건"
+                    : "· " + problems[i];
+                GUI.Label(new Rect(band.x + pad, band.y + headH + rowH * i,
+                                   band.width - pad * 2f, rowH), text, row);
+            }
         }
 
         /// <summary>

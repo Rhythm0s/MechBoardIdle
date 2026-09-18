@@ -46,7 +46,7 @@ namespace MBI.Idle
 
             // 파싱 실패·첫 실행은 둘 다 "기록 없음"으로 같게 다룬다(예외로 게임을 죽이지 않는다).
             Data = _store.TryLoad(out SaveDataV1 loaded) ? loaded : new SaveDataV1();
-            Wallet = new CurrencyWallet(Data.scrap, Data.enhMaterial);
+            Wallet = new CurrencyWallet(Data.scrap, Data.enhMaterial, Data.gold);
 
             // 튜토리얼을 이미 했는지 전투 쪽에 알린다. **Awake에서 한다** —
             // Stage0Session이 자기 Awake에서 이 값을 읽어 들어갈지 말지를 정하므로,
@@ -98,6 +98,27 @@ namespace MBI.Idle
                 double perKill = economy != null ? economy.scrapPerKillTbd : 0d;
                 Wallet.AddScrap(KillRewardRule.Scrap(kills, perKill));
                 Data.totalKills += kills;
+
+                // ⚠️⚠️ **골드 적립이 사는 유일한 자리다**(2026-09-18 · 고철과 같은 규약).
+                //    화면은 규칙을 다시 세지 않고 **결과만** 읽는다 — 아래 `ReportGoldAwarded`
+                //    가 그 통로이며, 남은 처치 수는 **저장 칸 하나**가 든다(지침 §7).
+                int gold = GoldRewardRule.Award(
+                    ref Data.killsTowardGold, kills,
+                    economy != null ? economy.killsPerGoldAward : 0,
+                    economy != null ? economy.goldPerAward : 0);
+                if (gold > 0)
+                {
+                    Wallet.AddGold(gold);
+                    IdleSignals.ReportGoldAwarded(gold);
+                }
+            }
+
+            // 마일스톤 보상 — **한 번만 청구된다**(카드가 제 안에서 잠근다).
+            // ⚠️ 여기서 다시 「받았는가」를 세지 않는다 — 두 곳이 세면 어긋나는 날이 온다.
+            if (IdleSignals.TryDrainMilestoneReward(out int mGold, out double mScrap))
+            {
+                Wallet.AddGold(mGold);
+                Wallet.AddScrap(mScrap);
             }
 
             if (IdleSignals.TryDrainClear(out ClearReport clear))
@@ -130,6 +151,13 @@ namespace MBI.Idle
         {
             IdleSignals.WalletScrap = Wallet.Scrap;
             IdleSignals.WalletEnhMaterial = Wallet.EnhMaterial;
+            IdleSignals.WalletGold = Wallet.Gold;
+            IdleSignals.KillsTowardGold = Data != null ? Data.killsTowardGold : 0;
+
+            // ⚠️ **마리당 고철을 여기서 게시한다** — 전투 화면의 드롭 팝이 「+n 스크랩」을
+            //    적으려면 그 값이 필요한데, 전투가 `EconomyConfig` 를 직접 들면
+            //    **같은 값을 두 자산에서 읽는 자리**가 생긴다. 규칙도 값도 여기 하나다.
+            IdleSignals.ScrapPerKill = economy != null ? economy.scrapPerKillTbd : 0d;
         }
 
         // 웹빌드에서 탭 전환·최소화가 여기로 온다. 종료(OnApplicationQuit)는 브라우저에서 보장되지
@@ -151,6 +179,7 @@ namespace MBI.Idle
 
             Data.scrap = Wallet.Scrap;
             Data.enhMaterial = Wallet.EnhMaterial;
+            Data.gold = Wallet.Gold;   // ⚠️ `killsTowardGold` 는 CreditSignals 가 이미 Data 에 직접 쓴다
             Data.lastSeenUtcTicks = _clock.UtcNow.Ticks; // 꺼둔 시간 계산의 기준점
 
             // 보드 한 판. ⚠️ 물류가 아직 안 섬으면 `null` 이고, 그때는

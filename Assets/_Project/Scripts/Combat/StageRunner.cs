@@ -17,7 +17,7 @@ namespace MBI.Combat
     /// 전투력(물류 출력)은 MockLogisticsOutput 브릿지가 공급(벨트/시뮬 미구현 → mock 대표 상태 145).
     /// HP·이동/사거리·스폰은 CombatTuning의 TBD placeholder(⚠️ chat+Notion 확정 필요).
     /// </summary>
-    public sealed class StageRunner : MonoBehaviour
+    public sealed partial class StageRunner : MonoBehaviour
     {
         [Header("데이터(생성기 산출 SO)")]
         public RobotDefinition robot;
@@ -53,21 +53,10 @@ namespace MBI.Combat
         // 재배분 판정 (2026-09-15). 배율 하나만 보던 동안 라인이 0 줄로 굳었다 — `FireRateGate`.
         private readonly FireRateGate _fireGate = new FireRateGate();
 
-        /// <summary>
-        /// 조립 화면에서 HUD 글자 블록을 접었는가 (2026-09-15 사용자 확정 · 육안 ③).
-        ///
-        /// ⚠️ **사람마다 다른 선택이라 기억한다** — 보드를 넓게 보고 싶은 사람과 수치를
-        /// 계속 보고 싶은 사람이 갈린다. 매번 다시 접게 하면 그 선택이 조작이 된다.
-        ///
-        /// ⚠️ **전투 화면은 안 접는다** — 거기서는 이 글자가 화면의 본문이다.
-        /// </summary>
-        private static bool HudFolded
-        {
-            get => PlayerPrefs.GetInt(HudFoldedKey, 0) != 0;
-            set => PlayerPrefs.SetInt(HudFoldedKey, value ? 1 : 0);
-        }
+        // 🗑️ **폐기 — HUD 접기**(2026-09-18 · 시안 3). 접을 **글자 블록 자체가 없어졌다.**
+        //    조립 화면에서는 전투 HUD 를 한 줄도 안 그리고, 전투 화면에서는 글자가 아니라
+        //    칩·배지·막대라 접을 것이 없다. 기억하던 `PlayerPrefs` 키도 함께 버린다.
 
-        private const string HudFoldedKey = "mbi.hud.folded";
         private readonly List<AmmoLine> _lineBuffer = new List<AmmoLine>(); // 재배분 버퍼(프레임당 할당 0)
         private const float ScaleEpsilon = 0.001f;                      // 이만큼 변해야 재배분
         private float _manualHoldUntil;                                 // 이 시각까지는 수동 우선(자동 정지)
@@ -526,6 +515,13 @@ namespace MBI.Combat
                     spawns, tuning.arenaRadiusTbd, stage.challengeTime, tuning.spawnCadenceTbd)
                 : new CombatSimulation(setup, spawns,
                     tuning.arenaRadiusTbd, stage.challengeTime, tuning.spawnCadenceTbd);
+
+            // ⚠️ **웨이브 스폰**(2026-09-18 · 가정 · 설계 판정 자리). 간격 0 이면
+            //    `묶음 × spawnCadence` 로 끌어와 **평균 마리/초가 종전과 같다** —
+            //    화면의 리젠 타이머는 이 모델이 있어야 셀 것이 생긴다.
+            _sim.SetWave(tuning.waveSizeTbd,
+                WaveSpawnRule.Interval(tuning.waveIntervalSecondsTbd,
+                                       tuning.waveSizeTbd, tuning.spawnCadenceTbd));
 
             // 로봇 뷰(중앙). 아트가 있으면 그것을, 없으면 색 플레이스홀더로 폴백한다(교체 지점 §8).
             _robotView = NewView("Robot");
@@ -1314,6 +1310,10 @@ namespace MBI.Combat
             //    켜고 끈 것이 이번 판에 안 먹는다. 캐지 않는 까닭도 같다(지침 §7).
             _sim.AutoTagEnabled = TagAutoMode.Enabled;
 
+            // 처치한 자리에 재화를 떨어뜨린다(2026-09-18 설계 지시 ①).
+            // ⚠️ **적립이 아니라 그림이다** — 규칙은 방치 런타임 한 곳에 있다.
+            TickDrops();
+
             // ⚠️ **드론 이동 값 넷은 가정이다**(`CombatTuning` 의 `drone*Tbd`) —
             //    코드가 숫자를 들지 않게 SO 에서 매 프레임 넣는다(§3).
             if (tuning != null)
@@ -1867,18 +1867,23 @@ namespace MBI.Combat
             if (!_ready) return;
             UiSkin.Apply(); // 껍데기 + 한글 폰트 — WebGL엔 시스템 폰트 폴백이 없다
 
-            // ⚠️ **기본 skin 의 회색을 안 쓴다**(2026-09-15 · 육안 ⓐ 대응 · 09-10 과 같은 처방).
+            // ⚠️⚠️ **HUD 를 시안 3 으로 다시 짰다**(2026-09-18 사용자 확정 · 플랜 §85-8).
             //
-            // 전투 화면에서는 이 글자 밑에 **판을 안 깐다**(조립 화면만 깐다). 그래서 회색
-            // 글자가 **흙바닥 위**에 놓이는데, 09-15 에 카메라가 로봇을 따라가게 되면서
-            // 밑에 오는 타일이 달라졌다 — 플랜 세션 육안에서 **HUD 가 통째로 안 보였다.**
+            // 🗑️ **폐기 — 좌상단 글자 블록 전부**(줄 열둘 · 헤더 분리 11f2ef9 포함).
+            //    그 꼴은 **줄이 늘 때마다 잘릴 자리를 다시 재야 하는** 구조였다:
+            //    09-14 에 세 줄을 잃었고, 09-15 에 방 재는 법을 고쳤고, 09-18 오전에
+            //    헤더로 갈랐고, 그날 오후에 통째로 폐기됐다. **네 번 고친 자리는 꼴이 틀린 것이다.**
             //
-            // ⚠️ **원인을 못 좁혔다.** 회색 대비가 맞는지, 다른 것이 가린 것인지 가르지
-            // 못했다 — 다만 흰색은 **어느 쪽이든 나빠지지 않는다**(같은 줄의 다른 글자가
-            // 이미 흰색이라 색이 섞여 있던 것도 함께 풀린다).
-            // 글자 크기도 창을 따라가게 한다 — 16 은 날 픽셀이라 큰 창에서 점이 된다.
+            // 📌 지금 화면이 말하는 법 —
+            //    · **칩 줄**(썸네일·닉네임·전투력 / 골드·소리·설정)
+            //    · **배지 줄**(스테이지·목표 / 남은 몬스터·리젠)
+            //    · **로봇 몸에 붙은 막대**(HP·보호막·회피) — 글자로 안 적는다
+            //    · **우하단 마일스톤 카드**
+            //    · 수치 아홉 줄은 **개발 빌드 전용 「i」 패널** 안으로
+            //
+            // ⚠️ **그리는 것은 여기서 부르기만 한다** — 몸은 `StageRunner.Hud.cs` 다.
             float hudScale = UiLayout.Scale(Screen.height);
-            int hudPx = KoreanFont.Snap(Mathf.Max(11, Mathf.RoundToInt(32f * hudScale)));
+            int hudPx = KoreanFont.Snap(Mathf.Max(11, Mathf.RoundToInt(28f * hudScale)));
 
             var style = new GUIStyle(GUI.skin.label) { fontSize = hudPx };
             style.normal.textColor = Color.white;
@@ -1888,7 +1893,8 @@ namespace MBI.Combat
                 fontStyle = FontStyle.Bold,
             };
             big.normal.textColor = Color.white;
-            // 막대 옆·막대 안 글자. 막대 높이가 14라 16으로 두면 칸 밖으로 넘친다.
+
+            // 막대 옆·막대 안 글자(탄약 막대가 쓴다). 막대 높이가 14라 16이면 칸 밖으로 넘친다.
             if (_hudSmall == null)
             {
                 _hudSmall = new GUIStyle(GUI.skin.label) { fontSize = hudPx };
@@ -1899,283 +1905,49 @@ namespace MBI.Combat
                     alignment = TextAnchor.MiddleCenter,
                 };
             }
-
-            // ⚠️ **조립 화면에서는 이 글자가 전투 그림 위에 얹힌다**(2026-09-10 · 플랜 §66-35 ②).
-            // 상단 인셋을 켠 대가라, 글자가 있는 자리만 어둡게 깔아 대비를 되돌린다.
-            // **블록 단위로만** 깐다 — 위쪽을 통째로 덮으면 전투를 그린 뜻이 사라진다.
-            // ⚠️ **날 픽셀 자리를 전투 띠 안으로 가둔다**(2026-09-14 · §72-12 1).
-            // `(12, 10, 560, 280)` 은 **창 크기와 무관한 고정 자리**라, 창이 작으면
-            // 그 사각이 **전투 인셋과 아래 띠를 통째로 가린다.**
-            //
-            // ⚠️ **비례로 줄이지 않는다** — 그러면 작은 화면에서 글자가 못 읽게 된다.
-            //
-            // ⚠️ **세로 280 은 폐기**(2026-09-14 오후 · 2차 스크린샷). 가로 560 만 남았다 —
-            // 아래에서 보듯 높이는 이제 **글자에서 잰다.** 「큰 화면에서는 종전 그대로
-            // 560×280」이던 종전 문장도 함께 폐기한다.
-            Rect combatBand = UiLayout.BandRect(UiLayout.Band.Combat, Screen.width, Screen.height);
-
-            // ⚠️ **줄을 먼저 짓고 높이를 거기서 잰다**(2026-09-14 · 2차 스크린샷 두 장).
-            //
-            // 종전 높이는 `280` **날 픽셀 고정**이었다. 그 사이 줄이 열하나로 늘고
-            // 태그 줄이 길어 **두 줄로 접히면서** 밑이 넘쳤고, 화면에서는
-            // **「경과」·「고철」·「이동 WASD」 세 줄이 통째로 사라졌다** — 2차 두 장 모두 그렇다.
-            //
-            // 줄 수는 로봇B 유무·줄바꿈에 따라 변하므로 **고정값을 다시 박을 수 없다** —
-            // 스타일에 물어 `CalcHeight` 로 재고 막대 둘을 더한다.
-            // ⚠️ **첫 줄이 「지금 무엇을 해야 하는가」를 말한다**
-            // (2026-09-15 사용자 확정 · 육안 6차 ③ — 「할 일이 없으면 할 일을 만들어야지,
-            //  그래서 목표가 뭐냐」).
-            //
-            // 종전 첫 줄은 **「스테이지 1 · 벨트 연결(온보딩)」** 이었다. 어디에 있는지는
-            // 말하지만 **무엇을 하면 끝나는지는 안 말한다.** 튜토리얼은 두 줄로 그것을
-            // 말하는데(「끊긴 자리를 잇는다」·「마운트가 가득 찬다」), 튜토리얼을 벗어나면
-            // 그 안내가 **통째로 사라졌다** — 그래서 할 일이 없어 보인다.
-            //
-            // ⚠️ **값은 지어내지 않는다** — 주제와 요구치 둘 다 `balance_v4.json` 의
-            // `stages[].topic` · `stages[].req` 다. 요구치가 없는 스테이지(튜토리얼)에서는
-            // 그 꼬리를 안 붙인다 — 0 을 「넘기라」고 적으면 거짓이 된다.
-            // 문안 자리는 설계 역기입 대상이다.
-            string lineTitle = HasRequirement
-                ? $"{StageTitle()} 목표: {stage.topic}  ·  출력 {stage.req:F0} 넘기기"
-                : $"{StageTitle()}  ·  {stage.topic}";
-            string lineOutput = OutputLine();
-            string lineAmmo = AmmoLine();
-            string lineStore = $"저장고(군수 생산) {LogisticsOutputBridge.AmmoProduce:F1} 발/초";
-            string lineEnemy = $"적 {_sim.Remaining}/{_sim.TotalEnemies}   로봇 HP {_sim.Robot.hp:F0}/{_sim.Robot.maxHp:F0}" +
-                               $"{ShieldLine()}   {DodgeLine()}";
-            string lineTag = robotB != null ? TagLine() : null;
-            string lineElapsed = $"경과 {_sim.Elapsed:F1}s / {stage.challengeTime:F0}s";
-            string lineWallet = $"고철 {IdleSignals.WalletScrap:N0}   ·   강화재료 {IdleSignals.WalletEnhMaterial:N0}";
-            const string lineHelp = "이동 WASD / 화살표   ·   회피 = 스페이스 / 화면 플릭";
-
-            // ⚠️ **진단 한 줄**(2026-09-15 · 육안 8차 ① — 「쏘는 쪽을 안 본다」).
-            //
-            // 코드는 맞아 보이는데 화면에서는 안 돈다. **어느 단에서 끊기는지 눈으로 못 가른다** —
-            // 덮어쓰기가 안 걸린 것인지(수동으로 읽힘 · 조준이 안 옴 · 1.5초가 지났다),
-            // 걸렸는데 벌이 안 바뀐 것인지. 그래서 **그 값을 그대로 찍는다.**
-            //
-            // 📌 오늘 튜토리얼 게이트도 이 방법으로 갈랐다 — **재는 것으로 못 잡는 자리**는
-            // 화면이 답하게 한다. 자리가 잡히면 이 줄은 걷는다.
-            string lineFace = _robotView == null ? "얼굴 — 뷰 없음"
-                : $"얼굴 {(_robotView.FacingOverride.HasValue ? "조준" : "이동")}"
-                  + $" · 마지막 조준 {(_lastAimAt > 0f ? (Time.time - _lastAimAt).ToString("F1") + "초 전" : "없음")}"
-                  + $" · 수동유예 {Mathf.Max(0f, _manualHoldUntil - Time.time):F1}s";
-
-            // ⚠️ **날 픽셀 폭 560 을 걷었다**(2026-09-15 · 육안 ②).
-            //
-            // 글자만 배율을 먹이고 **자리는 안 고쳤더니**, 720×1280 세로 창에서 HUD 가
-            // **화면 왼쪽 밖으로 잘렸다** — 「(부」·「마운」만 보였다.
-            //
-            // 전투 화면은 **레이어 1**(절대 좌표)이다. 상태창이 x40 에서 시작하므로
-            // (`UiLayout.StatusPanelOrigin`) 그 자리를 쓰고, 폭은 기준 캔버스 **760**
-            // (상태창이 화면 절반을 넘지 않는 선 · ⚠️ 가정)으로 잡아 배율을 곱한다.
-            float hudLeft = UiLayout.StatusPanelOrigin.x * hudScale;
-            float hudW = Mathf.Min(760f * hudScale, Screen.width - hudLeft * 2f);
-
-            // ⚠️⚠️ **글자 크기를 높이로만 정하고 있었다**(2026-09-15 · 사용자 육안 7차).
-            //
-            // `hudPx` 는 `32 × Scale(화면 높이)` 다. **좁고 긴 창**에서는 높이가 커서 글자가
-            // 커지는데 **폭은 창을 따라 좁아진다** — 그래서 「창고 0/40」이 한 글자씩
-            // 세로로 쌓였다. 큰 글자가 좁은 칸에 들어가면 줄바꿈이 **글자 단위**가 된다.
-            //
-            // 📌 **같은 병을 오늘 세 번째 고친다** — 카테고리 탭(가로가 좁다) ·
-            // 마운트 이름표(폭 측정) · 여기. **크기는 두 변에서 잡아야 한다.**
-            //
-            // 가장 긴 줄이 한 줄에 들어갈 만큼으로 상한을 둔다 — 넘치면 줄바꿈이 나되
-            // **글자 단위로는 안 쪼개진다.**
+            else
             {
-                int byWidth = Mathf.RoundToInt(hudW / 22f);   // 대략 22 글자가 한 줄
-                int capped = Mathf.Max(11, Mathf.Min(hudPx, byWidth));
-                if (capped < hudPx)
-                {
-                    hudPx = KoreanFont.Snap(capped);
-                    style.fontSize = hudPx;
-                    _hudSmall.fontSize = hudPx;
-                }
-            }
-            // ⚠️ **제목·경과는 이제 헤더가 든다**(2026-09-18 사용자 리허설 ⑧) — 높이 셈에서 뺀다.
-            float need = HudTextHeight(style, hudW - 10f,
-                             lineOutput, lineAmmo, lineStore, lineEnemy, lineTag,
-                             lineWallet, lineHelp)
-                         + (HudBars.BarHeight + 4f) * 2f   // 탄약 막대 · 회피 눈금
-                         + 10f;                            // 아랫변 여백
-
-            // ⚠️⚠️ **띠가 가두는 것은 조립 화면에서뿐이다.** 띠 다섯은 **레이어 2** 의 수이고
-            // 전투 화면은 **레이어 1**(절대 좌표)이라 768 과 견줄 것이 아니다 — `UiLayout` 의
-            // 주석이 「두 수는 다른 화면의 수」라고 이미 적어 둔 그 자리다. 전투 화면까지
-            // 768 로 가두면 **아래 줄을 잃을 이유가 없는데 잃는다.**
-            // ⚠️⚠️ **방을 잴 때 시작점을 빼야 한다**(2026-09-15 · 육안 점검에서 잡았다).
-            //
-            // 종전에는 조립 화면에서 `combatBand.height - 20` 을 방으로 썼다. 그런데 글자는
-            // 띠 맨 위가 아니라 **`InfoBarHeight` 만큼 내려와서** 시작한다 — 그 높이를
-            // 안 뺐으니 **방을 그만큼 넘겨 잡았다.** 결과로 HUD 가 전투 띠를 **넘어 보드
-            // 위까지** 내려왔고, 화면에서는 경고 띠와 노드가 그 위를 덮어 **글자가 잘린
-            // 것처럼** 보였다(실제로는 잘린 게 아니라 **가려진** 것이다).
-            //
-            // 📌 **띠 안에 가두는 것이 목적이면 띠의 아랫변에서 재야 한다** — 높이에서
-            // 빼는 것과 아랫변에서 재는 것은 시작점이 0 일 때만 같다.
-            float hudTop = combatBand.y + UiLayout.InfoBarHeight * hudScale;
-            float room = GameViewSignals.BoardViewActive
-                ? Mathf.Max(0f, combatBand.yMax - hudTop - 10f)
-                : Mathf.Max(0f, Screen.height - hudTop - 20f);
-
-            // ⚠️ **방이 모자라면 글자를 줄인다 — 줄을 버리지 않는다.**
-            //
-            // `GUILayout.BeginArea` 는 넘치는 것을 **말없이 자른다.** 방만 맞추고 끝내면
-            // 아래 줄들이 **에러 없이 사라진다** — 09-14 에 「경과·고철·이동 WASD」 세 줄이
-            // 통째로 없어졌던 그 모양이다. 줄 수는 화면이 정할 것이 아니므로 크기를 줄인다.
-            if (need > room && room > 0f)
-            {
-                int shrunk = Mathf.Max(9, Mathf.RoundToInt(style.fontSize * room / need));
-                if (shrunk < style.fontSize)
-                {
-                    style.fontSize = KoreanFont.Snap(shrunk);
-                    need = HudTextHeight(style, hudW - 10f,
-                               lineOutput, lineAmmo, lineStore, lineEnemy, lineTag,
-                               lineWallet, lineHelp)
-                           + (HudBars.BarHeight + 4f) * 2f + 10f;
-                }
+                _hudSmall.fontSize = hudPx;
             }
 
-            // ⚠️ **화면 안으로 가둔다**(2026-09-15 · 육안 ②).
+            // ⚠️⚠️ **조립 화면에서는 전투 HUD 를 한 줄도 안 그린다**(2026-09-18).
             //
-            // 자리를 띠 체계로 옮기고도 **여전히 위아래가 잘렸다.** 어느 셈이 넘치는지
-            // 아직 못 짚었으므로, **결과를 화면 안으로 클램프**한다 — 어느 DPR 에서도
-            // 잘리지 않게 하는 것이 먼저다. 넘치는 셈을 찾으면 이 클램프는 아무 일도 안 한다.
-            float hudH = Mathf.Min(need, room);
-            float hudY = hudTop;
-            if (hudY + hudH > Screen.height) hudY = Mathf.Max(0f, Screen.height - hudH);
-            if (hudH > Screen.height) hudH = Screen.height;
-
-            var hud = new Rect(hudLeft, hudY, hudW, hudH);
-
-            // ⚠️ **조립 화면에서는 이 글자 블록을 접을 수 있다**(2026-09-15 사용자 확정 · 육안 ③).
+            // 상단 인셋 위는 이제 **보드 쪽이 쓴다**(고철 수치 + 물류·조립 문제 목록).
+            // 전투 칩 줄을 거기 같이 얹으면 두 화면의 머리가 겹친다 —
+            // 09-11 에 「띠 다섯과 절대 좌표는 다른 화면의 수」라고 갈라 둔 그 경계다.
             //
-            // 조립 중에 이 열한 줄은 **전투 그림 위에 얹혀** 보드로 가는 눈길을 가로챈다.
-            // 접으면 **글자 블록만** 사라진다 — 인셋 전투 그림과 경고 띠는 그대로다.
-            // 전투 화면에서는 접지 않는다: 거기서는 이 글자가 화면의 본문이다.
-            //
-            // ⚠️ **가정이다** — 문서에 접기 절이 없다(설계 역기입 자리). 버튼 크기·자리는
-            // 눌리는 최소(44)를 기준으로 잡았다.
-            // ⚠️⚠️ **진단 줄은 HUD 밖으로 내보낸다**(2026-09-15 오후 · 사용자 「안 보인다」).
-            //
-            // 종전엔 HUD 글자 블록의 **마지막 줄**이었다 — 그것이 이 화면에서
-            // 가장 약한 자리다. `GUILayout.BeginArea` 는 넘치는 것을 **말없이 자르고**,
-            // 잘리는 것은 항상 마지막 줄이다. 게다가 접기·판 깔기가 전부 이 블록에 걸려
-            // 「안 보인다」의 갈래가 넷이나 된다.
-            //
-            // 📌 **진단물은 진단하려는 것과 같은 배에 타면 안 된다.** 그래서 따로 놓는다 —
-            // 접기와 무관 · HUD 높이 셈과 무관 · 둘 화면 모두 · 항상.
-            //
-            // 자리는 상단 `InfoBarHeight`(120) 띄다 — **아무도 안 쓰는 빈 자리**임을
-            // 전수 검색으로 확인했다(`InfoBarHeight` 를 읽는 곳은 HUD 시작점 하나뿐).
-            // 그래서 HUD 첫 줄보다 **앞**에 오고, 아무것도 밀어내지 않는다.
-            //
-            // ⚠️ **임시물이다** — 얼굴 방향의 원인이 잡히면 이 메서드를 통째로 걷는다.
-            // ⚠️ **헤더 자리를 비운다**(2026-09-18 ⑧) — 진단 둘은 **아래 블록 끝**으로 내려간다.
-            //    진단물이 헤더에 앉아 있으면 「지금 무엇을 하는 판인가」보다 위에 놓인다.
-
-            bool foldable = GameViewSignals.BoardViewActive;
-            if (foldable)
+            // 🗑️ 함께 폐기 — **접기 버튼**(09-15 육안 ③). 접을 글자 블록 자체가 없어졌다.
+            if (GameViewSignals.BoardViewActive)
             {
-                float bs = 44f;
-                var foldRect = new Rect(hud.x + hud.width - bs - 4f, hud.y, bs, bs);
-                UiBlockers.Add(foldRect);
-                if (UiSkin.Button(foldRect, HudFolded ? "▼" : "▲")) HudFolded = !HudFolded;
-            }
-
-            if (foldable && HudFolded)
-            {
-                // ⚠️ **합체 연출은 접어도 나온다** — 전체 화면 연출이라 HUD 와 층이 다르다.
-                DrawMergeCutscene();
+                DrawMergeCutscene();   // 전체 화면 연출은 층이 달라 여기서도 나온다
                 return;
             }
 
-            // ── 헤더 (2026-09-18 사용자 리허설 ⑧ · ⚠️ 무엇을 올릴지는 **구현 가정**) ──
-            //
-            // 📌 가른 잣대는 하나다 — **판이 무엇이고 얼마나 남았는가**는 헤더에,
-            //    **지금 이 로봇이 어떤 상태인가**는 아래 블록에.
-            //    헤더 = 스테이지·목표·요구 · 경과 (소리 버튼은 이미 이 띠의 오른쪽 구석이다)
-            //    아래 = 물류 출력 · 탄약 · 저장고 · 적/HP/보호막/회피 · 태그 · 재화 · 조작
-            //
-            // ⚠️ 자리는 `UiLayout.InfoBarHeight`(120) 띠다 — 09-15 에 「아무도 안 쓰는 빈 자리」로
-            //    확인한 그 자리이고, 진단 줄이 임시로 쓰던 것을 **본래 쓰임으로 돌린다.**
-            var header = new Rect(hudLeft, combatBand.y + 6f * hudScale,
-                                  hudW, UiLayout.InfoBarHeight * hudScale - 12f * hudScale);
+            DrawChipBar();
+            DrawStageBadge();
+            DrawRobotGauges();
+            DrawPops();
+            DrawMilestoneCard();
+            DrawDevPanel(style);
+
+            if (_sim.Result != CombatResult.InProgress)
             {
-                var headStyle = new GUIStyle(style) { fontStyle = FontStyle.Bold, wordWrap = true };
-                var subStyle = new GUIStyle(style) { wordWrap = false };
-                UiPlate.Draw(header);
-                GUILayout.BeginArea(new Rect(header.x + 8f, header.y + 4f,
-                                             header.width - 16f, header.height - 8f));
-                GUILayout.Label(lineTitle, headStyle);
-                GUILayout.Label(lineElapsed, subStyle);
+                // 결과 — 화면 한가운데 아래. ⚠️ 자리는 가정이다(설계 역기입).
+                float w = Mathf.Min(560f * hudScale, Screen.width - 24f);
+                var box = new Rect((Screen.width - w) * 0.5f, Screen.height * 0.42f,
+                                   w, 160f * hudScale);
+                UiPlate.Draw(box);
+                UiBlockers.Add(box);
+                GUILayout.BeginArea(box);
+                GUILayout.Label(ResultText(), big);
+                if (UiSkin.ButtonLayout("다시 (Restart)",
+                        GUILayout.Width(200f * hudScale), GUILayout.Height(50f * hudScale)))
+                    Restart();
                 GUILayout.EndArea();
             }
-
-            if (GameViewSignals.BoardViewActive) UiPlate.Draw(hud);
-
-            GUILayout.BeginArea(hud);
-            GUILayout.Label(lineOutput, style);
-            GUILayout.Label(lineAmmo, style);
-            // 탄약 줄 — **저장 노드 재고를 막대 하나로**(UI 문서 3-3). 재고가 0인 탄종은 칸이 없다.
-            DrawAmmoBar();
-            GUILayout.Label(lineStore, style);
-            // 회피 스택은 HP 바로 옆에 붙인다 — 「몇 대 더 버티는가」를 같은 눈길에서 읽게 한다.
-            GUILayout.Label(lineEnemy, style);
-            // 회피 눈금 바 — 숫자 옆에 붙인 줄을 그림으로 한 번 더 준다(UI 문서 11-3).
-            DrawDodgeTicks();
-            if (lineTag != null) GUILayout.Label(lineTag, style);
-            // 재화는 방치 런타임이 게시한 값을 그대로 읽는다(IdleSignals). 여기서 계산하지 않는다 —
-            // 적립 규칙은 방치 런타임 한 곳에만 산다. 화면에 새 패널을 놓을 자리가 없어
-            // 이 상태 칸에 붙였다. 방치 씬이 없는 격리 전투 씬에서는 둘 다 0으로 뜬다.
-            GUILayout.Label(lineWallet, style);
-            GUILayout.Label(lineHelp, style);
-            GUILayout.EndArea();
-
-            // ── 진단 둘 — **아래 블록 끝**(2026-09-18 ⑧) ──────────────────────
-            //
-            // ⚠️ 블록 **안**에 넣지 않는다 — `GUILayout.BeginArea` 는 넘치는 것을 말없이
-            //    자르고, 잘리는 것은 늘 마지막 줄이다(09-14 에 세 줄을 그렇게 잃었다).
-            //    자리만 블록 끝이고, 그리는 것은 블록 밖이다.
-            float diagY = hud.yMax + 4f * hudScale;
-            DrawFacingDiagnosticAt(hudLeft, diagY, hudW, hudScale, lineFace);
-
-            if (Debug.isDebugBuild && Time.time < _tagSkillNoteUntil && !string.IsNullOrEmpty(_tagSkillNote))
+            else
             {
-                var noteStyle = new GUIStyle(style) { fontStyle = FontStyle.Bold };
-                noteStyle.normal.textColor = new Color(1f, 0.92f, 0.45f);
-                var noteRect = new Rect(hudLeft, diagY + 30f * hudScale, hudW, 34f * hudScale);
-                UiPlate.Draw(noteRect);
-                GUI.Label(noteRect, _tagSkillNote, noteStyle);
-            }
-
-            // ⚠️ **전투 조작 버튼은 조립 화면에서 그리지 않는다**(260902_W09 §5-3).
-            //
-            // 좌측 y 300~460은 전투가 쓰는 자리인데, 조립 화면에서도 그대로 떠서
-            // 보드 쪽 UI가 놓일 자리가 없었다. 배율 라벨이 태그 버튼과 겹친 것이 그 증상이다.
-            // 자리를 또 옮기는 대신 **화면마다 무엇을 그릴지**를 정한다 —
-            // 조립 중에 태그·합체·다시를 누를 이유가 없다(기능은 그대로 남는다).
-            //
-            // 물류 출력 줄(위 HUD)은 남긴다. 재설계하면서 수치가 따라 움직이는 것을
-            // 보는 것이 조립 화면의 내용물이기 때문이다.
-            if (!GameViewSignals.BoardViewActive)
-            {
-                if (_sim.Result != CombatResult.InProgress)
-                {
-                    GUILayout.BeginArea(new Rect(
-                        12f, hud.yMax + 10f,
-                        Mathf.Min(560f, Screen.width - 24f),
-                        Mathf.Min(160f, Mathf.Max(0f, combatBand.yMax - hud.yMax - 20f))));
-                    GUILayout.Label(ResultText(), big);
-                    if (UiSkin.ButtonLayout("다시 (Restart)", GUILayout.Width(160), GUILayout.Height(34)))
-                        Restart();
-                    GUILayout.EndArea();
-                }
-                else
-                {
-                    TagMergeButtons(style);
-                }
+                TagMergeButtons(style);
             }
 
             // IMGUI는 나중에 그린 것이 위에 온다 — 연출은 결과 화면 위에도 덮여야 한다.
@@ -2191,51 +1963,11 @@ namespace MBI.Combat
         /// 합체 화력으로 적이 녹는 장면이 연출에 가려지면 보여 줄 것이 사라진다.
         /// </summary>
         /// <summary>
-        /// 얼굴 방향 진단 한 줄을 **따로** 그린다(2026-09-15 오후).
-        ///
-        /// ⚠️ 판을 깔고 흰 글자로 쓴다 — 전투 화면에서는 밑이 **흙바닥**이라
-        /// 판 없이는 같은 색에 무힌다. 이미 같은 이유로 HUD 글자가 한 번 사라졌다.
-        ///
-        /// ⚠️ 크기는 **두 변**에서 잡는다 — 높이로만 정하면 좁고 긴 창에서 글자가
-        /// 한 자씩 쌓인다(오늘 네 번째 같은 병이다).
+        /// 🗑️ **폐기 — 얼굴 진단을 따로 그리던 자리**(2026-09-18 · 시안 3).
+        /// 진단 줄은 이제 **개발 빌드 전용 「i」 패널** 안의 한 줄이다
+        /// (<c>StageRunner.Hud.cs</c> 의 <c>FaceDiagnosticLine</c>). 판을 따로 깔고
+        /// 자리를 따로 재던 일이 통째로 없어졌다.
         /// </summary>
-        /// <summary>
-        /// 🗑️ 구 자리(헤더 띠) 폐기 — 2026-09-18 ⑧ 에서 그 자리를 **헤더가** 가져갔다.
-        /// 이제 **아래 블록 끝**에 그린다. 자리를 부르는 쪽이 정하므로 y 를 받는다.
-        /// </summary>
-        private void DrawFacingDiagnosticAt(float left, float top, float width, float scale,
-            string text, string second = null)
-        {
-            if (string.IsNullOrEmpty(text)) return;
-
-            float pad = 4f * scale;
-            float h = Mathf.Max(16f, 30f * scale);
-            var r = new Rect(left, top, width, h);
-            if (r.yMax > Screen.height) r.y = Mathf.Max(0f, Screen.height - r.height);
-
-            UiPlate.Draw(r);
-
-            int byHeight = Mathf.RoundToInt(h * 0.55f);
-            int byWidth = Mathf.RoundToInt(width / 26f);   // 이 줄은 대략 26 글자다
-            var st = new GUIStyle(GUI.skin.label)
-            {
-                fontSize = KoreanFont.Snap(Mathf.Max(10, Mathf.Min(byHeight, byWidth))),
-                alignment = TextAnchor.MiddleLeft,
-                clipping = TextClipping.Overflow,   // 재기 전에 재면 줄어드는 함정을 피한다
-            };
-            st.normal.textColor = Color.white;
-
-            if (string.IsNullOrEmpty(second))
-            {
-                GUI.Label(new Rect(r.x + pad, r.y, r.width - pad * 2f, r.height), text, st);
-                return;
-            }
-
-            // 두 줄이면 판을 반씩 나눈다 — 글자를 겹치면 둘 다 못 읽는다.
-            float half = r.height * 0.5f;
-            GUI.Label(new Rect(r.x + pad, r.y, r.width - pad * 2f, half), text, st);
-            GUI.Label(new Rect(r.x + pad, r.y + half, r.width - pad * 2f, half), second, st);
-        }
 
         private void DrawMergeCutscene()
         {
@@ -2328,6 +2060,16 @@ namespace MBI.Combat
             // ⚠️ **밝기만으로는 사용자 눈에 안 보였다**(2026-09-16 육안 2차 ③) —
             //    원형 버튼은 이미 밝은 판이라 1.45배가 묻힌다. **테두리를 같이 두른다.**
             if (skillReady) DrawTagSkillRing(tagRect);
+
+            // ⚠️ **적재 링**(2026-09-18 설계 지시 · 「태그 원형(적재 링 40)」).
+            //    대기 마운트가 얼마나 찼는지를 **원형 둘레**로 보인다 — 만충이 태그 스킬의
+            //    조건이라, 「얼마나 남았나」가 버튼 자리에서 읽혀야 누를 때를 안다.
+            //    ⚠️ 상한이 없으면(0) 안 그린다 — 만충 판정 자체가 없는 자리다.
+            MountLoad standby = _sim.Tag.StandbyMount;
+            if (standby != null && standby.Capacity > 0f)
+                DrawLoadRing(tagRect, standby.Total / standby.Capacity,
+                    new Color(0.45f, 0.85f, 1f, 0.9f),
+                    TagSkillRingThickness * 0.6f * UiLayout.Scale(Screen.height));
 
             Color tagPrev = GUI.color;
             if (skillReady) GUI.color = TagSkillReadyTint;
@@ -2425,12 +2167,13 @@ namespace MBI.Combat
         private void DrawTagAutoToggle(Rect tagRect)
         {
             float s = UiLayout.Scale(Screen.height);
-            float h = 56f * s;
-            float gap = 8f * s;
 
-            // 원형 **위**. 띠 밖으로 나가면 안 그린다 — 화면 밖 버튼은 눌 수 없다.
-            var toggle = new Rect(tagRect.x, tagRect.y - gap - h, tagRect.width, h);
-            if (toggle.y < 0f) return;
+            // ⚠️ **원형 바로 아래**(2026-09-18 사용자 확정 · 시안 3 — 「태그 원형 → 바로 아래
+            //    「자동」 토글 → 합체 원형」). 🗑️ 구 자리(원형 **위**) 폐기.
+            //    자리는 `UiLayout` 한 곳이 낸다 — 여기서 재면 원형이 움직일 때 또 어긋난다.
+            Rect toggle = UiLayout.TagAutoToggleRect(Screen.width, Screen.height);
+            float h = toggle.height;
+            if (toggle.y < 0f || toggle.yMax > Screen.height) return;
             UiBlockers.Add(toggle);
 
             bool on = TagAutoMode.Enabled;
@@ -2451,8 +2194,9 @@ namespace MBI.Combat
             if (hit) TagAutoMode.Toggle();   // 길게 누르기와 **같은 값**을 뒤집는다
 
             // 안내 한 줄 — **문구는 사용자 확정 그대로**다(`TagAutoMode.Hint`).
-            var hint = new Rect(toggle.x, toggle.y - h * 0.62f, toggle.width, h * 0.58f);
-            if (hint.y < 0f) return;
+            // ⚠️ 토글 **아래**로 옮겼다 — 위에 두면 태그 원형과 겹친다(자리를 내린 대가).
+            var hint = new Rect(toggle.x, toggle.yMax + 2f * s, toggle.width, h * 0.58f);
+            if (hint.yMax > Screen.height) return;
             GUI.Label(hint, TagAutoMode.Hint, new GUIStyle(GUI.skin.label)
             {
                 fontSize = KoreanFont.Snap(Mathf.Max(8,
@@ -2587,15 +2331,9 @@ namespace MBI.Combat
             return $"   쉴드{merged} {now:F0}/{max:F0}";
         }
 
-        private void DrawDodgeTicks()
-        {
-            DodgeSystem d = _sim.Dodge;
-            GUILayout.BeginHorizontal();
-            HudBars.Ticks(HudBars.Row(200f), d.Stacks, d.Capacity, d.IsInvincible);
-            string tag = HudMeters.OverflowTag(d.Capacity);
-            if (tag.Length > 0) GUILayout.Label(tag, _hudSmall);
-            GUILayout.EndHorizontal();
-        }
+        // 🗑️ **폐기 — `DrawDodgeTicks`**(2026-09-18 · 시안 3). `GUILayout` 세로 블록
+        //    안에서만 쓰이던 자리다. 회피 눈금은 이제 **로봇 몸 밑**에 직접 그린다
+        //    (<c>StageRunner.Hud.cs</c> 의 <c>DrawRobotGauges</c>).
 
         /// <summary>
         /// 탄약 줄(UI 문서 3-3) — **저장 노드 재고**를 막대 하나로 나눠 그린다.
@@ -2606,24 +2344,9 @@ namespace MBI.Combat
         /// 색은 <see cref="TracerColor"/>를 그대로 쓴다. 화면에 날아가는 탄선과 창고 칸이
         /// 다른 색이면 「저 노란 것이 다 떨어졌다」가 안 읽힌다.
         /// </summary>
-        /// <summary>
-        /// HUD 글자 줄들의 **실제 높이 합**(2026-09-14 · 2차 스크린샷).
-        ///
-        /// ⚠️ **줄 수가 아니라 높이를 더한다.** 태그 줄처럼 긴 줄은 폭에 따라
-        /// **두 줄로 접히므로**, 「줄 × 20px」로 재면 그만큼 모자라고 모자라면 밑줄이 잘린다.
-        /// `null` 은 안 그리는 줄이라 건너뛴다(로봇B 가 없으면 태그 줄이 없다).
-        /// </summary>
-        private static float HudTextHeight(GUIStyle style, float width, params string[] lines)
-        {
-            float total = 0f;
-            foreach (string line in lines)
-            {
-                if (line == null) continue;
-                total += style.CalcHeight(new GUIContent(line), width);
-            }
-            return total;
-        }
-
+        // 🗑️ **폐기 — `HudTextHeight`**(2026-09-18 · 시안 3). 줄 높이를 더해 방을 재던
+        //    셈이다. **글자 블록이 없어졌으니 잴 것이 없다** — 09-14 에 세 줄을 잃고 들인
+        //    장치였고, 그 병 자체를 꼴을 바꿔 없앴다.
 
         private void DrawAmmoBar()
         {

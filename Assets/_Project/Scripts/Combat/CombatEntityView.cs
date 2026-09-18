@@ -149,9 +149,16 @@ namespace MBI.Combat
             shadowSr.sortingOrder = SortingLayers.EffectUnder;
 
             // HP 배경(어두움)
+            //
+            // ⚠️⚠️ **발밑으로 내렸다**(2026-09-18 사용자 확정 · 시안 3 — 「몹 체력 = 몹 발밑
+            //    얇은 빨간 바」). 🗑️ 구 자리(머리 위 +0.72) 폐기.
+            //    까닭은 **머리 위가 이제 붐비기 때문**이다 — 로봇 쪽은 몸 밑에 HP·보호막·회피
+            //    셋이 서고, 적 쪽도 같은 규칙이어야 「밑에 있는 것이 그 몸의 상태」로 읽힌다.
+            //
+            // ⚠️ **얇게**(0.14 → 0.10) — 발밑은 그림자와 가까워 두꺼우면 몸을 가린다. ⚠️ 가정.
             float barW = size;
-            float barH = size * 0.14f;
-            float barY = size * 0.72f;
+            float barH = size * 0.10f;
+            float barY = -size * 0.62f;
             var bgGo = new GameObject("HpBg");
             bgGo.transform.SetParent(transform, false);
             bgGo.transform.localPosition = new Vector3(0f, barY, 0f);
@@ -161,19 +168,25 @@ namespace MBI.Combat
             bg.color = new Color(0.1f, 0.1f, 0.1f, 0.85f);
             bg.sortingOrder = SortingLayers.Hud;      // 체력바는 HUD 층
 
-            // HP 채움(초록)
+            // HP 채움 — **적은 빨강 · 로봇은 초록**(2026-09-18 사용자 확정 · 「얇은 빨간 바」).
+            //
+            // ⚠️ 색으로 편을 가른다 — 같은 색이면 발밑 막대가 늘어선 화면에서 **누구의 것인지**가
+            //    안 읽힌다. 빨강은 조립 층의 「못 쓴다」와 층이 달라 섞이지 않는다(월드 대 UI).
             var fillGo = new GameObject("HpFill");
             fillGo.transform.SetParent(transform, false);
             fillGo.transform.localPosition = new Vector3(0f, barY, 0f);
             fillGo.transform.localScale = new Vector3(barW, barH, 1f);
             var fill = fillGo.AddComponent<SpriteRenderer>();
             fill.sprite = PlaceholderSprite.White();
-            fill.color = new Color(0.2f, 0.85f, 0.3f, 1f);
+            fill.color = entity != null && entity.faction == Faction.Enemy
+                ? new Color(0.90f, 0.22f, 0.20f, 1f)    // 적 — 빨강
+                : new Color(0.2f, 0.85f, 0.3f, 1f);     // 로봇 — 초록
             fill.sortingOrder = SortingLayers.Hud + 1; // 배경 위 채움(같은 층 안 미세 조정)
             _hpFill = fillGo.transform;
 
-            // 쉴드 바 — **HP 바 규칙 그대로 · 바로 위 한 칸**(2026-09-17 구현 가정).
-            float shieldY = barY + barH * 1.25f;
+            // 쉴드 바 — **HP 바 규칙 그대로 · 바로 아래 한 칸**(2026-09-18).
+            // 🗑️ 구 「바로 위」 폐기 — HP 바가 발밑으로 내려오면서 위쪽은 몸이다.
+            float shieldY = barY - barH * 1.25f;
             _shieldBar = new GameObject("ShieldBar");
             _shieldBar.transform.SetParent(transform, false);
             _shieldBar.transform.localPosition = new Vector3(0f, shieldY, 0f);
