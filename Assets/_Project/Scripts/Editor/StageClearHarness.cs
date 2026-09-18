@@ -1076,13 +1076,47 @@ namespace MBI.EditorTools
             if (Application.isBatchMode) EditorApplication.Exit(0);
         }
 
-        public static string RunTag()
+        /// <summary>
+        /// 스테이지 **점프 판** — S1 · S3 · S5 를 차례로 돈다 (2026-09-18 사용자 결정).
+        ///
+        /// ⚠️⚠️ **재는 것은 표적 수 하나뿐이다 — 승패는 안 본다.**
+        ///    S3·S5 는 로봇을 강화하지 않고 뛰어든 판이라 **지는 것이 정상**이고,
+        ///    「졌다」를 밸런스로 읽으면 없는 결론이 선다. 물음은 하나다 —
+        ///    **적이 촘촘해지면 광역형 한 대가 몇 마리를 치는가.**
+        ///
+        /// 📌 **값은 하나도 안 바꾼다** — 반경도 피해 비도 그대로 두고 세기만 한다.
+        ///
+        /// 배치 실행: <c>-executeMethod MBI.EditorTools.StageClearHarness.RunTagJumpBatch</c>
+        /// </summary>
+        [MenuItem("MBI/Harness 태그 두 로봇 판 — 스테이지 점프 (S1 S3 S5)")]
+        public static void RunTagJumpMenu() => Debug.Log(RunTagJump());
+
+        public static void RunTagJumpBatch()
+        {
+            Debug.Log(RunTagJump());
+            if (Application.isBatchMode) EditorApplication.Exit(0);
+        }
+
+        public static string RunTagJump()
         {
             var sb = new StringBuilder();
-            sb.AppendLine("############ 태그 두 로봇 판 (2026-09-18 · 260918_W01 4장) ############");
+            foreach (string id in new[] { "S1", "S3", "S5" })
+            {
+                sb.AppendLine(RunTag(id));
+                sb.AppendLine();
+            }
+            return sb.ToString();
+        }
+
+        public static string RunTag() => RunTag("S1");
+
+        public static string RunTag(string stageId)
+        {
+            var sb = new StringBuilder();
+            sb.AppendLine($"############ 태그 두 로봇 판 · {stageId} (2026-09-18) ############");
             sb.AppendLine();
 
-            var stage = AssetDatabase.LoadAssetAtPath<StageDefinition>($"{SoRoot}/Stages/Stage_S1.asset");
+            var stage = AssetDatabase.LoadAssetAtPath<StageDefinition>($"{SoRoot}/Stages/Stage_{stageId}.asset");
             var robotA = AssetDatabase.LoadAssetAtPath<RobotDefinition>($"{SoRoot}/Robots/Robot_A.asset");
             var robotB = AssetDatabase.LoadAssetAtPath<RobotDefinition>($"{SoRoot}/Robots/Robot_B.asset");
             var tuning = AssetDatabase.LoadAssetAtPath<CombatTuning>($"{SoRoot}/CombatTuning.asset");
@@ -1100,7 +1134,12 @@ namespace MBI.EditorTools
             if (bal != null && bal.dodgeStacksPerBooster > 0)
                 DodgeSystem.StacksPerBooster = bal.dodgeStacksPerBooster;
 
-            sb.AppendLine("[판] S1 · 튜토리얼 종료 · 자동 조종 **켬** · 태그 오토 **켬**");
+            sb.AppendLine($"[판] {stageId} · 튜토리얼 종료 적재 · 자동 조종 **켬** · 태그 오토 **켬**");
+            if (stageId != "S1")
+            {
+                sb.AppendLine("  ⚠️ **스테이지 점프 판이다 — 승패는 안 본다.** 로봇을 강화하지 않고 뛰어들었다.");
+                sb.AppendLine("     여기서 보는 것은 **광역형이 한 대에 몇 마리를 치는가** 하나다.");
+            }
             sb.AppendLine("  ⚠️ 태그 오토를 켠 것은 **가정**이다 — 게임 기본값은 꺼짐이고,");
             sb.AppendLine("     사람이 안 누르는 판에서 태그를 재려면 켜는 수밖에 없다.");
             sb.AppendLine($"  A 마운트 {MountLoad.SlotsRobotA} × {stack:F0} = {MountLoad.SlotsRobotA * stack:F0}"
