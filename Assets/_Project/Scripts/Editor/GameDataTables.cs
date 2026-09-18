@@ -92,6 +92,67 @@ namespace MBI.Editor
             return map;
         }
 
+        /// <summary>
+        /// `WEAPON_DATA` 에서 **밸런스 자산이 쓰는 값들**을 꺼낸 것 (2026-09-18).
+        ///
+        /// ⚠️ **두 생성기가 같은 문을 지난다** — 전투 생성기는 무기·조율을, 밸런스 생성기는
+        /// 라인 스펙·광역 배수를 가져간다. 각자 표를 따로 파면 **읽는 법이 둘**이 되고
+        /// 한쪽만 고쳐지는 날이 온다.
+        /// </summary>
+        public struct WeaponTableValues
+        {
+            /// <summary>라인 스펙 셋 — **관통 · 표준 · 폭발** 차례(BalanceConfig.LineSpecOf 와 같다).</summary>
+            public float[] lineSpec;
+
+            /// <summary>광역형 드론의 표적당 피해 비.</summary>
+            public float aoeDamageFactor;
+        }
+
+        /// <summary>
+        /// 무기 표를 읽어 위 값들을 낸다.
+        ///
+        /// ⚠️ **탄종으로 골라 담는다** — 줄 차례가 바뀌어도 안 흔들린다.
+        /// ⚠️ **없으면 죽는다** — 라인 스펙이 한 칸이라도 비면 그 탄종이 안 쏘게 된다.
+        /// </summary>
+        public static WeaponTableValues ReadWeapons()
+        {
+            CsvTable t = Load("WEAPON_DATA");
+            t.Require("RobotID", "AmmoKind", "LineSpec", "AoeDamageFactor");
+
+            var v = new WeaponTableValues { lineSpec = new float[3] };
+            var got = new bool[3];
+            bool gotAoe = false;
+
+            foreach (CsvTable.Row r in t.Rows)
+            {
+                AmmoKind? kind = AmmoKindOf(r.Int("AmmoKind"));
+                if (r.Int("RobotID") == 1 && kind != null)
+                {
+                    int i = (int)kind.Value;
+                    if (i < 0 || i >= 3)
+                        throw new System.FormatException($"[WEAPON_DATA] 모르는 탄종 자리 — {kind}");
+                    v.lineSpec[i] = r.Num("LineSpec");
+                    got[i] = true;
+                }
+
+                // 광역형 줄(5)만 광역 배수를 든다 — 누적형(4)은 1.0 이고 그것은 규칙이지 값이 아니다.
+                if (r.Int("RobotID") == 2 && r.Int("AmmoKind") == 5)
+                {
+                    v.aoeDamageFactor = r.Num("AoeDamageFactor");
+                    gotAoe = true;
+                }
+            }
+
+            for (int i = 0; i < 3; i++)
+                if (!got[i])
+                    throw new System.FormatException(
+                        $"[WEAPON_DATA] 로봇A 의 {(AmmoKind)i} 줄이 없다 — 그 탄종이 안 쏘게 된다");
+            if (!gotAoe)
+                throw new System.FormatException("[WEAPON_DATA] 광역형 드론 줄(AmmoKind 5)이 없다");
+
+            return v;
+        }
+
         /// <summary>표를 다시 읽게 한다 — 변환기를 돌린 뒤 유니티가 파일을 다시 보게 한다.</summary>
         [MenuItem("MBI/밸런스 표 다시 읽기")]
         public static void Refresh()

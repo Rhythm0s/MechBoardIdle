@@ -214,20 +214,56 @@ def designer_rows(fields, rows):
 
 
 def designer_data_rows(fields):
-    """필드별 라벨↔수치 **세로**. 표에 없는 enum 은 안 적는다."""
-    rows = [["Field", "Label", "Value"], ["필드", "한글 라벨", "수치"]]
-    for f in fields[0]:
-        if f not in ENUMS:
-            continue
-        for lab, v in ENUMS[f]:
-            rows.append([f, lab, v])
+    """
+    enum 사전 — **필드별 가로 블록**(참고본 `SKILL_DATA.xlsx` 서식 · 2026-09-18 사용자 확정).
+
+        EnemyKey  |        |      | Role      |
+        한글 라벨 | 수치   |      | 한글 라벨 | 수치
+        보병      | 1      |      | 근접      | 1
+        포격      | 2      |      | 원거리    | 2
+        ...
+
+    🗑️ 구 서식 폐기 — 세로 한 표(`Field · Label · Value`)였다. 값은 같지만 **사람이 읽는 꼴**이
+       참고본과 달랐다(사용자가 전 직장 형식을 그대로 쓰기로 했다).
+
+    ⚠️ **블록 사이에 빈 열 하나**를 둔다 — 붙이면 어디까지가 한 필드인지 안 읽힌다.
+    ⚠️ 표에 없는 enum 은 안 적는다.
+    """
+    blocks = [(f, ENUMS[f]) for f in fields[0] if f in ENUMS]
+    if not blocks:
+        return [[]]
+
+    height = max(len(pairs) for _, pairs in blocks) + 2   # 필드명 줄 + 헤더 줄
+    rows = [[] for _ in range(height)]
+
+    for bi, (field, pairs) in enumerate(blocks):
+        if bi:                                   # 블록 사이 빈 열
+            for r in rows:
+                r.append("")
+        rows[0] += [field, ""]
+        rows[1] += ["한글 라벨", "수치"]
+        for i in range(height - 2):
+            if i < len(pairs):
+                rows[i + 2] += [pairs[i][0], pairs[i][1]]
+            else:
+                rows[i + 2] += ["", ""]
     return rows
 
 
-def info_rows(info):
-    head = ["INDEX", "FieldName", "Summary", "DataType", "Example", "Description", "Note"]
-    kor = ["번호", "필드명", "간략 설명", "데이터 타입", "데이터 예시", "필드 설명/값", "비고(근거)"]
-    rows = [head, kor]
+def info_rows(name, info):
+    """
+    표 설명 — **참고본 배치**(2026-09-18 사용자 확정).
+
+        1행  <NAME>_DATA 테이블 설명        ← 제목
+        2행  (빈 줄)
+        3행  INDEX · 필드명 · 간략 설명 · 데이터 타입 · 데이터 예시 · 필드 설명 / 값 · 비고
+        4행~ 내용
+
+    🗑️ 구 배치 폐기 — 1행 영문 헤더 + 2행 한글이었다. 데이터 시트는 그 꼴이 맞지만
+       **설명 시트는 사람만 읽는 칸**이라 참고본처럼 한글 헤더 하나면 된다.
+    """
+    kor = ["INDEX", "필드명", "간략 설명", "데이터 타입", "데이터 예시", "필드 설명 / 값", "비고"]
+    rows = [["%s 테이블 설명" % name], [], kor]
     for i, r in enumerate(info, start=1):
         rows.append([i] + list(r))
     return rows
@@ -238,7 +274,7 @@ def build(path, name, fields, rows, info):
         (name, [list(fields[0]), list(fields[1])] + [list(r) for r in rows]),
         ("Designer_Table", designer_rows(fields, rows)),
         ("Designer_Data", designer_data_rows(fields)),
-        ("Table_Info", info_rows(info)),
+        ("Table_Info", info_rows(name, info)),
     ])
     print("  %s — 데이터 %d행" % (os.path.basename(path), len(rows)))
 

@@ -127,6 +127,10 @@ namespace MBI.Editor
         {
             BalanceConfig c = LoadOrCreate<BalanceConfig>(ConfigPath);
 
+            // **무기 표를 연다**(2026-09-18 사용자 확정) — 라인 스펙 셋과 광역 배수가 여기서 온다.
+            // ⚠️ 없으면 죽는다. json 으로 되돌아가면 어느 쪽이 값을 냈는지 모르게 된다.
+            GameDataTables.WeaponTableValues weapon = GameDataTables.ReadWeapons();
+
             c.schemaVersion = json.meta.schemaVersion;
             c.exportedAt = json.meta.exportedAt;
 
@@ -169,7 +173,9 @@ namespace MBI.Editor
             //   ⚠️ 반경은 설계가 「본전 4마리」를 확정하고 2칸은 그것을 만들 **잠정 점값**으로 준 것이다.
             //   ⚠️ 스택 비는 값이 사용자 확정이고 **칸만 코드 상수에서 옮겨 왔다**(지침 §3).
             c.droneAoeJudgeRadius = json.Param("droneAoeJudgeRadius");
-            c.droneAoeDamageFactor = json.Param("droneAoeDamageFactor");
+            // ⚠️⚠️ **값의 원천은 표다**(2026-09-18 사용자 확정 · `WEAPON_DATA` 광역형 줄).
+            //    🗑️ json `params.droneAoeDamageFactor` 는 폐기 표기 — **값은 남기되 안 읽는다.**
+            c.droneAoeDamageFactor = weapon.aoeDamageFactor;
             c.mountDroneStackFactor = json.Param("mountDroneStackFactor");
             c.dodgeMoveDistance = json.Param("dodgeMoveDistance");
             c.dodgeMoveSeconds = json.Param("dodgeMoveSeconds");
@@ -181,7 +187,11 @@ namespace MBI.Editor
             // ⚠️ **json에는 없다.** balance_v4는 이 축을 갖지 않았고 W01이 새로 준 값이라
             // 없는 키를 읽는 대신 상수로 둔다. json에 키가 생기면 그쪽으로 옮긴다.
             c.nodeProductionPower = NodeProductionPower;
-            c.lineSpecShots = new Vector3(json.Param("specA0"), json.Param("specA1"), json.Param("specA2"));
+            // ⚠️⚠️ **값의 원천은 표다**(2026-09-18 · `WEAPON_DATA` 의 `LineSpec` 열).
+            //    🗑️ json `params.specA0/1/2` 는 폐기 표기 — **값은 남기되 안 읽는다.**
+            //    ⚠️ 차례는 **관통 · 표준 · 폭발**이고 그것이 `BalanceConfig.LineSpecOf` 의 차례다 —
+            //    표에서 탄종으로 골라 담으므로 줄 차례가 바뀌어도 안 흔들린다.
+            c.lineSpecShots = new Vector3(weapon.lineSpec[0], weapon.lineSpec[1], weapon.lineSpec[2]);
 
             // 드론(로봇 B) 확정치. 등가선이 여기서 닫힌다 — pB × dB = 1.0 × 100 = 100.
             c.droneSlots = Mathf.RoundToInt(json.Param("slot"));

@@ -145,6 +145,22 @@ namespace MBI.Tests
         }
 
         [Test]
+        public void 라인_스펙과_광역_배수가_밸런스_자산과_같다()
+        {
+            // ⚠️ 이 둘은 **밸런스 생성기**가 굽는다 — 전투 생성기와 다른 문이라 따로 지킨다.
+            //    표 → BalanceConfig 로 옮긴 첫날의 관문이다(값이 안 바뀌어야 한다).
+            GameDataTables.WeaponTableValues w = GameDataTables.ReadWeapons();
+            var c = AssetDatabase.LoadAssetAtPath<BalanceConfig>(
+                "Assets/_Project/ScriptableObjects/BalanceConfig.asset");
+            Assert.IsNotNull(c, "밸런스 자산이 없다");
+
+            Assert.AreEqual(w.lineSpec[0], c.LineSpecOf(AmmoKind.Pierce), D, "관통 라인 스펙");
+            Assert.AreEqual(w.lineSpec[1], c.LineSpecOf(AmmoKind.Standard), D, "표준 라인 스펙");
+            Assert.AreEqual(w.lineSpec[2], c.LineSpecOf(AmmoKind.Explosive), D, "폭발 라인 스펙");
+            Assert.AreEqual(w.aoeDamageFactor, c.droneAoeDamageFactor, D, "광역 피해 배수");
+        }
+
+        [Test]
         public void 모르는_enum_이면_죽는다()
         {
             // 📌 조용히 첫 항목으로 떨어지면 「보병이 왜 이렇게 많지」가 된다.
