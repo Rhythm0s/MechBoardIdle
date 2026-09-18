@@ -111,11 +111,20 @@ namespace MBI.Tests
         // ── 전투력 ──────────────────────────────────────────────────────────
 
         [Test]
-        public void 전투력은_출력에_적재율을_한_번_곱한다()
+        public void 전투력은_기본으로_물류_출력_그대로다()
         {
-            Assert.AreEqual(100, CombatPower.Of(100f, 0f, 40f), "마운트가 비면 출력 그대로");
-            Assert.AreEqual(200, CombatPower.Of(100f, 40f, 40f), "가득이면 계수 1 로 두 배");
-            Assert.AreEqual(150, CombatPower.Of(100f, 20f, 40f), "절반이면 1.5배");
+            // 📌 지시는 「기존 물류 출력 × 마운트계수 · **이름만**」이다.
+            // 🗑️ 구 기본값(계수 1 · 적재율만큼 부풀림) 폐기 — 같은 화면의 물류 출력과 갈렸다.
+            Assert.AreEqual(100, CombatPower.Of(100f, 0f, 40f), "마운트가 비어도");
+            Assert.AreEqual(100, CombatPower.Of(100f, 40f, 40f), "가득 차도 — 안 곱한다");
+        }
+
+        [Test]
+        public void 마운트계수가_서면_그때_곱한다()
+        {
+            // 값이 확정되면 여기 한 줄이 살아난다 — 지금은 자산이 0 이라 안 곱한다.
+            Assert.AreEqual(200, CombatPower.Of(100f, 40f, 40f, 1f), "계수 1 · 가득");
+            Assert.AreEqual(150, CombatPower.Of(100f, 20f, 40f, 1f), "계수 1 · 절반");
         }
 
         [Test]
