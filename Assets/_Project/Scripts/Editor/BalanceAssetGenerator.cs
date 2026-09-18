@@ -169,6 +169,7 @@ namespace MBI.Editor
             //   ⚠️ 반경은 설계가 「본전 4마리」를 확정하고 2칸은 그것을 만들 **잠정 점값**으로 준 것이다.
             //   ⚠️ 스택 비는 값이 사용자 확정이고 **칸만 코드 상수에서 옮겨 왔다**(지침 §3).
             c.droneAoeJudgeRadius = json.Param("droneAoeJudgeRadius");
+            c.droneAoeDamageFactor = json.Param("droneAoeDamageFactor");
             c.mountDroneStackFactor = json.Param("mountDroneStackFactor");
             c.dodgeMoveDistance = json.Param("dodgeMoveDistance");
             c.dodgeMoveSeconds = json.Param("dodgeMoveSeconds");

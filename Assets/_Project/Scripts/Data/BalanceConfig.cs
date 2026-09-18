@@ -92,6 +92,9 @@ namespace MBI.Data
         [Tooltip("광역형 드론의 광역 판정 반경(칸). params.droneAoeJudgeRadius = 2 ⚠️ 잠정 점값 — 설계 확정은 「본전 4마리」이고 이 수는 그것을 만들 추정이다. 0 이면 구 거동(드론 사거리)으로 떨어진다.")]
         public float droneAoeJudgeRadius = 2f;
 
+        [Tooltip("광역형 드론의 표적당 피해 비(누적형 대비). params.droneAoeDamageFactor = 0.5 ⚠️ 가정 표기 — 타격당 피해만 절반이고 충전량·수명은 그대로다. 0 이면 구 거동(둘이 같은 피해).")]
+        public float droneAoeDamageFactor = 0.5f;
+
         [Tooltip("드론 스택 비(탄약 대비). params.mountDroneStackFactor = 0.5 ⚠️ 가정 표기 — 값은 사용자 확정이고 칸만 코드에서 옮겨 왔다. 로봇 B 적재량 = 슬롯 8 × 스택 × 이 비.")]
         public float mountDroneStackFactor = 0.5f;
 

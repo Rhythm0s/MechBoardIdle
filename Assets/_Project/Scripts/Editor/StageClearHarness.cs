@@ -1183,6 +1183,7 @@ namespace MBI.EditorTools
                                     * tuning.droneDamageFractionTbd,
                 droneAttackRange = tuning.robotAttackRangeTbd,
                 droneAoeJudgeRadius = bal != null ? bal.droneAoeJudgeRadius : 0f,
+                droneAoeDamageFactor = bal != null ? bal.droneAoeDamageFactor : 0f,
                 mountStackLimit = stack,
             };
 
@@ -1214,6 +1215,18 @@ namespace MBI.EditorTools
             // 추진제 줄과 보호막 줄이 굶지 않는지 본다(2026-09-18 · 설계 요청 「기존 줄 산출 불변」).
             int peakDodgeB = 0;
             float peakShieldB = 0f;
+
+            // ── 적 간격 (2026-09-18 · 설계 요청) ───────────────────────────
+            //
+            // **반경이 정할 수 없는 것을 반경으로 정하고 있었다** — 「몇 마리가 들어오는가」는
+            // 적이 로봇에 붙었을 때 **서로 얼마나 떨어져 서는가**가 정한다. 그 값을 가진
+            // 문서가 없어 2칸이 추정으로 들어왔다(`260918_W01` 3-2). 여기서 그것을 잰다.
+            //
+            // 📌 **붙은 적**만 센다 — 걸어오는 중인 적까지 넣으면 「띠에서 나는 간격」이
+            //    섞여 **로봇 둘레의 밀도**가 아니게 된다.
+            double gapSum = 0d;
+            int gapSamples = 0;
+            float gapMin = float.MaxValue;
 
             for (int i = 0; i < steps && sim.Result == CombatResult.InProgress; i++)
             {
@@ -1292,6 +1305,34 @@ namespace MBI.EditorTools
 
                 // 4) 표본
                 stackSum += bStack; aoeSum += bAoe; mountSamples++;
+                // 적 간격 — 0.5초마다 한 번만 센다(매 틱은 같은 자리를 되풀이해 센다).
+                if (i % 10 == 0 && sim.Robot != null)
+                {
+                    var near = new List<CombatEntity>();
+                    foreach (CombatEntity e in sim.Enemies)
+                    {
+                        if (!e.IsAlive) continue;
+                        float reach = e.attackRange + e.radius + sim.Robot.radius;
+                        if ((e.position - sim.Robot.position).sqrMagnitude <= reach * reach)
+                            near.Add(e);
+                    }
+
+                    // 붙은 적 하나마다 **가장 가까운 이웃**까지의 거리를 잰다.
+                    for (int a = 0; a < near.Count; a++)
+                    {
+                        float best = float.MaxValue;
+                        for (int b = 0; b < near.Count; b++)
+                        {
+                            if (a == b) continue;
+                            best = Mathf.Min(best, Vector2.Distance(near[a].position, near[b].position));
+                        }
+                        if (best == float.MaxValue) continue;   // 혼자 붙어 있으면 간격이 없다
+                        gapSum += best;
+                        gapSamples++;
+                        gapMin = Mathf.Min(gapMin, best);
+                    }
+                }
+
                 if (!aActive)   // B 가 나가 있는 동안의 값이라야 B 보드의 줄을 잰다
                 {
                     peakDodgeB = Mathf.Max(peakDodgeB, sim.Dodge.Stacks);
@@ -1353,6 +1394,21 @@ namespace MBI.EditorTools
                   + $" · **평균 {(float)sim.AoeHitTargetsTotal / sim.AoeHitEvents:F2} 마리**"
                   + " (설계 본전 4마리와 견준다)"
                 : "    ⚠️ 광역형이 한 번도 안 때렸다 — 보드가 광역형을 안 만들었거나 사출이 없었다");
+
+            sb.AppendLine();
+            sb.AppendLine("[적 간격 — 반경이 무엇을 정하는가]  ← 측정법: 붙은 적마다 가장 가까운 이웃까지의 거리(0.5초마다)");
+            sb.AppendLine(gapSamples > 0
+                ? $"    표본 {gapSamples} · **평균 {gapSum / gapSamples:F2} 유닛** · 최소 {gapMin:F2} 유닛"
+                : "    ⚠️ 붙은 적이 둘 이상인 적이 없었다 — 간격을 못 쟀다");
+
+            sb.AppendLine();
+            sb.AppendLine("[반경 스위프 — 반경 r 이면 몇 마리가 들어오나]  ← 측정법: 광역 타격 순간 r 안의 살아 있는 적 수");
+            if (sim.AoeHitEvents > 0)
+                for (int r = 0; r < CombatSimulation.AoeSweepRadii.Length; r++)
+                    sb.AppendLine($"    r = {CombatSimulation.AoeSweepRadii[r]:F0} 칸 → 평균 "
+                                  + $"**{(float)sim.AoeSweepTargets[r] / sim.AoeHitEvents:F2} 마리**");
+            else sb.AppendLine("    ⚠️ 광역 타격이 없어 못 쟀다");
+            sb.AppendLine("    ⚠️ **값은 안 옮겼다** — 판정은 자산의 반경 하나를 그대로 쓴다. 여기 수는 세기만 한 것이다.");
 
             sb.AppendLine();
             sb.AppendLine("############ 끝 ############");

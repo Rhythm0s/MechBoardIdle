@@ -573,6 +573,8 @@ namespace MBI.Combat
                 // 광역 판정 반경 — **사거리와 다른 칸**이다(2026-09-18 · 260918_W01 3장).
                 // ⚠️ 잠정 점값이라 자산이 든다. 0 이면 시뮬이 구 거동(사거리)으로 떨어진다.
                 droneAoeJudgeRadius = bal != null ? bal.droneAoeJudgeRadius : 0f,
+                // 광역형 표적당 피해 비 — 0 이면 구 거동(둘이 같은 피해)이다.
+                droneAoeDamageFactor = bal != null ? bal.droneAoeDamageFactor : 0f,
                 mountStackLimit = bal != null ? bal.mountStackLimit : 10f,
             };
         }

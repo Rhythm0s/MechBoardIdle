@@ -110,6 +110,19 @@ namespace MBI.Core
         /// 조용히 0 반경이 되어 **광역이 통째로 사라지는 것**을 막는 자리다.
         /// </summary>
         public float droneAoeJudgeRadius;
+
+        /// <summary>
+        /// 광역형이 **표적 하나에 주는 피해의 비**(누적형 대비) — 2026-09-18 사용자 확정
+        /// 「문서대로 코드를 절반으로」 · `260918_W01` 3-1 의 「표적 하나당 50 대 100」.
+        ///
+        /// ⚠️ **타격당 피해만 줄인다 — 충전량도 수명도 그대로다.** 문서가 둘 중 어느
+        /// 쪽인지를 안 적어 구현이 가정으로 닫은 자리다(자산 basis 에 적었다):
+        /// W01 3-1 의 본전 계산이 **한 대 때릴 때의 수**를 맞대고 있어서다.
+        ///
+        /// ⚠️ 0 이면 **구 거동**(둘이 같은 피해)으로 떨어진다 — 값을 안 넣은 옛 판이
+        /// 조용히 0 피해가 되는 것을 막는다.
+        /// </summary>
+        public float droneAoeDamageFactor;
     }
 
     /// <summary>적 스폰 스펙(순수 값). 위치는 시뮬이 결정론적으로 배치.</summary>
@@ -808,6 +821,19 @@ namespace MBI.Core
         /// <summary>광역형이 때린 횟수(진단용).</summary>
         public int AoeHitEvents { get; private set; }
 
+        /// <summary>
+        /// **반경 스위프** — 광역형이 때리는 순간, 반경 r 안에 살아 있는 적이 몇인가
+        /// (2026-09-18 · 설계 요청 · `260918_W01` 3-2).
+        ///
+        /// 📌 **판정은 안 건드린다.** 판정이 쓰는 반경은 하나(`droneAoeJudgeRadius`)이고,
+        /// 이 배열은 **세기만 한다** — 「반경을 얼마로 하면 몇 마리가 들어오는가」를
+        /// 값을 옮기지 않고 미리 보는 자리다.
+        /// </summary>
+        public static readonly float[] AoeSweepRadii = { 2f, 3f, 4f, 5f };
+
+        /// <summary>스위프 반경마다 세어 둔 표적 수의 합. 나누는 분모는 <see cref="AoeHitEvents"/> 다.</summary>
+        public int[] AoeSweepTargets { get; } = new int[AoeSweepRadii.Length];
+
         /// <summary>직전 태그 스킬이 낸 피해(진단·연출용). 안 나갔으면 0.</summary>
         public float LastTagSkillDamage { get; private set; }
 
@@ -902,9 +928,15 @@ namespace MBI.Core
             // ⚠️ **기당 피해는 둘이 같은 값을 쓴다**(`droneCharge`) — 설계 문서의
             //    「광역형은 표적 하나당 절반」은 **코드에 없다.** 여기서 지어내지 않는다
             //    (설계 판정 자리 · `260918_V02`).
-            float sum = (side.mount.AmountOf(MountItem.Drone) +
-                         side.mount.AmountOf(MountItem.DroneAoe)) *
+            // 광역형은 **표적 하나당 절반**이므로 평균에도 그 비로 든다(2026-09-18 확정).
+            float aoeFactor = side.setup.droneAoeDamageFactor > 0f
+                ? side.setup.droneAoeDamageFactor : 1f;
+
+            float sum = side.mount.AmountOf(MountItem.Drone) *
                         DamageFormula.PerHit(side.setup.droneCharge,
+                            side.setup.mountCoef, side.setup.moduleMult, target.def)
+                      + side.mount.AmountOf(MountItem.DroneAoe) *
+                        DamageFormula.PerHit(side.setup.droneCharge * aoeFactor,
                             side.setup.mountCoef, side.setup.moduleMult, target.def);
 
             List<AmmoLine> lines = side.setup.lines;
@@ -1739,6 +1771,10 @@ namespace MBI.Core
                 float perHit = Act.setup.droneDamagePerHit > 0f
                     ? Act.setup.droneDamagePerHit
                     : Act.setup.droneCharge;   // 0 = 전량(구 거동)
+                // 광역형은 **표적 하나에 절반**만 준다 — 여럿을 치는 대가다(2026-09-18 확정).
+                if (kind == DroneKind.Aoe && Act.setup.droneAoeDamageFactor > 0f)
+                    perHit *= Act.setup.droneAoeDamageFactor;
+
                 Act.drones.Add(new DroneUnit(Act.body.position,
                     Act.setup.droneCharge, perHit, Act.setup.droneAttackRange,
                     kind, angle));
@@ -1788,12 +1824,29 @@ namespace MBI.Core
                     // 주 표적 하나부터 센다 — 「한 번에 몇 마리」의 분모는 타격 횟수다.
                     AoeHitEvents++;
                     AoeHitTargetsTotal++;
+
+                    // 반경 스위프 — **세기만 한다**(판정은 위 `aoeJudge` 하나가 낸다).
+                    for (int r = 0; r < AoeSweepRadii.Length; r++)
+                    {
+                        float rr = AoeSweepRadii[r] * AoeSweepRadii[r];
+                        int n = 0;
+                        foreach (CombatEntity e in _enemies)
+                            if (e.IsAlive && (e.position - target.position).sqrMagnitude <= rr) n++;
+                        AoeSweepTargets[r] += n;
+                    }
                 }
                 if (d.Kind == DroneKind.Aoe)
                     foreach (CombatEntity other in _enemies)
                     {
                         if (other == target || !other.IsAlive) continue;
-                        if ((other.position - d.Position).sqrMagnitude > aoeJudge * aoeJudge) continue;
+                        // ⚠️⚠️ **재는 곳은 표적 둘레다 — 드론 둘레가 아니다**(2026-09-18 정정).
+                        //
+                        // 🗑️ 구 코드는 **드론 자리**에서 쟀다. 드론은 로봇 둘레를 돌고 사거리가
+                        //    9.2 라 **표적에서 멀리 떨어진 채 쏜다** — 반경이 사거리와 같던
+                        //    동안에는 그래도 곁의 적이 들어왔지만, 09-18 에 반경이 2칸이 되자
+                        //    **곁에 닿는 적이 0 이 됐다**(스위프가 r=5 에서도 0.00 마리로 나왔다).
+                        // 📌 「광역」은 **떨어진 자리**에서 퍼지는 것이다 — 쏜 자리가 아니다.
+                        if ((other.position - target.position).sqrMagnitude > aoeJudge * aoeJudge) continue;
                         float more = DamageFormula.PerHit(dealt, Act.setup.mountCoef,
                             Act.setup.moduleMult, other.def);
                         other.hp -= more;
