@@ -458,7 +458,18 @@ namespace MBI.Combat
         //    8 × 10 = 80 이라 한 판에 만충이 한 번도 안 서던 자리다.
         private MountLoad MountB(float stack) =>
             _mountB ?? (_mountB = new MountLoad(MountLoad.SlotsRobotB,
-                MountLoad.StandardStacks(stack, stack * MountLoad.DroneStackFactor)));
+                MountLoad.StandardStacks(stack, stack * DroneStackFactor)));
+
+        /// <summary>드론 스택 비 — **자산이 원천**이다(`params.mountDroneStackFactor`).</summary>
+        private float DroneStackFactor
+        {
+            get
+            {
+                BalanceConfig bal = robot != null ? robot.balanceRef : null;
+                return bal != null && bal.mountDroneStackFactor > 0f
+                    ? bal.mountDroneStackFactor : MountLoad.DroneStackFactorFallback;
+            }
+        }
 
         private void Begin()
         {
@@ -559,6 +570,9 @@ namespace MBI.Combat
                 droneDamagePerHit = (bal != null ? bal.droneCharge : 100f)
                                     * (tuning != null ? tuning.droneDamageFractionTbd : 0.1f),
                 droneAttackRange = tuning.robotAttackRangeTbd, // 본체와 동일(C-3 확정)
+                // 광역 판정 반경 — **사거리와 다른 칸**이다(2026-09-18 · 260918_W01 3장).
+                // ⚠️ 잠정 점값이라 자산이 든다. 0 이면 시뮬이 구 거동(사거리)으로 떨어진다.
+                droneAoeJudgeRadius = bal != null ? bal.droneAoeJudgeRadius : 0f,
                 mountStackLimit = bal != null ? bal.mountStackLimit : 10f,
             };
         }

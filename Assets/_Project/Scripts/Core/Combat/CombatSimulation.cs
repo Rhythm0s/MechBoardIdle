@@ -98,6 +98,18 @@ namespace MBI.Core
         /// </summary>
         public float mountStackLimit;
         public float droneAttackRange;  // 본체와 동일하게 둔다(C-3 확정)
+
+        /// <summary>
+        /// 광역형 드론이 **한 번에 휩쓰는 반경**(칸) — 2026-09-18 · `260918_W01` 3장.
+        ///
+        /// 🗑️ **구 거동 폐기 — 사거리(`droneAttackRange`)를 그대로 쓰던 것.** 반경 칸이
+        /// 없어서 9.2 가 들어갔고, 그러면 **화면 안 적이 사실상 전부** 들어와 광역형에
+        /// 대가가 없었다. 설계가 「본전 4마리」를 확정하고 2칸을 잠정 점값으로 줬다.
+        ///
+        /// ⚠️ **0 이면 구 거동으로 떨어진다**(사거리를 쓴다) — 값을 안 넣은 옛 판이
+        /// 조용히 0 반경이 되어 **광역이 통째로 사라지는 것**을 막는 자리다.
+        /// </summary>
+        public float droneAoeJudgeRadius;
     }
 
     /// <summary>적 스폰 스펙(순수 값). 위치는 시뮬이 결정론적으로 배치.</summary>
@@ -763,11 +775,38 @@ namespace MBI.Core
             return true;
         }
 
+        /// <summary>
+        /// 그 드론이 쓰는 **광역 판정 반경**. 값이 없으면 사거리로 떨어진다(구 거동).
+        ///
+        /// 📌 **판정과 그림이 같은 함수를 부른다** — 두 자리가 각자 수를 고르면
+        /// 09-16 처럼 그림만 고쳐지고 판정은 옛 수를 쓰는 일이 또 난다.
+        /// </summary>
+        private float AoeJudgeRadiusOf(DroneUnit d)
+            => Act.setup.droneAoeJudgeRadius > 0f ? Act.setup.droneAoeJudgeRadius : d.AttackRange;
+
         /// <summary>직전 버스트가 낸 피해(진단·연출용). 아직 안 터졌으면 0.</summary>
         public float LastBurstDamage { get; private set; }
 
         /// <summary>합체 발동 순간의 두 로봇 합산 초당 실피해. 연출이 「전 → 후」의 **전**으로 쓴다.</summary>
         public float LastMergeSnapshot { get; private set; }
+
+        /// <summary>직전 태그 스킬이 **친 표적 수**(진단용). 하네스가 나눔의 대가를 잴 때 쓴다.</summary>
+        public int LastTagSkillTargetCount { get; private set; }
+
+        /// <summary>태그 스킬이 나간 횟수(진단용).</summary>
+        public int TagSkillStrikes { get; private set; }
+
+        /// <summary>
+        /// 광역형 드론이 **한 번 때릴 때 몇 마리에 닿았는가** — 합과 횟수(진단용).
+        ///
+        /// 📌 설계가 청한 측정이다(`260918_W01` 3-2) — 평균이 **본전 4마리**에서 크게
+        /// 벗어나면 판정 반경을 그 수에 맞춰 옮긴다. 표적 하나(주 표적)도 세므로
+        /// 평균은 1 보다 작아지지 않는다.
+        /// </summary>
+        public int AoeHitTargetsTotal { get; private set; }
+
+        /// <summary>광역형이 때린 횟수(진단용).</summary>
+        public int AoeHitEvents { get; private set; }
 
         /// <summary>직전 태그 스킬이 낸 피해(진단·연출용). 안 나갔으면 0.</summary>
         public float LastTagSkillDamage { get; private set; }
@@ -838,6 +877,8 @@ namespace MBI.Core
 
             if (!anyHit) return false;
             LastTagSkillDamage = dealt;
+            LastTagSkillTargetCount = targetCount;
+            TagSkillStrikes++;
             return true;
         }
 
@@ -1730,15 +1771,23 @@ namespace MBI.Core
                 //    (`d.AttackRange` · 2026-09-17 확인 · `260917_W08` 5-5 물음의 답).
                 //    09-16 에 고친 것은 **그림**이었고 **판정은 그대로 사거리**다.
                 //    설계가 값을 주면 이 두 자리(판정과 아래 `aoeJudgeRadius`)를 그 값으로 옮긴다.
+                float aoeJudge = AoeJudgeRadiusOf(d);
+                if (d.Kind == DroneKind.Aoe)
+                {
+                    // 주 표적 하나부터 센다 — 「한 번에 몇 마리」의 분모는 타격 횟수다.
+                    AoeHitEvents++;
+                    AoeHitTargetsTotal++;
+                }
                 if (d.Kind == DroneKind.Aoe)
                     foreach (CombatEntity other in _enemies)
                     {
                         if (other == target || !other.IsAlive) continue;
-                        if ((other.position - d.Position).sqrMagnitude > d.AttackRange * d.AttackRange) continue;
+                        if ((other.position - d.Position).sqrMagnitude > aoeJudge * aoeJudge) continue;
                         float more = DamageFormula.PerHit(dealt, Act.setup.mountCoef,
                             Act.setup.moduleMult, other.def);
                         other.hp -= more;
                         DroneDamageDealt += more;
+                        AoeHitTargetsTotal++;   // 곁에 닿은 한 마리마다
                     }
 
                 _shots.Add(new ShotEvent
@@ -1758,7 +1807,7 @@ namespace MBI.Core
 
                     // ✅ **제 칸으로 낸다**(2026-09-17 · `260917_W08` 5-5).
                     //    광역형일 때만 **판정이 실제로 쓴 반경**을 싣는다 — 그림은 이 수를 본다.
-                    aoeJudgeRadius = d.Kind == DroneKind.Aoe ? d.AttackRange : 0f,
+                    aoeJudgeRadius = d.Kind == DroneKind.Aoe ? aoeJudge : 0f,
                 });
 
                 // 충전량을 다 썼으면 소멸 — 슬롯은 즉시 빈다.

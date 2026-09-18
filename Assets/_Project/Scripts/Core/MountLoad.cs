@@ -89,11 +89,13 @@ namespace MBI.Core
         }
 
         /// <summary>
-        /// 드론 스택이 탄약의 몇 분의 1인가. ✅ **1/2**(2026-09-18 사용자 확정).
-        /// ⚠️ 코드 상수인 까닭 — 이것은 값이 아니라 **비**이고, 밸런스 json 에 칸이 없다.
-        /// 설계가 칸을 내면 그때 자산으로 옮긴다.
+        /// 드론 스택이 탄약의 몇 분의 1인가 — **자산을 못 읽는 판의 기본값**이다.
+        ///
+        /// ✅ 값 1/2 은 2026-09-18 사용자 확정이고, 🗑️ **구 `const` 폐기**(같은 날 설계 지적) —
+        /// 「비라서 json 에 칸이 없다」고 코드에 뒀는데, **칸이 없으면 내는 것**이지
+        /// 코드에 두는 것이 아니다(지침 §3). 원천은 `params.mountDroneStackFactor` 다.
         /// </summary>
-        public const float DroneStackFactor = 0.5f;
+        public const float DroneStackFactorFallback = 0.5f;
 
         /// <summary>슬롯 수. 로봇 A = 4 · 로봇 B = 8.</summary>
         public int SlotCount { get; }

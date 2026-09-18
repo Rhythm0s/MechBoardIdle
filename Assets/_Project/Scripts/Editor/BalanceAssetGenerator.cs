@@ -165,6 +165,11 @@ namespace MBI.Editor
             // 없는 것과 같아 배포 거동이 지금 그대로다(`260917_W05` 4-2).
             c.shieldMax = json.Param("shieldMax");
             c.shieldMaxPerNode = json.Param("shieldMaxPerNode");
+            // 광역 판정 반경 · 드론 스택 비 — 둘 다 **미확정 표기**다(2026-09-18 · 260918_W01).
+            //   ⚠️ 반경은 설계가 「본전 4마리」를 확정하고 2칸은 그것을 만들 **잠정 점값**으로 준 것이다.
+            //   ⚠️ 스택 비는 값이 사용자 확정이고 **칸만 코드 상수에서 옮겨 왔다**(지침 §3).
+            c.droneAoeJudgeRadius = json.Param("droneAoeJudgeRadius");
+            c.mountDroneStackFactor = json.Param("mountDroneStackFactor");
             c.dodgeMoveDistance = json.Param("dodgeMoveDistance");
             c.dodgeMoveSeconds = json.Param("dodgeMoveSeconds");
             c.shieldChargePerMaterial = json.Param("shieldChargePerMaterial");

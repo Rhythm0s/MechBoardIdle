@@ -60,7 +60,7 @@ MonoBehaviour:
   droneExpireSprite: {fileID: 21300000, guid: 57ec3a9efbdb0374fbdf4e83ebb8f789, type: 3}
   ammoOutSprite: {fileID: 21300000, guid: 96986f16a4fcf234badde14ac1644fbc, type: 3}
   droneAoeSprite: {fileID: 21300000, guid: 1949a566a4bfc394b8646172a42b5f43, type: 3}
-  droneAoeRingOn: 0
+  droneAoeRingOn: 1
   enemySideStepHoldTbd: 0.4
   hitStandardFrames:
   - {fileID: 21300000, guid: 5f34f486e6b420043b2cda2787bf7180, type: 3}

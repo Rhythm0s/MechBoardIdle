@@ -1051,5 +1051,307 @@ namespace MBI.EditorTools
             }
             return sum;
         }
+
+        // ══ 태그 두 로봇 판 (2026-09-18 · `260918_W01` 4장) ══════════════════
+        //
+        // ⚠️⚠️ **왜 판을 하나 더 만드나.** 지금 하네스는 **로봇 하나짜리 생성자**를 써서
+        //    `Tag` 가 null 이다 — 태그 스킬이 한 번도 안 나간다. 설계가 재라고 한 셋
+        //    (피해 나눔의 대가 · 드론 스택 40 · 두 드론 혼재)은 **태그가 나가는 판에서만**
+        //    드러나므로 그 판이 없으면 셋 다 못 잰다.
+        //
+        // ⚠️ **안 쓸 판은 안 만든다**(구현이 먼저 적고 설계가 받은 경고). 그래서 이 판에는
+        //    **재는 목적 넷**이 붙어 있고, 보고 줄도 그 넷에 맞춰 있다.
+
+        /// <summary>
+        /// 태그 두 로봇 판 — 보드 둘을 다 돌리고 태그를 자동으로 시킨다.
+        ///
+        /// 배치 실행: <c>-executeMethod MBI.EditorTools.StageClearHarness.RunTagBatch</c>
+        /// </summary>
+        [MenuItem("MBI/Harness 태그 두 로봇 판 (0918_W01 4장)")]
+        public static void RunTagMenu() => Debug.Log(RunTag());
+
+        public static void RunTagBatch()
+        {
+            Debug.Log(RunTag());
+            if (Application.isBatchMode) EditorApplication.Exit(0);
+        }
+
+        public static string RunTag()
+        {
+            var sb = new StringBuilder();
+            sb.AppendLine("############ 태그 두 로봇 판 (2026-09-18 · 260918_W01 4장) ############");
+            sb.AppendLine();
+
+            var stage = AssetDatabase.LoadAssetAtPath<StageDefinition>($"{SoRoot}/Stages/Stage_S1.asset");
+            var robotA = AssetDatabase.LoadAssetAtPath<RobotDefinition>($"{SoRoot}/Robots/Robot_A.asset");
+            var robotB = AssetDatabase.LoadAssetAtPath<RobotDefinition>($"{SoRoot}/Robots/Robot_B.asset");
+            var tuning = AssetDatabase.LoadAssetAtPath<CombatTuning>($"{SoRoot}/CombatTuning.asset");
+            if (stage == null || robotA == null || robotB == null || tuning == null)
+            {
+                sb.AppendLine("자산이 없다 — 'MBI/Generate Combat Data' 먼저.");
+                return sb.ToString();
+            }
+
+            BalanceConfig bal = robotA.balanceRef;
+            float propellantNeed = bal != null ? bal.propellantNeed : 30f;
+            float stack = bal != null ? bal.mountStackLimit : 10f;
+            float droneFactor = bal != null && bal.mountDroneStackFactor > 0f
+                ? bal.mountDroneStackFactor : MountLoad.DroneStackFactorFallback;
+            if (bal != null && bal.dodgeStacksPerBooster > 0)
+                DodgeSystem.StacksPerBooster = bal.dodgeStacksPerBooster;
+
+            sb.AppendLine("[판] S1 · 튜토리얼 종료 · 자동 조종 **켬** · 태그 오토 **켬**");
+            sb.AppendLine("  ⚠️ 태그 오토를 켠 것은 **가정**이다 — 게임 기본값은 꺼짐이고,");
+            sb.AppendLine("     사람이 안 누르는 판에서 태그를 재려면 켜는 수밖에 없다.");
+            sb.AppendLine($"  A 마운트 {MountLoad.SlotsRobotA} × {stack:F0} = {MountLoad.SlotsRobotA * stack:F0}"
+                          + $" · B 마운트 {MountLoad.SlotsRobotB} × {stack * droneFactor:F0}"
+                          + $" = {MountLoad.SlotsRobotB * stack * droneFactor:F0} (드론 스택 비 {droneFactor:F2})");
+            sb.AppendLine($"  광역 판정 반경 {(bal != null ? bal.droneAoeJudgeRadius : 0f):F1} 칸"
+                          + " (⚠️ 잠정 점값 · 설계 확정은 「본전 4마리」)");
+
+            // ── 보드 둘 ────────────────────────────────────────────────────
+            BoardGrid gridA = Board(propellantNeed);
+            BoardGrid gridB = BoardB(propellantNeed);
+
+            var flowA = new BeltItemFlow(); flowA.Rebuild(gridA);
+            var flowB = new BeltItemFlow(); flowB.Rebuild(gridB);
+            var deliveryA = new MountDelivery();
+            var deliveryB = new MountDelivery();
+
+            var config = AssetDatabase.LoadAssetAtPath<LogisticsConfig>($"{SoRoot}/LogisticsConfig.asset");
+            float heatThreshold = config != null ? config.heatThreshold : 12f;
+            float cooling = config != null ? config.moduleCoolingTbd : 0f;
+
+            ICollection<Vector2Int> connA = LogisticsReach.ConnectedNodes(gridA);
+            ICollection<Vector2Int> connB = LogisticsReach.ConnectedNodes(gridB);
+            NetworkAggregate aggA = LogisticsNetwork.Aggregate(
+                gridA, connA, WorkloadRate.Compute(gridA, connA, bal));
+            NetworkAggregate aggB = LogisticsNetwork.Aggregate(
+                gridB, connB, WorkloadRate.Compute(gridB, connB, bal));
+            ProductionThrottle throttleA = LogisticsSimulation.Throttles(
+                aggA.powerSupply, aggA.powerDraw, aggA.heatGenerate, cooling, heatThreshold);
+            ProductionThrottle throttleB = LogisticsSimulation.Throttles(
+                aggB.powerSupply, aggB.powerDraw, aggB.heatGenerate, cooling, heatThreshold);
+
+            sb.AppendLine($"  A 보드 — 이어진 노드 {connA.Count} · 탄약 {aggA.ammoProduce:F2} 발/초"
+                          + $" · 전력 {aggA.powerSupply:F0}/{aggA.powerDraw:F0}");
+            sb.AppendLine($"  B 보드 — 이어진 노드 {connB.Count} · 드론 {aggB.droneProduce:F2} 기/초"
+                          + $" · 광역 몫 {aggB.AoeShare:F2} · 전력 {aggB.powerSupply:F0}/{aggB.powerDraw:F0}");
+
+            // ── 로봇 둘 ────────────────────────────────────────────────────
+            SupplySignals.Reset();
+            SupplySignals.HasCombat = true;
+            SupplySignals.ActiveOwner = MountOwner.RobotA;
+
+            float ammoCapacity = bal != null ? bal.storeCapacity : 40f;
+            var mountA = new MountLoad(MountLoad.SlotsRobotA, MountLoad.StandardStacks(stack));
+            var mountB = new MountLoad(MountLoad.SlotsRobotB,
+                MountLoad.StandardStacks(stack, stack * droneFactor));
+
+            var lines = new List<AmmoLine>();
+            ShotAllocator.AllocateRates(robotA.weapons, robotA.consumptionCap,
+                SupplySignals.ArrivalRateOf, SupplySignals.MountStockOf, lines);
+
+            float mountCoef = stage.powerModel == StagePowerModel.Logistics
+                ? robotA.mountCoef : robotA.enhancedMountCoef;
+
+            var setupA = new RobotSetup
+            {
+                hp = tuning.robotHp, mountCoef = mountCoef, moduleMult = robotA.moduleMult,
+                attackRange = tuning.robotAttackRangeTbd, radius = 0.5f,
+                multiShotCount = tuning.multiShotCountTbd,
+                aoeRadius = tuning.aoeRadiusTbd, aoeSplashFactor = tuning.aoeSplashFactorTbd,
+                lines = new List<AmmoLine>(lines),
+                ammoCapacity = ammoCapacity, ammoStore = new AmmoInventory(ammoCapacity),
+            };
+
+            // 로봇 B — 본체 무기가 없다(화력은 전부 드론). 러너의 `BuildRobotBSetup` 과 같은 값이다.
+            var setupB = new RobotSetup
+            {
+                hp = tuning.robotHp,
+                mountCoef = stage.powerModel == StagePowerModel.Logistics
+                    ? robotB.mountCoef : robotB.enhancedMountCoef,
+                moduleMult = robotB.moduleMult,
+                attackRange = tuning.robotAttackRangeTbd, radius = 0.5f,
+                multiShotCount = 1, aoeRadius = 0f, aoeSplashFactor = 1f,
+                lines = new List<AmmoLine>(),
+                ammoCapacity = ammoCapacity, ammoStore = new AmmoInventory(ammoCapacity),
+                droneSlots = bal != null ? bal.droneSlots : 3,
+                droneReleaseRate = bal != null ? bal.droneReleaseRate : 1f,
+                droneCharge = bal != null ? bal.droneCharge : 100f,
+                droneDamagePerHit = (bal != null ? bal.droneCharge : 100f)
+                                    * tuning.droneDamageFractionTbd,
+                droneAttackRange = tuning.robotAttackRangeTbd,
+                droneAoeJudgeRadius = bal != null ? bal.droneAoeJudgeRadius : 0f,
+                mountStackLimit = stack,
+            };
+
+            // 튜토리얼 종료 판 — A 마운트만 표준탄으로 채운다(B 는 제 보드가 채운다).
+            mountA.Load(MountItem.Standard, mountA.SlotCount * stack);
+
+            List<EnemySpawn> spawns = StageSpawnFactory.Build(stage, EnemyCatalog(), tuning);
+            var sim = new CombatSimulation(setupA, setupB, mountA, mountB, spawns,
+                tuning.arenaRadiusTbd, stage.challengeTime, tuning.spawnCadenceTbd);
+            sim.AutoTagEnabled = true;
+            sim.SetSideStepHold(tuning.enemySideStepHoldTbd);
+            if (tuning.spawnRingMinTbd > 0f && tuning.spawnRingMaxTbd > 0f)
+                sim.SetSpawnBand(tuning.spawnRingMinTbd, tuning.spawnRingMaxTbd);
+
+            // 쉴드 — 두 보드가 각자 낸다(러너와 같은 문).
+            float shieldPerNode = bal != null ? bal.shieldMaxPerNode : 0f;
+            float shieldRatio = bal != null ? bal.shieldChargeRatioPerSec : 0.025f;
+            float shieldMatPerSec = bal != null ? bal.shieldMaterialPerSec : 1f;
+
+            // ── 잰다 ───────────────────────────────────────────────────────
+            int steps = Mathf.RoundToInt(HardCapSeconds / Dt);
+            float elapsed = 0f;
+            int tagSwaps = 0, lastActive = 0;
+            float bFullAt = -1f;
+            var strikeLog = new List<string>();
+            float stackSum = 0f, aoeSum = 0f;
+            int mountSamples = 0;
+
+            for (int i = 0; i < steps && sim.Result == CombatResult.InProgress; i++)
+            {
+                bool aActive = sim.ActiveRobotIndex == 0;
+                SupplySignals.ActiveOwner = aActive ? MountOwner.RobotA : MountOwner.RobotB;
+
+                // 1) 보드 둘 다 돈다 — 대기 보드도 계속 만든다(그것이 태그의 전제다).
+                BoardItemTick.Step(gridA, flowA, Dt, throttleA.Scale);
+                deliveryA.Observe(flowA.PendingMountArrivals, DamageOf, Dt, MountOwner.RobotA);
+                flowA.ClearPendingMountArrivals();
+                deliveryA.TryDrain(DeliverySampleSeconds, out _);
+
+                BoardItemTick.Step(gridB, flowB, Dt, throttleB.Scale);
+                deliveryB.Observe(flowB.PendingMountArrivals, DamageOf, Dt, MountOwner.RobotB);
+                flowB.ClearPendingMountArrivals();
+                deliveryB.TryDrain(DeliverySampleSeconds, out _);
+
+                // 2) 각 보드의 산출을 **제 로봇에** 넣는다 — 활성이 누구냐로 자리가 갈린다.
+                if (aActive)
+                {
+                    sim.AmmoSupplyRate = aggA.ammoProduce;
+                    sim.PropellantSupplyRate = aggA.propellantProduce;
+                    sim.BoosterCount = aggA.boosterCount;
+                    sim.ShieldMax = ShieldSystem.MaxFrom(aggA.shieldNodeCount, shieldPerNode);
+                    sim.ShieldChargeRate = ShieldSystem.ChargeFrom(sim.ShieldMax, shieldRatio,
+                        aggA.shieldMaterialProduce, aggA.shieldNodeCount, shieldMatPerSec);
+
+                    sim.StandbyStackDroneArrivalRate = deliveryB.StackDroneRate;
+                    sim.StandbyAoeDroneArrivalRate = deliveryB.AoeDroneRate;
+                    sim.StandbyPropellantSupplyRate = aggB.propellantProduce;
+                    sim.StandbyBoosterCount = aggB.boosterCount;
+                    sim.StandbyShieldMax = ShieldSystem.MaxFrom(aggB.shieldNodeCount, shieldPerNode);
+                    sim.StandbyShieldChargeRate = ShieldSystem.ChargeFrom(sim.StandbyShieldMax,
+                        shieldRatio, aggB.shieldMaterialProduce, aggB.shieldNodeCount, shieldMatPerSec);
+                }
+                else
+                {
+                    sim.StackDroneArrivalRate = deliveryB.StackDroneRate;
+                    sim.AoeDroneArrivalRate = deliveryB.AoeDroneRate;
+                    sim.PropellantSupplyRate = aggB.propellantProduce;
+                    sim.BoosterCount = aggB.boosterCount;
+                    sim.ShieldMax = ShieldSystem.MaxFrom(aggB.shieldNodeCount, shieldPerNode);
+                    sim.ShieldChargeRate = ShieldSystem.ChargeFrom(sim.ShieldMax, shieldRatio,
+                        aggB.shieldMaterialProduce, aggB.shieldNodeCount, shieldMatPerSec);
+
+                    sim.StandbyAmmoSupplyRate = aggA.ammoProduce;
+                    sim.StandbyPropellantSupplyRate = aggA.propellantProduce;
+                    sim.StandbyBoosterCount = aggA.boosterCount;
+                    sim.StandbyShieldMax = ShieldSystem.MaxFrom(aggA.shieldNodeCount, shieldPerNode);
+                    sim.StandbyShieldChargeRate = ShieldSystem.ChargeFrom(sim.StandbyShieldMax,
+                        shieldRatio, aggA.shieldMaterialProduce, aggA.shieldNodeCount, shieldMatPerSec);
+                }
+
+                // 3) 자동 조종 — 게임과 같은 문(회피로 밀리는 동안은 양보).
+                if (sim.Robot != null && !sim.DodgeMotionActive)
+                {
+                    var ctx = new AutoPilotContext
+                    {
+                        robotPos = sim.Robot.position, enemies = sim.Enemies,
+                        arenaRadius = tuning.arenaRadiusTbd,
+                        attackRange = tuning.robotAttackRangeTbd,
+                        moveSpeed = tuning.robotMoveSpeedTbd,
+                        holdWhenMoreThan = tuning.autoPilotHoldWhenMoreThanTbd,
+                        dt = Dt,
+                    };
+                    sim.Robot.position = AutoPilotPolicy.NextPosition(ctx);
+                }
+
+                int strikesBefore = sim.TagSkillStrikes;
+                float bStack = mountB.AmountOf(MountItem.Drone);
+                float bAoe = mountB.AmountOf(MountItem.DroneAoe);
+
+
+                sim.Tick(Dt);
+                elapsed += Dt;
+
+                // 4) 표본
+                stackSum += bStack; aoeSum += bAoe; mountSamples++;
+                if (sim.ActiveRobotIndex != lastActive) { tagSwaps++; lastActive = sim.ActiveRobotIndex; }
+                if (sim.TagSkillStrikes > strikesBefore)
+                {
+                    // ⚠️ **만충 시각은 이 자리에서 잰다.** 대기 보드가 채우는 것도, 만충을 보고
+                    //    교대가 나는 것도 **틱 안**이라, 틱 경계에서 `IsFull` 을 보면 만충이던
+                    //    순간이 통째로 안 보인다 — 태그 스킬은 만충일 때만 나가므로 그 자리가 곧 만충이다.
+                    if (bFullAt < 0f) bFullAt = elapsed;
+                    float total = sim.LastTagSkillDamage;
+                    int n = Mathf.Max(1, sim.LastTagSkillTargetCount);
+                    strikeLog.Add($"    {elapsed:F1}초 · 표적 {n} · 총 피해 {total:F0}"
+                                  + $" · 한 체 몫 {total / n:F0}"
+                                  + $" · 소진 직전 적재(누적 {bStack:F0} · 광역 {bAoe:F0})");
+                }
+            }
+
+            // ── 보고 ───────────────────────────────────────────────────────
+            sb.AppendLine();
+            sb.AppendLine("[결과]");
+            sb.AppendLine($"  {sim.Result} · {elapsed:F1}초 · 남은 적 {sim.Remaining}/{sim.TotalEnemies}"
+                          + $" · 로봇 HP {sim.Robot.hp:F0}/{sim.Robot.maxHp:F0}");
+            sb.AppendLine($"  교대 {tagSwaps} 회 · 태그 스킬 {sim.TagSkillStrikes} 회");
+
+            sb.AppendLine();
+            sb.AppendLine("[목적 1 — 피해 나눔의 대가]  ← 측정법: 태그 스킬이 터질 때마다 표적 수와 총 피해를 읽는다");
+            if (strikeLog.Count == 0)
+                sb.AppendLine("    ⚠️ **한 번도 안 터졌다** — 만충이 안 섰거나 표적이 없었다. 아래 목적 2 를 먼저 본다.");
+            else foreach (string line in strikeLog) sb.AppendLine(line);
+
+            sb.AppendLine();
+            sb.AppendLine("[목적 2 — 드론 스택 40]  ← 측정법: B 마운트가 처음 만충이 된 시각");
+            sb.AppendLine(bFullAt >= 0f
+                ? $"    **{bFullAt:F1}초**에 만충(적재량 {MountLoad.SlotsRobotB * stack * droneFactor:F0})"
+                  + " ← 태그 스킬이 나간 자리로 잰다(만충일 때만 나간다)"
+                : $"    ⚠️ **한 판 안에 만충이 안 섰다**(적재량 {MountLoad.SlotsRobotB * stack * droneFactor:F0})");
+
+            sb.AppendLine();
+            sb.AppendLine("[목적 3 — 두 드론 혼재]  ← 측정법: 매 틱 B 마운트의 두 종 적재를 평균 낸다");
+            float avgStack = mountSamples > 0 ? stackSum / mountSamples : 0f;
+            float avgAoe = mountSamples > 0 ? aoeSum / mountSamples : 0f;
+            float both = avgStack + avgAoe;
+            sb.AppendLine($"    평균 적재 — 누적형 {avgStack:F1} · 광역형 {avgAoe:F1}"
+                          + (both > 0f ? $" · 광역 비율 {avgAoe / both:F2}" : " · 비율 없음(둘 다 0)"));
+            sb.AppendLine($"    보드 산출 몫 — 광역 {aggB.AoeShare:F2} (비율이 이 수와 갈리면 마운트가 유입대로 안 찬 것이다)");
+
+            sb.AppendLine();
+            sb.AppendLine("[목적 4 — 광역형 한 기의 평균 표적 수]  ← 측정법: 광역 타격마다 (주 표적 1 + 곁에 닿은 수)");
+            sb.AppendLine(sim.AoeHitEvents > 0
+                ? $"    타격 {sim.AoeHitEvents} 회 · 닿은 표적 합 {sim.AoeHitTargetsTotal}"
+                  + $" · **평균 {(float)sim.AoeHitTargetsTotal / sim.AoeHitEvents:F2} 마리**"
+                  + " (설계 본전 4마리와 견준다)"
+                : "    ⚠️ 광역형이 한 번도 안 때렸다 — 보드가 광역형을 안 만들었거나 사출이 없었다");
+
+            sb.AppendLine();
+            sb.AppendLine("############ 끝 ############");
+            return sb.ToString();
+        }
+
+        private static List<EnemyDefinition> EnemyCatalog()
+        {
+            var catalog = new List<EnemyDefinition>();
+            foreach (string guid in AssetDatabase.FindAssets("t:EnemyDefinition"))
+                catalog.Add(AssetDatabase.LoadAssetAtPath<EnemyDefinition>(
+                    AssetDatabase.GUIDToAssetPath(guid)));
+            return catalog;
+        }
     }
 }

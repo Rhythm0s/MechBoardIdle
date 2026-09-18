@@ -31,6 +31,8 @@ MonoBehaviour:
   propellantNeed: 30
   dodgeMoveDistance: 0.5
   dodgeMoveSeconds: 0.167
+  droneAoeJudgeRadius: 2
+  mountDroneStackFactor: 0.5
   dodgeStacksPerBooster: 4
   mergeOutputMult: 2
   muniPerNode: 1

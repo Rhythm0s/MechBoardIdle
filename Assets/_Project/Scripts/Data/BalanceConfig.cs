@@ -89,6 +89,12 @@ namespace MBI.Data
         [Tooltip("회피 이동에 걸리는 시간(초). params.dodgeMoveSeconds = 0.167 확정치 — 무적과 같이 끝난다.")]
         public float dodgeMoveSeconds = 0.167f;
 
+        [Tooltip("광역형 드론의 광역 판정 반경(칸). params.droneAoeJudgeRadius = 2 ⚠️ 잠정 점값 — 설계 확정은 「본전 4마리」이고 이 수는 그것을 만들 추정이다. 0 이면 구 거동(드론 사거리)으로 떨어진다.")]
+        public float droneAoeJudgeRadius = 2f;
+
+        [Tooltip("드론 스택 비(탄약 대비). params.mountDroneStackFactor = 0.5 ⚠️ 가정 표기 — 값은 사용자 확정이고 칸만 코드에서 옮겨 왔다. 로봇 B 적재량 = 슬롯 8 × 스택 × 이 비.")]
+        public float mountDroneStackFactor = 0.5f;
+
         [Tooltip("부스터 1대당 회피 스택 칸. params.dodgeStacksPerBooster = 4 확정치(구 2). 회피 스택 상한 = 부스터 노드 대수 × 이 값. 시작 보드는 부스터 둘이라 상한 8.")]
         public int dodgeStacksPerBooster = 4;
 
