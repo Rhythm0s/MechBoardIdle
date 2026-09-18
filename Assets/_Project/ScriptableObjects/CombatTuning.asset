@@ -29,6 +29,7 @@ MonoBehaviour:
   droneOrbitSpeedTbd: 1.6
   droneFlySpeedTbd: 6
   droneAttachDistanceTbd: 0.35
+  droneLeashRadiusTbd: 0
   droneDamageFractionTbd: 0.1
   droneHitIntervalTbd: 0.5
   droneLaunchScaleTbd: 0.5
@@ -51,6 +52,11 @@ MonoBehaviour:
   tagSweepOnceOnly: 1
   tagBulletFullCircleCountTbd: 30
   tagLaserMaxBeamsTbd: 16
+  tagFlashAlphaTbd: 0.35
+  tagFlashSecondsTbd: 0.18
+  tagBulletSizeMultTbd: 2
+  tagBulletWavesTbd: 3
+  tagBulletWaveSecondsTbd: 0.22
   invincibleBlinkSecondsTbd: 0.06
   invincibleBlinkMinAlphaTbd: 0.3
   enemyProjectileViewUnitsTbd: 0.5
@@ -81,6 +87,20 @@ MonoBehaviour:
   combatBackgroundSprite: {fileID: 21300000, guid: 09e97e297cb9c9347818d9a3eb60f56d, type: 3}
   bossBackgroundSprite: {fileID: 21300000, guid: efe2cdc0b82f2724eacefc077d3f69b1, type: 3}
   vfxOneShotSeconds: 0.2
+  waveSizeTbd: 4
+  waveIntervalSecondsTbd: 0
+  dropRestSecondsTbd: 0.25
+  dropMagnetSecondsTbd: 0.45
+  dropViewUnitsTbd: 0.3
+  dropPopSecondsTbd: 0.9
+  dropPopRiseUnitsTbd: 0.8
+  combatPowerMountFactorTbd: 0
+  dodgeAfterimageCountTbd: 5
+  dodgeTrailSecondsTbd: 0.6
+  dodgeAfterimageAlphaTbd: 0.45
+  dodgeStreakThicknessTbd: 0.35
+  shotsPerRound: 3
+  shotDamageFactor: 0.5
   multiShotCountTbd: 1
   aoeRadiusTbd: 1.5
   aoeSplashFactorTbd: 0
