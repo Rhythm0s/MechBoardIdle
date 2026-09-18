@@ -104,3 +104,44 @@ EDGES: the effect meets the transparent background directly, a clean unbordered 
 **밝은 쪽으로 20.9%p 벌어졌고 채도가 0.18 낮다.** 가운데는 **안쪽 60% 반경의 불투명 화소 0**.
 
 ⚠️ **캔버스 256 과 프레임 수는 문서에 없어 가정이다** — 대장에 그렇게 적었다.
+
+---
+
+## 3. HUD 재화 그림 `icon_gold` · `icon_scrap` — `create_1_direction_object` · 24 · 20 생성 · 1차 통과
+
+**한 호출에 둘을 넣었다.** `item_descriptions` 는 한 번의 생성으로 **서로 다른 물건 여럿**을 낸다.
+아이콘 32 둘과 드롭 24 둘을 넷으로 따로 걸면 80 생성인데, **두 호출 40** 으로 끝났다.
+(사용자가 24 판을 골라 32 판 20 은 결과적으로 안 쓰게 되었다 — 후보 폴더에 남는다.)
+
+### 공통 `description` (24 판)
+
+```
+a tiny pickup lying flat on the ground seen from directly above, one single object alone on a fully transparent background, flat crisp pixel shapes with three value steps, a single dark outline all around, no glow and no light bloom, carrying its own colour and needing no tint, still readable when very small. WHAT SURROUNDS IT: the whole area outside the object's own outline is empty transparent background and holds nothing at all - no ground, no plate, no sparkle, no shadow and no drawing of any kind.
+```
+
+### `item_descriptions` 둘
+
+```
+[0] a single gold coin lying flat on the ground, a round struck coin of warm yellow gold with a darker gold rim, very simple with only a few shapes
+[1] a single small piece of scrap metal lying flat on the ground, an irregular chunk of dull grey steel with a spot of rust brown, very simple with only a few shapes
+```
+
+**장치 둘.**
+
+① **`carrying its own colour and needing no tint`** — 설계가 「코드 틴트 없음(자기 색)」으로 냈다.
+「색을 칠하지 마라」로 적을 자리가 아니다. 그림에 **덧칠이 필요 없을 만큼 제 색이 있어야** 한다는 뜻이라
+**그림이 갖출 성질**로 옮겼다.
+
+② **`WHAT SURROUNDS IT` 절** — UI 아이콘 문안은 도구가 **판·틀·배지·반짝임**을 딸려 그리기 쉽다.
+규칙 9 대로 「그리지 마라」가 아니라 **그 자리가 무엇인가**로 적었다:
+「윤곽 바깥은 텅 빈 투명 배경이고 **아무것도 없다**」. 쉴드 노드에서 치수선을 걷어 낸 것과 같은 수다.
+
+### 무엇이 덜 먹었나
+
+⚠️ **`very simple with only a few shapes` 가 고철 쪽에 덜 먹었다.** 24 칸에 **색 45** 로 나왔다
+(금화는 29). 「단순하게」는 **셈할 수 있는 말이 아니라** 도구가 정도를 제 맘대로 잡는다.
+다음에 같은 자리를 만나면 **색 수나 도형 수를 숫자로** 적는 편이 낫다 —
+쉴드에서 「세어 보라: 여섯 변, 여섯 꼭짓점」이 먹은 것과 같은 까닭이다.
+
+⚠️ **「아이언사가 톤」은 문안에 못 넣었다.** 도구가 상표 이름을 화풍으로 읽지 않는다.
+이 집 공통 틀(**세 단 명암 · 단색 어두운 테두리 · 발광 없음**)로 옮겨 적었다.
