@@ -1468,6 +1468,54 @@ namespace MBI.EditorTools
             return sb.ToString();
         }
 
+        /// <summary>
+        /// B 판의 **「면이 다름」 경고 자리**를 찍는다 (2026-09-18 사용자 리허설 ② 진단).
+        ///
+        /// 📌 화면에서 본 경고가 **판이 진짜 안 이어진 것**인지 **경고가 거짓말**인지를
+        ///    가르는 자리다 — 둘은 화면에서 같은 글자로 보인다.
+        ///
+        /// 배치 실행: <c>-executeMethod MBI.EditorTools.StageClearHarness.RunBoardBProbeBatch</c>
+        /// </summary>
+        [MenuItem("MBI/Probe B 판 면 경고")]
+        public static void RunBoardBProbeMenu() => Debug.Log(RunBoardBProbe());
+
+        public static void RunBoardBProbeBatch()
+        {
+            Debug.Log(RunBoardBProbe());
+            if (Application.isBatchMode) EditorApplication.Exit(0);
+        }
+
+        public static string RunBoardBProbe()
+        {
+            var sb = new StringBuilder();
+            sb.AppendLine("############ B 판 면 경고 진단 (2026-09-18) ############");
+
+            var robotA = AssetDatabase.LoadAssetAtPath<RobotDefinition>($"{SoRoot}/Robots/Robot_A.asset");
+            float need = robotA != null && robotA.balanceRef != null ? robotA.balanceRef.propellantNeed : 30f;
+            BoardGrid g = BoardB(need);
+
+            List<Vector2Int> bad = BeltRouting.FaceMismatchCells(g);
+            sb.AppendLine($"[면이 다름] {bad.Count} 칸");
+            foreach (Vector2Int c in bad)
+            {
+                BeltInstance b = g.GetBeltAt(c);
+                sb.AppendLine($"    {c} · {(b != null ? b.Element.ToString() : "?")}"
+                              + $" · In {(b != null && b.InFaces != null ? b.InFaces.Length : 0)} 면"
+                              + $" · Out {(b != null && b.OutFaces != null ? b.OutFaces.Length : 0)} 면");
+            }
+
+            ICollection<Vector2Int> conn = LogisticsReach.ConnectedNodes(g);
+            sb.AppendLine($"[이어진 노드] {conn.Count}");
+            foreach (StartingBoardB.Slot slot in StartingBoardB.Nodes)
+            {
+                NodeInstance n = g.GetAt(slot.cell);
+                sb.AppendLine($"    {slot.cell} {slot.nodeId} 회전 {(n != null ? n.Rotation : -1)}"
+                              + $" · 이어짐 {(conn.Contains(slot.cell) ? "예" : "**아니오**")}");
+            }
+            sb.AppendLine("############ 끝 ############");
+            return sb.ToString();
+        }
+
         private static List<EnemyDefinition> EnemyCatalog()
         {
             var catalog = new List<EnemyDefinition>();

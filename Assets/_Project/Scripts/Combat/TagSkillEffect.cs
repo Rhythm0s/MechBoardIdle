@@ -36,6 +36,8 @@ namespace MBI.Combat
 
         private Transform[] _bullets;
         private Vector2[] _bulletSpots;
+        private int _waves = 1;
+        private float _waveSeconds = 0.22f;
         private SpriteRenderer _flash;
 
         // ── 자리를 고르는 법 — 순수 계산이라 시험이 여기를 잰다 ──────────────
@@ -99,7 +101,16 @@ namespace MBI.Combat
 
             int count = tuning != null ? Mathf.Max(1, tuning.tagBulletFullCircleCountTbd) : 30;
             float sizePx = tuning != null ? tuning.tagBulletSizeArtPixels : 38f;
-            float size = sizePx / PixelsPerUnit;
+            // ⚠️ **크게**(2026-09-18 사용자 리허설 ⑦) — 38 아트 픽셀은 화면에서 점이었다.
+            float sizeMult = tuning != null && tuning.tagBulletSizeMultTbd > 0f
+                ? tuning.tagBulletSizeMultTbd : 1f;
+            float size = sizePx * sizeMult / PixelsPerUnit;
+
+            // **파도 여럿이 빠르게 내려온다**(사용자 ⑦). 탄환마다 제 파도에 속한다.
+            fx._waves = tuning != null ? Mathf.Max(1, tuning.tagBulletWavesTbd) : 3;
+            fx._waveSeconds = tuning != null && tuning.tagBulletWaveSecondsTbd > 0f
+                ? tuning.tagBulletWaveSecondsTbd : 0.22f;
+            fx._sweepSeconds = fx._waveSeconds * fx._waves;
 
             fx._bulletSpots = ScatterPositions(screen, count);
             fx._bullets = new Transform[count];
@@ -134,14 +145,21 @@ namespace MBI.Combat
         {
             TagSkillEffect fx = Create(parent, screen.center, tuning, color);
             fx._isFlash = true;
-            fx._sweepSeconds = tuning != null ? tuning.tagLaserSweepSeconds : 0.40f;
+            // ⚠️ **짧게 스친다**(2026-09-18 사용자 리허설 ⑥) — 0.40초를 화면 가득 덮으면
+            //    「연출」이 아니라 「가림막」으로 읽힌다.
+            fx._sweepSeconds = tuning != null ? tuning.tagFlashSecondsTbd : 0.18f;
+
+            // ⚠️⚠️ **반투명이다.** 흰 사각에 색만 입히면 **불투명**이라 화면이 통째로 가려진다 —
+            //    사용자가 「녹색 사각으로 가려진다」로 본 자리가 여기다.
+            float peak = tuning != null ? tuning.tagFlashAlphaTbd : 0.35f;
+            fx._color = new Color(color.r, color.g, color.b, Mathf.Clamp01(peak));
 
             var sheet = new GameObject("TagFlash");
             sheet.transform.SetParent(fx.transform, false);
             sheet.transform.localScale = new Vector3(screen.width, screen.height, 1f);
             var sr = sheet.AddComponent<SpriteRenderer>();
             sr.sprite = white;
-            sr.color = color;
+            sr.color = fx._color;   // ⚠️ 첫 프레임부터 반투명이라야 한다(색을 그대로 넣으면 한 칸 번쩍인다)
             sr.sortingOrder = SortingLayers.EffectOver;
             fx._flash = sr;
             return fx;
@@ -188,8 +206,17 @@ namespace MBI.Combat
 
                 for (int i = 0; i < _bullets.Length; i++)
                 {
-                    // **위에서 떨어져 제 자리에 꽂힌다** — 낙하분이 0으로 줄어든다.
-                    float drop = fall * (1f - turn);
+                    // **파도마다 따로 떨어진다**(2026-09-18 ⑦). 탄환은 제 파도의 차례가
+                    // 올 때까지 화면 위에서 기다렸다가, 그 파도 안에서 빠르게 꽂힌다.
+                    int wave = _waves <= 1 ? 0 : i % _waves;
+                    float waveStart = wave * _waveSeconds;
+                    float u = _waveSeconds <= 0f ? 1f
+                        : Mathf.Clamp01((_elapsed - waveStart) / _waveSeconds);
+
+                    float drop = fall * (1f - u);
+                    bool waiting = _elapsed < waveStart;
+                    _bullets[i].gameObject.SetActive(!waiting);   // 제 차례 전에는 안 보인다
+
                     Vector2 spot = _bulletSpots[i];
                     _bullets[i].localPosition = new Vector3(
                         spot.x - center.x, spot.y - center.y + drop, 0f);

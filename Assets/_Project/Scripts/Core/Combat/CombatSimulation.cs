@@ -1772,12 +1772,16 @@ namespace MBI.Core
                     ? Act.setup.droneDamagePerHit
                     : Act.setup.droneCharge;   // 0 = 전량(구 거동)
                 // 광역형은 **표적 하나에 절반**만 준다 — 여럿을 치는 대가다(2026-09-18 확정).
-                if (kind == DroneKind.Aoe && Act.setup.droneAoeDamageFactor > 0f)
-                    perHit *= Act.setup.droneAoeDamageFactor;
+                //
+                // ⚠️⚠️ **피해에만 건다 — 충전량은 그대로 먹는다.** 종전에는 `perHit` 자체를
+                //    반으로 줄였는데, 충전량 소비도 `perHit` 이라 **수명이 두 배**가 됐다 —
+                //    한 표적에게 주는 총 피해가 그대로여서 「표적당 절반」이 성립하지 않았다.
+                float factor = kind == DroneKind.Aoe && Act.setup.droneAoeDamageFactor > 0f
+                    ? Act.setup.droneAoeDamageFactor : 1f;
 
                 Act.drones.Add(new DroneUnit(Act.body.position,
                     Act.setup.droneCharge, perHit, Act.setup.droneAttackRange,
-                    kind, angle));
+                    kind, angle, factor));
                 // 사출 연출이 붙는 자리 — 판정은 위에서 이미 끝났다.
                 _droneLaunches.Add(Act.body.position);
             }

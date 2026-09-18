@@ -400,22 +400,11 @@ namespace MBI.Combat
         /// </summary>
         public Vector2? FacingOverride;
 
-        /// <summary>
-        /// **무적인 동안 몸이 깜빡인다** (2026-09-18 사용자 확정 — 「부스트의 느낌이 들도록」).
-        ///
-        /// 📌 깜빡이는 것은 **알파**뿐이다. 색을 바꾸면 피격 섬광(빨강·하양)과 섞여
-        /// 두 사건이 한 빛으로 읽힌다 — 무적은 「안 맞는다」이고 섬광은 「맞았다」다.
-        /// ⚠️ 값 둘은 **구현 가정**이다(`CombatTuning` 이 든다 · 러너가 넣어 준다).
-        /// </summary>
-        public bool Invincible;
-
-        /// <summary>깜빡임 반 주기(초). 이 시간만큼 흐리고 같은 시간만큼 뚜렷하다.</summary>
-        public float InvincibleBlinkSeconds = 0.06f;
-
-        /// <summary>가장 흐릴 때의 알파. 0 이면 완전히 사라져 「죽은 것」으로 보인다.</summary>
-        public float InvincibleBlinkMinAlpha = 0.3f;
-
-        private float _invincibleElapsed;
+        // 🗑️ **무적 깜빡임 폐기**(2026-09-18 사용자 리허설 ④) — 09-18 오전에 넣었다가
+        //    같은 날 저녁에 걷었다. 사용자가 「버그처럼 보인다」로 뒤집었다.
+        //    📌 회피가 났다는 것은 **밀려나는 것**과 **분사**가 이미 말하고 있었다 —
+        //       몸이 사라졌다 나타나는 것은 그 위에 얹힌 **넷째 신호**였고, 셋이 겹치자
+        //       가장 세게 읽히는 것(사라짐)이 「죽었나?」로 읽혔다.
 
         /// <summary>
         /// **선 자세를 강제한다** — 회피로 밀리는 동안 걷는 벌을 돌리지 않으려는 자리
@@ -484,32 +473,7 @@ namespace MBI.Combat
                     _bodyRenderer.color = _bodyBaseColor;
             }
 
-            // ⚠️ **섬광 뒤에 건다.** 섬광이 색을 되돌릴 때 알파까지 1 로 돌려놓으므로,
-            //    앞에 두면 맞은 순간 깜빡임이 한 프레임씩 끊긴다.
-            if (_bodyRenderer != null) StepInvincibleBlink(dt);
         }
 
-        /// <summary>무적인 동안 알파만 껐다 켠다. 무적이 끝나면 **반드시 1 로 되돌린다.**</summary>
-        private void StepInvincibleBlink(float dt)
-        {
-            Color c = _bodyRenderer.color;
-            float alpha = 1f;
-
-            if (Invincible && InvincibleBlinkSeconds > 0f)
-            {
-                _invincibleElapsed += dt;
-                float period = InvincibleBlinkSeconds * 2f;
-                alpha = Mathf.Repeat(_invincibleElapsed, period) < InvincibleBlinkSeconds
-                    ? Mathf.Clamp01(InvincibleBlinkMinAlpha) : 1f;
-            }
-            else
-            {
-                // 다음 무적이 **흐린 쪽 중간에서** 시작하지 않게 되감는다.
-                _invincibleElapsed = 0f;
-            }
-
-            if (!Mathf.Approximately(c.a, alpha))
-                _bodyRenderer.color = new Color(c.r, c.g, c.b, alpha);
-        }
     }
 }

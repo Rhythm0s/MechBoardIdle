@@ -66,16 +66,9 @@ namespace MBI.Logistics
 
         private int _selectedNode; // 팔레트에서 선택된 노드 인덱스
 
-        /// <summary>
-        /// **놓기 전에 미리 돌려 둔 방향** — 0~3 (2026-09-15 사용자 확정 · §72-42).
-        ///
-        /// ⚠️ **놓고 나서 돌리는 것만으로는 부족하다.** 새티스팩토리·엔드필드가 그렇듯
-        /// **놓기 전에 방향을 정하는 것**이 손에 익은 순서다. 놓고 → 고르고 → 돌리면
-        /// 한 대에 세 번 손이 가고, 줄을 스무 대 깔 때 예순 번이 된다.
-        ///
-        /// ⚠️ **팔레트를 바꿔도 안 풀린다** — 같은 방향으로 여러 종류를 깔 때가 많다.
-        /// </summary>
-        private int _placeRotation;
+        // 🗑️ **`_placeRotation` 폐기**(2026-09-18 사용자 리허설 ⑩) — 놓기 전 회전 버튼을
+        //    걷으면서 들고 있을 것이 없어졌다. 회전은 놓은 뒤 팝오버가 든다.
+
 
         /// <summary>팔레트 가로 스크롤 자리. 열한 칸이 기준 캔버스 1440 을 넘어선다(2026-09-11).</summary>
         private Vector2 _paletteScroll;
@@ -889,29 +882,21 @@ namespace MBI.Logistics
         /// </summary>
         private void ApplyStartingBoardB(BoardGrid grid)
         {
-            // ⚠️ 자산을 못 찾은 칸을 **먼저 알린다** — `Apply` 는 조용히 건너뛴다.
-            foreach (StartingBoardB.Slot slot in StartingBoardB.Nodes)
-            {
-                NodeDefinition def = FindStartingNode(slot.nodeId);
-                if (def == null)
-                {
-                    // ⚠️ **「그 칸은 빈다」로 끝내면 안 된다** — 복합 가공소가 빠지면 두 줄이
-                    //    합류를 못 해 **판 전체가 아무것도 못 낸다.** 무엇이 죽는지를 적는다.
-                    Debug.LogError($"[MBI] B 시작 보드: 노드 '{slot.nodeId}' 자산을 못 찾았다 — "
-                                   + "`startingNodePool` 에 없다(생성기를 다시 돌린다). "
-                                   + "그 칸이 비면 줄이 끊겨 **B 판이 아무것도 못 낸다.**");
-                    continue;
-                }
-                if (!grid.TryPlace(slot.cell, def, out NodeInstance placed)) continue;
-                if (slot.recipe != RecipeKind.None && !placed.SelectRecipe(slot.recipe))
-                    Debug.LogWarning($"[MBI] B 시작 보드: {slot.nodeId} 가 조합표 "
-                                     + $"{slot.recipe} 를 못 받는다 — 기본값으로 선다.");
-            }
-
-            // ⚠️⚠️ **놓는 손은 `StartingBoard.Place` 하나다**(2026-09-17).
-            //    종전에는 여기서 `TryPlaceBelt` 만 불렀다 — 병합기도 분류기도 **직선 벨트로**
-            //    깔렸다는 뜻이다. B 판에 분류기가 들어온 오늘 그것이 실제 결함이 됐다.
-            foreach (StartingBoard.Run run in StartingBoardB.Belts) StartingBoard.Place(grid, run);
+            // ⚠️⚠️ **놓는 손은 `StartingBoardB.Apply` 하나다**(2026-09-18 정정).
+            //
+            // 🗑️ 구 코드 폐기 — 여기에 **같은 일을 하는 자리 둘째**가 있었다. 노드를 제가
+            //    직접 놓느라 09-18 에 생긴 **회전 칸을 안 읽었고**, 그래서 화면에서는
+            //    둘째 드론 줄의 노드 넷이 **안 돌린 채** 서서 「면이 다름」 경고가 떴다.
+            //    하네스는 `Apply` 를 지나 0 칸으로 나왔으니, 둘이 **다른 판을 세우고 있었다.**
+            //
+            // 📌 알리는 일만 여기 남긴다 — `Apply` 는 조용히 건너뛰므로 무엇이 죽는지를 적는다.
+            StartingBoardB.Apply(grid, FindStartingNode,
+                onMissing: id => Debug.LogError(
+                    $"[MBI] B 시작 보드: 노드 '{id}' 자산을 못 찾았다 — "
+                    + "`startingNodePool` 에 없다(생성기를 다시 돌린다). "
+                    + "그 칸이 비면 줄이 끊겨 **B 판이 아무것도 못 낸다.**"),
+                onRecipeFail: (id, recipe) => Debug.LogWarning(
+                    $"[MBI] B 시작 보드: {id} 가 조합표 {recipe} 를 못 받는다 — 기본값으로 선다."));
         }
 
         /// <summary>
@@ -1512,44 +1497,9 @@ namespace MBI.Logistics
             }
         }
 
-        /// <summary>
-        /// **산물이 나가는 쪽**을 화살표로 그린다 (2026-09-15 · §72-42).
-        ///
-        /// ⚠️ **아트 자산을 안 쓴다.** `arrow.png` 는 벨트 흐름 표시용이고 한 칸을 통째로
-        /// 쓰는 타일이라 버튼 안에 넣으면 꽉 찬다. 여기 필요한 것은 **작은 방향 표시** 하나라
-        /// 코드로 그린다 — 사각 셋을 이어 삼각을 흉내 낸다(회전 없이 네 방향).
-        ///
-        /// 0도 = 동쪽(노드의 기본 출력면)에서 시작해 시계로 돈다.
-        /// </summary>
-        private static void DrawRotationArrow(Rect box, int rotation)
-        {
-            Texture2D dot = UiSkin.PlateTexture;
-            if (dot == null) return;
+        // 🗑️ **`DrawRotationArrow` 폐기**(2026-09-18 ⑩) — 그리던 버튼이 없어져
+        //    부르는 곳이 0 건이 됐다. 남겨 두면 다음 사람이 「방향 표시가 있다」고 읽는다.
 
-            float cx = box.center.x, cy = box.center.y + box.height * 0.22f;
-            float t = Mathf.Max(2f, box.width * 0.06f);
-            float len = box.width * 0.22f;
-
-            // 동(0) · 남(1) · 서(2) · 북(3) — `PortFace` 와 같은 시계 차례.
-            Rect shaft, head;
-            switch (((rotation % 4) + 4) % 4)
-            {
-                case 1:  shaft = new Rect(cx - t * 0.5f, cy, t, len);
-                         head  = new Rect(cx - t, cy + len - t, t * 2f, t); break;
-                case 2:  shaft = new Rect(cx - len, cy - t * 0.5f, len, t);
-                         head  = new Rect(cx - len, cy - t, t, t * 2f); break;
-                case 3:  shaft = new Rect(cx - t * 0.5f, cy - len, t, len);
-                         head  = new Rect(cx - t, cy - len, t * 2f, t); break;
-                default: shaft = new Rect(cx, cy - t * 0.5f, len, t);
-                         head  = new Rect(cx + len - t, cy - t, t, t * 2f); break;
-            }
-
-            Color prev = GUI.color;
-            GUI.color = new Color(0.98f, 0.85f, 0.35f);
-            GUI.DrawTexture(shaft, dot);
-            GUI.DrawTexture(head, dot);
-            GUI.color = prev;
-        }
 
         /// <summary>슬롯 칸 테두리 한 변.</summary>
         private SpriteRenderer SlotEdge(Transform parent, float cx, float cy, float w, float h)
@@ -2806,8 +2756,8 @@ namespace MBI.Logistics
             }
             if (!_grid.TryPlace(cell, node, out NodeInstance placedNode)) return;
 
-            // ⚠️ **미리 돌려 둔 방향을 그대로 놓는다**(§72-42) — 놓고 나서 또 돌리지 않는다.
-            if (placedNode != null) placedNode.Rotation = _placeRotation;
+            // 🗑️ **미리 돌려 두는 길 폐기**(2026-09-18 ⑩) — 팔레트 버튼이 없어졌다.
+            //    놓은 뒤 팝오버의 「90도 돌리기」가 그 일을 한다.
 
             SpawnNodeMarker(cell);
             // 격자에 붙는 순간의 딸깍(사운드 문서 3장). **놓는 데 성공했을 때만** —
@@ -3240,18 +3190,13 @@ namespace MBI.Logistics
                 bx += step;
             }
 
-            // ── 놓기 전 회전 (2026-09-15 사용자 확정 · §72-42) ────────────────
+            // 🗑️ **「방향 0/90/180/270」 버튼 폐기**(2026-09-18 사용자 리허설 ⑩ ·
+            //    `a27182a` 3/3 되돌림). 09-15 의 근거는 「놓기 전에 방향을 정해 두면 손이
+            //    덜 간다」였는데, 화면에서는 **탭마다 각도가 바뀌어** 무엇을 놓을지 고르는
+            //    자리에 **상태가 하나 더** 생겼다 — 사용자가 「탭마다 노출된다」로 잡았다.
             //
-            // ⚠️ **놓고 나서 돌리는 것만으로는 부족하다.** 놓고 → 고르고 → 돌리면 한 대에
-            // 손이 세 번 가고, 줄을 스무 대 깔면 예순 번이 된다. 새티스팩토리·엔드필드처럼
-            // **놓기 전에 방향을 정해 두는 것**이 손에 익은 순서다.
-            //
-            // ⚠️ **팔레트를 바꿔도 안 풀린다** — 같은 방향으로 여러 종류를 깔 때가 많다.
-            var rotRect = new Rect(bx, 0f, side, side);
-            if (UiSkin.Button(rotRect, $"방향 {_placeRotation * 90}°", style))
-                _placeRotation = (_placeRotation + 1) % 4;
-            DrawRotationArrow(rotRect, _placeRotation);
-            bx += step;
+            // 📌 **회전은 놓은 뒤 팝오버의 「90도 돌리기」만 남긴다** — 돌릴 일이 드물고,
+            //    드문 일은 **늘 보이는 버튼**이 아니라 그 물건을 고른 뒤에 있으면 된다.
 
             // 벨트 요소(§5-4 L3). 직선·코너는 드래그가 만들고, 이 둘만 탭으로 놓는다 —
             // 방향이 여러 개라 드래그 경로로는 표현되지 않는다.
@@ -3273,6 +3218,21 @@ namespace MBI.Logistics
                         0.75f + 0.25f * Mathf.Abs(Mathf.Sin(Time.unscaledTime * 2.2f)));
 
                 bool pressed = UiSkin.Button(eRect, (on ? "● " : "") + ElementLabel(e), style);
+
+                // ⚠️ **그림을 얹는다**(2026-09-18 사용자 리허설 ⑨) — 노드 버튼은 그림이
+                //    있는데 이 둘만 글자뿐이라, 팔레트에서 **무엇을 놓는지가 안 보였다.**
+                //    글자는 남긴다(둘은 모양이 비슷해 이름이 갈라 준다).
+                if (art != null)
+                {
+                    Sprite icon = art.BeltSprite(e);
+                    if (icon != null)
+                    {
+                        var iconRect = new Rect(eRect.x + eRect.width * 0.22f,
+                                                eRect.y + eRect.height * 0.08f,
+                                                eRect.width * 0.56f, eRect.height * 0.56f);
+                        GUI.DrawTexture(iconRect, icon.texture, ScaleMode.ScaleToFit, true);
+                    }
+                }
                 GUI.color = prevCol;
 
                 if (pressed)
@@ -3451,9 +3411,12 @@ namespace MBI.Logistics
                 // ⚠️ **흐르는 품목의 한 글자는 안 적는다** (2026-09-10 사용자 확정 · 리허설 1차).
                 // 「코」·「전」 같은 글자는 **품목 그림이 없던 시절의 자리표시**였는데, 품목 열둘이
                 // 배선되면서 **그림이 흐르는 위에 글자가 겹쳤다.** 무엇이 흐르는지는 그림이 말한다.
-                string label = belt != null && belt.Element == BeltElementKind.Merger ? "합"
-                    : belt != null && belt.Element == BeltElementKind.Sorter ? "분"
-                    : string.Empty;
+                // 🗑️ **「합」·「분」 글자 폐기**(2026-09-18 사용자 리허설 ⑨ — 「병합기·분류기
+                //    이미지가 안 보인다」). 타일 그림이 붙어 있는데 **검은 글자가 그 위를 덮고**
+                //    있었다 — 09-10 에 품목 한 글자를 걷은 것과 **같은 자리**다:
+                //    그림이 붙으면 글자는 자리표시였던 것이다.
+                //    📌 무엇인지는 이제 **모양**이 말한다(직선·코너와 다른 그림이다).
+                string label = string.Empty;
                 if (label.Length == 0) continue; // 비어 있는 벨트는 색으로만 — 글자까지 깔면 시끄럽다
                 DrawLabelAt(cam, kv.Value.transform.position, label, beltStyle, Color.black, 52f);
             }

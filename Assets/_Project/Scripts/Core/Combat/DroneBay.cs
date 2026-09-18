@@ -117,15 +117,28 @@ namespace MBI.Core
         }
 
         public DroneUnit(Vector2 position, float charge, float damagePerHit, float attackRange,
-            DroneKind kind, float orbitAngle)
+            DroneKind kind, float orbitAngle, float damageFactor = 1f)
         {
             Position = position;
             Charge = Mathf.Max(0f, charge);
             DamagePerHit = Mathf.Max(0f, damagePerHit);
+            DamageFactor = damageFactor > 0f ? damageFactor : 1f;
             AttackRange = Mathf.Max(0f, attackRange);
             Kind = kind;
             OrbitAngle = orbitAngle;
         }
+
+        /// <summary>
+        /// **주는 피해에만 걸리는 비** — 충전량은 그대로 먹는다 (2026-09-18 정정).
+        ///
+        /// ⚠️⚠️ **여기를 안 가르면 「절반」이 「수명 두 배」가 된다.** 광역형의 타격당
+        /// 피해를 절반으로 주면서 **충전량도 절반만** 먹으면 같은 충전량으로 **두 배**를
+        /// 때린다 — 한 표적에게 주는 **총 피해가 그대로**여서, 「표적당 절반」이라는
+        /// 사용자 확정이 화면에서 성립하지 않는다.
+        ///
+        /// 📌 그래서 **먹는 것은 안 줄이고 주는 것만 줄인다** — 수명이 그대로다.
+        /// </summary>
+        public float DamageFactor { get; }
 
         /// <summary>
         /// 누적형인가 광역형인가 (2026-09-16 · 사용자 확정 · 플랜 §74-21).
@@ -187,9 +200,12 @@ namespace MBI.Core
         {
             if (Charge <= 0f) return 0f;
 
-            float dealt = Mathf.Min(DamagePerHit, Charge);
-            Charge -= dealt;
-            return dealt;
+            // **먹는 양**은 충전량 기준 그대로다 — 수명은 종에 상관없이 같다.
+            float eaten = Mathf.Min(DamagePerHit, Charge);
+            Charge -= eaten;
+
+            // **주는 양**만 비를 탄다(광역형 0.5). 둘을 한 수로 두면 절반이 수명 두 배가 된다.
+            return eaten * DamageFactor;
         }
     }
 }

@@ -22,8 +22,12 @@ namespace MBI.Core
     /// </summary>
     public sealed class DodgeMotion
     {
-        /// <summary>격자 반 칸(아트 픽셀 96). ✅ 사용자 확정 2026-09-17.</summary>
-        public const float DefaultDistance = 0.5f;
+        /// <summary>
+        /// ✅ **1.25 칸 — 사용자 확정 2026-09-18 리허설**(구 0.5 의 2.5 배).
+        /// 🗑️ 구 0.5(격자 반 칸) 폐기 — 화면에서 **밀린 것이 안 보였다.**
+        /// ⚠️ 시간(<see cref="DefaultSeconds"/>)은 안 건드렸으므로 **같은 시간에 2.5 배**를 간다.
+        /// </summary>
+        public const float DefaultDistance = 1.25f;
 
         /// <summary>무적과 **같이 시작하고 같이 끝난다**. ✅ 사용자 확정 2026-09-17.</summary>
         public const float DefaultSeconds = 0.167f;

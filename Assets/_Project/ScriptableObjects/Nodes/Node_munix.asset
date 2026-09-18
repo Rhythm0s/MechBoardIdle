@@ -13,7 +13,7 @@ MonoBehaviour:
   m_Name: Node_munix
   m_EditorClassIdentifier: MBI.Data::MBI.Data.NodeDefinition
   nodeId: munix
-  displayName: "\uBCF5\uD569\n\uBCC0\uD658\uAE30"
+  displayName: "\uBCF5\uD569 \uAC00\uACF5\uC18C"
   type: 7
   implemented: 1
   resources:

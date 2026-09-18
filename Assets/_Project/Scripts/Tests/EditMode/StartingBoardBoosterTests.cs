@@ -260,6 +260,36 @@ namespace MBI.Tests
             }
         }
 
+        /// <summary>
+        /// **놓는 문이 회전을 건다** (2026-09-18 사용자 리허설 ② · 결함 수정).
+        ///
+        /// ⚠️⚠️ 화면 쪽(`BoardController`)이 **제 놓는 손을 따로** 갖고 있어서 09-18 에
+        /// 생긴 회전 칸을 안 읽었다 — 하네스는 돌아간 판을, 화면은 안 돌아간 판을 세웠고
+        /// 그 결과 둘째 드론 줄 옆에 **「면이 다름」 경고**가 떴다.
+        /// 지금은 문이 하나(`StartingBoardB.Apply`)이고, 이 시험이 그 문을 지킨다.
+        /// </summary>
+        [Test]
+        public void B_시작_보드가_회전을_그대로_놓는다()
+        {
+            var g = new BoardGrid(PartLayout.Columns, PartLayout.Rows, 1f, Vector2.zero,
+                PartLayout.BuildMask(), MountOwner.RobotB);
+            StartingBoardB.Apply(g, id =>
+                AssetDatabase.LoadAssetAtPath<NodeDefinition>(
+                    $"Assets/_Project/ScriptableObjects/Nodes/Node_{id}.asset"));
+
+            int turned = 0;
+            foreach (StartingBoardB.Slot slot in StartingBoardB.Nodes)
+            {
+                NodeInstance n = g.GetAt(slot.cell);
+                Assert.IsNotNull(n, $"{slot.cell} 에 노드가 없다");
+                Assert.AreEqual(slot.rotation, n.Rotation,
+                    $"{slot.cell} {slot.nodeId} 의 회전이 안 걸렸다 — 둘째 드론 줄이 못 선다");
+                if (slot.rotation != 0) turned++;
+            }
+
+            Assert.AreEqual(4, turned, "돌아간 노드가 넷이 아니다 — 판이 바뀌었으면 이 수도 같이 본다");
+        }
+
         [Test]
         public void 분류기가_직선으로_깔리지_않았다()
         {

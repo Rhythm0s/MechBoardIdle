@@ -228,7 +228,11 @@ namespace MBI.Core
         /// **놓는 문 하나** — A 쪽 <see cref="StartingBoard.Apply"/> 와 같은 까닭이다
         /// (2026-09-17 신설). 조합표를 한 곳만 빠뜨려도 그 판은 조용히 반쪽이 된다.
         /// </summary>
-        public static int Apply(BoardGrid grid, System.Func<string, NodeDefinition> nodeById)
+        /// <param name="onMissing">자산을 못 찾은 노드 id. 화면 쪽이 소리 내어 알릴 자리다.</param>
+        /// <param name="onRecipeFail">조합표를 못 받은 노드 id 와 그 조합표.</param>
+        public static int Apply(BoardGrid grid, System.Func<string, NodeDefinition> nodeById,
+                                System.Action<string> onMissing = null,
+                                System.Action<string, RecipeKind> onRecipeFail = null)
         {
             if (grid == null || nodeById == null) return 0;
 
@@ -236,10 +240,18 @@ namespace MBI.Core
             foreach (Slot slot in Nodes)
             {
                 NodeDefinition def = nodeById(slot.nodeId);
-                if (def == null) continue;
+                if (def == null) { onMissing?.Invoke(slot.nodeId); continue; }
                 if (!grid.TryPlace(slot.cell, def, out NodeInstance node)) continue;
-                node.Rotation = slot.rotation;   // 2026-09-18 — 안 돌리면 둘째 드론 줄이 못 선다
-                if (slot.recipe != RecipeKind.None) node.SelectRecipe(slot.recipe);
+
+                // ⚠️⚠️ **이 한 줄이 화면에는 없었다**(2026-09-18 사용자 리허설 ②).
+                //    `BoardController` 가 **제 놓는 손을 따로 갖고 있어서** 회전이 안 걸렸고,
+                //    돌아야 할 노드 넷이 **안 돌린 채로** 서서 「면이 다름」 경고가 떴다.
+                //    하네스는 이 문을 지나므로 **0 칸**으로 나왔다 — 같은 판을 두 손이 놓고 있었다.
+                //    📌 그래서 화면 쪽 손을 걷고 **이 문 하나만** 남겼다(같은 일을 하는 자리 둘).
+                node.Rotation = slot.rotation;
+
+                if (slot.recipe != RecipeKind.None && !node.SelectRecipe(slot.recipe))
+                    onRecipeFail?.Invoke(slot.nodeId, slot.recipe);
                 placed++;
             }
 

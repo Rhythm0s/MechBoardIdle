@@ -251,11 +251,14 @@ namespace MBI.Editor
             //    「소」 한 글자가 **탭(갈래)과 노드(물건)**를 가른다.
             //    ⚠️ **자산 id 는 그대로 `muni` 다** — 바꾸면 저장·시작 보드·씬 주머니가 다 끊긴다.
             //    바뀌는 것은 **화면에 뜨는 글자**뿐이다.
-            // ✅ **재개명 — 「기초 가공소」 → 「기초\n변환기」**(2026-09-18 사용자 확정 · 육안 뒤).
+            // 🗑️ **되돌림 — 「기초 변환기」 폐기 · 「기초 가공소」로 돌아간다**
+            //    (2026-09-18 저녁 사용자 리허설 ⑪). 같은 날 낮에 바꿨다가 화면에서 보고 되돌렸다.
+            //    📌 `proc` 의 「변환기」와 `shield` 의 「보호막」은 **그대로 둔다** — 언급이 없었다.
+            //    구 주석(줄바꿈을 이름 안에 넣은 까닭)은 여기서 뜻을 잃었다.
             //    ⚠️ **줄바꿈이 이름 안에 들어 있다.** 자동 줄바꿈에 맡겼더니 화면에서
             //    「기초 가공 / 소」로 갈려 마지막 한 글자만 둘째 줄에 떨어졌다 —
             //    어디서 끊을지는 글자 수가 아니라 **말의 마디**가 정한다.
-            WriteNode(config, "muni", "기초\n변환기", NodeType.MunitionsBasic, true,
+            WriteNode(config, "muni", "기초 가공소", NodeType.MunitionsBasic, true,
                 new NodeResourceProfile { ammoProduce = muniPerNode, powerDraw = MuniPowerDraw,
                     confirm = ConfirmState.Confirmed },
                 new List<NodePort>
@@ -275,8 +278,8 @@ namespace MBI.Editor
             // ⚠️ 산출 속도와 개당 소비량은 **아직 미확정**이다. 값을 만들지 않고 카탈로그의
             // 센티넬을 그대로 쓰며, 밸런스가 정하면 그쪽만 고치면 된다.
             // ✅ **개명 — 「복합 군수」 → 「복합 가공소」**(2026-09-17 사용자 확정). id `munix` 는 그대로.
-            // ✅ **재개명 — 「복합 가공소」 → 「복합\n변환기」**(2026-09-18 사용자 확정 · 줄바꿈 포함).
-            WriteNode(config, "munix", "복합\n변환기", NodeType.MunitionsComplex, true,
+            // 🗑️ **되돌림 — 「복합 변환기」 폐기 · 「복합 가공소」로 돌아간다**(2026-09-18 저녁).
+            WriteNode(config, "munix", "복합 가공소", NodeType.MunitionsComplex, true,
                 // 대당 전력 **3 — 확정**(2026-09-10 · `260910_W01` 4장 8번). 종전에는 0(미설정
                 // 센티넬)이었고 그동안 복합 가공소는 전력을 한 푼도 안 먹었다 — 전력 축이 이 노드에
                 // 안 걸렸다. 실측(에너지 3대 → 5대)이 크기를 재 주어 `Tbd`를 푼다.

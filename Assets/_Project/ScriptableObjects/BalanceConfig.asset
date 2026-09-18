@@ -29,7 +29,7 @@ MonoBehaviour:
   shieldChargeRatioPerSec: 0.025
   shieldMaterialPerSec: 1
   propellantNeed: 30
-  dodgeMoveDistance: 0.5
+  dodgeMoveDistance: 1.25
   dodgeMoveSeconds: 0.167
   droneAoeJudgeRadius: 2
   droneAoeDamageFactor: 0.5

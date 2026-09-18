@@ -600,10 +600,8 @@ namespace MBI.Combat
         {
             if (_robotView == null || _sim == null) return;
 
-            // 무적인 동안 몸이 깜빡인다 (2026-09-18 사용자 — 「부스트의 느낌이 들도록」).
-            _robotView.Invincible = _sim.RobotInvincible;
-            _robotView.InvincibleBlinkSeconds = tuning != null ? tuning.invincibleBlinkSecondsTbd : 0.06f;
-            _robotView.InvincibleBlinkMinAlpha = tuning != null ? tuning.invincibleBlinkMinAlphaTbd : 0.3f;
+            // 🗑️ **무적 깜빡임 배선 폐기**(2026-09-18 사용자 리허설 ④ — 「버그처럼 보인다」).
+            //    같은 날 오전에 넣었다가 저녁에 걷었다. 값 둘은 자산에 폐기 표기로 남겼다.
 
             // ⚠️ **회피로 밀리는 동안에는 가는 쪽을 본다 — 선 자세로**
             //    (2026-09-18 사용자 확정). 표적도 수동 입력도 이것보다 뒤다:
@@ -731,6 +729,32 @@ namespace MBI.Combat
         ///
         /// ⚠️ **피해와 무관하다.** 연출이 있든 없든 판정은 시뮬이 이미 끝냈다(전투 문서 10-1).
         /// </summary>
+        /// <summary>
+        /// **개발 빌드에서만** 태그 스킬의 수를 화면에 적는다 (2026-09-18 사용자 리허설 ⑫).
+        ///
+        /// 📌 나눔이 실제로 걸리는지를 **사람이 화면에서** 보려면 수가 보여야 한다 —
+        /// 지금까지는 하네스 로그에만 있었다.
+        ///
+        /// ⚠️ **배포 빌드에는 안 나온다**(`Debug.isDebugBuild`) — 심사자가 보는 화면에
+        /// 진단 글자가 뜨면 그것이 게임의 일부로 읽힌다.
+        /// </summary>
+        private void NoteTagSkillNumbers()
+        {
+            if (!Debug.isDebugBuild) return;
+            if (_sim.LastTagSkillDamage <= 0f) return;
+
+            int n = Mathf.Max(1, _sim.LastTagSkillTargetCount);
+            _tagSkillNote = $"태그 스킬 — 표적 {n} · 총 피해 {_sim.LastTagSkillDamage:F0}"
+                            + $" · 한 체 몫 {_sim.LastTagSkillDamage / n:F0}";
+            _tagSkillNoteUntil = Time.time + TagSkillNoteSeconds;
+        }
+
+        /// <summary>진단 줄이 화면에 머무는 시간(초). ⚠️ 가정 — 개발 빌드 전용이라 값이 아니다.</summary>
+        private const float TagSkillNoteSeconds = 3f;
+
+        private string _tagSkillNote;
+        private float _tagSkillNoteUntil;
+
         private void PlayTagSkillEffect()
         {
             if (_sim == null) return;
@@ -1327,7 +1351,11 @@ namespace MBI.Combat
             // 태그 스킬 연출은 **터진 틱**에 나간다 — 태그 인과 동시가 아니다
             // (260908_W06 2장 · 진입 클립이 다 돈 0.75초 뒤). 뷰를 다시 묶는 위 블록과
             // 떼어 놓은 이유가 그것이다 — 교대 프레임에는 아직 안 터졌다.
-            if (_sim.TagSkillResolvedThisTick) PlayTagSkillEffect();
+            if (_sim.TagSkillResolvedThisTick)
+            {
+                PlayTagSkillEffect();
+                NoteTagSkillNumbers();
+            }
 
             PlayInstalledVfx();
             // 쉴드 막대 — 매 프레임 비율을 다시 건다(HP 바와 같은 결).
@@ -1438,7 +1466,13 @@ namespace MBI.Combat
                             : robotB.droneSprite);
                     sr.sprite = art != null ? art : PlaceholderSprite.SoftDisc();
                     sr.color = art != null ? Color.white : new Color(0.6f, 0.95f, 0.7f);
-                    sr.sortingOrder = SortingLayers.Actor;
+
+                    // ⚠️⚠️ **액터보다 두 칸 위에 그린다**(2026-09-18 사용자 리허설 ① —
+                    //    「드론이 공격할 때 사라진다」). 종전에는 적·로봇과 **같은 층 0** 이라
+                    //    누적형이 적에게 **붙는 순간 그 뒤로 숨었고**, 광역형도 로봇 뒤를 돌 때
+                    //    가려졌다 — 같은 층 안에서는 어느 쪽이 위인지 정해지지 않는다.
+                    //    📌 ±1~9 는 **같은 층 안의 미세 조정** 몫이다(`SortingLayers` 주석).
+                    sr.sortingOrder = SortingLayers.Actor + 2;
                     // 크기는 아트 캔버스가 정한다(드론 64px). 아트가 이미 그 크기면 스케일 1이다.
                     if (art == null) go.transform.localScale = new Vector3(ArtSpec.DroneSize, ArtSpec.DroneSize, 1f);
                     _droneViews[d] = sr;
@@ -2038,6 +2072,15 @@ namespace MBI.Combat
             //
             // ⚠️ **임시물이다** — 얼굴 방향의 원인이 잡히면 이 메서드를 통째로 걷는다.
             DrawFacingDiagnostic(combatBand, hudScale, hudLeft, hudW, lineFace);
+
+            // 태그 스킬 진단 줄 — **개발 빌드에서만** 잠깐 뜬다(2026-09-18 ⑫).
+            if (Debug.isDebugBuild && Time.time < _tagSkillNoteUntil && !string.IsNullOrEmpty(_tagSkillNote))
+            {
+                var noteStyle = new GUIStyle(style) { fontStyle = FontStyle.Bold };
+                noteStyle.normal.textColor = new Color(1f, 0.92f, 0.45f);
+                GUI.Label(new Rect(hudLeft, combatBand.y + 4f, hudW, 34f * hudScale),
+                          _tagSkillNote, noteStyle);
+            }
 
             bool foldable = GameViewSignals.BoardViewActive;
             if (foldable)

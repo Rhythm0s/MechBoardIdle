@@ -57,7 +57,7 @@ namespace MBI.Tests
             Vector2 sum = Vector2.zero;
             for (int i = 0; i < 40; i++) sum += m.Step(0.01f);   // 0.4초 — 넉넉히
 
-            Assert.AreEqual(DodgeMotion.DefaultDistance, sum.x, 0.001f, "반 칸이 아니다");
+            Assert.AreEqual(DodgeMotion.DefaultDistance, sum.x, 0.001f, "정해진 거리가 아니다");
             Assert.AreEqual(0f, sum.y, D, "옆으로 샜다");
             Assert.IsFalse(m.IsMoving);
             Assert.AreEqual(Vector2.zero, m.Step(0.1f), "끝났는데 더 간다");
@@ -88,7 +88,8 @@ namespace MBI.Tests
                 "Assets/_Project/ScriptableObjects/BalanceConfig.asset");
             Assert.IsNotNull(bal, "BalanceConfig 자산이 없다 — 생성기를 먼저 돌린다");
 
-            Assert.AreEqual(0.5f, bal.dodgeMoveDistance, D, "params dodgeMoveDistance = 0.5");
+            Assert.AreEqual(1.25f, bal.dodgeMoveDistance, D,
+                "params dodgeMoveDistance = 1.25 (2026-09-18 사용자 · 구 0.5 폐기)");
             Assert.AreEqual(0.167f, bal.dodgeMoveSeconds, D, "params dodgeMoveSeconds = 0.167");
 
             // ⚠️⚠️ **둘이 갈리면 무적이 끝난 뒤에도 밀리거나 그 반대가 된다.**
