@@ -2252,17 +2252,27 @@ namespace MBI.Combat
             GUI.color = prev;
             if (hit) TagAutoMode.Toggle();   // 길게 누르기와 **같은 값**을 뒤집는다
 
-            // 안내 한 줄 — **문구는 사용자 확정 그대로**다(`TagAutoMode.Hint`).
+            // 안내 — **문구는 사용자 확정 그대로**다(`TagAutoMode.Hint`).
             // ⚠️ 토글 **아래**로 옮겼다 — 위에 두면 태그 원형과 겹친다(자리를 내린 대가).
-            var hint = new Rect(toggle.x, toggle.yMax + 2f * s, toggle.width, h * 0.58f);
+            //
+            // ⚠️⚠️ **두 줄로 나눈다**(2026-09-19 사용자 육안 ⑤ · 스크린샷 1·2).
+            //
+            // 종전은 `wordWrap = false` + `Overflow` 한 줄이라 열여덟 자가 토글 폭(300)을
+            // 훌쩍 넘었고, 오른쪽이 **화면 밖으로 잘려** 「자동 켬」까지만 보였다 —
+            // 「끔」이 안 보이니 **길게 눌러 끌 수 있다는 사실 자체가 안 읽힌다.**
+            //
+            // 📌 **두 줄짜리 문구를 따로 두지 않는다** — 같은 말이 두 곳에 살면 한쪽만
+            //    고쳐지는 날이 온다(지침 §7). 상수는 하나고, 끊을 자리(`·`)만 여기서 준다.
+            var hint = new Rect(toggle.x - toggle.width * 0.15f, toggle.yMax + 2f * s,
+                                toggle.width * 1.3f, h * 0.92f);
             if (hint.yMax > Screen.height) return;
-            GUI.Label(hint, TagAutoMode.Hint, new GUIStyle(GUI.skin.label)
+            GUI.Label(hint, LabelWrapRule.At(TagAutoMode.Hint, "·"), new GUIStyle(GUI.skin.label)
             {
                 fontSize = KoreanFont.Snap(Mathf.Max(8,
-                    Mathf.Min(Mathf.RoundToInt(h * 0.30f),
-                              Mathf.RoundToInt(hint.width / 8.5f)))),
-                alignment = TextAnchor.MiddleCenter,
-                wordWrap = false,
+                    Mathf.Min(Mathf.RoundToInt(h * 0.26f),
+                              Mathf.RoundToInt(hint.width / 11f)))),
+                alignment = TextAnchor.UpperCenter,
+                wordWrap = true,
                 clipping = TextClipping.Overflow,
             });
         }
@@ -2302,27 +2312,40 @@ namespace MBI.Combat
             HudBars.Fill(new Rect(outer.xMax - t, outer.y + t, t, outer.height - t * 2f), TagSkillRingColor);
         }
 
+        /// <summary>
+        /// 태그 원형의 글자. **줄을 우리가 나눈다** (2026-09-19 사용자 육안 ⑤).
+        ///
+        /// ⚠️⚠️ **원 안에 드는 글자는 지름이 아니라 그 안의 정사각이 받는다** — 지름 D 의
+        /// 0.707 배다(<see cref="TagMergeButtons"/> 의 <c>inset</c>). 거기에 「태그 — 교대」를
+        /// 한 줄로 넣으면 넘치고, IMGUI 의 <c>wordWrap</c> 은 한글을 **아무 데서나** 끊어
+        /// 화면에 **「태그 — 교 / 대」**로 나왔다(육안 ⑤ · 스크린샷 1·3).
+        ///
+        /// 그래서 **마디마다 끊어 준다** — 첫 줄은 무엇인가, 둘째 줄은 어떤 상태인가다.
+        /// 🗑️ **구 한 줄 문구 폐기**(「태그 — 교대」·「태그 (쿨다운 1.2s)」…) — 뜻은 그대로고
+        /// **줄만** 나뉜다. 글자를 줄이면 무엇인지가 사라지므로 줄이지 않았다.
+        /// </summary>
         private string TagButtonLabel()
         {
-            if (_sim.Tag.Locked) return "태그 (합체 중 잠금)";
+            if (_sim.Tag.Locked) return "태그\n잠금";
             float cd = _sim.Tag.Tag.CooldownRemaining;
-            if (cd > 0f) return $"태그 (쿨다운 {cd:F1}s)";
+            if (cd > 0f) return $"쿨다운\n{cd:F1}s";
 
             // 밝기만으로는 **왜** 밝은지가 안 읽힌다 — 한 마디를 붙인다(문구 가정).
             return TagSystem.SkillReady(true,
                 _sim.Tag.StandbyMount != null && _sim.Tag.StandbyMount.IsFull)
-                ? "태그 — 교대 (스킬)"
-                : "태그 — 교대";
+                ? "태그\n스킬"
+                : "태그\n교대";
         }
 
+        /// <summary>합체 원형의 글자. 끊는 까닭은 <see cref="TagButtonLabel"/> 과 같다.</summary>
         private string MergeButtonLabel()
         {
-            if (_sim.Merge == null) return "합체 (없음)";
-            if (_sim.Merge.IsActive) return $"합체 진행 {_sim.Merge.RemainingSeconds:F1}s";
-            if (_sim.Merge.UsedThisStage) return "합체 (이 스테이지 사용 완료)";
+            if (_sim.Merge == null) return "합체\n없음";
+            if (_sim.Merge.IsActive) return $"합체\n{_sim.Merge.RemainingSeconds:F1}s";
+            if (_sim.Merge.UsedThisStage) return "합체\n사용함";
             return _sim.Merge.IsReady
-                ? "합체 — 발동"
-                : $"합체 게이지 {_sim.Merge.ChargeRatio * 100f:F0}%";
+                ? "합체\n발동"
+                : $"합체\n{_sim.Merge.ChargeRatio * 100f:F0}%";
         }
 
         /// <summary>

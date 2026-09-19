@@ -340,6 +340,14 @@ namespace MBI.Combat
             UiPlate.DrawTinted(pill, BadgeTint);
             var pillText = new GUIStyle(badge) { alignment = TextAnchor.MiddleCenter };
             pillText.normal.textColor = Color.white;
+
+            // ⚠️ **알약 안에서 줄이 바뀌면 안 된다**(2026-09-19 사용자 육안 ⑤ · 스크린샷 1).
+            //
+            // 「스테이지 S1」이 알약 폭(220)을 넘어 **「스테이지 / S1」** 두 줄이 됐고,
+            // 알약 높이는 한 줄치라 **둘째 줄이 판 밖으로 흘렀다.** 글자를 줄이는 대신
+            // **드는 크기로 내린다** — 무엇인지(「스테이지」)를 지우지 않는 쪽이다.
+            // 사다리 위의 값 하나로만 내려간다(아틀라스 예산 · `KoreanFont.Ladder`).
+            UiText.FitOneLine(pillText, StageTitle(), pill.width - 12f * sc);
             GUI.Label(pill, StageTitle(), pillText);
 
             // 목표 한 줄 — 값은 `balance_v4.json` 의 topic·req 다(지어내지 않는다).

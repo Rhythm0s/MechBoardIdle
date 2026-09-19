@@ -3650,6 +3650,17 @@ namespace MBI.Logistics
                 wordWrap = true,
             };
 
+            // ⚠️⚠️ **끊을 자리를 우리가 준다**(2026-09-19 사용자 육안 ⑤ · 스크린샷 4).
+            //
+            // 두 줄에 드는 크기는 아래 사다리가 이미 골랐다 — **어디서 끊는지**가 문제였다.
+            // IMGUI 의 `wordWrap` 은 한글을 **아무 데서나** 끊으므로 「기초 가공소」가
+            // **「기초 가공 / 소」**로 나왔다(둘째 줄에 「소」 한 자). 뜻이 없는 자리다.
+            // 띄어쓰기에서 끊으면 「기초 / 가공소」가 된다 — **글자는 그대로**고 자리만 옮긴다.
+            //
+            // ⚠️ **한 줄에 들면 안 끊는다** — 아래에서 한 번 더 본다. 여기서 못 박아 버리면
+            //    줌을 넣어 넉넉해진 판에서도 늘 두 줄로 찍힌다(고치려던 것과 같은 병이다).
+            string wrapped = LabelWrapRule.AtSpace(text);
+
             // 사다리를 큰 쪽부터 내려오며 **두 줄 안에 드는 첫 크기**를 고른다.
             // ✅ **최대 두 줄**(2026-09-16 사용자 확정) — 세 줄이면 타일이 글자로 덮인다.
             float lineH = cellPx * 0.26f;
@@ -3665,11 +3676,19 @@ namespace MBI.Logistics
             for (int i = KoreanFont.Ladder.Length - 1; i >= 0; i--)
             {
                 style.fontSize = KoreanFont.Ladder[i];
-                float need = style.CalcHeight(new GUIContent(text), w - 4f);
+                float need = style.CalcHeight(new GUIContent(wrapped), w - 4f);
                 if (need <= maxH) { h = Mathf.Max(lineH, need); break; }
                 // 맨 아래까지 안 들면 **자르지 않고 두 줄 높이로 둔다** —
                 // `GUILayout` 과 달리 `GUI.Label` 은 넘쳐도 안 지우고 그린다.
                 if (i == 0) h = maxH;
+            }
+
+            // 고른 크기에서 **원래 글자가 한 줄에 들면 그것을 쓴다.** 끊어 둔 것은
+            // 넘칠 때의 대비지, 두 줄로 만들려던 것이 아니다.
+            if (style.CalcHeight(new GUIContent(text), w - 4f) <= lineH * 1.05f)
+            {
+                wrapped = text;
+                h = lineH;
             }
 
             float y = Screen.height - sp.y - cellPx * 0.5f + cellPx * 0.04f;   // 타일 위쪽 안쪽
@@ -3680,7 +3699,7 @@ namespace MBI.Logistics
             GUI.color = NamePlateColor;
             GUI.DrawTexture(box, Texture2D.whiteTexture);
             GUI.color = NameTextColor;
-            GUI.Label(box, text, style);
+            GUI.Label(box, wrapped, style);
             GUI.color = prev;
         }
 
