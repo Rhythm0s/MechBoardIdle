@@ -101,7 +101,9 @@ namespace MBI.Logistics
             combatInsetCam.backgroundColor = cam != null ? cam.backgroundColor : Color.black;
             combatInsetCam.cullingMask = cam != null ? cam.cullingMask : ~0;
             combatInsetCam.transform.position = new Vector3(combatCenter.x, combatCenter.y, -10f);
-            combatInsetCam.orthographicSize = combatSize;
+            // ⚠️ **주 카메라 값을 그대로 쓰지 않는다** — 뷰포트 비가 3.33 배라 가로로 그만큼
+            //    넓게 본다(2026-09-19 리허설 1 ① · `CombatInsetView.InsetOrthoSize` 주석에 실측).
+            combatInsetCam.orthographicSize = CombatInsetView.InsetOrthoSize(combatSize);
             combatInsetCam.enabled = false; // 전투 화면에서는 필요 없다 — 주 카메라가 이미 전투다
         }
 
@@ -149,7 +151,8 @@ namespace MBI.Logistics
                 combatInsetCam.enabled = _boardView;
                 combatInsetCam.transform.position =
                     new Vector3(focus.x, focus.y, combatInsetCam.transform.position.z);
-                combatInsetCam.orthographicSize = combatSize;
+                // ⚠️ **틱마다 다시 넣는다** — `combatSize` 가 인스펙터에서 바뀌면 따라온다.
+                combatInsetCam.orthographicSize = CombatInsetView.InsetOrthoSize(combatSize);
             }
 
             if (cam == null) return;
