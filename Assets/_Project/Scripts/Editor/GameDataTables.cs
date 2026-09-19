@@ -116,7 +116,13 @@ namespace MBI.Editor
             /// </summary>
             public float aoeDamageFactor;
 
-            /// <summary>광역형 기당 피해 좌표(문서의 50). 배수는 이것에서 나온다.</summary>
+            /// <summary>
+            /// 광역형 **기당 피해 좌표**(문서의 50). 배수는 이것에서 나온다.
+            ///
+            /// ⚠️ **충전량이 아니다.** 충전량(= 수명)은 두 종이 같은 100 이고 표의 `Charge`
+            /// 열이 든다 — 이 둘을 한 수로 두었다가 **광역형 수명이 두 배가 된** 적이 있다
+            /// (`260918_W02` 3장 · `260918_V03` 9장).
+            /// </summary>
             public float aoeChargeCoord;
         }
 
@@ -131,7 +137,7 @@ namespace MBI.Editor
             CsvTable t = Load("WEAPON_DATA");
             // 🗑️ `AoeDamageFactor` 열은 **안 읽는다**(2026-09-19 이관) — 좌표에서 파생시킨다.
             //    열은 표에 남겨 둔다(폐기는 삭제가 아니다 · 사람이 견줄 수 있어야 한다).
-            t.Require("RobotID", "AmmoKind", "LineSpec", "Charge");
+            t.Require("RobotID", "AmmoKind", "LineSpec", "DamagePerUnit");
 
             var v = new WeaponTableValues { lineSpec = new float[3] };
             var got = new bool[3];
@@ -152,10 +158,14 @@ namespace MBI.Editor
 
                 // 드론 두 줄의 **기당 피해 좌표**를 줍는다 — 누적형 100 · 광역형 50.
                 //    배수는 아래에서 **나눠서** 낸다(⚠️ 여기서 0.5 를 적으면 이관이 무효다).
-                if (r.Int("RobotID") == 2 && r.Int("AmmoKind") == 4) baseCharge = r.Num("Charge");
+                // ⚠️ **`Charge`(충전량)가 아니라 `DamagePerUnit`(기당 피해 좌표)다** —
+                //    둘은 다른 축이고, 광역형은 좌표만 절반이고 충전량은 100 그대로다
+                //    (`260918_W02` 3장 · 09-18 에 둘을 한 수로 두어 수명이 두 배가 됐다).
+                if (r.Int("RobotID") == 2 && r.Int("AmmoKind") == 4)
+                    baseCharge = r.Num("DamagePerUnit");
                 if (r.Int("RobotID") == 2 && r.Int("AmmoKind") == 5)
                 {
-                    v.aoeChargeCoord = r.Num("Charge");
+                    v.aoeChargeCoord = r.Num("DamagePerUnit");
                     gotAoe = true;
                 }
             }
@@ -168,7 +178,7 @@ namespace MBI.Editor
                 throw new System.FormatException("[WEAPON_DATA] 광역형 드론 줄(AmmoKind 5)이 없다");
             if (baseCharge <= 0f)
                 throw new System.FormatException(
-                    "[WEAPON_DATA] 누적형 드론 줄(AmmoKind 4)의 Charge 가 없다 — 배수의 분모다");
+                    "[WEAPON_DATA] 누적형 드론 줄(AmmoKind 4)의 DamagePerUnit 이 없다 — 배수의 분모다");
 
             // ⚠️⚠️ **여기가 이관의 전부다.** 배수는 좌표 둘의 몫이고, 표에는 좌표만 산다.
             //    50 ÷ 100 = 0.5 — 이관 전 값과 같다(거동 불변 시험이 그것을 지킨다).

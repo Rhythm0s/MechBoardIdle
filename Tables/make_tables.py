@@ -450,11 +450,11 @@ def weapon(bal):
 
     fields = (
         ["Dev_Index", "Dev_Desc", "ID", "RobotID", "AmmoKind", "Damage", "ShotsPerSec",
-         "LineSpec", "ShotsPerRound", "ShotDamageFactor", "Charge", "AoeDamageFactor",
-         "HitInterval", "DamageFraction", "Confirmed"],
+         "LineSpec", "ShotsPerRound", "ShotDamageFactor", "DamagePerUnit", "Charge",
+         "AoeDamageFactor", "HitInterval", "DamageFraction", "Confirmed"],
         ["개발용 번호", "개발용 설명", "고유 번호", "로봇", "탄종", "발당 피해", "초당 발사",
-         "라인 스펙", "한 발당 나가는 수", "한 발 피해 배수", "충전량", "광역 피해 배수",
-         "타격 간격", "기당 피해 몫", "확정 여부"],
+         "라인 스펙", "한 발당 나가는 수", "한 발 피해 배수", "기당 피해 좌표", "충전량",
+         "광역 피해 배수", "타격 간격", "기당 피해 몫", "확정 여부"],
     )
 
     rows = []
@@ -464,18 +464,24 @@ def weapon(bal):
         p, pc = param(bal, "pA%d" % idx)
         s, sc = param(bal, "specA%d" % idx)
         rows.append([i, "로봇A %s탄" % kor, i, 1, ammo_id, num(d), num(p), num(s),
-                     num(spr), num(sdf), 0, 0, 0, 0, 1 if (dc and pc and sc) else 0])
+                     num(spr), num(sdf), 0, 0, 0, 0, 0, 1 if (dc and pc and sc) else 0])
 
     charge, charge_conf = param(bal, "dB")
     # ✅ **광역형은 제 좌표를 쓴다**(2026-09-19 · `260918_W02` 5장 이관).
     #    🗑️ 구 `droneAoeDamageFactor` 0.5 폐기 — 배수는 이제 좌표 둘의 몫으로 **파생**된다.
     #    ⚠️ 여기서 0.5 를 적으면 이관이 무효다(같은 값이 다시 두 자리에 산다).
     aoe_charge, aoe_conf = param(bal, "dBAoe")
+    # ⚠️⚠️ **기당 피해 좌표와 충전량은 다른 축이다**(W02 3장 · 설계 검토 ② 09-19).
+    #    · 좌표  — 누적형 100 · 광역형 **50** (무기 스펙트럼이 가진 수)
+    #    · 충전량 — 두 종 **공통 100** (json dB · 코드가 쓰는 값 · 광역형도 100 이다)
+    #    한 칸에 두면 「광역형 충전량 50」으로 읽힌다 — 그것이 09-18 에 수명이 두 배가 된
+    #    결함의 뿌리였다. **열을 갈라 둔다.**
     rows.append([4, "로봇B 누적형 드론", 4, 2, 4, 0, 0, 0, 0, 0,
-                 num(charge), 1, num(hit), num(frac), 1 if charge_conf else 0])
+                 num(charge), num(charge), 1, num(hit), num(frac),
+                 1 if charge_conf else 0])
     rows.append([5, "로봇B 광역형 드론", 5, 2, 5, 0, 0, 0, 0, 0,
-                 num(aoe_charge), num(aoe_charge) / num(charge), num(hit), num(frac),
-                 1 if (aoe_conf and charge_conf) else 0])
+                 num(aoe_charge), num(charge), num(aoe_charge) / num(charge),
+                 num(hit), num(frac), 1 if (aoe_conf and charge_conf) else 0])
 
     info = [
         ["Dev_Index", "개발용 번호", "int", 1, "컨버팅 제외(Dev_ 접두)", "사람이 표를 읽을 때만 쓴다"],
@@ -493,10 +499,15 @@ def weapon(bal):
         ["ShotDamageFactor", "한 발 피해 배수", "float", 0.5, "쪼갠 한 발의 피해 배수",
          "CombatTuning.shotDamageFactor · ✅ **사용자 확정 09-18**(1/2) · "
          "⚠️ 총량은 3 x 1/2 = **1.5배** — 「1초 피해 = 명목 출력」 계약이 그만큼 바뀐다"],
-        ["Charge", "충전량(기당 피해 좌표)", "int", 100, "드론 한 기가 가진 피해 총량",
+        ["DamagePerUnit", "기당 피해 좌표", "int", 100, "드론 한 기가 한 번에 주는 피해",
          "✅ **무기 스펙트럼 좌표** — 누적형 dB 100 · 광역형 dBAoe **50**(2026-09-19 이관 · "
          "`260918_W02` 5장). ⚠️ **이 칸이 광역형의 대가를 든다** — AoeDamageFactor 는 "
          "여기서 나눠 나오는 파생값이다. 로봇A 행은 0(해당 없음)"],
+        ["Charge", "충전량", "int", 100, "드론 한 기가 가진 피해 총량(= 수명)",
+         "json params dB (✅ confirmed) — **두 종이 같은 100 이다.** "
+         "⚠️⚠️ **기당 피해와 다른 축이다**(`260918_W02` 3장). 광역형의 기당 피해가 "
+         "절반이라고 **충전량까지 절반이 아니다** — 09-18 에 그 둘을 한 수로 두어 "
+         "**광역형 수명이 두 배가 된** 결함이 있었다. 로봇A 행은 0(해당 없음)"],
         ["AoeDamageFactor", "광역 피해 배수", "float", 1, "표적 하나에 주는 피해의 비",
          "🗑️ **읽는 곳이 없다 — 파생값이다**(2026-09-19 이관 완료). 생성기는 Charge 둘을 "
          "나눠 배수를 낸다(50 ÷ 100 = 0.5). 열을 남긴 까닭은 사람이 **좌표와 몫을 견줄 수 "
