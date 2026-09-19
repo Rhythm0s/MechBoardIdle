@@ -1081,6 +1081,193 @@ def balance_param(bal):
     return rows
 
 
+
+# ────────────────────────────── 화면 글자 ──────────────────────────────
+#
+# ⚠️⚠️ **이 표는 1차 수집이다.** 사람이 한 번 훑어야 한다.
+#
+#    코드에서 한글 문자열을 긁는 일에는 **완전한 잣대가 없다.** 화면에 뜨는 글자와
+#    개발자만 보는 글자(로그·예외)는 **같은 문자열 리터럴**이라, 어디서 쓰이는지를
+#    보고 갈라야 한다. 여기서는 **주석을 걷고 · 로그를 빼고 · 남은 것을 전부** 싣는다.
+#    그러면 **덜 싣는 쪽이 아니라 더 싣는 쪽**으로 틀린다 — 빠뜨린 글자는 나중에
+#    화면에서 한글이 사라져야 드러나지만, 더 실린 글자는 표에서 지우면 그만이다.
+
+def strip_comments(text):
+    """
+    주석을 걷는다 — **문자열 안의 `//` 는 주석이 아니다.**
+
+    📌 이 리포의 주석에는 한글이 잔뜩 있다(대부분이 한글이다). 안 걷으면
+       TEXT_DATA 가 **설계 메모로 가득 찬다.**
+    ⚠️ 정규식을 안 쓴다 — 문자열·주석이 서로를 품는 경우를 정규식으로는 못 가른다.
+    """
+    out = []
+    i, n = 0, len(text)
+    BS = chr(92)
+    while i < n:
+        c = text[i]
+        if c == chr(34):                       # 문자열 — 통째로 살린다
+            j = i + 1
+            while j < n:
+                if text[j] == BS:
+                    j += 2
+                    continue
+                if text[j] == chr(34):
+                    break
+                if text[j] == chr(10):         # 줄이 끝나면 닫힌 것으로 본다(축자 문자열 아님)
+                    break
+                j += 1
+            out.append(text[i:j + 1])
+            i = j + 1
+        elif c == chr(39):                     # 문자 리터럴
+            j = i + 1
+            while j < n and text[j] != chr(39):
+                j += 2 if text[j] == BS else 1
+            out.append(text[i:j + 1])
+            i = j + 1
+        elif c == "/" and i + 1 < n and text[i + 1] == "/":
+            while i < n and text[i] != chr(10):
+                i += 1
+        elif c == "/" and i + 1 < n and text[i + 1] == "*":
+            i = text.find("*/", i)
+            i = n if i < 0 else i + 2
+        else:
+            out.append(c)
+            i += 1
+    return "".join(out)
+
+
+def has_hangul(s):
+    return any("\uAC00" <= ch <= "\uD7A3" for ch in s)
+
+
+# 개발자만 보는 글자 — 화면 글자가 아니다. 이 이름으로 부르는 자리의 인자는 뺀다.
+DEV_ONLY = (
+    # 로그·예외 — 개발자만 본다
+    "Debug.Log", "Debug.LogWarning", "Debug.LogError", "Debug.LogFormat",
+    "Assert.", "StringAssert.", "throw new", "die(", "SystemExit",
+    # 애트리뷰트 — **유니티 인스펙터**에 뜨는 글자다. 게임 화면이 아니다
+    # (2026-09-19 1차 수집에서 604 줄 중 앞머리가 통째로 이것이었다).
+    "[Tooltip(", "[Header(", "[CreateAssetMenu", "[MenuItem(", "[Range(",
+    "[UnityTest", "[TestCase",
+)
+
+
+def screen_strings(path):
+    """
+    파일 하나에서 **화면에 뜰 만한** 한글 문자열을 [(줄번호, 글자, 구멍여부)] 로.
+
+    ⚠️ 보간 문자열(`$"... {x} ..."`)은 **구멍이 있다** — 표로 옮기려면 「구멍을 어떻게
+       적을 것인가」라는 규약이 있어야 하는데 **그 규약이 아직 없다.** 그래서 싣되
+       `HasHole` 로 표시하고, 구멍 부분은 **원문 그대로** 둔다(지어내지 않는다).
+    """
+    raw = read_text(path)
+    text = strip_comments(raw)
+
+    # 줄 번호를 되찾으려면 걷기 전 원문에서 찾아야 한다 — 걷은 쪽은 줄이 어긋난다.
+    out = []
+    BS = chr(92)
+    Q = chr(34)
+    i, n = 0, len(text)
+    while i < n:
+        if text[i] != Q:
+            i += 1
+            continue
+        j = i + 1
+        buf = []
+        while j < n:
+            if text[j] == BS:
+                buf.append(text[j:j + 2])
+                j += 2
+                continue
+            if text[j] == Q or text[j] == chr(10):
+                break
+            buf.append(text[j])
+            j += 1
+        lit = "".join(buf)
+        i = j + 1
+
+        if not has_hangul(lit):
+            continue
+
+        # 앞 120 자를 보고 개발자용 호출인지 가른다.
+        before = text[max(0, i - len(lit) - 160):i - len(lit)]
+        if any(k in before for k in DEV_ONLY):
+            continue
+
+        line = raw.count(chr(10), 0, max(raw.find(lit), 0)) + 1 if lit in raw else 0
+        out.append((line, lit, 1 if ("{" in lit and "}" in lit) else 0))
+    return out
+
+
+def text_data():
+    """
+    화면 글자 — **지금 코드에 있는 그대로**(2026-09-19 사용자 확정 · 문안 개정 없음).
+
+    ⚠️⚠️ **BBCode 는 안 넣었다.** 사용자 확정은 「BBCode 허용」이고 **지금 글자에는
+       하나도 없다** — 없는 것을 넣는 것은 개정이다. 칸만 열어 둔다.
+    ⚠️ 배선(TextId.cs 생성 · 리터럴 치환)은 **영상 이후**다. 이 표는 아직 안 읽힌다.
+    """
+    fields = (
+        ["Dev_Index", "Dev_File", "Dev_Line", "Dev_HasHole", "Dev_Fragment", "ID", "Text_KR"],
+        ["개발용 기호 키", "개발용 파일", "개발용 줄", "개발용 구멍 여부", "개발용 조각 여부",
+         "고유 번호", "한글 문안"],
+    )
+
+    skip_dirs = (os.sep + "Tests" + os.sep, os.sep + "Editor" + os.sep)
+    rows, seen, i = [], {}, 0
+
+    for base, _dirs, files in os.walk(SRC):
+        if any(d in base + os.sep for d in skip_dirs):
+            continue
+        for fn in sorted(files):
+            if not fn.endswith(".cs"):
+                continue
+            path = os.path.join(base, fn)
+            cls = os.path.splitext(fn)[0]
+            for k, (line, lit, hole) in enumerate(screen_strings(path), start=1):
+                # ⚠️ **같은 글자는 한 줄만** — 「닫기」가 네 곳에 있다고 네 줄이면
+                #    번역·수정이 네 번 일어나고 그중 하나가 빠지는 날이 온다.
+                if lit in seen:
+                    continue
+                i += 1
+                seen[lit] = i
+                # 조각 판정은 **뜻이 아니라 꼴**로 한다 — 앞뒤에 공백이 붙어 있으면
+                # 그 글자는 혼자 서는 문장이 아니라 **이어 붙이는 토막**이다.
+                frag = 1 if (lit != lit.strip()) else 0
+                rows.append([i, "TID_%s_%03d" % (cls, k), fn, line, hole, frag, i, lit])
+
+    # Dev_Index 가 맨 앞이어야 하므로 자리를 맞춘다(기호 키가 Dev_Index 다).
+    rows = [[r[1], r[2], r[3], r[4], r[5], r[6], r[7]] for r in rows]
+
+    info = [
+        ["Dev_Index", "개발용 기호 키", "string", "TID_StageRunner_001", "컨버팅 제외(Dev_ 접두)",
+         "사용자 확정 — Dev_Index 에 기호 키를 둔다. 배선되면 Tables/gen_text_ids.py 가 "
+         "이것으로 TextId.cs(const int)를 굽는다(영상 이후)"],
+        ["Dev_File", "개발용 파일", "string", "StageRunner.cs", "컨버팅 제외(Dev_ 접두)",
+         "어디서 긁었는가 — 사람이 훑을 때 필요하다"],
+        ["Dev_Line", "개발용 줄", "int", 2331, "컨버팅 제외(Dev_ 접두)",
+         "첫 등장 줄(같은 글자가 여럿이면 처음 만난 자리)"],
+        ["Dev_HasHole", "개발용 구멍 여부", "bool", 0, "컨버팅 제외(Dev_ 접두)",
+         "1 = 보간 문자열이라 안에 {…} 가 있다. 표로 옮기려면 「구멍을 어떻게 적을 것인가」 "
+         "규약이 있어야 하는데 **아직 없다** — 원문 그대로 실었다"],
+        ["Dev_Fragment", "개발용 조각 여부", "bool", 0, "컨버팅 제외(Dev_ 접두)",
+         "1 = 앞이나 뒤에 공백이 붙은 **토막**이다(「목표: 」 + 「 넘기기」처럼 코드가 "
+         "이어 붙인다). ⚠️⚠️ **토막은 그대로 옮기면 안 된다** — 문장을 어떻게 다시 "
+         "세울지가 정해져야 옮길 수 있고, 그 규약이 아직 없다. 판정은 뜻이 아니라 "
+         "**꼴**(앞뒤 공백)로 했다 — 지어낸 판단이 아니다"],
+        ["ID", "고유 번호", "int", 1, "1부터 · 정수", "사용자 확정 — ID 는 정수"],
+        ["Text_KR", "한글 문안", "string", "메인 메뉴로", "화면에 그대로 뜨는 글자",
+         "⚠️ **지금 코드 그대로다 — 개정 없음**(사용자 확정). BBCode 는 지금 글자에 "
+         "하나도 없어 안 넣었다(없는 것을 넣는 것은 개정이다)"],
+    ]
+    build(os.path.join(HERE, "TEXT_DATA.xlsx"), "TEXT_DATA", fields, rows, info)
+    holes = sum(1 for r in rows if r[3])
+    frags = sum(1 for r in rows if r[4])
+    print("     화면 글자 %d 줄 (구멍 %d · 토막 %d) — ⚠️ **1차 수집이다. 사람이 훑어야 한다**"
+          % (len(rows), holes, frags))
+    return rows
+
+
 # 둘째 묶음 등록 — `main` 이 이름으로 찾는다.
 SECOND_BATCH = {
     "NODE_DATA": node,
@@ -1092,6 +1279,7 @@ SECOND_BATCH = {
     "ECONOMY_DATA": economy,
     "LOGISTICS_DATA": logistics,
     "BALANCE_PARAM_DATA": lambda: balance_param(balance()),
+    "TEXT_DATA": text_data,
 }
 
 

@@ -250,6 +250,28 @@ namespace MBI.Tests
         }
 
         [Test]
+        public void 화면_글자_표가_성립한다()
+        {
+            // ⚠️ **이 표는 1차 수집이라 「무엇이 실려야 하는가」를 시험이 못 정한다** —
+            //    화면 글자와 개발자 글자를 가르는 완전한 잣대가 없기 때문이다(생성기 주석).
+            //    그래서 지키는 것은 **표로서 성립하는가** 넷뿐이다.
+            CsvTable t = GameDataTables.Load("TEXT_DATA");
+            t.Require("ID", "Text_KR");
+
+            var ids = new HashSet<int>();
+            foreach (CsvTable.Row r in t.Rows)
+            {
+                int id = r.Int("ID");
+                Assert.Greater(id, 0, "ID 는 1부터다");
+                Assert.IsTrue(ids.Add(id), "ID 가 겹친다 — " + id);
+
+                // 빈 문안은 화면에 **아무것도 안 뜨는 자리**가 된다.
+                Assert.IsNotEmpty(r.Text("Text_KR"), id + "번 문안이 비었다");
+            }
+            Assert.AreEqual(t.Rows.Count, ids.Count, "ID 수와 줄 수가 다르다");
+        }
+
+        [Test]
         public void 밸런스_칸이_밸런스_자산과_같다()
         {
             // ⚠️ json params 마흔일곱 중 **자산으로 구워지는 것만** 견줄 수 있다 —
