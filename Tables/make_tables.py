@@ -190,11 +190,54 @@ def write_xlsx(path, sheets):
 # ⚠️ **한 곳에만 적는다** — `Designer_Table`(라벨로 바꿔 보이기)과 `Designer_Data`(사전 시트)가
 #    같은 사전을 쓴다. 둘이 따로 들면 갈리는 날이 온다.
 
+def cs_enum(cs_rel, enum_name, labels):
+    """
+    C# 열거형을 **코드에서 읽어** [(라벨, 수치)] 로.
+
+    ⚠️⚠️ **사전을 손으로 적지 않는다**(2026-09-19 · 실제로 두 번 틀렸다).
+       NodeType 을 눈대중으로 적었더니 「에너지 3」이 「기초 가공소 3」으로 실렸다 —
+       표가 **다른 노드를 가리키는** 사전을 들고 있었던 것이다.
+       수치는 코드가 내고, 사람이 주는 것은 **한글 라벨뿐**이다.
+
+    ⚠️ 라벨이 없는 항목이 나오면 **멈춘다** — 조용히 영문 이름을 적으면
+       Designer 시트가 반만 한글이 된다.
+    """
+    text = read_text(os.path.join(SRC, cs_rel))
+    m = re.search(r"enum\s+%s\s*\{(.*?)\}" % re.escape(enum_name), text, re.S)
+    if not m:
+        die("%s 에서 열거형 '%s' 를 못 찾았다" % (cs_rel, enum_name))
+
+    out = []
+    for name, value in re.findall(r"^\s*([A-Za-z_]\w*)\s*=\s*(\d+)\s*,",
+                                  m.group(1), re.M):
+        if name not in labels:
+            die("%s.%s 의 한글 라벨이 없다 — make_tables 의 라벨 표에 넣어라" % (enum_name, name))
+        out.append((labels[name], int(value)))
+    if not out:
+        die("%s 에서 항목을 하나도 못 읽었다" % enum_name)
+    return out
+
+
 ENUMS = {
     "EnemyKey": [("보병", 1), ("포격", 2), ("장갑", 3), ("강적", 4)],
     "Role":     [("근접", 1), ("원거리", 2), ("길막", 3), ("보스", 4)],
     "RobotID":  [("로봇A", 1), ("로봇B", 2)],
     "AmmoKind": [("관통", 1), ("표준", 2), ("폭발", 3), ("누적형 드론", 4), ("광역형 드론", 5)],
+    # ── 둘째 묶음(2026-09-19) ──
+    #
+    # ⚠️⚠️ **Type·Kind 는 코드에서 읽는다** — 손으로 적었다가 틀렸다(위 `cs_enum` 주석).
+    #    ReqType·PowerModel 은 json 의 글자라 코드에 열거형이 없다 — 그 둘만 손으로 적되,
+    #    **json 에 실제로 든 값만** 담았고 새 값이 오면 `stage()` 가 멈춘다.
+    "Type": cs_enum(os.path.join("Data", "NodeEnums.cs"), "NodeType", {
+        "Core": "코어", "Processing": "변환기", "MunitionsBasic": "기초 가공소",
+        "Energy": "에너지", "Storage": "저장", "Shield": "보호막",
+        "Booster": "부스터", "MunitionsComplex": "복합 가공소",
+    }),
+    "Kind": cs_enum(os.path.join("Data", "ModuleDefinition.cs"), "ModuleKind", {
+        "Output": "생산량", "Rate": "생산속도",
+    }),
+    "ReqType":    [("고정", 1), ("수식", 2), ("예산", 3)],
+    "PowerModel": [("물류", 1), ("강화", 2), ("태그", 3), ("버스트", 4)],
 }
 
 
@@ -269,7 +312,19 @@ def info_rows(name, info):
     return rows
 
 
+# ⚠️⚠️ **이미 있는 표는 안 덮는다**(2026-09-19 · 오늘 실제로 한 번 덮었다).
+#
+# 파일 맨 앞이 「다시 돌리면 표의 편집을 덮는다」고 경고하고 있었지만 **경고는 문이 아니다** —
+# 둘째 묶음을 붙이려고 한 번 돌렸더니 기존 셋이 통째로 다시 써졌다(그날은 내용이 같아
+# CSV diff 0 이었지만, 사람이 표를 고친 뒤였다면 **그 편집이 사라졌을 것이다**).
+# 이제 **경고를 문으로 바꾼다** — 있는 파일은 건너뛰고, 정말 덮으려면 `--force` 를 준다.
+FORCE = False
+
+
 def build(path, name, fields, rows, info):
+    if os.path.exists(path) and not FORCE:
+        print("  %s — **이미 있다. 안 덮는다**(정말 덮으려면 --force)" % os.path.basename(path))
+        return
     write_xlsx(path, [
         (name, [list(fields[0]), list(fields[1])] + [list(r) for r in rows]),
         ("Designer_Table", designer_rows(fields, rows)),
@@ -453,12 +508,591 @@ def weapon(bal):
 
 
 def main():
-    print("[make_tables] ⚠️ 첫 판 생성기다 — 다시 돌리면 표의 편집을 덮는다.")
+    """
+    ⚠️ **첫 판 생성기다.** 있는 표는 안 덮는다(`build` 의 문) — `--force` 로만 덮는다.
+
+    인자로 표 이름을 주면 그것만 뜬다:  `python Tables/make_tables.py NODE_DATA`
+    """
+    global FORCE
+    args = [a for a in sys.argv[1:] if a != "--force"]
+    FORCE = "--force" in sys.argv
+
+    print("[make_tables] 첫 판 생성기 — 있는 표는 건너뛴다"
+          + (" · ⚠️ **--force: 덮는다**" if FORCE else ""))
     bal = balance()
-    stage_comp(bal)
-    enemy(bal)
-    weapon(bal)
-    print("[make_tables] 끝 — Tables/ 아래 셋.")
+
+    makers = {
+        "STAGE_COMP_DATA": lambda: stage_comp(bal),
+        "ENEMY_DATA": lambda: enemy(bal),
+        "WEAPON_DATA": lambda: weapon(bal),
+    }
+    makers.update(SECOND_BATCH)
+
+    todo = args or list(makers)
+    for name in todo:
+        if name not in makers:
+            die("모르는 표 — %s (있는 것: %s)" % (name, " · ".join(makers)))
+        makers[name]()
+
+    print("[make_tables] 끝 — Tables/ 아래 %d 장을 봤다." % len(todo))
+
+
+
+# ══════════════════════════════════════════════════════════════════════
+#  표 아홉 + TEXT — 둘째 묶음 (2026-09-19 사용자 확정 · 플랜 §86-4)
+# ══════════════════════════════════════════════════════════════════════
+#
+# ⚠️⚠️ **범위가 좁다**(09-19 사용자 정정) — 지금은 **xlsx 생성 + CSV 변환까지**다.
+#    로더·생성기 배선 · 코드 리터럴 치환 · json 폐기 표기는 **영상 이후**다.
+#    그래서 이 묶음이 만든 CSV 는 **아직 아무도 안 읽는다** — 기존 셋의 배선은 불변이다.
+#
+# ⚠️ **값은 지금 사실 그대로다.** 새 값 0 — json · C# · 자산에서 읽어 옮기기만 한다.
+#    읽을 수 없는 칸은 **비워 두지 않고 멈춘다**(`die`).
+
+
+def unity_text(s):
+    r"""
+    유니티 YAML 의 이스케이프를 사람 글자로.
+
+    ⚠️⚠️ **`\u` 만 풀면 모자란다**(2026-09-19 실측). 유니티는 라틴-1 범위를 `\xB7` 로 적는다 —
+       「기초재료·부품」의 가운뎃점이 그것이었고, `\u` 만 풀던 판에서는 표에
+       **`기초재료\xB7부품` 이 글자 그대로** 실렸다. 대조 시험이 그 자리를 잡았다.
+
+    📌 **정규식을 안 쓴다** — 역슬래시 패턴이 편집을 지날 때마다 한 겹씩 사라진다
+       (오늘 두 번 겪었다). 글자를 직접 훑는다.
+
+    따옴표가 없는 칸(영문·수)은 손대지 않고 그대로 돌려준다.
+    """
+    s = s.strip()
+    if not (len(s) >= 2 and s[0] == chr(34) and s[-1] == chr(34)):
+        return s
+
+    body = s[1:-1]
+    BS = chr(92)
+    out = []
+    i = 0
+    while i < len(body):
+        c = body[i]
+        if c != BS:
+            out.append(c)
+            i += 1
+            continue
+
+        i += 1
+        if i >= len(body):
+            out.append(BS)          # 끝에 홀로 남은 역슬래시 — 그대로 둔다
+            break
+
+        e = body[i]
+        if e == "u" and i + 4 < len(body) + 1:
+            out.append(chr(int(body[i + 1:i + 5], 16)))
+            i += 5
+        elif e == "x" and i + 2 < len(body) + 1:
+            out.append(chr(int(body[i + 1:i + 3], 16)))
+            i += 3
+        elif e == "n":
+            out.append(chr(10)); i += 1
+        elif e == "t":
+            out.append(chr(9)); i += 1
+        else:
+            out.append(e); i += 1   # \\ · \" 등 — 다음 글자를 그대로
+    return "".join(out)
+
+
+def asset_scalars(path):
+    """
+    자산(YAML)의 **맨 바깥 칸들**을 차례대로 [(이름, 값)] 으로.
+
+    ⚠️ **중첩은 건너뛴다** — 리스트·구조체는 여기서 안 편다(펴면 표가 표를 품게 된다).
+       필요한 자리는 제 함수가 따로 읽는다(`node_recipes` 처럼).
+    ⚠️ 유니티 살림 칸(`m_*`)과 자산 참조(`{fileID: ...}`)는 값이 아니라 **배선**이라 뺀다.
+    """
+    out = []
+    for line in read_text(path).split("\n"):
+        m = re.match(r"^  ([A-Za-z_][A-Za-z0-9_]*):\s?(.*)$", line)
+        if not m:
+            continue
+        key, raw = m.group(1), m.group(2).strip()
+        if key.startswith("m_"):
+            continue
+        if raw == "" or raw.startswith("{fileID") or raw.startswith("-"):
+            continue          # 중첩 블록 · 참조 — 값이 아니다
+        out.append((key, unity_text(raw)))
+    return out
+
+
+def tooltips(cs_path):
+    """
+    C# 의 `[Tooltip("...")]` → 바로 아래 필드 이름에 붙인다.
+
+    📌 **설명을 옮겨 적지 않는다**(지침 §7) — 코드에 이미 있는 문장을 표가 빌려 쓴다.
+       없으면 빈 칸이고, 그것은 「설명이 아직 없다」는 사실이다.
+
+    ⚠️ **정규식을 안 쓴다.** 문자열 리터럴 안의 역슬래시를 정규식으로 가르려면 패턴에
+       역슬래시가 겹겹이 들어가는데, 그 패턴이 편집을 한 번 지날 때마다 한 겹씩
+       사라진다(2026-09-19 에 두 번 겪었다). **글자를 직접 훑는 쪽이 짧고 안 깨진다.**
+    """
+    text = read_text(cs_path)
+    out = {}
+    at = 0
+    while True:
+        at = text.find("[Tooltip(", at)
+        if at < 0:
+            break
+        i = at + len("[Tooltip(")
+
+        # ① 괄호가 닫힐 때까지의 문자열 조각들을 모은다(`"..." + "..."` 이어 붙이기).
+        parts = []
+        while i < len(text):
+            c = text[i]
+            if c == '"':
+                i += 1
+                buf = []
+                while i < len(text) and text[i] != '"':
+                    if text[i] == chr(92):        # 이스케이프 — 다음 글자를 그대로 받는다
+                        i += 1
+                        if i < len(text):
+                            buf.append(text[i])
+                    else:
+                        buf.append(text[i])
+                    i += 1
+                parts.append("".join(buf))
+            elif c == ")":
+                break
+            i += 1
+
+        # ② 그 뒤 첫 `public <형> <이름>` 이 이 툴팁의 주인이다.
+        m = re.search(r"public\s+[\w<>\[\],?. ]+?\s+([A-Za-z_][A-Za-z0-9_]*)\s*[=;]",
+                      text[i:i + 600])
+        if m:
+            out[m.group(1)] = "".join(parts)
+        at = i + 1
+    return out
+
+
+def header_of(cs_path, field):
+    """그 필드가 속한 `[Header("...")]` 묶음 이름 — 표에서 무리를 가르는 데 쓴다."""
+    text = read_text(cs_path)
+    head = ""
+    for m in re.finditer(r"\[Header\(\"([^\"]*)\"\)\]|public\s+\S+\s+([A-Za-z_][A-Za-z0-9_]*)", text):
+        if m.group(1) is not None:
+            head = m.group(1)
+        elif m.group(2) == field:
+            return head
+    return ""
+
+
+def field_table(name, asset_rel, cs_rel, title, note):
+    """
+    **자산 한 장 = 표 한 장**(칸마다 한 줄). 조율·경제·물류처럼 **평면 설정**인 자산에 쓴다.
+
+    📌 왜 칸을 열로 안 펴는가 — 칸이 스무 개가 넘고 계속 는다. 열로 펴면 표가
+       가로로 길어져 사람이 못 읽고, 칸이 늘 때마다 **열을 새로 만들어야** 한다.
+       줄로 두면 칸이 늘어도 줄이 하나 늘 뿐이다.
+
+    ⚠️ 설명은 **C# 툴팁을 빌려 온다** — 옮겨 적으면 두 곳에 살게 된다(지침 §7).
+    """
+    asset = os.path.join(SO, asset_rel)
+    cs = os.path.join(SRC, cs_rel)
+    tips = tooltips(cs)
+
+    fields = (
+        ["Dev_Index", "Dev_Group", "ID", "FieldName", "Value", "Confirmed"],
+        ["개발용 번호", "개발용 묶음", "고유 번호", "칸 이름", "값", "확정 여부"],
+    )
+    rows, info = [], [
+        ["Dev_Index", "개발용 번호", "int", 1, "컨버팅 제외(Dev_ 접두)", "사람이 표를 읽을 때만 쓴다"],
+        ["Dev_Group", "개발용 묶음", "string", "회피", "컨버팅 제외(Dev_ 접두)",
+         "C# 의 [Header] 묶음 이름 — 칸이 많아 무리로 갈라 본다"],
+        ["ID", "고유 번호", "int", 1, "1부터", "행 식별"],
+        ["FieldName", "칸 이름", "string", "dodgeIFramesTbd", "자산의 칸 이름 그대로",
+         "⚠️ **이름을 고치면 배선이 끊긴다** — 자산 칸 이름과 한 글자도 다르면 안 된다"],
+        ["Value", "값", "float", 0.4, "지금 자산에 든 값", note],
+        ["Confirmed", "확정 여부", "bool", 0, "1=확정 0=가정",
+         "⚠️ **전부 0 으로 뜬다** — 자산에는 칸별 확정 플래그가 없다. 확정된 칸은 "
+         "C# 툴팁이 「✅ 사용자 확정」으로 적고 있으므로 **비고를 보고 사람이 채운다**(설계 몫)"],
+    ]
+
+    for i, (key, val) in enumerate(asset_scalars(asset), start=1):
+        rows.append([i, header_of(cs, key), i, key, val, 0])
+        info.append(["", "", "", "", "", ""])   # 자리만 — 칸 설명은 아래 Dev 시트가 든다
+    info = info[:6]
+
+    # 칸마다의 설명은 **툴팁**이 든다 — Table_Info 끝에 붙인다.
+    for key, _ in asset_scalars(asset):
+        info.append([key, tips.get(key, ""), "", "", "C# [Tooltip] 에서 그대로", cs_rel])
+
+    build(os.path.join(HERE, name + ".xlsx"), name, fields, rows, info)
+    print("     %s — %s" % (title, asset_rel))
+    return rows
+
+
+# ────────────────────────────── 자산 한 장짜리 표 셋 ──────────────────────────────
+
+def combat_rule():
+    return field_table(
+        "COMBAT_RULE_DATA", "CombatTuning.asset",
+        os.path.join("Data", "CombatTuning.cs"),
+        "전투 규칙·연출 시간",
+        "CombatTuning.asset 의 값 그대로 — 자산이 원천이다(C# 기본값이 다르면 자산이 이긴다 · "
+        "07-30 부터 그랬고 그 사실을 09-18 에 확인했다)")
+
+
+def economy():
+    return field_table(
+        "ECONOMY_DATA", "EconomyConfig.asset",
+        os.path.join("Data", "EconomyConfig.cs"),
+        "경제(고철·방치)",
+        "EconomyConfig.asset 의 값 그대로 · json economy 무리의 근거 문장은 BALANCE_PARAM_DATA 가 든다")
+
+
+def logistics():
+    return field_table(
+        "LOGISTICS_DATA", "LogisticsConfig.asset",
+        os.path.join("Data", "LogisticsConfig.cs"),
+        "물류 총량(전력·발열·벨트)",
+        "LogisticsConfig.asset 의 값 그대로 — 판 전체의 총량이고, 노드 한 대분은 NODE_DATA 가 든다")
+
+
+# ────────────────────────────── 노드 · 조합 · 모듈 · 로봇 ──────────────────────────────
+
+def node():
+    """
+    노드 한 대의 **값**(전력·탄약·발열). 조합표는 RECIPE_DATA 가 든다.
+
+    ⚠️ **면(ports)은 안 옮긴다** — 그것은 값이 아니라 **구조**다(어느 면이 입력인가).
+       표로 옮기려면 면마다 한 줄인 표가 하나 더 필요하고, 그 표를 지금 만들라는 지시는 없다.
+       대신 `Dev_Ports` 에 사람이 읽을 꼴로 적어 둔다 — **컨버팅 제외**라 게임에 안 샌다.
+    """
+    fields = (
+        ["Dev_Index", "Dev_Ports", "ID", "NodeID", "TID_Name", "Type", "Implemented",
+         "PowerDraw", "PowerSupply", "AmmoProduce", "AmmoConsume", "HeatGenerate", "Confirmed"],
+        ["개발용 번호", "개발용 면", "고유 번호", "노드 키", "표시 이름", "종류", "구현 여부",
+         "전력 소비", "전력 공급", "탄약 생산", "탄약 소비", "발열", "확정 여부"],
+    )
+
+    face = {"0": "북", "1": "동", "2": "남", "3": "서"}
+    rows = []
+    names = sorted(f for f in os.listdir(os.path.join(SO, "Nodes")) if f.endswith(".asset"))
+    for i, fn in enumerate(names, start=1):
+        path = os.path.join(SO, "Nodes", fn)
+        text = read_text(path)
+        flat = dict(asset_scalars(path))
+
+        ports = []
+        for m in re.finditer(r"- face: (\d+)\s*\n\s*io: (\d+)\s*\n\s*kind: (\d+)", text):
+            ports.append("%s%s" % (face.get(m.group(1), m.group(1)),
+                                   "입" if m.group(2) == "0" else "출"))
+
+        for k in ["nodeId", "displayName", "type", "implemented"]:
+            if k not in flat:
+                die("%s 에 '%s' 가 없다" % (fn, k))
+
+        res = re.search(r"  resources:\s*\n((?:    \w+: [-\d.]+\s*\n)+)", text)
+        if not res:
+            die("%s 에 resources 블록이 없다" % fn)
+        r = dict(re.findall(r"(\w+): ([-\d.]+)", res.group(1)))
+
+        rows.append([i, " ".join(ports) or "없음", i, flat["nodeId"], flat["displayName"],
+                     int(flat["type"]), int(flat["implemented"]),
+                     num(r["powerDraw"]), num(r["powerSupply"]), num(r["ammoProduce"]),
+                     num(r["ammoConsume"]), num(r["heatGenerate"]), int(r.get("confirm", 0))])
+
+    info = [
+        ["Dev_Index", "개발용 번호", "int", 1, "컨버팅 제외(Dev_ 접두)", "사람이 표를 읽을 때만 쓴다"],
+        ["Dev_Ports", "개발용 면", "string", "서입 동출", "컨버팅 제외(Dev_ 접두)",
+         "면은 표로 안 옮겼다 — 값이 아니라 구조다. 원천은 자산의 ports 블록이고 "
+         "여기 적힌 것은 읽기용 요약이다(북동남서 + 입/출)"],
+        ["ID", "고유 번호", "int", 1, "1부터", "행 식별"],
+        ["NodeID", "노드 키", "string", "muni", "자산 파일 이름과 같다", "Node_<키>.asset"],
+        ["TID_Name", "표시 이름", "string", "기초 가공소", "화면에 보이는 한글 이름",
+         "NodeDefinition.displayName · TEXT_DATA 로 옮길 자리(영상 이후)"],
+        ["Type", "종류", "enum", 3, "코어0 변환기1 기초2 에너지3 저장4 보호막5 부스터6 복합7",
+         "Designer_Data 참조 · NodeType 열거형"],
+        ["Implemented", "구현 여부", "bool", 1, "1=돈다 0=자리만", "NodeDefinition.implemented"],
+        ["PowerDraw", "전력 소비", "float", 2, "대당", "resources.powerDraw"],
+        ["PowerSupply", "전력 공급", "float", 0, "대당(에너지 노드만)", "resources.powerSupply"],
+        ["AmmoProduce", "탄약 생산", "float", 1, "대당 초당", "resources.ammoProduce"],
+        ["AmmoConsume", "탄약 소비", "float", 0, "대당 초당", "resources.ammoConsume"],
+        ["HeatGenerate", "발열", "float", 0, "대당", "resources.heatGenerate"],
+        ["Confirmed", "확정 여부", "bool", 0, "1=확정 0=가정", "resources.confirm 그대로"],
+    ]
+    build(os.path.join(HERE, "NODE_DATA.xlsx"), "NODE_DATA", fields, rows, info)
+    return rows
+
+
+def recipe():
+    """
+    조합표 — **노드 한 대가 돌릴 수 있는 갈래마다 한 줄**.
+
+    ⚠️ 입력이 **둘까지** 있다(복합 가공소). 셋째가 생기면 열을 늘려야 한다 —
+       그때 조용히 잘리지 않도록, 셋 이상이면 **멈춘다.**
+    """
+    fields = (
+        ["Dev_Index", "Dev_Desc", "ID", "NodeID", "Kind", "TID_Name",
+         "Input1Kind", "Input1PerOutput", "Input2Kind", "Input2PerOutput",
+         "Output", "OutputPerSec", "RequiredProduction", "StackLimit", "Implemented"],
+        ["개발용 번호", "개발용 설명", "고유 번호", "노드 키", "조합 갈래", "표시 이름",
+         "입력1 품목", "입력1 개당", "입력2 품목", "입력2 개당",
+         "산출 품목", "초당 산출", "필요 생산치", "쌓임 상한", "구현 여부"],
+    )
+
+    rows, i = [], 0
+    for fn in sorted(f for f in os.listdir(os.path.join(SO, "Nodes")) if f.endswith(".asset")):
+        text = read_text(os.path.join(SO, "Nodes", fn))
+        m_id = re.search(r"^  nodeId: (\S+)", text, re.M)
+        if not m_id:
+            continue
+        node_id = m_id.group(1)
+
+        block = re.search(r"^  recipes:\s*\n(.*?)(?=^  \w+:)", text, re.S | re.M)
+        if not block:
+            continue
+
+        for chunk in re.split(r"\n  - kind:", "\n" + block.group(1))[1:]:
+            chunk = "  - kind:" + chunk
+            i += 1
+
+            def g(k, d=None, _c=chunk):
+                m = re.search(r"^\s*%s: (.*)$" % k, _c, re.M)
+                return m.group(1).strip() if m else d
+
+            ins = re.findall(r"- kind: (\d+)\s*\n\s*perOutput: ([-\d.]+)", chunk)
+            if len(ins) > 2:
+                die("%s 의 조합에 입력이 셋 이상이다 — 열을 늘려야 한다" % fn)
+            i1 = ins[0] if len(ins) > 0 else ("", "")
+            i2 = ins[1] if len(ins) > 1 else ("", "")
+
+            name = unity_text(g("displayName", '""'))
+            kind = int(chunk.split("kind:")[1].split("\n")[0].strip())
+            rows.append([i, "%s / %s" % (node_id, name), i, node_id, kind, name,
+                         int(i1[0]) if i1[0] else "", num(i1[1]) if i1[1] else "",
+                         int(i2[0]) if i2[0] else "", num(i2[1]) if i2[1] else "",
+                         int(g("output", "0")), num(g("outputPerSec", "0")),
+                         num(g("requiredProduction", "0")), num(g("stackLimitTbd", "0")),
+                         int(g("implemented", "0"))])
+
+    info = [
+        ["Dev_Index", "개발용 번호", "int", 1, "컨버팅 제외(Dev_ 접두)", "사람이 표를 읽을 때만 쓴다"],
+        ["Dev_Desc", "개발용 설명", "string", "muni / 표준탄", "컨버팅 제외(Dev_ 접두)", "행을 한눈에"],
+        ["ID", "고유 번호", "int", 1, "1부터", "행 식별"],
+        ["NodeID", "노드 키", "string", "muni", "이 조합을 돌리는 노드", "NODE_DATA 참조"],
+        ["Kind", "조합 갈래", "int", 9, "RecipeKind 열거형", "사전이 아직 표에 없다 — 코드가 든다"],
+        ["TID_Name", "표시 이름", "string", "표준탄", "화면에 보이는 한글 이름",
+         "TEXT_DATA 로 옮길 자리(영상 이후)"],
+        ["Input1Kind", "입력1 품목", "int", 8, "ItemKind 열거형", "빈 칸 = 입력 없음"],
+        ["Input1PerOutput", "입력1 개당", "float", 1, "산출 하나에 드는 수", "recipes[].inputs[].perOutput"],
+        ["Input2Kind", "입력2 품목", "int", "", "ItemKind 열거형", "복합 가공소만 쓴다"],
+        ["Input2PerOutput", "입력2 개당", "float", "", "산출 하나에 드는 수", "복합 가공소만 쓴다"],
+        ["Output", "산출 품목", "int", 11, "ItemKind 열거형", "recipes[].output"],
+        ["OutputPerSec", "초당 산출", "float", 1, "대당", "recipes[].outputPerSec"],
+        ["RequiredProduction", "필요 생산치", "float", 0, "0 = 조건 없음", "recipes[].requiredProduction"],
+        ["StackLimit", "쌓임 상한", "float", 0, "0 = 상한 없음", "recipes[].stackLimitTbd · 가정"],
+        ["Implemented", "구현 여부", "bool", 1, "1=돈다 0=자리만", "recipes[].implemented"],
+    ]
+    build(os.path.join(HERE, "RECIPE_DATA.xlsx"), "RECIPE_DATA", fields, rows, info)
+    return rows
+
+
+def module():
+    fields = (
+        ["Dev_Index", "Dev_Desc", "ID", "ModuleID", "TID_Name", "Kind", "Symbol",
+         "OutputMultiplier", "InputMultiplier", "PowerLoadMultiplier", "Confirmed"],
+        ["개발용 번호", "개발용 설명", "고유 번호", "모듈 키", "표시 이름", "종류", "기호",
+         "생산 배수", "입력 배수", "전력 부하 배수", "확정 여부"],
+    )
+    rows = []
+    for i, fn in enumerate(sorted(f for f in os.listdir(os.path.join(SO, "Modules"))
+                                  if f.endswith(".asset")), start=1):
+        f = dict(asset_scalars(os.path.join(SO, "Modules", fn)))
+        for k in ["moduleId", "displayName", "kind", "symbol",
+                  "outputMultiplier", "inputMultiplier", "powerLoadMultiplier"]:
+            if k not in f:
+                die("%s 에 '%s' 가 없다" % (fn, k))
+        rows.append([i, "%s(%s)" % (f["displayName"], f["symbol"]), i,
+                     f["moduleId"], f["displayName"], int(f["kind"]), f["symbol"],
+                     num(f["outputMultiplier"]), num(f["inputMultiplier"]),
+                     num(f["powerLoadMultiplier"]), 0])
+
+    info = [
+        ["Dev_Index", "개발용 번호", "int", 1, "컨버팅 제외(Dev_ 접두)", "사람이 표를 읽을 때만 쓴다"],
+        ["Dev_Desc", "개발용 설명", "string", "생산량(M)", "컨버팅 제외(Dev_ 접두)", "행을 한눈에"],
+        ["ID", "고유 번호", "int", 1, "1부터", "행 식별"],
+        ["ModuleID", "모듈 키", "string", "mod_output", "자산의 moduleId", "Module_*.asset"],
+        ["TID_Name", "표시 이름", "string", "생산량", "화면에 보이는 한글 이름",
+         "TEXT_DATA 로 옮길 자리(영상 이후)"],
+        ["Kind", "종류", "enum", 0, "생산량0 생산속도1", "Designer_Data 참조"],
+        ["Symbol", "기호", "string", "M", "보드 타일에 찍히는 한 글자", "ModuleDefinition.symbol"],
+        ["OutputMultiplier", "생산 배수", "float", 1.5, "산출에 곱한다", "ModuleDefinition.outputMultiplier"],
+        ["InputMultiplier", "입력 배수", "float", 1, "입력에 곱한다", "ModuleDefinition.inputMultiplier"],
+        ["PowerLoadMultiplier", "전력 부하 배수", "float", 2, "전력 소비에 곱한다",
+         "ModuleDefinition.powerLoadMultiplier"],
+        ["Confirmed", "확정 여부", "bool", 0, "1=확정 0=가정",
+         "전부 0 — 자산에 칸별 확정 플래그가 없다(설계가 채울 자리)"],
+    ]
+    build(os.path.join(HERE, "MODULE_DATA.xlsx"), "MODULE_DATA", fields, rows, info)
+    return rows
+
+
+def robot():
+    """
+    로봇 한 대의 **값**. 무기 줄은 이미 `WEAPON_DATA` 가 들고 있으므로 여기서 다시 안 적는다
+    (같은 수가 두 곳에 살면 답이 둘이 된다 · 지침 §7).
+    """
+    fields = (
+        ["Dev_Index", "ID", "RobotID", "TID_Name", "ConsumptionCap", "MountCoef",
+         "EnhancedMountCoef", "ModuleMult", "WeaponCount", "Confirmed"],
+        ["개발용 번호", "고유 번호", "로봇 키", "표시 이름", "소비 상한", "마운트 계수",
+         "강화 마운트 계수", "모듈 배수", "무기 줄 수", "확정 여부"],
+    )
+    rows = []
+    for i, fn in enumerate(sorted(f for f in os.listdir(os.path.join(SO, "Robots"))
+                                  if f.endswith(".asset")), start=1):
+        path = os.path.join(SO, "Robots", fn)
+        f = dict(asset_scalars(path))
+        n = len(re.findall(r"- kind: \d+\s*\n\s*damagePerShot:", read_text(path)))
+        for k in ["robotId", "displayName", "consumptionCap", "mountCoef",
+                  "enhancedMountCoef", "moduleMult"]:
+            if k not in f:
+                die("%s 에 '%s' 가 없다" % (fn, k))
+        rows.append([i, i, f["robotId"], f["displayName"], num(f["consumptionCap"]),
+                     num(f["mountCoef"]), num(f["enhancedMountCoef"]),
+                     num(f["moduleMult"]), n, 0])
+
+    info = [
+        ["Dev_Index", "개발용 번호", "int", 1, "컨버팅 제외(Dev_ 접두)", "사람이 표를 읽을 때만 쓴다"],
+        ["ID", "고유 번호", "int", 1, "1부터", "행 식별"],
+        ["RobotID", "로봇 키", "string", "robotA", "자산의 robotId", "Robot_*.asset"],
+        ["TID_Name", "표시 이름", "string", "로봇A", "화면에 보이는 한글 이름",
+         "TEXT_DATA 로 옮길 자리(영상 이후)"],
+        ["ConsumptionCap", "소비 상한", "float", 12, "초당 쓸 수 있는 탄약 상한",
+         "RobotDefinition.consumptionCap"],
+        ["MountCoef", "마운트 계수", "float", 1, "적재가 전투력에 주는 곱", "RobotDefinition.mountCoef"],
+        ["EnhancedMountCoef", "강화 마운트 계수", "float", 1.45, "S4 강화 뒤",
+         "RobotDefinition.enhancedMountCoef · json params enh (확정)"],
+        ["ModuleMult", "모듈 배수", "float", 1, "모듈이 얹는 곱", "RobotDefinition.moduleMult"],
+        ["WeaponCount", "무기 줄 수", "int", 3, "이 로봇이 가진 무기 줄의 수",
+         "값이 아니라 셈이다 — 무기 줄 자체는 WEAPON_DATA 가 든다. "
+         "두 표가 어긋나면 여기서 먼저 보인다"],
+        ["Confirmed", "확정 여부", "bool", 0, "1=확정 0=가정",
+         "전부 0 — 자산에 칸별 확정 플래그가 없다. EnhancedMountCoef 만 json 에서 확정이다"],
+    ]
+    build(os.path.join(HERE, "ROBOT_DATA.xlsx"), "ROBOT_DATA", fields, rows, info)
+    return rows
+
+
+def stage(bal):
+    """스테이지 한 판의 값 — **구성(몇 마리)은 STAGE_COMP_DATA 가 든다.**"""
+    fields = (
+        ["Dev_Index", "Dev_Basis", "ID", "StageID", "TID_Topic", "ReqType", "Req",
+         "ReqConfirmed", "ChallengeTime", "PowerModel", "EnhMaterialReward",
+         "SpawnCap", "SpawnInterval", "SpawnConfirmed", "TID_MonsterDir"],
+        ["개발용 번호", "개발용 근거", "고유 번호", "스테이지", "주제", "요구 종류", "요구치",
+         "요구치 확정", "도전 제한 시간", "전투력 모델", "강화 재료 보상",
+         "스폰 정원", "스폰 간격", "스폰 확정", "몬스터 방향"],
+    )
+    # ⚠️ **사전을 지어내지 않았다** — json 의 여섯 판에 실제로 든 값만 담았다
+    #    (`fixed`·`formula`·`budget` / `logistics`·`enhanced`·`tag`·`burst`).
+    #    새 값이 오면 **조용히 0 으로 안 떨어지고 멈춘다** — 그것이 이 사전의 일이다.
+    REQ_TYPE = {"fixed": 1, "formula": 2, "budget": 3}
+    POWER = {"logistics": 1, "enhanced": 2, "tag": 3, "burst": 4}
+
+    rows = []
+    for i, st in enumerate(bal.get("stages", []), start=1):
+        rt = st.get("reqType")
+        if rt not in REQ_TYPE:
+            die("모르는 reqType — %s" % rt)
+        pm = st.get("powerModel")
+        if pm not in POWER:
+            die("모르는 powerModel — %s" % pm)
+        rows.append([i, (st.get("reqBasis") or "")[:120], i, st["id"], st.get("topic", ""),
+                     REQ_TYPE[rt], num(st.get("req", 0)),
+                     1 if st.get("reqConfirmed") else 0,
+                     num(st.get("challengeTime", 0)), POWER[pm],
+                     num(st.get("enhMaterialReward", 0)),
+                     num(st.get("spawnCap", 0)), num(st.get("spawnInterval", 0)),
+                     1 if st.get("spawnConfirmed") else 0, st.get("monsterDir", "")])
+
+    info = [
+        ["Dev_Index", "개발용 번호", "int", 1, "컨버팅 제외(Dev_ 접두)", "사람이 표를 읽을 때만 쓴다"],
+        ["Dev_Basis", "개발용 근거", "string", "2026-09-15 사용자 확정 …", "컨버팅 제외(Dev_ 접두)",
+         "json reqBasis 의 앞 120 자만 옮겼다 — 근거 전문은 balance_v4.json 이 든다. "
+         "여기 것은 사람이 표에서 알아보라고 붙인 꼬리표이지 원천이 아니다"],
+        ["ID", "고유 번호", "int", 1, "1부터", "행 식별"],
+        ["StageID", "스테이지", "string", "S1", "S1~S6", "json stages[].id"],
+        ["TID_Topic", "주제", "string", "벨트 연결(온보딩)", "그 판이 가르치는 것",
+         "json stages[].topic · TEXT_DATA 로 옮길 자리(영상 이후)"],
+        ["ReqType", "요구 종류", "enum", 1, "고정1 수식2 예산3", "json reqType · Designer_Data 참조"],
+        ["Req", "요구치", "float", 18, "넘겨야 하는 출력", "json req"],
+        ["ReqConfirmed", "요구치 확정", "bool", 1, "1=확정 0=가정", "json reqConfirmed"],
+        ["ChallengeTime", "도전 제한 시간", "float", 120, "초", "json challengeTime"],
+        ["PowerModel", "전투력 모델", "enum", 1, "물류1 강화2 태그3 버스트4",
+         "json powerModel · Designer_Data 참조 — 판마다 「무엇으로 이기는가」가 다르다"],
+        ["EnhMaterialReward", "강화 재료 보상", "int", 30, "클리어 때 준다", "json enhMaterialReward"],
+        ["SpawnCap", "스폰 정원", "int", 0, "0 = 파밍 층이 아니다", "json spawnCap"],
+        ["SpawnInterval", "스폰 간격", "float", 0, "초 · 0 = 파밍 층이 아니다", "json spawnInterval"],
+        ["SpawnConfirmed", "스폰 확정", "bool", 0, "1=확정 0=가정", "json spawnConfirmed"],
+        ["TID_MonsterDir", "몬스터 방향", "string", "체력 낮은 다수·느린 등장·저방어",
+         "그 판의 적 성격(설계 메모)", "json monsterDir · 화면에 안 뜬다"],
+    ]
+    build(os.path.join(HERE, "STAGE_DATA.xlsx"), "STAGE_DATA", fields, rows, info)
+    return rows
+
+
+def balance_param(bal):
+    """
+    json `params` 마흔일곱 칸을 **그대로** — 값·확정·근거·의도·문서 참조까지.
+
+    📌 **이 표가 json 의 자리를 이어받는다.** 다른 표들이 값을 들고 가고 나면
+       json 에 남는 것은 이 목록이므로, 여기가 가장 먼저 원천이 된다.
+    ⚠️ 근거 문장은 **줄이지 않는다** — 줄이면 「왜 이 값인가」가 사라진다.
+    """
+    fields = (
+        ["Dev_Index", "ID", "ParamKey", "TID_Label", "GroupName", "Value", "Confirmed",
+         "Basis", "Intent", "DocRef"],
+        ["개발용 번호", "고유 번호", "칸 키", "이름", "무리", "값", "확정 여부",
+         "근거", "의도", "문서 참조"],
+    )
+    rows = []
+    for i, p in enumerate(bal.get("params", []), start=1):
+        if "key" not in p or "value" not in p:
+            die("params 에 key/value 가 없는 칸이 있다 — %s" % p)
+        rows.append([i, i, p["key"], p.get("label", ""), p.get("group", ""),
+                     num(p["value"]), 1 if p.get("confirmed") else 0,
+                     p.get("basis", ""), p.get("intent", ""), p.get("docRef", "")])
+
+    info = [
+        ["Dev_Index", "개발용 번호", "int", 1, "컨버팅 제외(Dev_ 접두)", "사람이 표를 읽을 때만 쓴다"],
+        ["ID", "고유 번호", "int", 1, "1부터", "행 식별"],
+        ["ParamKey", "칸 키", "string", "origin", "json params[].key 그대로",
+         "이름을 고치면 근거를 잃는다 — 문서·주석이 이 키로 값을 가리킨다"],
+        ["TID_Label", "이름", "string", "원점 출력", "사람이 부르는 이름", "json params[].label"],
+        ["GroupName", "무리", "string", "원점·곡선", "일곱 무리", "json params[].group"],
+        ["Value", "값", "float", 100, "지금 값", "json params[].value"],
+        ["Confirmed", "확정 여부", "bool", 1, "1=확정 0=가정",
+         "json params[].confirmed 그대로 — 이 표에서 유일하게 칸마다 진짜 확정 플래그가 있다"],
+        ["Basis", "근거", "string", "온보딩 공장 출력(불변) …", "왜 이 값인가",
+         "json params[].basis · 줄이지 않았다"],
+        ["Intent", "의도", "string", "요구치 분모=100", "이 값으로 무엇을 하려는가",
+         "json params[].intent"],
+        ["DocRef", "문서 참조", "string", "밸런스 2장", "어느 문서 몇 장인가", "json params[].docRef"],
+    ]
+    build(os.path.join(HERE, "BALANCE_PARAM_DATA.xlsx"), "BALANCE_PARAM_DATA", fields, rows, info)
+    return rows
+
+
+# 둘째 묶음 등록 — `main` 이 이름으로 찾는다.
+SECOND_BATCH = {
+    "NODE_DATA": node,
+    "RECIPE_DATA": recipe,
+    "MODULE_DATA": module,
+    "ROBOT_DATA": robot,
+    "STAGE_DATA": lambda: stage(balance()),
+    "COMBAT_RULE_DATA": combat_rule,
+    "ECONOMY_DATA": economy,
+    "LOGISTICS_DATA": logistics,
+    "BALANCE_PARAM_DATA": lambda: balance_param(balance()),
+}
 
 
 if __name__ == "__main__":

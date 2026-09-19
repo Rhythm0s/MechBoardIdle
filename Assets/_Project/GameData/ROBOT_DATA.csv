@@ -1,0 +1,4 @@
+ID,RobotID,TID_Name,ConsumptionCap,MountCoef,EnhancedMountCoef,ModuleMult,WeaponCount,Confirmed
+1,robotA,로봇A,12,1,1.45,1,3,0
+2,robotB,로봇B,12,1,1.45,1,0,0
+3,fusion,합체체,12,1,1.45,1,0,0

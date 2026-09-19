@@ -1,0 +1,5 @@
+ID,FieldName,Value,Confirmed
+1,scrapPerKillTbd,2,0
+2,offlineCoefTbd,0.5,0
+3,offlineBaseRateTbd,0,0
+4,autosaveIntervalSeconds,30,0

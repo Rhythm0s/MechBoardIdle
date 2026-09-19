@@ -1,0 +1,6 @@
+ID,FieldName,Value,Confirmed
+1,powerDraw,66,0
+2,powerSupply,80,0
+3,beltCapacity,14,0
+4,heatGenerate,8,0
+5,heatThreshold,12,0

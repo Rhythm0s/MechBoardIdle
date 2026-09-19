@@ -1,0 +1,13 @@
+ID,NodeID,Kind,TID_Name,Input1Kind,Input1PerOutput,Input2Kind,Input2PerOutput,Output,OutputPerSec,RequiredProduction,StackLimit,Implemented
+1,core,5,코어 에너지,,,,,7,10,0,0,1
+2,muni,9,표준탄,8,1,,,11,1,0,0,1
+3,muni,2,드론 몸체 부품,8,1,,,12,1,0,0,1
+4,muni,10,방어 재료,8,1,,,13,1,0,0,1
+5,muni,4,추진제,9,1,,,5,0.33333334,30,3,1
+6,munix,11,관통탄,11,1,8,1,14,1,10,0,1
+7,munix,12,폭발탄,11,1,9,1,15,1,10,0,1
+8,munix,13,누적형 드론,10,1,12,1,16,1,0,0,1
+9,munix,14,광역형 드론,10,1,12,1,17,1,0,0,1
+10,proc,6,기초재료·부품,7,1,,,8,1,0,0,1
+11,proc,7,발전재료,7,1,,,9,1,0,0,1
+12,proc,8,배터리,9,1,,,10,1,0,0,1

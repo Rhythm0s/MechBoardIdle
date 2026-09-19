@@ -1,0 +1,3 @@
+ID,ModuleID,TID_Name,Kind,Symbol,OutputMultiplier,InputMultiplier,PowerLoadMultiplier,Confirmed
+1,mod_output,생산량,0,M,1.5,1,2,0
+2,mod_rate,생산속도,1,R,1.5,1.5,1.5,0
