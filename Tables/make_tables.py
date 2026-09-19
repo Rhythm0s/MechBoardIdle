@@ -467,12 +467,15 @@ def weapon(bal):
                      num(spr), num(sdf), 0, 0, 0, 0, 1 if (dc and pc and sc) else 0])
 
     charge, charge_conf = param(bal, "dB")
-    aoe, aoe_conf = param(bal, "droneAoeDamageFactor")
+    # ✅ **광역형은 제 좌표를 쓴다**(2026-09-19 · `260918_W02` 5장 이관).
+    #    🗑️ 구 `droneAoeDamageFactor` 0.5 폐기 — 배수는 이제 좌표 둘의 몫으로 **파생**된다.
+    #    ⚠️ 여기서 0.5 를 적으면 이관이 무효다(같은 값이 다시 두 자리에 산다).
+    aoe_charge, aoe_conf = param(bal, "dBAoe")
     rows.append([4, "로봇B 누적형 드론", 4, 2, 4, 0, 0, 0, 0, 0,
                  num(charge), 1, num(hit), num(frac), 1 if charge_conf else 0])
     rows.append([5, "로봇B 광역형 드론", 5, 2, 5, 0, 0, 0, 0, 0,
-                 num(charge), num(aoe), num(hit), num(frac),
-                 1 if (charge_conf and aoe_conf) else 0])
+                 num(aoe_charge), num(aoe_charge) / num(charge), num(hit), num(frac),
+                 1 if (aoe_conf and charge_conf) else 0])
 
     info = [
         ["Dev_Index", "개발용 번호", "int", 1, "컨버팅 제외(Dev_ 접두)", "사람이 표를 읽을 때만 쓴다"],
@@ -490,11 +493,14 @@ def weapon(bal):
         ["ShotDamageFactor", "한 발 피해 배수", "float", 0.5, "쪼갠 한 발의 피해 배수",
          "CombatTuning.shotDamageFactor · ✅ **사용자 확정 09-18**(1/2) · "
          "⚠️ 총량은 3 x 1/2 = **1.5배** — 「1초 피해 = 명목 출력」 계약이 그만큼 바뀐다"],
-        ["Charge", "충전량", "int", 100, "드론 한 기가 가진 피해 총량",
-         "json params dB (✅ confirmed) · 로봇A 행은 0(해당 없음)"],
+        ["Charge", "충전량(기당 피해 좌표)", "int", 100, "드론 한 기가 가진 피해 총량",
+         "✅ **무기 스펙트럼 좌표** — 누적형 dB 100 · 광역형 dBAoe **50**(2026-09-19 이관 · "
+         "`260918_W02` 5장). ⚠️ **이 칸이 광역형의 대가를 든다** — AoeDamageFactor 는 "
+         "여기서 나눠 나오는 파생값이다. 로봇A 행은 0(해당 없음)"],
         ["AoeDamageFactor", "광역 피해 배수", "float", 1, "표적 하나에 주는 피해의 비",
-         "누적형 1.0 · 광역형 = json params droneAoeDamageFactor (⚠️ confirmed false) · "
-         "무기 스펙트럼 좌표 dBAoe 50 으로 이관은 W02 문안 뒤"],
+         "🗑️ **읽는 곳이 없다 — 파생값이다**(2026-09-19 이관 완료). 생성기는 Charge 둘을 "
+         "나눠 배수를 낸다(50 ÷ 100 = 0.5). 열을 남긴 까닭은 사람이 **좌표와 몫을 견줄 수 "
+         "있어야** 하기 때문이다 — 여기 수를 고쳐도 게임은 안 바뀐다. 고칠 곳은 Charge 다"],
         ["HitInterval", "타격 간격", "float", 0.5, "붙어서 몇 초마다 때리는가",
          "CombatTuning.droneHitIntervalTbd · ⚠️ 가정"],
         ["DamageFraction", "기당 피해 몫", "float", 0.1, "한 번에 쓰는 충전량의 비",

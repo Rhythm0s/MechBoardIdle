@@ -104,8 +104,20 @@ namespace MBI.Editor
             /// <summary>라인 스펙 셋 — **관통 · 표준 · 폭발** 차례(BalanceConfig.LineSpecOf 와 같다).</summary>
             public float[] lineSpec;
 
-            /// <summary>광역형 드론의 표적당 피해 비.</summary>
+            /// <summary>
+            /// 광역형 드론의 표적당 피해 비 — **파생값이다.**
+            ///
+            /// ✅ **좌표에서 나온다**(2026-09-19 · `260918_W02` 5장 문안).
+            /// 문서(무기 스펙트럼)가 가진 것은 **광역형 기당 피해 50** 이라는 좌표이고,
+            /// 배수는 그것을 누적형 100 으로 나눈 몫이다. 종전에는 **같은 값이 두 자리**에
+            /// 살았다 — 문서에 50, 코드에 0.5.
+            ///
+            /// ⚠️ **여기서 0.5 를 적지 않는다.** 적는 순간 다시 두 자리가 된다.
+            /// </summary>
             public float aoeDamageFactor;
+
+            /// <summary>광역형 기당 피해 좌표(문서의 50). 배수는 이것에서 나온다.</summary>
+            public float aoeChargeCoord;
         }
 
         /// <summary>
@@ -117,11 +129,14 @@ namespace MBI.Editor
         public static WeaponTableValues ReadWeapons()
         {
             CsvTable t = Load("WEAPON_DATA");
-            t.Require("RobotID", "AmmoKind", "LineSpec", "AoeDamageFactor");
+            // 🗑️ `AoeDamageFactor` 열은 **안 읽는다**(2026-09-19 이관) — 좌표에서 파생시킨다.
+            //    열은 표에 남겨 둔다(폐기는 삭제가 아니다 · 사람이 견줄 수 있어야 한다).
+            t.Require("RobotID", "AmmoKind", "LineSpec", "Charge");
 
             var v = new WeaponTableValues { lineSpec = new float[3] };
             var got = new bool[3];
             bool gotAoe = false;
+            float baseCharge = 0f;   // 누적형 기당 피해 — 배수의 분모다
 
             foreach (CsvTable.Row r in t.Rows)
             {
@@ -135,10 +150,12 @@ namespace MBI.Editor
                     got[i] = true;
                 }
 
-                // 광역형 줄(5)만 광역 배수를 든다 — 누적형(4)은 1.0 이고 그것은 규칙이지 값이 아니다.
+                // 드론 두 줄의 **기당 피해 좌표**를 줍는다 — 누적형 100 · 광역형 50.
+                //    배수는 아래에서 **나눠서** 낸다(⚠️ 여기서 0.5 를 적으면 이관이 무효다).
+                if (r.Int("RobotID") == 2 && r.Int("AmmoKind") == 4) baseCharge = r.Num("Charge");
                 if (r.Int("RobotID") == 2 && r.Int("AmmoKind") == 5)
                 {
-                    v.aoeDamageFactor = r.Num("AoeDamageFactor");
+                    v.aoeChargeCoord = r.Num("Charge");
                     gotAoe = true;
                 }
             }
@@ -149,6 +166,13 @@ namespace MBI.Editor
                         $"[WEAPON_DATA] 로봇A 의 {(AmmoKind)i} 줄이 없다 — 그 탄종이 안 쏘게 된다");
             if (!gotAoe)
                 throw new System.FormatException("[WEAPON_DATA] 광역형 드론 줄(AmmoKind 5)이 없다");
+            if (baseCharge <= 0f)
+                throw new System.FormatException(
+                    "[WEAPON_DATA] 누적형 드론 줄(AmmoKind 4)의 Charge 가 없다 — 배수의 분모다");
+
+            // ⚠️⚠️ **여기가 이관의 전부다.** 배수는 좌표 둘의 몫이고, 표에는 좌표만 산다.
+            //    50 ÷ 100 = 0.5 — 이관 전 값과 같다(거동 불변 시험이 그것을 지킨다).
+            v.aoeDamageFactor = v.aoeChargeCoord / baseCharge;
 
             return v;
         }

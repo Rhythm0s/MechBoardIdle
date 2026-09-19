@@ -103,10 +103,20 @@ namespace MBI.Tests
                 "Assets/_Project/ScriptableObjects/BalanceConfig.asset");
             Assert.IsNotNull(bal, "BalanceConfig 자산이 없다 — 생성기를 먼저 돌린다");
 
+            // ✅ **배수는 이제 파생값이다**(2026-09-19 · `260918_W02` 5장 이관).
+            //    표의 좌표 둘(누적형 100 · 광역형 **50**)을 나눠 나온다 — 0.5 는 그 몫이고
+            //    **이 수 자체를 적은 자리는 어디에도 없다.** 🗑️ json `droneAoeDamageFactor` 폐기.
+            //    ⚠️ 그래서 이 단언은 **거동 불변의 증거**다 — 이관 전후로 같아야 한다.
             Assert.AreEqual(0.5f, bal.droneAoeDamageFactor, D,
-                "params.droneAoeDamageFactor = 0.5 (⚠️ 가정 표기)");
-            Assert.AreEqual(2f, bal.droneAoeJudgeRadius, D,
-                "params.droneAoeJudgeRadius = 2 (⚠️ 잠정 점값)");
+                "광역형 좌표 50 ÷ 누적형 100 = 0.5 (이관 전 값과 같아야 한다)");
+
+            // ✅ **3칸 — 사용자 확정**(2026-09-19 설계 창 · `260918_W02` 2-1).
+            //    🗑️ 구 2칸 폐기 — S5 에서 1.00마리라 광역형이 이기는 판이 끝까지 없었다.
+            //    3칸은 S5 에서 3.63마리로 본전선 3.64 와 맞고, S1·S3 은 미달로 남는다
+            //    (= 「S1 에서는 약해도 된다」를 값 하나로 구현한 것).
+            //    ⚠️ `confirmed` 는 여전히 false 다 — 확정된 것은 **이 수**이고 본전은 아직 안 쟀다.
+            Assert.AreEqual(3f, bal.droneAoeJudgeRadius, D,
+                "params.droneAoeJudgeRadius = 3 (사용자 확정 09-19 · confirmed 는 false)");
         }
     }
 }

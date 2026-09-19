@@ -175,6 +175,9 @@ namespace MBI.Editor
             c.droneAoeJudgeRadius = json.Param("droneAoeJudgeRadius");
             // ⚠️⚠️ **값의 원천은 표다**(2026-09-18 사용자 확정 · `WEAPON_DATA` 광역형 줄).
             //    🗑️ json `params.droneAoeDamageFactor` 는 폐기 표기 — **값은 남기되 안 읽는다.**
+            // ✅ **좌표에서 파생된 값이다**(2026-09-19 · `260918_W02` 5장 이관).
+            //    표에 사는 것은 **광역형 기당 피해 50** 이고 이 배수는 50 ÷ 100 이다.
+            //    🗑️ json `params.droneAoeDamageFactor` 0.5 는 폐기 — 값은 남기되 안 읽는다.
             c.droneAoeDamageFactor = weapon.aoeDamageFactor;
             c.mountDroneStackFactor = json.Param("mountDroneStackFactor");
             c.dodgeMoveDistance = json.Param("dodgeMoveDistance");
