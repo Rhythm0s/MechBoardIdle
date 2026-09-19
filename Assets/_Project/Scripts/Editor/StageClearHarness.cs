@@ -628,6 +628,8 @@ namespace MBI.EditorTools
             int sideFlips = 0;
             var stuckLog = new List<string>();
             float nextStuckAt = 10f;
+            // 되돌린 횟수 — 0 이면 **문턱에 아무도 안 닿았다**는 뜻이지 규칙이 꺼진 게 아니다.
+            int respawned = 0;
             int seenEnemies = 0;
 
             LogisticsResult lastResult = default;
@@ -763,6 +765,19 @@ namespace MBI.EditorTools
 
                 // 4) 전투
                 sim.Tick(Dt);
+
+                // ⚠️⚠️ **게임이 지나는 문을 그대로 지난다**(2026-09-19 · 리허설 1 ② 실측 중 발견).
+                //
+                // 러너는 매 틱 `Tick` **다음에** 이것을 부르는데(§71-28 2), **하네스는 안 불렀다.**
+                // 그래서 하네스 판에는 **게임에는 없는 「영영 못 닿는 적」이 남아 있었고**,
+                // 「굳음 N」 수치가 그만큼 부풀어 있었다. 09-15 §7 등재 항목의 재발이다 —
+                // **「재는 것과 보는 것은 다른 일 — 프로브는 사람이 지나는 문을 안 지난다」.**
+                //
+                // ⚠️ **앞선 측정과 견줄 때 주의한다** — 오늘 이전의 굳음·클리어 수치는
+                //    이 문을 안 지난 판의 것이다(개체 수는 안 변하므로 클리어 여부 자체는
+                //    같지만, 적이 서 있던 **자리**가 다르다).
+                respawned += sim.RespawnUnreachable();
+
                 elapsed += Dt;
 
                 int fired = sim.ShotsThisTick != null ? sim.ShotsThisTick.Count : 0;
@@ -830,15 +845,41 @@ namespace MBI.EditorTools
 
                 if (elapsed >= nextStuckAt && stuckLog.Count < 12)
                 {
+                    // ⚠️⚠️ **「굳음」 하나로는 까닭을 못 가른다**(2026-09-19 · 사용자 리허설 1 ②
+                    //    「멀리 정지한 채 안 오는 몬스터」). 종전 표본은 수만 셌는데,
+                    //    **서 있는 것이 규칙인 적**(포격은 사거리 7 에서 서서 쏜다)과
+                    //    **막혀서 못 오는 적**이 같은 칸에 들어갔다. 둘은 다른 일이다 —
+                    //    앞은 사양이고 뒤는 결함 후보다.
+                    //
+                    // 그래서 **종과 거리를 같이** 찍는다. 값을 짓지 않고 있는 것을 적는다.
                     int alive = 0, stuck = 0, inReach = 0;
+                    var byKind = new Dictionary<string, int[]>();   // [살아있음, 사거리안, 굳음]
+                    float farthestStuck = 0f;
+                    string farthestStuckWho = null;
+
+                    // ⚠️⚠️ **굳음을 갈래로 나눈다**(2026-09-19 · 리허설 1 ②).
+                    //
+                    // 「안 움직인다」에는 서로 다른 일이 섞여 있다 —
+                    //   · **길막** : 주 축도 곁눈질도 막혔다(`StepOrSide` 가 null 을 낸다).
+                    //                **규칙이다**(밀어내지 않음 · 막히면 멈춤 · 사용자 확정).
+                    //   · **안 막혔는데 정지** : 갈 수 있는데 안 갔다. **결함 후보다.**
+                    //
+                    // 📌 `IsBlocked` 는 **순수 함수**라 여기서 불러도 시뮬이 안 흔들린다
+                    //    (`StepOrSide` 는 붙들기 상태를 고쳐 쓰므로 프로브가 부르면 안 된다).
+                    int stuckBlocked = 0, stuckFree = 0;
+
                     foreach (CombatEntity e in sim.Enemies)
                     {
                         if (e == null || !e.IsAlive) continue;
                         alive++;
 
+                        string kind = string.IsNullOrEmpty(e.label) ? "?" : e.label;
+                        if (!byKind.TryGetValue(kind, out int[] row)) byKind[kind] = row = new int[3];
+                        row[0]++;
+
                         float d = (e.position - sim.RobotPosition).magnitude;
                         float reach = e.attackRange + 0.5f + e.radius;   // 로봇 반경은 setup 과 같다
-                        if (d <= reach) { inReach++; lastPos[e] = e.position; continue; }
+                        if (d <= reach) { inReach++; row[1]++; lastPos[e] = e.position; continue; }
 
                         if (e.sideStepDir != Vector2.zero)
                         {
@@ -848,12 +889,53 @@ namespace MBI.EditorTools
                         }
 
                         if (lastPos.TryGetValue(e, out Vector2 was)
-                            && (e.position - was).magnitude < 0.05f) stuck++;
+                            && (e.position - was).magnitude < 0.05f)
+                        {
+                            stuck++;
+                            row[2]++;
+                            // **가장 먼 굳음**이 어디인지가 갈래를 가른다 — 스폰 띠 바깥이면
+                            // 디스폰 되돌림 자리이고, 띠 안쪽이면 길막이다.
+                            if (d > farthestStuck) { farthestStuck = d; farthestStuckWho = kind; }
+
+                            // 길막인가 — `StepOrSide` 가 보는 것과 **같은 두 칸**을 본다.
+                            Vector2 main = GridMovement.Step(e.position, sim.RobotPosition, e.moveSpeed * Dt);
+                            bool blocked = main == e.position
+                                || GridMovement.IsBlocked(main, e.radius, e, sim.Enemies, null);
+                            if (blocked)
+                            {
+                                Vector2 delta = sim.RobotPosition - e.position;
+                                bool horiz = Mathf.Abs(delta.x) >= Mathf.Abs(delta.y);
+                                float other = horiz ? delta.y : delta.x;
+                                if (Mathf.Abs(other) <= 1e-6f) { stuckBlocked++; }
+                                else
+                                {
+                                    Vector2 dir = horiz
+                                        ? new Vector2(0f, Mathf.Sign(other))
+                                        : new Vector2(Mathf.Sign(other), 0f);
+                                    Vector2 side = e.position
+                                        + dir * Mathf.Min(e.moveSpeed * Dt, Mathf.Abs(other));
+                                    if (GridMovement.IsBlocked(side, e.radius, e, sim.Enemies, null))
+                                        stuckBlocked++;
+                                    else stuckFree++;   // 곁눈질이 뚫려 있는데 안 갔다
+                                }
+                            }
+                            else stuckFree++;
+                        }
                         lastPos[e] = e.position;
                     }
 
+                    var kinds = new StringBuilder();
+                    foreach (KeyValuePair<string, int[]> kv in byKind)
+                        kinds.Append($" · {kv.Key} {kv.Value[0]}(안 {kv.Value[1]}·굳음 {kv.Value[2]})");
+
                     stuckLog.Add($"    {elapsed:F0}초 · 살아있음 {alive} · 사거리 안 {inReach}"
-                                 + $" · **굳음 {stuck}**");
+                                 + $" · **굳음 {stuck}**{kinds}"
+                                 + (farthestStuckWho != null
+                                     ? $" · 가장 먼 굳음 {farthestStuckWho} {farthestStuck:F1}칸"
+                                     : string.Empty)
+                                 + (stuck > 0
+                                     ? $" · [길막 {stuckBlocked} · **안 막혔는데 정지 {stuckFree}**]"
+                                     : string.Empty));
                     nextStuckAt += 10f;
                 }
 
@@ -971,6 +1053,8 @@ namespace MBI.EditorTools
             sb.AppendLine();
             sb.AppendLine("[굳은 적 — 10초마다 · 사거리 밖인데 안 움직인 수]");
             foreach (string line in stuckLog) sb.AppendLine(line);
+            sb.AppendLine($"    되돌림(못 닿는 적 → 링) **{respawned}회**"
+                          + $" · 문턱 = 이동 속도 × {OffscreenRespawnRule.UnreachableSeconds:F0}초");
             sb.AppendLine($"  좌우 반전 {sideFlips} 회 — 떨림 잣대. 크면 붙들기(현재 "
                           + $"{tuning.enemySideStepHoldTbd:F2}초)가 모자란 것이다");
             sb.AppendLine("  구 규칙(우회 금지)은 2026-09-16 에 폐기됐다 — 주 축이 막히면");
