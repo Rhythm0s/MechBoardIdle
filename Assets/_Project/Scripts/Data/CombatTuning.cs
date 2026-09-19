@@ -328,6 +328,12 @@ namespace MBI.Data
                  + "두 축이 비슷할 때 좌우가 뒤집혀 제자리에서 떠는 것처럼 보인다. 0 이면 안 붙든다.")]
         public float enemySideStepHoldTbd = 0.4f;
 
+        [Tooltip("적이 곁눈질로 돌아갈 수 있는 최대 거리(칸). ⚠️ 가정 3 — 사용자 확정은 "
+                 + "「한 칸이 아니라 여러 칸까지」이고 몇 칸인지는 설계 몫이다(2026-09-19). "
+                 + "0 이면 종전 거동(표적까지 남은 양까지만 · 굳음 100% 길막). "
+                 + "크면 적이 표적을 두고 옆으로 오래 미끄러진다.")]
+        public float enemySideDetourCellsTbd = 0f;
+
         [Header("피격 VFX 셋 (2026-09-16 설치)")]
         [Tooltip("표준탄 명중 · 4칸. 비어 있으면 코드 플래시로 떨어진다.")]
         public Sprite[] hitStandardFrames;

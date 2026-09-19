@@ -70,6 +70,34 @@ namespace MBI.Core
         public static Vector2? StepOrSide(Vector2 from, Vector2 to, float distance,
             float radius, CombatEntity self, IReadOnlyList<CombatEntity> others, CombatEntity robot,
             ref float hold, ref Vector2 heldDir, float holdSeconds, float dt)
+            => StepOrSide(from, to, distance, radius, self, others, robot,
+                          ref hold, ref heldDir, holdSeconds, dt,
+                          budget: ref _discardBudget, budgetCells: 0f);
+
+        /// <summary>예산을 안 쥔 옛 호출이 쓰는 버림 칸 — 값을 안 읽는다.</summary>
+        private static float _discardBudget;
+
+        /// <summary>
+        /// 위와 같되 **곁눈질 예산**을 쥔다 (2026-09-19 사용자 확정 · 「우회를 더 강하게」).
+        ///
+        /// 바뀐 것 둘 —
+        /// ① 🗑️ **부 축 허용량이 「표적까지 남은 양」이 아니다.** 종전에는
+        ///    <c>min(distance, |other|)</c> 였는데, 적이 표적과 **거의 한 축에 서면**
+        ///    <c>|other|</c> 이 0 에 가까워 곁눈질이 **제자리걸음**이 됐다. 이제
+        ///    <paramref name="budgetCells"/> 만큼 **표적 축을 지나쳐서도** 돌아간다.
+        /// ② **표적 쪽이 막히면 반대쪽도 본다.** 종전에는 표적 쪽 한 방향만 보고
+        ///    막히면 포기했다 — 무리가 그쪽을 메우고 있으면 **영영 못 돌아간다.**
+        ///
+        /// ⚠️ **예산이 있다** — 다 쓰면 그대로 선다. 없으면 적이 표적을 두고
+        ///    하염없이 옆으로 미끄러진다.
+        /// ⚠️ **밀어내기는 여전히 없다**(사용자 확정) — 막힌 칸에는 못 들어간다.
+        ///    경로 탐색도 아니다. **한 축으로만** 돌아간다.
+        /// ⚠️ 붙들기는 그대로다(§74-12 B) — 매 틱 다시 고르면 좌우가 떨린다.
+        /// </summary>
+        public static Vector2? StepOrSide(Vector2 from, Vector2 to, float distance,
+            float radius, CombatEntity self, IReadOnlyList<CombatEntity> others, CombatEntity robot,
+            ref float hold, ref Vector2 heldDir, float holdSeconds, float dt,
+            ref float budget, float budgetCells)
         {
             if (hold > 0f) hold -= dt;
 
@@ -78,33 +106,51 @@ namespace MBI.Core
             {
                 hold = 0f;                 // 주 축이 뚫렸으면 곁눈질은 끝이다
                 heldDir = Vector2.zero;
+                budget = budgetCells;      // 앞이 뚫린 김에 예산을 다시 채운다
                 return main;
             }
 
-            // 부 축 — 주 축이 민 방향과 **다른 축**으로 한 칸. 방향은 **표적 쪽**이다.
+            // 부 축 — 주 축이 민 방향과 **다른 축**이다.
             Vector2 delta = to - from;
             bool mainWasHorizontal = Mathf.Abs(delta.x) >= Mathf.Abs(delta.y);
-
             float other = mainWasHorizontal ? delta.y : delta.x;
-            if (Mathf.Abs(other) <= 1e-6f) return null;   // 그 축으로는 갈 이유가 없다
 
-            // ⚠️⚠️ **한 번 고른 쪽을 잠깐 붙든다**(2026-09-16 설계 완화 · §74-12 B).
-            //    매 틱 다시 고르면 두 축이 비슷할 때 좌우가 프레임마다 뒤집혀
-            //    **제자리에서 떠는 것처럼** 보인다 — 얼굴 방향에서 겪은 병과 같다.
-            Vector2 dir = mainWasHorizontal
-                ? new Vector2(0f, Mathf.Sign(other))
-                : new Vector2(Mathf.Sign(other), 0f);
+            // ⚠️ **표적 쪽이 어느 쪽인지 모를 때도 돌아간다**(거의 한 축에 선 경우).
+            //    종전에는 여기서 곧장 포기했다 — 굳음이 가장 잘 나던 자리다.
+            float sign = Mathf.Abs(other) > 1e-6f ? Mathf.Sign(other) : 1f;
+            Vector2 toward = mainWasHorizontal ? new Vector2(0f, sign) : new Vector2(sign, 0f);
 
-            if (hold > 0f && heldDir != Vector2.zero) dir = heldDir;
+            // 갈 수 있는 거리 — **예산이 정한다.** 예산이 0 이면 종전처럼 표적까지 남은 양만.
+            float allowance = budgetCells > 0f
+                ? Mathf.Min(distance, Mathf.Max(0f, budget))
+                : Mathf.Min(distance, Mathf.Abs(other));
+            if (allowance <= 0f) return null;   // 예산을 다 썼다 — 그대로 선다
 
-            float step = Mathf.Min(distance, Mathf.Abs(other));
-            Vector2 side = from + dir * step;
+            // 볼 차례: 붙들고 있던 쪽 → 표적 쪽 → 반대쪽.
+            // ⚠️ **붙들던 쪽을 맨 앞에 둔다** — 그것이 붙들기의 내용이다.
+            Vector2 first = hold > 0f && heldDir != Vector2.zero ? heldDir : toward;
+            Vector2 second = first == toward ? -toward : toward;
 
-            if (IsBlocked(side, radius, self, others, robot)) return null;
+            Vector2? picked = TrySide(from, first, allowance, radius, self, others, robot);
+            if (picked == null && budgetCells > 0f)
+                picked = TrySide(from, second, allowance, radius, self, others, robot);
 
-            heldDir = dir;
+            if (picked == null) return null;
+
+            Vector2 dir = (picked.Value - from).normalized;
+            heldDir = dir == Vector2.zero ? first : dir;
             if (hold <= 0f) hold = holdSeconds;
-            return side;
+            if (budgetCells > 0f) budget = Mathf.Max(0f, budget - (picked.Value - from).magnitude);
+            return picked;
+        }
+
+        /// <summary>그 쪽으로 한 발 갈 수 있는가. 막혔으면 <c>null</c>.</summary>
+        private static Vector2? TrySide(Vector2 from, Vector2 dir, float step,
+            float radius, CombatEntity self, IReadOnlyList<CombatEntity> others, CombatEntity robot)
+        {
+            if (dir == Vector2.zero || step <= 0f) return null;
+            Vector2 side = from + dir * step;
+            return IsBlocked(side, radius, self, others, robot) ? (Vector2?)null : side;
         }
 
         public static bool IsBlocked(Vector2 target, float radius, CombatEntity self,

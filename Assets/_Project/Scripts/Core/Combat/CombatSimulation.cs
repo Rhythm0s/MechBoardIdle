@@ -267,7 +267,14 @@ namespace MBI.Core
         /// </summary>
         public void SetSideStepHold(float seconds) => _sideStepHold = Mathf.Max(0f, seconds);
 
+        /// <summary>
+        /// 곁눈질로 돌아갈 수 있는 최대 거리(칸) — **0 이면 종전 거동**
+        /// (2026-09-19 사용자 확정 「우회를 더 강하게」 · 값은 `CombatTuning` 이 든다).
+        /// </summary>
+        public void SetSideDetourCells(float cells) => _sideDetourCells = Mathf.Max(0f, cells);
+
         private float _sideStepHold;
+        private float _sideDetourCells;
 
         public void SetSpawnBand(float min, float max)
         {
@@ -1649,7 +1656,8 @@ namespace MBI.Core
                     //    통과·밀어내기는 여전히 없다.
                     Vector2? next = GridMovement.StepOrSide(
                         e.position, Act.body.position, e.moveSpeed * dt, e.radius, e, _enemies, Act.body,
-                        ref e.sideStepHold, ref e.sideStepDir, _sideStepHold, dt);
+                        ref e.sideStepHold, ref e.sideStepDir, _sideStepHold, dt,
+                        ref e.sideStepBudget, _sideDetourCells);
                     if (next.HasValue) e.position = next.Value;
 
                     e.attackCooldown = 0f; // 접근 중엔 즉시 타격 준비
