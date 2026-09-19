@@ -2225,8 +2225,6 @@ namespace MBI.Combat
         /// </summary>
         private void DrawTagAutoToggle(Rect tagRect)
         {
-            float s = UiLayout.Scale(Screen.height);
-
             // ⚠️ **원형 바로 아래**(2026-09-18 사용자 확정 · 시안 3 — 「태그 원형 → 바로 아래
             //    「자동」 토글 → 합체 원형」). 🗑️ 구 자리(원형 **위**) 폐기.
             //    자리는 `UiLayout` 한 곳이 낸다 — 여기서 재면 원형이 움직일 때 또 어긋난다.
@@ -2248,33 +2246,26 @@ namespace MBI.Combat
 
             Color prev = GUI.color;
             if (!on) GUI.color = new Color(prev.r, prev.g, prev.b, prev.a * 0.55f);
-            bool hit = UiSkin.Button(toggle, on ? "자동 교대 켜짐" : "자동 교대 꺼짐", style);
+            // ✅ **「Auto」**(2026-09-19 사용자 확정 ②). 🗑️ 구 「자동 교대 켜짐/꺼짐」 폐기 —
+            //    원형 바로 아래 좁은 판에 여섯 자가 들어가느라 판이 원형보다 넓어졌다.
+            //
+            // ⚠️⚠️ **켜짐·꺼짐을 글자가 말하지 않는다.** 이제 그것을 지는 것은 위의
+            //    **굵기와 밝기**(꺼지면 알파 0.55) 둘뿐이다 — 글자는 같은 「Auto」다.
+            //    ⚠️ 이 둘로 갈리는지는 **육안이 판정할 일**이다(가정).
+            bool hit = UiSkin.Button(toggle, "Auto", style);
             GUI.color = prev;
             if (hit) TagAutoMode.Toggle();   // 길게 누르기와 **같은 값**을 뒤집는다
 
-            // 안내 — **문구는 사용자 확정 그대로**다(`TagAutoMode.Hint`).
-            // ⚠️ 토글 **아래**로 옮겼다 — 위에 두면 태그 원형과 겹친다(자리를 내린 대가).
+            // 🗑️🗑️ **안내 줄 폐기**(2026-09-19 사용자 확정 ④ — 「탭 = 교대, 길게 자동 킴/끔 제거」).
             //
-            // ⚠️⚠️ **두 줄로 나눈다**(2026-09-19 사용자 육안 ⑤ · 스크린샷 1·2).
+            // 09-19 오전에 이 줄을 두 줄로 나눠 화면 안에 들여놨는데, **들어오고 나니
+            // 아래 합체 원형을 덮었다**(사용자 스크린샷 5 — 「길게 = 자동 켬/끔」 위에
+            // 「합체 / 3%」가 겹쳐 찍혔다). 자리를 또 다투게 하는 대신 **줄을 걷는다.**
             //
-            // 종전은 `wordWrap = false` + `Overflow` 한 줄이라 열여덟 자가 토글 폭(300)을
-            // 훌쩍 넘었고, 오른쪽이 **화면 밖으로 잘려** 「자동 켬」까지만 보였다 —
-            // 「끔」이 안 보이니 **길게 눌러 끌 수 있다는 사실 자체가 안 읽힌다.**
-            //
-            // 📌 **두 줄짜리 문구를 따로 두지 않는다** — 같은 말이 두 곳에 살면 한쪽만
-            //    고쳐지는 날이 온다(지침 §7). 상수는 하나고, 끊을 자리(`·`)만 여기서 준다.
-            var hint = new Rect(toggle.x - toggle.width * 0.15f, toggle.yMax + 2f * s,
-                                toggle.width * 1.3f, h * 0.92f);
-            if (hint.yMax > Screen.height) return;
-            GUI.Label(hint, LabelWrapRule.At(TagAutoMode.Hint, "·"), new GUIStyle(GUI.skin.label)
-            {
-                fontSize = KoreanFont.Snap(Mathf.Max(8,
-                    Mathf.Min(Mathf.RoundToInt(h * 0.26f),
-                              Mathf.RoundToInt(hint.width / 11f)))),
-                alignment = TextAnchor.UpperCenter,
-                wordWrap = true,
-                clipping = TextClipping.Overflow,
-            });
+            // 📌 조작법은 이제 **「Auto」 토글 자체**가 말한다 — 눌러서 켜고 끄는 것이
+            //    보이므로, 같은 말을 글자로 또 적을 자리가 아니다.
+            // ⚠️ `TagAutoMode.Hint` **상수는 지운 게 아니라 폐기 표기**로 남는다 —
+            //    되살릴 자리가 생기면 문구가 거기 그대로 있어야 한다.
         }
 
         /// <summary>
@@ -2321,8 +2312,12 @@ namespace MBI.Combat
         /// 화면에 **「태그 — 교 / 대」**로 나왔다(육안 ⑤ · 스크린샷 1·3).
         ///
         /// 그래서 **마디마다 끊어 준다** — 첫 줄은 무엇인가, 둘째 줄은 어떤 상태인가다.
-        /// 🗑️ **구 한 줄 문구 폐기**(「태그 — 교대」·「태그 (쿨다운 1.2s)」…) — 뜻은 그대로고
-        /// **줄만** 나뉜다. 글자를 줄이면 무엇인지가 사라지므로 줄이지 않았다.
+        /// 🗑️ **구 한 줄 문구 폐기**(「태그 — 교대」·「태그 (쿨다운 1.2s)」…).
+        ///
+        /// ✅ **평상시는 「태그」 한 낱말**(2026-09-19 사용자 확정 ① — 「태그 교대 → 태그」).
+        /// 🗑️ 「태그 / 교대」 폐기 — 두 줄로 끊어 넣고 보니 **둘째 줄이 하는 말이 없었다**
+        /// (버튼이 하는 일은 하나뿐이라 「교대」가 「태그」를 다시 말할 뿐이다).
+        /// **평상시가 아닐 때만** 둘째 줄이 선다 — 잠금 · 쿨다운 · 스킬 준비.
         /// </summary>
         private string TagButtonLabel()
         {
@@ -2334,7 +2329,7 @@ namespace MBI.Combat
             return TagSystem.SkillReady(true,
                 _sim.Tag.StandbyMount != null && _sim.Tag.StandbyMount.IsFull)
                 ? "태그\n스킬"
-                : "태그\n교대";
+                : "태그";
         }
 
         /// <summary>합체 원형의 글자. 끊는 까닭은 <see cref="TagButtonLabel"/> 과 같다.</summary>

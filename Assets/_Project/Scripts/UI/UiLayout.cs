@@ -215,8 +215,19 @@ namespace MBI.UI
         /// </summary>
         public static Rect TagAutoToggleRect(float screenWidth, float screenHeight)
         {
-            const float w = 300f, h = 80f;
-            return Centered(new Vector2(TagButtonCenter.x, 1840f), w, h, screenWidth, screenHeight);
+            // ⚠️ **태그 원형에 바짝 붙인다**(2026-09-19 사용자 확정 ③ — 「태그 버튼 하단에 더 붙여서」).
+            //
+            // 🗑️ 구 y1840(태그 아랫변에서 60) 폐기. 새 자리는 **아랫변에서 잰다** —
+            // 가운데를 못 박아 두면 원형 지름이 바뀔 때 간격이 딸려 오지 않는다.
+            //
+            // 📌 폭도 **원형 지름을 그대로 쓴다**(300 → 200). 글자가 「Auto」 넉 자로 줄어
+            // 300 짜리 판에는 한가운데 낱말 하나만 떠 있게 되고, 그러면 **원형과 한 덩이로
+            // 안 읽힌다.** 새 수를 들이지 않고 이미 있는 <see cref="RoundButtonDiameter"/> 를 쓴다.
+            // ⚠️ 간격 8 은 가정이다(설계 역기입 자리).
+            const float h = 80f, gap = 8f;
+            float top = TagButtonCenter.y + RoundButtonDiameter * 0.5f + gap;
+            return Centered(new Vector2(TagButtonCenter.x, top + h * 0.5f),
+                            RoundButtonDiameter, h, screenWidth, screenHeight);
         }
 
         /// <summary>조립 진입 막대의 **가운데** (기준 캔버스). x720 = 화면 한가운데.</summary>

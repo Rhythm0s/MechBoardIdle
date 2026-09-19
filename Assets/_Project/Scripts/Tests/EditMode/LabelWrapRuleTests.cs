@@ -57,14 +57,16 @@ namespace MBI.Tests
         }
 
         [Test]
-        public void 자동_교대_안내가_두_줄로_나뉜다()
+        public void 토막_앞뒤의_여백은_먹는다()
         {
-            // ⚠️ **상수를 옮겨 적지 않는다** — 문구가 바뀌면 이 시험도 같이 따라간다.
-            string two = LabelWrapRule.At(TagAutoMode.Hint, "·");
-            Assert.AreEqual(2, two.Split('\n').Length, "두 줄이어야 한다");
-            StringAssert.Contains("켬", two);
-            StringAssert.Contains("끔", two);
-            Assert.AreEqual(TagAutoMode.Hint.Replace(" · ", "\n"), two, "글자가 바뀌면 안 된다");
+            // 「가 · 나」 처럼 토막 양옆에 여백이 있으면 **줄 끝과 줄 앞에 빈 칸이 남는다** —
+            // 가운데 맞춤에서는 그 빈 칸만큼 글자가 한쪽으로 밀린다.
+            Assert.AreEqual("가\n나", LabelWrapRule.At("가 · 나", "·"));
         }
+
+        // 🗑️ **폐기 — `자동_교대_안내가_두_줄로_나뉜다`**(2026-09-19 사용자 확정 ④).
+        //    `TagAutoMode.Hint` 를 두 줄로 그리던 자리가 화면에서 걷혔다. 그리지 않는
+        //    것을 지키는 시험은 **없는 화면을 지킨다** — 통과해도 아무것도 안 막는다.
+        //    상수 자체(손짓과 같은 말인가)는 `TagAutoModeTests` 가 계속 든다.
     }
 }
