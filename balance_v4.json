@@ -302,7 +302,7 @@
     },
     {
       "key": "droneAoeDamageFactor",
-      "label": "광역형 드론 표적당 피해 비",
+      "label": "광역형 드론 표적당 피해 비 (🗑️ 파생 · 읽지 않음)",
       "group": "원점·곡선",
       "value": 0.5,
       "confirmed": false,

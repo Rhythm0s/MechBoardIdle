@@ -283,7 +283,18 @@ namespace MBI.Tests
             var byKey = new Dictionary<string, CsvTable.Row>();
             foreach (CsvTable.Row r in t.Rows) byKey[r.Text("ParamKey")] = r;
 
-            Assert.AreEqual(47, t.Rows.Count, "params 는 마흔일곱이다");
+            // ⚠️⚠️ **수를 박아 두면 표가 낡는 것을 못 잡는다** — 실제로 낡았다.
+            //    09-19 에 json 에 `dBAoe` 를 넣고 **이 표를 다시 안 구웠다.** 표는 47,
+            //    json 은 48 이었는데 시험은 47 을 지키고 있어 **초록불이 거짓말을 했다.**
+            //    이제 **json 을 세어 견준다** — 칸이 늘면 표도 같이 늘어야 한다.
+            //
+            // ⚠️ 세는 열쇠가 `"key"` 가 아니라 **`"group"`** 인 까닭 — `"key"` 는 적 목록에도
+            //    있어 52 로 세어졌다(params 는 48). `"group"` 은 params 에만 있다.
+            //    📌 **세기 전에 열어 봤다** — 안 열었으면 이 시험이 또 거짓말을 했을 것이다.
+            int inJson = System.Text.RegularExpressions.Regex.Matches(
+                System.IO.File.ReadAllText("balance_v4.json"), @"""group""\s*:").Count;
+            Assert.AreEqual(inJson, t.Rows.Count,
+                $"json params 는 {inJson} 인데 표는 {t.Rows.Count} 다 — 표를 다시 구워라");
             Assert.IsTrue(byKey.ContainsKey("origin"), "origin 칸이 없다");
             Assert.AreEqual(c.origin, byKey["origin"].Num("Value"), D, "원점 출력");
             Assert.AreEqual(1, byKey["origin"].Int("Confirmed"), "origin 은 확정이다");
