@@ -20,8 +20,8 @@ V01 초안 → **노션이 안 깨뜨리는 꼴**로.
 import io, re, sys
 sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 
-SRC = r"C:\Unity_Project\26_MechBoardIdle\MechBoardIdle\Docs\260919_V01_draft.md"
-DST = r"C:\Users\Kang\AppData\Local\Temp\claude\C--Users-Kang-OneDrive------\4b27ebae-8565-4ef9-951d-a870936a2e68\scratchpad\v01_notion.md"
+SRC = r"C:\Unity_Project\26_MechBoardIdle\MechBoardIdle\Docs\260920_V01_draft.md"
+DST = r"C:\Users\Kang\AppData\Local\Temp\claude\C--Users-Kang-OneDrive------\4b27ebae-8565-4ef9-951d-a870936a2e68\scratchpad\v01_0920_notion.md"
 
 
 def unbold_cells(line):
