@@ -14,6 +14,31 @@ namespace MBI.Combat
     {
         private CombatEntity _entity;
         private float _size;
+
+        // ── 막대 치수 — **한 곳에서만 적는다**(지침 §7) ──────────────────────
+        //
+        // ⚠️ 수치 글자가 이 막대 **안**에 앉으므로(2026-09-21 사용자 확정 ⑥)
+        //    그리는 쪽과 적는 쪽이 같은 수를 봐야 한다. 따로 적으면 어긋나는 날이 온다.
+
+        /// <summary>막대 높이 ÷ 몸 크기. ⚠️ 가정(2026-09-18 「얇게」 0.14 → 0.10).</summary>
+        public const float BarHeightRatio = 0.10f;
+
+        /// <summary>HP 막대 중심이 몸 중심에서 내려간 거리 ÷ 몸 크기. ⚠️ 가정.</summary>
+        public const float BarCenterRatio = 0.62f;
+
+        /// <summary>보호막 막대가 HP 막대에서 더 내려간 거리 ÷ 막대 높이. ⚠️ 가정.</summary>
+        public const float ShieldGapRatio = 1.25f;
+
+        /// <summary>이 몸의 크기(월드) — 막대 폭이 곧 이 값이다.</summary>
+        public float ViewSize => _size;
+
+        /// <summary>HP 막대 한가운데(월드).</summary>
+        public Vector2 HpBarCenter => (Vector2)transform.position
+            + new Vector2(0f, -_size * BarCenterRatio);
+
+        /// <summary>보호막 막대 한가운데(월드).</summary>
+        public Vector2 ShieldBarCenter => HpBarCenter
+            + new Vector2(0f, -_size * BarHeightRatio * ShieldGapRatio);
         private Transform _hpFill;
 
         // ── 쉴드 바 (2026-09-17 · `260917_W07` 4장 4번) ───────────────────────
@@ -172,8 +197,8 @@ namespace MBI.Combat
             //
             // ⚠️ **얇게**(0.14 → 0.10) — 발밑은 그림자와 가까워 두꺼우면 몸을 가린다. ⚠️ 가정.
             float barW = size;
-            float barH = size * 0.10f;
-            float barY = -size * 0.62f;
+            float barH = size * BarHeightRatio;
+            float barY = -size * BarCenterRatio;
             var bgGo = new GameObject("HpBg");
             bgGo.transform.SetParent(transform, false);
             bgGo.transform.localPosition = new Vector3(0f, barY, 0f);
@@ -201,7 +226,7 @@ namespace MBI.Combat
 
             // 쉴드 바 — **HP 바 규칙 그대로 · 바로 아래 한 칸**(2026-09-18).
             // 🗑️ 구 「바로 위」 폐기 — HP 바가 발밑으로 내려오면서 위쪽은 몸이다.
-            float shieldY = barY - barH * 1.25f;
+            float shieldY = barY - barH * ShieldGapRatio;
             _shieldBar = new GameObject("ShieldBar");
             _shieldBar.transform.SetParent(transform, false);
             _shieldBar.transform.localPosition = new Vector3(0f, shieldY, 0f);
@@ -272,7 +297,9 @@ namespace MBI.Combat
                 //
                 // 피벗을 바꿀 수는 없으므로(`PlaceholderSprite.White()` 공용이다)
                 // **왼변이 제자리에 있도록 중심을 민다** — 줄어든 만큼의 절반이다.
-                _hpFill.localScale = new Vector3(_size * ratio, _size * 0.14f, 1f);
+                // ⚠️ **0.14 → 0.10**(2026-09-21). 배경은 09-18 에 얇게 고쳤는데 **채움은
+                //    안 고쳤다** — 채움이 배경보다 두꺼워 위아래로 삐져나와 있었다.
+                _hpFill.localScale = new Vector3(_size * ratio, _size * BarHeightRatio, 1f);
                 Vector3 lp = _hpFill.localPosition;
                 _hpFill.localPosition = new Vector3(-_size * (1f - ratio) * 0.5f, lp.y, lp.z);
             }
@@ -282,7 +309,7 @@ namespace MBI.Combat
             {
                 // HP 바와 **같은 규칙**이다 — 왼변을 제자리에 두고 오른쪽에서 줄인다.
                 float r = Mathf.Clamp01(_shieldRatio);
-                _shieldFill.localScale = new Vector3(_size * r, _size * 0.14f, 1f);
+                _shieldFill.localScale = new Vector3(_size * r, _size * BarHeightRatio, 1f);
                 _shieldFill.localPosition = new Vector3(-_size * (1f - r) * 0.5f, 0f, 0f);
             }
         }

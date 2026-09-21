@@ -287,18 +287,14 @@ namespace MBI.Combat
             GUI.DrawTexture(coinRect, PlaceholderSprite.SoftDisc().texture, ScaleMode.ScaleToFit);
             GUI.color = coinPrev;
 
+            // 칩은 **지금 골드만** 적는다(2026-09-21 사용자 확정 ①).
+            //
+            // 구 획득률 줄 「+6.64/초」는 걷었다 — 칩 한 칸에 「지금 얼마」와 「초당 얼마」가
+            // 같이 서 있어 한눈에 읽을 수가 둘이었다.
+            // 줄이 하나가 됐으므로 칸을 다 쓴다(종전 0.58 은 두 줄로 나눈 몫이다).
             GUI.Label(new Rect(coinRect.xMax + 6f * sc, chip.y,
-                               chip.width - coinRect.width - 20f * sc, chip.height * 0.58f),
+                               chip.width - coinRect.width - 20f * sc, chip.height),
                       IdleSignals.WalletGold.ToString("N0"), goldStyle);
-
-            var rateStyle = new GUIStyle(text)
-            {
-                alignment = TextAnchor.MiddleCenter,
-                fontSize = KoreanFont.Snap(Mathf.Max(9, Mathf.RoundToInt(px * 0.72f))),
-            };
-            rateStyle.normal.textColor = new Color(0.85f, 0.85f, 0.85f);
-            GUI.Label(new Rect(chip.x, chip.y + chip.height * 0.52f, chip.width, chip.height * 0.46f),
-                      "+" + GoldPerSecond().ToString("F2") + "/초", rateStyle);
 
             // ── 설정 ──
             // ⚠️⚠️ **소리 아이콘은 여기서 안 그린다.** 자리(`ChipSoundRect`)만 비워 두고
@@ -340,6 +336,11 @@ namespace MBI.Combat
         ///
         /// ⚠️ **비(20마리당 5골드)를 여기 적지 않는다.** 그 값은 자산 한 곳에 살고,
         /// 화면이 다시 적으면 자산을 고쳤을 때 답이 둘이 된다(지침 §7).
+        /// </summary>
+        /// <summary>
+        /// 폐기 표기 — **부르는 곳이 없다**(2026-09-21 사용자 확정 ①로 칩 줄을 걷었다).
+        /// 지우지 않고 남긴다: 초당 골드를 구하는 식은 이곳뿐이라 마일스톤·정산 창이
+        /// 다시 물을 수 있다.
         /// </summary>
         private float GoldPerSecond()
         {
@@ -469,24 +470,30 @@ namespace MBI.Combat
             };
             style.normal.textColor = Color.white;
 
+            // 수치는 **게이지 안**에 앉는다(2026-09-21 사용자 확정 6번).
+            //
+            // 구 자리는 막대 **밑의 따로 두 줄**(「132/1000」 · 「보호막 2/200」)이었다 —
+            // 몸 밑이 길어졌고, 막대와 수치가 떨어져 있어 어느 막대의 수인지를 눈이
+            // 다시 맞춰야 했다. 폐기한다.
+            //
+            // 막대 자리는 `CombatEntityView` 가 든다 — 여기서 다시 적지 않는다(지침 7).
             float rowH = 28f * sc;
-            GUI.Label(new Rect(x, y, w, rowH),
-                      _sim.Robot.hp.ToString("F0") + " / " + _sim.Robot.maxHp.ToString("F0"), style);
-            y += rowH;
-
             float shieldMax = _sim.ShieldMax, shieldNow = _sim.Shield.Value;
             if (IsMerged && _sim.HasTagPartner)
             {
                 shieldMax += _sim.StandbyShieldMax;
                 shieldNow += _sim.StandbyShield.Value;
             }
-            if (shieldMax > 0f)
+
+            if (_robotView != null)
             {
-                var s = new GUIStyle(style);
-                s.normal.textColor = new Color(0.55f, 0.82f, 1f);
-                GUI.Label(new Rect(x, y, w, rowH),
-                          "보호막 " + shieldNow.ToString("F0") + " / " + shieldMax.ToString("F0"), s);
-                y += rowH;
+                DrawInBar(cam, _robotView.HpBarCenter, _robotView.ViewSize, style, Color.white,
+                          _sim.Robot.hp.ToString("F0") + " / " + _sim.Robot.maxHp.ToString("F0"));
+
+                if (shieldMax > 0f)
+                    DrawInBar(cam, _robotView.ShieldBarCenter, _robotView.ViewSize, style,
+                              new Color(0.80f, 0.93f, 1f),
+                              shieldNow.ToString("F0") + " / " + shieldMax.ToString("F0"));
             }
 
             // 회피 눈금 — 글자가 아니라 눈금이다(설계 지시 「회피 눈금 8」).
@@ -495,6 +502,43 @@ namespace MBI.Combat
             HudBars.Ticks(new Rect(sp.x - tickW * 0.5f, y + 4f * sc, tickW,
                                    Mathf.Max(HudBars.BarHeight, HudBars.BarHeight * sc)),
                           d.Stacks, d.Capacity, d.IsInvincible);
+        }
+
+        /// <summary>
+        /// 막대 **안**에 수치 한 줄 (2026-09-21 사용자 확정 6번).
+        ///
+        /// 막대는 얇다(몸 크기의 0.10). 사다리에서 가장 작은 칸을 쓰고, 그래도 넘치면
+        /// **막대 밖으로 넘겨 그린다**(Overflow) — 자르면 숫자가 반 토막 난다.
+        /// 오늘 안내 줄에서 배운 것이다: 글자를 상자에 맞추려다 아래를 자르지 않는다.
+        ///
+        /// 읽히라고 글자에 **그림자 한 겹**을 깐다 — 채움 색(초록/파랑) 위의 흰 글자는
+        /// 밝은 데서 뭉갠다. 그림자 한 픽셀은 가정이다.
+        /// </summary>
+        private static void DrawInBar(Camera cam, Vector2 worldCenter, float viewSize,
+                                      GUIStyle basis, Color color, string text)
+        {
+            Vector3 sp = cam.WorldToScreenPoint(new Vector3(worldCenter.x, worldCenter.y, 0f));
+            if (sp.z < 0f) return;
+
+            Vector3 edge = cam.WorldToScreenPoint(
+                new Vector3(worldCenter.x + viewSize * 0.5f, worldCenter.y, 0f));
+            float halfW = Mathf.Abs(edge.x - sp.x);
+            if (halfW < 8f) return;   // 너무 작으면 수가 안 읽힌다 — 안 그린다
+
+            var style = new GUIStyle(basis)
+            {
+                fontSize = KoreanFont.Ladder[0],
+                alignment = TextAnchor.MiddleCenter,
+                clipping = TextClipping.Overflow,
+            };
+
+            float h = KoreanFont.Ladder[0] * 1.4f;
+            var box = new Rect(sp.x - halfW, Screen.height - sp.y - h * 0.5f, halfW * 2f, h);
+
+            style.normal.textColor = new Color(0f, 0f, 0f, 0.65f);
+            GUI.Label(new Rect(box.x + 1f, box.y + 1f, box.width, box.height), text, style);
+            style.normal.textColor = color;
+            GUI.Label(box, text, style);
         }
 
         // ────────────────────────── 마일스톤 카드 ──────────────────────────

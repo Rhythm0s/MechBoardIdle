@@ -142,9 +142,20 @@ namespace MBI.Logistics
             // 언젠가 닿는다. 규칙을 그대로 적는다 — **보드 화면일 때만 보드 층을 켠다.**
             if (cam != null) cam.cullingMask = BoardLayer.MaskFor(cam.cullingMask, _boardView);
 
-            // 인셋은 **전투를** 비춘다 — 보드 층은 언제나 끓다.
+            // ⚠️⚠️ **반대 방향도 막는다**(2026-09-21 사용자 육안 ③ — 「조립 화면 보드 위에
+            //    몬스터가 HP 바째 그려진다」).
+            //
+            // 09-16 에 「전투 화면에 보드가 비친다」를 층으로 갈랐는데 **판 쪽만** 갈랐다.
+            // 전투 그림은 기본 층에 남아 있어, 조립 화면 주 카메라가 적을 그대로 그렸다.
+            // 같은 규칙을 반대로 적는다 — **보드 화면에서는 전투 층을 끈다.**
+            if (cam != null) cam.cullingMask = CombatLayer.MaskFor(cam.cullingMask, !_boardView);
+
+            // 인셋은 **전투를** 비춘다 — 보드 층은 언제나 꺼지고 전투 층은 언제나 켜진다.
             if (combatInsetCam != null)
+            {
                 combatInsetCam.cullingMask = BoardLayer.MaskFor(combatInsetCam.cullingMask, false);
+                combatInsetCam.cullingMask = CombatLayer.MaskFor(combatInsetCam.cullingMask, true);
+            }
 
             if (combatInsetCam != null)
             {

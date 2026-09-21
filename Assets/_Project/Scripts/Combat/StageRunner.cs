@@ -1426,6 +1426,11 @@ namespace MBI.Combat
             UpdateAmmoOutView();   // 지속 상태 — 한 번 만들고 껐다 켠다(`260909_W01` 3장이 (가)를 확정)
             PublishSupplySignals();
 
+            // ⚠️⚠️ **전투 그림은 전투 층에 둔다**(2026-09-21 사용자 육안 ③).
+            //    배경·적·탄·드론·연출·드롭이 전부 이 트랜스폼 아래에 달리므로
+            //    **뿌리에서 한 번** 훑는다 — 낳는 자리마다 적으면 새로 낳는 것마다 빠뜨린다.
+            CombatLayer.Apply(transform);
+
             // 처치를 방치 런타임으로 흘린다. 가져가며 비우는 API라 같은 처치를 두 번 세지 않는다.
             IdleSignals.AddKills(_sim.ConsumeKills());
 
@@ -2484,9 +2489,19 @@ namespace MBI.Combat
                 // 심사자가 볼 화면에서 하는 말이 아니다. 스택이 확정되면 이 갈래 자체가 사라진다.
                 ? "만충 판정 대기"
                 : (standby.IsFull ? "만충" : "채우는 중");
+            // ⚠️ **진단 — ④ 「B 물류가 태그 전엔 안 찬다」를 가르는 줄**(2026-09-21).
+            //    배선을 다 읽었는데 셋 중 어디서 끊기는지는 **게임이 돌아야** 갈린다.
+            //    도착률이 0 이면 판/브릿지 쪽, 0 이 아닌데 적재가 안 늘면 칸 쪽이다.
+            //    ⚠️ 답이 오면 이 줄은 걷는다 — 심사자 화면에 남길 글이 아니다.
+            string standbyFeed =
+                $"   ·   대기 도착 {LogisticsOutputBridge.StandbyStackDroneArrivalRate:F2}"
+                + $"/{LogisticsOutputBridge.StandbyAoeDroneArrivalRate:F2}/초"
+                + $"   ·   대기 칸 {standby.Total:F1}/{standby.Capacity:F0}";
+
             return $"출전 {who}   ·   마운트 적재 {act.Total:F0}   ·   대기 마운트 {standby.Total:F0} ({fullness})"
                    + MountItemBreakdown(standby)
-                   + $"   ·   드론 {_sim.Drones.Count}기";
+                   + $"   ·   드론 {_sim.Drones.Count}기"
+                   + standbyFeed;
         }
 
         /// <summary>
