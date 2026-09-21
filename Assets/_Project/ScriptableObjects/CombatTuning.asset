@@ -55,6 +55,7 @@ MonoBehaviour:
   tagFlashAlphaTbd: 0.35
   tagFlashSecondsTbd: 0.18
   tagBeamCellsTbd: 1.5
+  droneBeamCellsTbd: 0.12
   tagBeamSecondsTbd: 0.3
   tagWaveCountTbd: 3
   tagWaveIntervalSecondsTbd: 0.15

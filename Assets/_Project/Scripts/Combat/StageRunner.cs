@@ -1484,7 +1484,11 @@ namespace MBI.Combat
             if (running)
                 foreach (ShotEvent s in _sim.ShotsThisTick)
                 {
-                    SpawnShotFx(s);
+                    // ✅ **누적형 드론은 탄선을 안 그린다**(2026-09-21 사용자 확정).
+                    //    🗑️ 구 연출(관통형 탄 한 줄) 폐기 — 붙어서 조사하는 그림에
+                    //    탄이 따로 날면 **붙어 있다는 것**이 안 읽힌다.
+                    //    피격 플래시와 소리는 그대로 둔다(맞은 사건 자체는 같다).
+                    if (!s.stackDroneBeam) SpawnShotFx(s);
                     // 발사 반동 — 스프라이트를 늘리지 않고 로봇 전체를 표적 반대로 밀었다 복귀(V01 §3).
                     if (_robotView != null) _robotView.Recoil(s.to - s.from);
                     // 소리는 **탄선과 같은 사건**에 붙는다 — 소리를 위해 새 사건을 만들지 않는다
@@ -1585,7 +1589,66 @@ namespace MBI.Combat
                     _droneViews[d] = sr;
                 }
                 if (sr != null) sr.transform.position = new Vector3(d.Position.x, d.Position.y, 0f);
+
+                // ✅ **누적형은 붙어 있는 동안 빔을 쏜다**(2026-09-21 사용자 확정).
+                //    타격은 0.5초마다지만 **빔은 끊기지 않는다** — 붙어서 에너지를
+                //    들이붓는 그림이라 깜빡이면 「붙었다」가 안 읽힌다.
+                SyncDroneBeam(d);
             }
+
+            // 사라진 드론의 빔도 같이 걷는다.
+            foreach (KeyValuePair<DroneUnit, SpriteRenderer> kv in _droneBeams)
+                if (kv.Value != null && !_droneViews.ContainsKey(kv.Key))
+                    kv.Value.enabled = false;
+        }
+
+        /// <summary>드론마다 빔 하나 — 붙어 있는 동안만 켜진다.</summary>
+        private readonly Dictionary<DroneUnit, SpriteRenderer> _droneBeams =
+            new Dictionary<DroneUnit, SpriteRenderer>();
+
+        /// <summary>
+        /// 누적형 드론 → 붙은 적, **가는 빔 한 줄기** (2026-09-21 사용자 확정).
+        ///
+        /// ⚠️ **끄는 것이 먼저다** — 떨어졌거나 광역형이면 바로 끈다. 켜고 나서 끄는
+        /// 자리를 안 만들면 표적이 죽은 뒤에도 빔이 허공에 남는다.
+        ///
+        /// ⚠️ 굵기·알파는 **가정**이다(SO · `droneBeamCellsTbd`).
+        /// ⚠️ 태그 스킬 빔과 **같은 그림**(`SoftBeam`)을 쓰되 훨씬 가늘다 — 같은 문법의
+        ///    큰 것과 작은 것으로 읽히는 편이 낫다.
+        /// </summary>
+        private void SyncDroneBeam(DroneUnit d)
+        {
+            bool on = d.Kind == DroneKind.Stack && d.Attached
+                      && d.Target is CombatEntity t && t.IsAlive;
+
+            if (!_droneBeams.TryGetValue(d, out SpriteRenderer beam) || beam == null)
+            {
+                if (!on) return;
+                var go = new GameObject("DroneBeam");
+                go.transform.SetParent(transform, false);
+                beam = go.AddComponent<SpriteRenderer>();
+                beam.sprite = PlaceholderSprite.SoftBeam();
+                beam.sortingOrder = SortingLayers.Actor + 1;   // 드론보다 아래, 적보다 위
+                _droneBeams[d] = beam;
+            }
+
+            beam.enabled = on;
+            if (!on) return;
+
+            var target = (CombatEntity)d.Target;
+            Vector2 from = d.Position, to = target.position;
+            Vector2 delta = to - from;
+            float len = delta.magnitude;
+            if (len < 0.01f) { beam.enabled = false; return; }
+
+            float thick = tuning != null && tuning.droneBeamCellsTbd > 0f
+                ? tuning.droneBeamCellsTbd : 0.12f;
+
+            beam.transform.position = new Vector3(from.x, from.y, 0f);
+            beam.transform.rotation =
+                Quaternion.Euler(0f, 0f, Mathf.Atan2(delta.y, delta.x) * Mathf.Rad2Deg);
+            beam.transform.localScale = new Vector3(len, thick, 1f);
+            beam.color = new Color(RobotBColor.r, RobotBColor.g, RobotBColor.b, 0.85f);
         }
 
         private CombatEntityView NewView(string name)

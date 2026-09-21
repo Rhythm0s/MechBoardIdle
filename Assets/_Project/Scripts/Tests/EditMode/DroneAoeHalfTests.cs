@@ -110,13 +110,40 @@ namespace MBI.Tests
             Assert.AreEqual(0.5f, bal.droneAoeDamageFactor, D,
                 "광역형 좌표 50 ÷ 누적형 100 = 0.5 (이관 전 값과 같아야 한다)");
 
-            // ✅ **3칸 — 사용자 확정**(2026-09-19 설계 창 · `260918_W02` 2-1).
-            //    🗑️ 구 2칸 폐기 — S5 에서 1.00마리라 광역형이 이기는 판이 끝까지 없었다.
-            //    3칸은 S5 에서 3.63마리로 본전선 3.64 와 맞고, S1·S3 은 미달로 남는다
-            //    (= 「S1 에서는 약해도 된다」를 값 하나로 구현한 것).
-            //    ⚠️ `confirmed` 는 여전히 false 다 — 확정된 것은 **이 수**이고 본전은 아직 안 쟀다.
-            Assert.AreEqual(3f, bal.droneAoeJudgeRadius, D,
-                "params.droneAoeJudgeRadius = 3 (사용자 확정 09-19 · confirmed 는 false)");
+            // ⚠️⚠️ **수를 박지 않는다**(2026-09-21 · 09-20 「낡은 표」와 같은 병).
+            //
+            // 종전에는 <c>Assert.AreEqual(3f, ...)</c> 였다. 09-21 에 사용자가 **5칸**으로
+            // 뒤집자 이 시험이 **틀린 수를 지키며** 붉은불을 냈다 — 지켜야 할 것은
+            // 「3 이다」가 아니라 **「자산이 json 을 따라온다」**이다.
+            //
+            // 📌 값이 바뀔 자리를 시험에 베껴 두면, 값이 바뀔 때마다 **시험이 두 번째로
+            //    고쳐야 할 곳**이 된다 — 그러다 한 번 안 고치면 초록불이 거짓말을 한다.
+            //    json 을 읽어 견주면 고칠 곳이 하나로 준다.
+            float inJson = JsonRadius();
+            Assert.AreEqual(inJson, bal.droneAoeJudgeRadius, D,
+                $"자산 {bal.droneAoeJudgeRadius} 인데 json 은 {inJson} 다 — 생성기를 다시 돌려라");
+        }
+
+        /// <summary>
+        /// `balance_v4.json` 의 `droneAoeJudgeRadius` 를 **파일에서** 읽는다.
+        ///
+        /// ⚠️ 파서를 들이지 않는다 — 열쇠 뒤의 `"value"` 하나만 집는다.
+        /// 못 찾으면 **죽는다**(0 을 돌려주면 자산이 0 일 때 통과해 버린다).
+        /// </summary>
+        private static float JsonRadius()
+        {
+            const string path = "balance_v4.json";
+            Assert.IsTrue(System.IO.File.Exists(path), $"{path} 이 없다");
+
+            string text = System.IO.File.ReadAllText(path);
+            int at = text.IndexOf("\"droneAoeJudgeRadius\"", System.StringComparison.Ordinal);
+            Assert.Greater(at, 0, "json 에 droneAoeJudgeRadius 가 없다");
+
+            var m = System.Text.RegularExpressions.Regex.Match(
+                text.Substring(at), "\"value\"\\s*:\\s*(-?[0-9.]+)");
+            Assert.IsTrue(m.Success, "droneAoeJudgeRadius 뒤에 value 가 없다");
+            return float.Parse(m.Groups[1].Value,
+                System.Globalization.CultureInfo.InvariantCulture);
         }
     }
 }

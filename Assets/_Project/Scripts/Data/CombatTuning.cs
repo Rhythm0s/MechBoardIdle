@@ -258,6 +258,9 @@ namespace MBI.Data
         [Tooltip("⚠️ 가정 — 빔 굵기(칸). 「굵게」만 받았다.")]
         public float tagBeamCellsTbd = 1.5f;
 
+        [Tooltip("⚠️ 가정 — 누적형 드론이 붙은 적에게 쏘는 조사 빔의 굵기(칸). 태그 빔보다 훨씬 가늘다.")]
+        public float droneBeamCellsTbd = 0.12f;
+
         [Tooltip("⚠️ 가정 — 빔이 머무는 시간(초).")]
         public float tagBeamSecondsTbd = 0.3f;
 

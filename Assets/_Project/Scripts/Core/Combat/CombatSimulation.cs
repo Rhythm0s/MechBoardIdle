@@ -35,6 +35,16 @@ namespace MBI.Core
         /// 그리면 화면이 거짓말을 한다. 지금 그 수는 **드론 사거리**다(아래 타격 자리 참조).
         /// </summary>
         public float aoeJudgeRadius;
+
+        /// <summary>
+        /// **누적형 드론이 붙어서 조사(照射)한 타격인가** (2026-09-21 사용자 확정).
+        ///
+        /// 그림이 갈린다 — 이 사건에는 **탄선을 안 그린다.** 붙어 있는 동안 드론에서
+        /// 표적까지 **빔이 이어져 있고**, 그 빔이 곧 공격이라 탄이 따로 날 자리가 없다.
+        ///
+        /// ⚠️ **판정은 안 갈린다** — 0.5초 간격 · 기당 피해 1/10 그대로다(연출만 바뀐다).
+        /// </summary>
+        public bool stackDroneBeam;
     }
 
     /// <summary>로봇 초기 설정(순수 값 — 시뮬은 SO를 모른다, 테스트 용이).</summary>
@@ -1946,6 +1956,9 @@ namespace MBI.Core
                     from = d.Position, to = target.position,
                     kind = AmmoKind.Pierce, // 드론 = 단발 고밀도(관통형)
                     killed = target.hp <= 0f,
+
+                    // ✅ **누적형은 빔이다**(2026-09-21 사용자 확정) — 그림 쪽이 탄선을 건너뛴다.
+                    stackDroneBeam = d.Kind == DroneKind.Stack,
                     // ⚠️⚠️ **여기에 사거리를 넣으면 안 된다**(2026-09-16 · 사용자 육안 5차).
                     //
                     // 🗑️ 구 줄은 <c>aoeRadius = d.AttackRange</c> 였다. 그 칸은 **폭발탄의
