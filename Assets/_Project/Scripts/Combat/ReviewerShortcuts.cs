@@ -76,9 +76,28 @@ namespace MBI.Combat
             //    ⚠️ 배수 둘 다 가정이다(받은 말은 「글자 2배 · 1.5~2배」). 가운데를 잡았다.
             //    ⚠️ 글자는 **사다리 밖 크기**를 쓴다 — 이 판은 개발용이라 아틀라스 예산
             //       계산(`KoreanFont.Ladder`)에 안 든다. 13 → 26 은 사다리에 없는 수다.
-            const float scale = 1.75f;
-            var button = new GUIStyle(GUI.skin.button) { fontSize = 26 };
-            const float w = 236f * scale, h = 26f * scale, pad = 4f * scale;
+            // ⚠️ **1.75 → 2.6**(2026-09-21 리허설 ④ — 「지금도 작음 · 오른쪽 글자 잘림」).
+            //    글자도 26 → 40 이다(구 13 의 세 배 남짓). ⚠️ 둘 다 가정.
+            //
+            // ⚠️⚠️ **판이 화면을 넘지 않게 묶는다.** 236 × 2.6 = 614 인데 좁은 창에서는
+            //    화면이 그보다 좁을 수 있다 — 넘으면 오른쪽 글자가 잘린다(이번에 난 일).
+            //    그래서 **화면 폭에서 여백을 뺀 값**을 상한으로 둔다.
+            // ⚠️⚠️ **배율을 화면에서 낸다**(2026-09-21 · 내가 띄워 보고 두 번 고쳤다).
+            //
+            // 1.75 는 작았고(사용자 ④), 2.6 은 **판이 화면 아래로 넘쳤다**(내 실측).
+            // 박힌 배수로는 창 크기마다 한쪽이 깨진다 — **넘지 않는 선에서 가장 크게** 잡는다.
+            //   · 가로: 236 이 창 폭에 여백 16 을 두고 들어가는 배수
+            //   · 세로: 판 전체(줄 아홉치)가 창 높이에 들어가는 배수
+            // ⚠️ 상한 2.6 · 하한 1.0 은 가정이다.
+            const float rowsTall = 8f * 26f + 9f * 4f + 44f + 16f;   // 배율 1 일 때의 판 높이
+            float scale = Mathf.Clamp(
+                Mathf.Min((Screen.width - 32f) / 236f, (Screen.height - 32f) / rowsTall),
+                1f, 2.6f);
+
+            var button = new GUIStyle(GUI.skin.button)
+            { fontSize = Mathf.Max(13, Mathf.RoundToInt(15f * scale)) };
+            float w = 236f * scale;
+            float h = 26f * scale, pad = 4f * scale;
 
             // ⚠️ **오른쪽 아래도 못 쓴다**(2026-09-14 · 2차 스크린샷 2장). 09-01 에 좌측
             // y 212 를 버리고 이리로 왔는데, 09-11 에 태그·합체가 **문서 좌표 x1280** 의
@@ -138,7 +157,8 @@ namespace MBI.Combat
             UiPlate.Draw(plate);
             UiBlockers.Add(plate);
 
-            var title = new GUIStyle(GUI.skin.label) { fontSize = 28, fontStyle = FontStyle.Bold };
+            var title = new GUIStyle(GUI.skin.label)
+            { fontSize = Mathf.Max(14, Mathf.RoundToInt(17f * scale)), fontStyle = FontStyle.Bold };
             GUI.Label(new Rect(x, y, w, h), "설정", title);
             y += h + pad;
 
@@ -147,12 +167,13 @@ namespace MBI.Combat
             // ⚠️ **두 줄 자리를 준다**(2026-09-19 사용자 육안 ⑤). 30 은 한 줄치라 둘째 줄이
             //    **아래 버튼 밑으로 깔려** 「…원래 진행은 튜토」까지만 읽혔다. 끊는 자리도
             //    문장 사이로 못 박는다 — 맡겨 두면 「튜토 / 리얼」로 갈린다.
-            var note = new GUIStyle(GUI.skin.label) { fontSize = 24, wordWrap = true };
+            var note = new GUIStyle(GUI.skin.label)
+            { fontSize = Mathf.Max(12, Mathf.RoundToInt(13f * scale)), wordWrap = true };
             GUI.Label(new Rect(x, y, w, noteH),
                 "포트폴리오용 바로가기입니다.\n원래 진행은 튜토리얼부터 순서대로입니다", note);
             y += noteH;
 
-            DrawStageButtons(y, x, h, pad, button);
+            DrawStageButtons(y, x, w, h, pad, button);
             y += h + pad;
 
             DrawGaugeButton(y, x, w, h, button);
@@ -188,7 +209,7 @@ namespace MBI.Combat
             //    ⚠️ 판 **밖**이라 어둠 위에 앉는다 — 그래서 밝은 글자다.
             var pausedStyle = new GUIStyle(GUI.skin.label)
             {
-                fontSize = 26,
+                fontSize = Mathf.Max(14, Mathf.RoundToInt(16f * scale)),
                 alignment = TextAnchor.MiddleCenter,
                 fontStyle = FontStyle.Bold,
             };
@@ -293,7 +314,7 @@ namespace MBI.Combat
         /// <summary>
         /// 스테이지 버튼은 **가로로 깐다.** 세로로 쌓으면 일곱 개가 미니맵까지 내려가 겹친다.
         /// </summary>
-        private void DrawStageButtons(float y, float x, float h, float pad, GUIStyle style)
+        private void DrawStageButtons(float y, float x, float w, float h, float pad, GUIStyle style)
         {
             if (runner == null || stages == null) return;
 
@@ -319,15 +340,20 @@ namespace MBI.Combat
                     // 튜토리얼은 번호를 안 쓴다(260902_W09 §2). 버튼이 좁아 짧게 적는다.
                     labels.Add(stages[i] == tutorialStage ? "튜토" : stages[i].stageId);
 
-            float avail = 236f - pad * (count - 1);
+            // ⚠️ **판 폭을 받아 쓴다**(2026-09-21). 종전에는 236 이 여기 박혀 있어서,
+            //    판을 키워도 이 줄만 옛 폭으로 나뉘어 버튼이 점처럼 작았다.
+            float avail = w - pad * (count - 1);
 
             // ⚠️ **새 글자 크기를 안 만든다** — 12·13 은 이 패널이 이미 쓰는 둘이다.
             //    동적 폰트 아틀라스는 크기마다 굽는다(09-15 촬영 차단 결함의 뿌리).
+            // ⚠️ **버튼 글자도 판을 따라 커진다**(2026-09-21 리허설 ④ — 「튜토·S1 이 아주 작다」).
+            //    종전에는 13 에서 12 로만 내렸는데, 판이 2.6 배가 된 지금 그 크기는 점이다.
+            //    ⚠️ 40 → 32 → 26 으로만 내린다(셋 다 이 판이 쓰는 크기 · 새 크기를 안 만든다).
             var need = new float[count];
             float sum = Measure(style, labels, need);
-            if (sum > avail && style.fontSize > 12)
+            for (int shrink = 0; shrink < 3 && sum > avail; shrink++)
             {
-                style.fontSize = 12;
+                style.fontSize = Mathf.Max(11, Mathf.RoundToInt(style.fontSize * 0.85f));
                 sum = Measure(style, labels, need);
             }
 

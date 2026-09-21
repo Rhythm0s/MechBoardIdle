@@ -325,7 +325,7 @@ namespace MBI.Combat
                 //    안 고쳤다** — 채움이 배경보다 두꺼워 위아래로 삐져나와 있었다.
                 _hpFill.localScale = new Vector3(_barWidth * ratio, _barWidth * BarHeightRatio, 1f);
                 _hpFill.localPosition = new Vector3(
-                    -_barWidth * (1f - ratio) * 0.5f,
+                    _barMid - _barWidth * (1f - ratio) * 0.5f,
                     _hpBg != null ? _hpBg.localPosition.y : _hpFill.localPosition.y,
                     _hpFill.localPosition.z);
             }
@@ -336,12 +336,15 @@ namespace MBI.Combat
                 // HP 바와 **같은 규칙**이다 — 왼변을 제자리에 두고 오른쪽에서 줄인다.
                 float r = Mathf.Clamp01(_shieldRatio);
                 _shieldFill.localScale = new Vector3(_barWidth * r, _barWidth * BarHeightRatio, 1f);
-                _shieldFill.localPosition = new Vector3(-_barWidth * (1f - r) * 0.5f, 0f, 0f);
+                _shieldFill.localPosition = new Vector3(-_barWidth * (1f - r) * 0.5f, 0f, 0f);  // 쉴드 묶음이 이미 가운데로 옮겨져 있다
             }
         }
 
         /// <summary>지금 막대가 쓸 폭(월드). 그려진 몸을 따른다.</summary>
         private float _barWidth;
+
+        /// <summary>막대의 가로 가운데(로컬) — 그림이 캔버스 한가운데가 아닐 수 있다.</summary>
+        private float _barMid;
 
         /// <summary>
         /// 막대 둘을 **그려진 몸에 맞춰** 다시 눕힌다 (2026-09-21).
@@ -353,7 +356,7 @@ namespace MBI.Combat
         /// </summary>
         private void LayOutBars()
         {
-            float w = _size, bottom = -_size * BarCenterRatio;
+            float w = _size, bottom = -_size * BarCenterRatio, mid = 0f;
 
             if (_bodyRenderer != null && _bodyRenderer.sprite != null)
             {
@@ -363,20 +366,27 @@ namespace MBI.Combat
                     w = b.size.x;
                     // 발밑 — 몸 사각의 아랫변에서 막대 반 칸만큼 더 내려간 자리.
                     bottom = b.min.y - transform.position.y - w * BarHeightRatio;
+
+                    // ⚠️⚠️ **가로 가운데도 몸에서 낸다**(2026-09-21 · 내가 띄워 보고 잡았다).
+                    //    몸을 0 에 놓고 폭만 몸에서 가져왔더니 **막대가 왼쪽으로 치우쳤다** —
+                    //    그림이 캔버스 한가운데에 있지 않은 자산이 있어서다.
+                    //    막대는 몸에 붙는 표시이므로 **몸 사각의 한가운데**를 따라야 한다.
+                    mid = b.center.x - transform.position.x;
                 }
             }
 
             _barWidth = w;
+            _barMid = mid;
             float h = w * BarHeightRatio;
 
             if (_hpBg != null)
             {
-                _hpBg.localPosition = new Vector3(0f, bottom, 0f);
+                _hpBg.localPosition = new Vector3(mid, bottom, 0f);
                 _hpBg.localScale = new Vector3(w, h, 1f);
             }
             if (_shieldBar != null)
                 _shieldBar.transform.localPosition =
-                    new Vector3(0f, bottom - h * ShieldGapRatio, 0f);
+                    new Vector3(mid, bottom - h * ShieldGapRatio, 0f);
             if (_shieldBg != null) _shieldBg.localScale = new Vector3(w, h, 1f);
         }
 

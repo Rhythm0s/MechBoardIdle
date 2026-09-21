@@ -717,6 +717,22 @@ namespace MBI.Logistics
             // 판 둘을 다 세운다 — **대기 로봇 판도 돈다**(사용자 확정). 그림은 그 뒤 한 번.
             ApplyInitialLayout(_boards[Index(MountOwner.RobotA)]);
             ApplyInitialLayout(_boards[Index(MountOwner.RobotB)]);
+
+            // ⚠️⚠️ **판 둘의 벨트를 다 풀어 준다**(2026-09-21 사용자 관찰 —
+            //    「B 탭을 열기 전까지 B 물류가 생산을 안 한다」).
+            //
+            // 🗑️ 구 거동 폐기 — 여기서는 노드만 놓고 **연결은 안 풀었다.**
+            //    `RefreshConnections` 는 `_grid`(편집 중인 판) 하나만 보므로, B 는
+            //    면·품목·링크가 **한 번도 안 잡힌 채** 서 있었다. 노드는 다 놓여 있는데
+            //    벨트가 아무것도 안 나르니 **에러 없이 산출만 0** 이었다.
+            //    탭을 누르면 그제야 `RespawnMarkersFromGrid` → `RefreshConnections` 가
+            //    돌아 흐르기 시작한다 — 사용자가 본 그대로다.
+            //
+            // 📌 09-18 「대기 보드 드론 도착이 통째로 버려진다」와 **같은 뿌리의 다음 층**이다.
+            //    그때는 도착을 안 실어 보냈고, 이번에는 **애초에 흐르지 않았다.**
+            ResolveFlow(_boards[Index(MountOwner.RobotA)], _flows[Index(MountOwner.RobotA)]);
+            ResolveFlow(_boards[Index(MountOwner.RobotB)], _flows[Index(MountOwner.RobotB)]);
+
             RespawnMarkersFromGrid();
         }
 
@@ -4904,16 +4920,28 @@ namespace MBI.Logistics
 
         // §5-4 L2: 배치 후 연결 그래프 재계산 → 벨트 방향 표시 색(연결=초록/미연결=노랑) + 끝단 경고(⑤).
         // 설치 확정 시점(설치·배치·제거)에만 호출된다 → 드래그 중에는 판정하지 않는다는 사양이 자동 충족.
+        /// <summary>
+        /// **어느 판이든** 면·품목·링크를 푼다 (2026-09-21).
+        ///
+        /// ⚠️ 색과 화살표는 여기 없다 — 그것은 **보고 있는 판**의 일이다.
+        /// 여기서 푸는 셋은 **안 보는 판에도 필요하다**(그래야 벨트가 나른다).
+        ///
+        /// 📌 순서가 중요하다: **면 → 품목 → 링크.** 면이 안 잡히면 링크가 안 서고,
+        ///    링크가 안 서면 품목이 못 흐른다.
+        /// </summary>
+        private static void ResolveFlow(BoardGrid grid, BeltItemFlow flow)
+        {
+            if (grid == null || flow == null) return;
+            BeltAutoOrient.Resolve(grid);
+            BeltFlow.Resolve(grid);
+            flow.Rebuild(grid);
+        }
+
         private void RefreshConnections()
         {
-            // 순서가 중요하다: **면 → 품목 → 색**.
-            // 면이 안 잡히면 링크가 안 서고, 링크가 안 서면 품목이 못 흐른다.
-            BeltAutoOrient.Resolve(_grid);
-            BeltFlow.Resolve(_grid);
-
-            // 배치가 바뀌면 아이템 흐름의 링크도 다시 잡는다. **면·품목이 정해진 뒤**여야 한다 —
-            // 먼저 부르면 아직 안 붙은 면으로 링크를 만든다.
-            ItemFlow.Rebuild(_grid);
+            // 푸는 셋은 **판을 안 가리는 일**이라 따로 빼 두었다(`ResolveFlow`) —
+            // 시작할 때 판 둘에 다 써야 하기 때문이다(2026-09-21).
+            ResolveFlow(_grid, ItemFlow);
 
             RefreshBeltColors();
             foreach (Vector2Int cell in _portMarkers.Keys) RefreshPortColors(cell);
