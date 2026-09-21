@@ -1200,8 +1200,14 @@ namespace MBI.Combat
             //
             // ⚠️ **시작 깃발은 안 내린다** — 되돌아온 메뉴는 「다시 시작」이 아니라
             //    「보고 있는 중」이다(`MainMenuGate.TryStart` 주석).
-            // ⚠️ **설정 패널은 안 세운다** — 그쪽은 얹기만 하는 빗장이다(`SettingsGate`).
-            if (MainMenuGate.IsOpen) return;
+            // ✅ **설정 패널도 세운다**(2026-09-21 사용자 확정 ③).
+            //    🗑️ 구 규칙 「설정은 얹기만 한다 — 안 세운다」 폐기. 09-18 에 그렇게 정한
+            //    까닭은 **메뉴 빗장을 쓰면 HUD 가 통째로 사라졌기 때문**인데, 그것은
+            //    `OnGUI` 억제의 문제였지 **시간**의 문제가 아니었다. 그리기는 그대로 두고
+            //    **판만 세운다** — 아래 `OnGUI` 는 `SettingsGate` 를 안 본다.
+            //
+            //    ⚠️ 세우는 것은 **판**이고 시작 깃발이 아니다 — 닫으면 이어서 돈다.
+            if (MainMenuGate.IsOpen || SettingsGate.IsOpen) return;
 
             // 결과가 나도 끝까지 튼다 — 버스트로 마지막 적이 죽으면 연출이 그 프레임에 끊긴다.
             _cutscene.Tick(Time.deltaTime);
@@ -2132,11 +2138,31 @@ namespace MBI.Combat
             //    대기 마운트가 얼마나 찼는지를 **원형 둘레**로 보인다 — 만충이 태그 스킬의
             //    조건이라, 「얼마나 남았나」가 버튼 자리에서 읽혀야 누를 때를 안다.
             //    ⚠️ 상한이 없으면(0) 안 그린다 — 만충 판정 자체가 없는 자리다.
+            //
+            // ✅ **쿨다운도 같은 원형 둘레에 얹는다**(2026-09-21 사용자 확정 ⑦).
+            //    🗑️ 구 표시(원형 안 「쿨다운 2.6s」 글자)는 **버튼 글자로만** 남는다 —
+            //    네모 판을 따로 띄우지 않는다.
+            //
+            // ⚠️ **두 링이 한 둘레를 나눠 쓴다.** 같은 자리에 겹쳐 그리면 둘 다 안 읽힌다 —
+            //    적재는 **바깥 띠**, 쿨다운은 그 **안쪽 띠**다. 굵기로 자리를 가른다.
+            //    ⚠️ 굵기 비(0.6 / 0.6)와 색은 **가정**이다(UI 역기입 자리).
+            float ringScale = UiLayout.Scale(Screen.height);
+            float loadT = TagSkillRingThickness * 0.6f * ringScale;
+
             MountLoad standby = _sim.Tag.StandbyMount;
             if (standby != null && standby.Capacity > 0f)
                 DrawLoadRing(tagRect, standby.Total / standby.Capacity,
-                    new Color(0.45f, 0.85f, 1f, 0.9f),
-                    TagSkillRingThickness * 0.6f * UiLayout.Scale(Screen.height));
+                    new Color(0.45f, 0.85f, 1f, 0.9f), loadT);
+
+            // 쿨다운 — **남은 만큼**이 아니라 **돌아온 만큼**이 찬다. 「얼마나 기다려야
+            // 하나」보다 「언제 눌러도 되나」가 버튼에서 읽어야 할 것이다.
+            float cdLeft = _sim.Tag.Tag.CooldownRemaining;
+            if (cdLeft > 0f && TagSystem.CooldownSeconds > 0f)
+            {
+                float ready = 1f - Mathf.Clamp01(cdLeft / TagSystem.CooldownSeconds);
+                DrawLoadRing(Shrink(tagRect, loadT), ready,
+                    new Color(1f, 0.78f, 0.35f, 0.95f), loadT);
+            }
 
             Color tagPrev = GUI.color;
             if (skillReady) GUI.color = TagSkillReadyTint;

@@ -88,7 +88,13 @@ namespace MBI.Combat
             //
             // ⚠️ **이 자리는 여전히 가정이다** — 개발용 패널이라 문서에 자리가 없다(설계 몫).
             // 정해진 것은 **원형 둘의 자리를 비운다**는 것 하나다.
-            float x = 12f;
+            // ✅ **화면 가운데**(2026-09-21 사용자 확정 ③).
+            //    🗑️ 구 자리(왼쪽 아래 `x = 12`) 폐기 — 09-14 에 오른쪽 아래에서 도망쳐 온
+            //    자리였고, 그 뒤로도 「안 보인다」가 두 번 더 났다(09-19 판이 화면 밖).
+            //    가운데는 **다투는 것이 없는 유일한 자리**다: 원형 둘은 오른쪽, 조립
+            //    진입 막대는 아래, 칩 줄은 위다. 그리고 이제 **판이 열리면 게임이 선다** —
+            //    가운데를 가려도 가릴 것이 안 움직인다.
+            float x = Mathf.Max(8f, (Screen.width - w) * 0.5f);
 
             // ⚠️ **판을 깐다**(2026-09-18) — 볼륨 패널과 같은 문법이다. 종전에는 버튼만
             //    흙바닥 위에 떠 있어 어디까지가 이 패널인지가 안 읽혔다.
@@ -109,7 +115,9 @@ namespace MBI.Combat
             const int buttonRows = 6;   // 스테이지 · 게이지 · 전멸 · 초기화 · 덤프 · 메인 메뉴
             float noteH = 44f;          // 안내 두 줄
             float plateH = 8f + (h + pad) + noteH + (h + pad) * buttonRows + 8f;
-            float y = Mathf.Max(8f, Screen.height - plateH - 16f);
+            // 세로도 가운데 — 다만 화면보다 길면 위에서 8 을 띄우고 시작한다
+            // (09-19 에 아래로 흘러 「메인 메뉴로」가 화면 밖에 있던 자리).
+            float y = Mathf.Max(8f, (Screen.height - plateH) * 0.5f);
 
             var plate = new Rect(x - 8f, y - 8f, w + 16f, plateH);
             UiPlate.Draw(plate);

@@ -246,7 +246,15 @@ namespace MBI.Combat
                             ScaleMode.StretchToFill);
             GUI.color = ringPrev;
 
-            Sprite portrait = robot != null ? robot.sprite : null;
+            // 헤더 썸네일은 **얼굴 크롭**이다(2026-09-21 사용자 확정 ⑩ · 아트 `59ac41c`).
+            //
+            // 전신 그림을 동그란 칸에 넣으면 몸이 다 들어가느라 얼굴이 점만 해진다.
+            // 아트가 그 칸에 맞춰 따로 뽑았으므로 **있으면 그것을 먼저** 쓴다.
+            // 비어 있으면 종전대로 전신으로 떨어진다 — 없는 자산을 기다리며 빈 칸을
+            // 두지 않는다.
+            Sprite portrait = tuning != null && tuning.hudThumbnailSprite != null
+                ? tuning.hudThumbnailSprite
+                : (robot != null ? robot.sprite : null);
             if (portrait != null && portrait.texture != null)
                 GUI.DrawTextureWithTexCoords(face, portrait.texture, SpriteUv(portrait), true);
             else
@@ -722,6 +730,11 @@ namespace MBI.Combat
 
         /// <summary>배지 색 — 주황(사용자 육안 「S1 주황 배지」). ⚠️ 값은 가정이다.</summary>
         private static readonly Color BadgeTint = new Color(1.25f, 0.62f, 0.18f, 1f);
+
+        /// <summary>사방으로 줄인 자리 — 링을 한 겹 안쪽에 두를 때 쓴다.</summary>
+        private static Rect Shrink(Rect r, float by) =>
+            new Rect(r.x + by, r.y + by,
+                     Mathf.Max(1f, r.width - by * 2f), Mathf.Max(1f, r.height - by * 2f));
 
         /// <summary>사방으로 넓힌 자리. 테두리를 두를 때 쓴다.</summary>
         private static Rect Grow(Rect r, float by) =>

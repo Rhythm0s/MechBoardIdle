@@ -278,6 +278,9 @@ namespace MBI.Data
         [Tooltip("탄환비가 뿌리는 탄환 한 발. 비면 자리표시(흰 사각)로 그린다.")]
         public Sprite tagBulletSprite;
 
+        [Tooltip("헤더 칩 줄의 로봇 A 썸네일(얼굴 크롭). 비우면 로봇 전신 그림으로 떨어진다.")]
+        public Sprite hudThumbnailSprite;
+
         [Header("설치된 VFX 자산 (2026-09-08 배선 · 260908_W06 6장)")]
         // 경로는 생성기에만 있고 런타임은 이 참조만 본다(§8 명명 규칙).
         // 비어 있으면 **연출을 그리지 않는다** — 자리표시로 대신하지 않는다.

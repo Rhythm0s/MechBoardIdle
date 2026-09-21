@@ -60,6 +60,7 @@ MonoBehaviour:
   invincibleBlinkSecondsTbd: 0.06
   invincibleBlinkMinAlphaTbd: 0.3
   enemyProjectileViewUnitsTbd: 0.5
+  hudThumbnailSprite: {fileID: 21300000, guid: d3b36ee4e73e768498498d6ad574ae4d, type: 3}
   tagBulletSprite: {fileID: 21300000, guid: 4e4a26246db35c7419895a638e727efc, type: 3}
   droneLaunchSprite: {fileID: 21300000, guid: 5b0929e11aac00345b82ce0cc95b4db3, type: 3}
   boosterSprite: {fileID: 21300000, guid: 3524cc9e4bf76bb44bdaa6d87e232889, type: 3}
