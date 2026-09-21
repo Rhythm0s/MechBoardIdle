@@ -72,8 +72,13 @@ namespace MBI.Combat
 
             UiSkin.Apply(); // 껍데기 + 한글 폰트 — WebGL엔 시스템 폰트 폴백이 없다
 
-            var button = new GUIStyle(GUI.skin.button) { fontSize = 13 };
-            const float w = 236f, h = 26f, pad = 4f;
+            // ✅ **글자 2배 · 판 1.75배**(2026-09-21 사용자 확정 ④ — 「지금 좁고 작음」).
+            //    ⚠️ 배수 둘 다 가정이다(받은 말은 「글자 2배 · 1.5~2배」). 가운데를 잡았다.
+            //    ⚠️ 글자는 **사다리 밖 크기**를 쓴다 — 이 판은 개발용이라 아틀라스 예산
+            //       계산(`KoreanFont.Ladder`)에 안 든다. 13 → 26 은 사다리에 없는 수다.
+            const float scale = 1.75f;
+            var button = new GUIStyle(GUI.skin.button) { fontSize = 26 };
+            const float w = 236f * scale, h = 26f * scale, pad = 4f * scale;
 
             // ⚠️ **오른쪽 아래도 못 쓴다**(2026-09-14 · 2차 스크린샷 2장). 09-01 에 좌측
             // y 212 를 버리고 이리로 왔는데, 09-11 에 태그·합체가 **문서 좌표 x1280** 의
@@ -112,18 +117,28 @@ namespace MBI.Combat
             //
             // 📌 **높이를 먼저 내고 윗변을 거기서 뺀다** — 줄이 늘어도 다시 안 잘린다.
             //    아랫변 여백 16 은 가정이다(다른 패널과 같은 여백).
-            const int buttonRows = 6;   // 스테이지 · 게이지 · 전멸 · 초기화 · 덤프 · 메인 메뉴
-            float noteH = 44f;          // 안내 두 줄
-            float plateH = 8f + (h + pad) + noteH + (h + pad) * buttonRows + 8f;
+            // ✅ **닫기 한 줄이 늘었다**(2026-09-21 사용자 확정 ③ — 「닫기 버튼 = 패널 하단」).
+            const int buttonRows = 7;   // 스테이지 · 게이지 · 전멸 · 초기화 · 덤프 · 메인 메뉴 · 닫기
+            float noteH = 44f * scale;  // 안내 두 줄
+            float plateH = 8f * scale + (h + pad) + noteH + (h + pad) * buttonRows + 8f * scale;
             // 세로도 가운데 — 다만 화면보다 길면 위에서 8 을 띄우고 시작한다
             // (09-19 에 아래로 흘러 「메인 메뉴로」가 화면 밖에 있던 자리).
             float y = Mathf.Max(8f, (Screen.height - plateH) * 0.5f);
 
-            var plate = new Rect(x - 8f, y - 8f, w + 16f, plateH);
+            var plate = new Rect(x - 8f * scale, y - 8f * scale,
+                                 w + 16f * scale, plateH);
+
+            // ✅ **판 빼고 화면을 어둡게**(2026-09-21 사용자 확정 ⑤).
+            //    판보다 **먼저** 깐다 — 나중에 깔면 판까지 덮는다(IMGUI 는 뒤가 위다).
+            //    ⚠️ 사각 넷으로 두른다: 통째로 덮고 판을 다시 그리면 판 **그림자**가
+            //       어둠 위에 떠서 테두리가 두 겹으로 보인다.
+            //    ⚠️ 알파 0.62 는 가정이다.
+            DrawDimAround(plate);
+
             UiPlate.Draw(plate);
             UiBlockers.Add(plate);
 
-            var title = new GUIStyle(GUI.skin.label) { fontSize = 14, fontStyle = FontStyle.Bold };
+            var title = new GUIStyle(GUI.skin.label) { fontSize = 28, fontStyle = FontStyle.Bold };
             GUI.Label(new Rect(x, y, w, h), "설정", title);
             y += h + pad;
 
@@ -132,7 +147,7 @@ namespace MBI.Combat
             // ⚠️ **두 줄 자리를 준다**(2026-09-19 사용자 육안 ⑤). 30 은 한 줄치라 둘째 줄이
             //    **아래 버튼 밑으로 깔려** 「…원래 진행은 튜토」까지만 읽혔다. 끊는 자리도
             //    문장 사이로 못 박는다 — 맡겨 두면 「튜토 / 리얼」로 갈린다.
-            var note = new GUIStyle(GUI.skin.label) { fontSize = 12, wordWrap = true };
+            var note = new GUIStyle(GUI.skin.label) { fontSize = 24, wordWrap = true };
             GUI.Label(new Rect(x, y, w, noteH),
                 "포트폴리오용 바로가기입니다.\n원래 진행은 튜토리얼부터 순서대로입니다", note);
             y += noteH;
@@ -160,6 +175,45 @@ namespace MBI.Combat
             // ⚠️ **시작 깃발은 안 내린다** — 되돌아온 메뉴는 「보고 있는 중」이다.
             if (UiSkin.Button(new Rect(x, y, w, h), "메인 메뉴로", button))
                 SettingsGate.ReturnToMainMenu();
+            y += h + pad;
+
+            // ✅ **닫기는 판 맨 아래**(2026-09-21 사용자 확정 ③).
+            //    칩 줄의 설정 아이콘으로도 닫히지만, **판을 보고 있는 사람의 손이
+            //    닿는 자리**는 판 안이다.
+            if (UiSkin.Button(new Rect(x, y, w, h), "닫기", button))
+                SettingsGate.Close();
+
+            // ✅ **판 바깥 아래에 「- 일시 정지 -」**(2026-09-21 사용자 확정 ⑥).
+            //    판이 열려 있는 동안 게임이 서므로, **왜 멈춰 있는지**를 화면이 말해야 한다.
+            //    ⚠️ 판 **밖**이라 어둠 위에 앉는다 — 그래서 밝은 글자다.
+            var pausedStyle = new GUIStyle(GUI.skin.label)
+            {
+                fontSize = 26,
+                alignment = TextAnchor.MiddleCenter,
+                fontStyle = FontStyle.Bold,
+            };
+            pausedStyle.normal.textColor = new Color(0.95f, 0.92f, 0.75f, 0.95f);
+            GUI.Label(new Rect(plate.x, plate.yMax + 8f * scale, plate.width, 36f * scale),
+                      "- 일시 정지 -", pausedStyle);
+        }
+
+        /// <summary>
+        /// 판을 뺀 화면을 어둡게 (2026-09-21 사용자 확정 ⑤).
+        ///
+        /// ⚠️ **사각 넷으로 두른다.** 화면을 통째로 덮고 판을 다시 그리는 길도 있지만,
+        /// 그러면 판 그림자가 어둠 위에 떠서 **테두리가 두 겹**으로 보인다.
+        /// ⚠️ 알파는 가정이다.
+        /// </summary>
+        private static void DrawDimAround(Rect plate)
+        {
+            var dim = new Color(0f, 0f, 0f, 0.62f);
+            float sw = Screen.width, sh = Screen.height;
+
+            HudBars.Fill(new Rect(0f, 0f, sw, Mathf.Max(0f, plate.y)), dim);
+            HudBars.Fill(new Rect(0f, plate.yMax, sw, Mathf.Max(0f, sh - plate.yMax)), dim);
+            HudBars.Fill(new Rect(0f, plate.y, Mathf.Max(0f, plate.x), plate.height), dim);
+            HudBars.Fill(new Rect(plate.xMax, plate.y,
+                                  Mathf.Max(0f, sw - plate.xMax), plate.height), dim);
         }
 
         /// <summary>

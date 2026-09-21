@@ -3146,8 +3146,16 @@ namespace MBI.Logistics
                 Event.current.Use();
             }
 
-            // 이동 모드에서는 팔레트를 흐리게 — 지금은 놓을 수 없다는 것을 버튼 상태로 알린다.
-            GUI.enabled = _mode == BoardMode.Build;
+            // ✅ **이동 모드에서도 고를 수 있다**(2026-09-21 사용자 확정 ⑧).
+            //
+            // 🗑️ 구 규칙 「이동 모드면 팔레트를 잠근다」 폐기. 받은 말은 「모드와 무관하게
+            //    **선택이 가능할 것**」이다 — 고르는 것과 놓는 것은 다른 일이다.
+            //    고를 수 없으면 「무엇을 놓을지 정하고 모드를 바꾼다」가 막힌다.
+            //
+            // ⚠️ **놓는 것은 모드 규칙 그대로다**(가정) — 이동 모드에서 보드를 끌면
+            //    여전히 스크롤이고 배치가 아니다(`OnPressStart` 의 `Mode` 갈래).
+            //    받은 말이 「선택」까지라 거기까지만 연다.
+            GUI.enabled = true;
 
             _paletteScroll = GUI.BeginScrollView(view, _paletteScroll, content, true, false);
             float bx = 0f;

@@ -21,6 +21,53 @@ namespace MBI.Combat
             return _white;
         }
 
+        private static Sprite _softBeam;
+
+        /// <summary>
+        /// **빔 한 줄기**(가로 1 × 세로 1 유닛) — 뿌리에서 끝으로 옅어지고 위아래가 흐리다.
+        ///
+        /// ⚠️⚠️ **흰 사각을 늘이면 빔이 아니라 띠다**(2026-09-21 사용자 리허절 ① —
+        /// 「직사각형 녹색 리소스가 노출된다」). 1픽셀 사각은 어떻게 늘여도 **가장자리가
+        /// 칼 같다.** 빔으로 읽히는 데 필요한 것은 셋이다 —
+        ///   · **길이 방향 페이드** — 뿌리가 진하고 끝이 사라진다(쏘아 나가는 방향이 읽힌다)
+        ///   · **가로 부드러움** — 위아래가 흐려야 색 띠가 아니라 빛이다
+        ///   · **가운데 심** — 한가운데가 가장 밝다
+        ///
+        /// ⚠️ 기준점이 **왼쪽 한가운데**다 — 부르는 쪽이 원점에 놓고 길이만큼 늘이면 된다.
+        /// ⚠️ 아트 자산이 오면 이 폴백은 걷는다.
+        /// </summary>
+        public static Sprite SoftBeam()
+        {
+            if (_softBeam != null) return _softBeam;
+
+            const int w = 128, h = 32;
+            var tex = new Texture2D(w, h, TextureFormat.RGBA32, false)
+            { filterMode = FilterMode.Bilinear, wrapMode = TextureWrapMode.Clamp };
+
+            for (int y = 0; y < h; y++)
+            {
+                // 가운데(0) → 가장자리(1). 심이 밝고 밖이 흐리다.
+                float t = Mathf.Abs((y + 0.5f) / h * 2f - 1f);
+                float across = Mathf.Clamp01(1f - t);
+                across *= across;                       // 심을 더 좁게
+
+                for (int x = 0; x < w; x++)
+                {
+                    // 뿌리(0) → 끝(1). 끝에서 완전히 사라진다.
+                    float u = (x + 0.5f) / w;
+                    float along = Mathf.Clamp01(1f - u);
+                    along *= along;
+
+                    tex.SetPixel(x, y, new Color(1f, 1f, 1f, across * along));
+                }
+            }
+            tex.Apply();
+
+            _softBeam = Sprite.Create(tex, new Rect(0, 0, w, h), new Vector2(0f, 0.5f), w);
+            _softBeam.name = "MBI_SoftBeam";
+            return _softBeam;
+        }
+
         private static Sprite _softDisc;
 
         /// <summary>

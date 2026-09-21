@@ -883,13 +883,6 @@ namespace MBI.Combat
             //    사용자 보고 「부스터가 발생하지 않음」의 정체가 그 자리였다.
             if (dodge.TotalDodges > _seenDodges && _sim.Robot != null)
             {
-                // ③ 끝점 한 방 — **그림 자산이 있는 유일한 회피 연출**이라 그대로 둔다.
-                // ⚠️ **알파가 빠지며 사라진다**(2026-09-18 사용자 육안 ② — 「부스트도 동일하게」).
-                //    잔상·줄기가 옅어져 걷히는데 분사만 툭 없어지면 **둘이 따로 논다.**
-                if (tuning.boosterSprite != null)
-                    SpawnOneShot(tuning.boosterSprite, _sim.Robot.position,
-                        Mathf.Max(life, tuning.dodgeVfxSeconds), fade: true);
-
                 // ①② **잔상과 줄기**(2026-09-18 사용자 확정 · 참고 이미지).
                 //
                 // ⚠️⚠️ **시작점을 여기서 잰다.** 회피는 이미 끝난 뒤에 이 줄을 지나므로
@@ -909,6 +902,27 @@ namespace MBI.Combat
                     _robotView != null && _robotView.BodyFlipX,
                     _robotView != null ? _robotView.BodyScale : Vector3.one,
                     tuning);
+
+                // ③ **분사도 잔상 수만큼**(2026-09-21 사용자가 뜻을 채움 —
+                //    「부스터 분사도 잔상 수에 맞춰 개수 증가」).
+                //
+                // 🗑️ **구 「끝점 한 방」 폐기.** 잔상은 궤적을 따라 줄지어 서는데 분사만
+                //    도착점에 하나 있으니 **둘이 같은 동작으로 안 읽혔다.**
+                // ⚠️ **자리는 잔상과 같은 자리를 쓴다** — 따로 세면 둘이 어긋난다(지침 §7).
+                // ⚠️ 페이드 아웃은 **기존 그대로**다(사용자 지시) — `fade: true`.
+                if (tuning.boosterSprite != null)
+                {
+                    int puffs = tuning.dodgeAfterimageCountTbd > 0
+                        ? tuning.dodgeAfterimageCountTbd
+                        : MBI.Core.Combat.DodgeTrailRule.DefaultAfterimages;
+
+                    Vector2[] spots =
+                        MBI.Core.Combat.DodgeTrailRule.AfterimagePositions(from, to, puffs);
+
+                    for (int i = 0; i < spots.Length; i++)
+                        SpawnOneShot(tuning.boosterSprite, spots[i],
+                            Mathf.Max(life, tuning.dodgeVfxSeconds), fade: true);
+                }
             }
 
             _seenDodges = dodge.TotalDodges;

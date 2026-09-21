@@ -220,13 +220,16 @@ namespace MBI.Combat
 
             var beamGo = new GameObject("TagBeam");
             beamGo.transform.SetParent(fx.transform, false);
-            // 가운데가 원점에서 길이의 절반만큼 나아간 자리다 — 스프라이트 기준점이 한가운데다.
-            beamGo.transform.localPosition = new Vector3(dir.x, dir.y, 0f) * (diagonal * 0.5f);
+            // ⚠️ **기준점이 왼쪽 한가운데**다(`SoftBeam`) — 원점에 그대로 놓고 길이만큼
+            //    늘이면 뿌리가 로봇에 붙는다. 한가운데 기준이던 흰 사각과 다르다.
+            beamGo.transform.localPosition = Vector3.zero;
             beamGo.transform.localRotation =
                 Quaternion.Euler(0f, 0f, Mathf.Atan2(dir.y, dir.x) * Mathf.Rad2Deg);
             beamGo.transform.localScale = new Vector3(diagonal, thickness, 1f);
             fx._beam = beamGo.AddComponent<SpriteRenderer>();
-            fx._beam.sprite = white;
+            // ✅ **빔은 빔 그림으로**(2026-09-21 리허설 ①). 🗑️ 흰 사각 폴백 폐기 —
+            //    늘이면 「녹색 직사각형」으로 보였다. 받은 `white` 는 안 쓴다.
+            fx._beam.sprite = PlaceholderSprite.SoftBeam();
             fx._beam.color = color;
             fx._beam.sortingOrder = SortingLayers.EffectOver;
 
