@@ -274,6 +274,15 @@ namespace MBI.Core
         public void SetSideDetourCells(float cells) => _sideDetourCells = Mathf.Max(0f, cells);
 
         /// <summary>
+        /// 겹친 적끼리 미는 세기 (2026-09-21 사용자 확정 · 육안 ⑤ⓐ).
+        /// 0 이면 안 민다 — 09-16 「적끼리 밀지 않음」으로 되돌리는 값 하나다.
+        /// </summary>
+        public void SetEnemyPushStrength(float strength) =>
+            _enemyPush = Mathf.Max(0f, strength);
+
+        private float _enemyPush;
+
+        /// <summary>
         /// 다 쓴 곁눈질 예산이 **가득 차는 데 걸리는 시간**(초) (2026-09-21 육안 ⑤).
         /// 0 이면 안 돌아온다 — 구 거동이고, 그것이 무리를 굳혔다.
         /// </summary>
@@ -1444,6 +1453,11 @@ namespace MBI.Core
             // 로봇이 하나여도 거기서 쏜다. 이걸 TagTick 안에 두었더니 단일 로봇 시뮬은
             // 마운트가 영영 비어 발사가 통째로 멈췄다(마운트 슬롯이 0이던 동안 가려져 있었다).
             RefillMount(Act);
+            // ⚠️⚠️ **겹친 적끼리 민다**(2026-09-21 사용자 확정 · 육안 ⑤ⓐ).
+            //    이동 **뒤에** 푼다 — 먼저 풀면 그 틱의 이동이 다시 겹쳐 놓는다.
+            //    로봇은 안 민다(적 목록만 넘긴다).
+            CrowdSeparation.Resolve(_enemies, _enemyPush, dt);
+
             StandbyTick(dt);   // 대기 로봇의 공장도 계속 돈다 — 그 산출이 태그 인 순간 비축 화력이 된다
             MergeTick(dt);     // 게이지 충전·지속 소모. 합체가 끝나면 태그 잠금이 풀린다
             TagTick(dt);       // 교대 판정. 교대가 일어나면 이번 틱부터 새 로봇이 싸운다

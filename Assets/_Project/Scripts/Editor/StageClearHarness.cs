@@ -546,6 +546,7 @@ namespace MBI.EditorTools
             //    재서 화면과 다른 판을 본다(오늘 아침 `RespawnUnreachable` 과 같은 자리).
             sim.SetSideDetourCells(tuning.enemySideDetourCellsTbd);
             sim.SetSideDetourRecoverSeconds(tuning.enemySideDetourRecoverSecondsTbd);
+            sim.SetEnemyPushStrength(tuning.enemyPushStrengthTbd);
             // ⚠️ 누적형 활동 범위도 러너와 같게 건다(2026-09-18) — 안 걸면 다른 판을 잰다.
             sim.DroneLeashRadius = tuning.droneLeashRadiusTbd;
             // 한 발 쪼개 쏘기도 러너와 같게 건다 — 안 걸면 재는 판이 게임과 달라진다.
@@ -1692,6 +1693,7 @@ namespace MBI.EditorTools
             //    재서 화면과 다른 판을 본다(오늘 아침 `RespawnUnreachable` 과 같은 자리).
             sim.SetSideDetourCells(tuning.enemySideDetourCellsTbd);
             sim.SetSideDetourRecoverSeconds(tuning.enemySideDetourRecoverSecondsTbd);
+            sim.SetEnemyPushStrength(tuning.enemyPushStrengthTbd);
 
             // ⚠️⚠️ **웨이브를 러너와 같게 건다**(2026-09-18 · 시안 3 ③).
             //    안 걸면 하네스는 **한 마리씩** 오는 판을, 게임은 **묶음으로** 오는 판을 돌린다 —

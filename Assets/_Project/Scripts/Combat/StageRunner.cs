@@ -748,6 +748,10 @@ namespace MBI.Combat
         /// <summary>진단 줄이 화면에 머무는 시간(초). ⚠️ 가정 — 개발 빌드 전용이라 값이 아니다.</summary>
         private const float TagSkillNoteSeconds = 3f;
 
+        /// <summary>빔 겨냥을 잴 때 쓰는 그릇 — 태그마다 새로 만들지 않는다.</summary>
+        private readonly System.Collections.Generic.List<Vector2> _beamSpots =
+            new System.Collections.Generic.List<Vector2>(128);
+
         private string _tagSkillNote;
         private float _tagSkillNoteUntil;
 
@@ -768,8 +772,29 @@ namespace MBI.Combat
 
             if (bEntering)
             {
-                // 섬광은 자산이 없다 — 흰 사각을 화면 크기로 늘여 그리는 것이 곧 완성형이다.
-                TagSkillEffect.PlayFlash(transform, screen, tuning, PlaceholderSprite.White(), c);
+                // ✅ **빔 한 줄기 + 고리 파동 셋**(2026-09-21 사용자 확정).
+                //    🗑️ 구 「화면 전체 섬광」 폐기 — 09-18 에 반투명·짧게로 고쳐 두었는데
+                //    09-21 육안에서 **여전히 「녹색 큰 화면」**으로 왔다. 알파를 더 낮추는
+                //    것은 같은 그림을 흐리게 할 뿐이라 **그림 자체**를 바꾼다.
+                //
+                // ⚠️ **겨냥은 적 무리 쪽이다 — 가정이다.** 받은 말에 방향이 없었다
+                //    (「모든 것을 쓸어버리는 느낌」). 회전 스윕일 수도 있어 회신에 적는다.
+                //    ⚠️ 판정은 **화면 안 전부**라 방향이 판정을 안 바꾼다.
+                _beamSpots.Clear();
+                foreach (CombatEntity e in _sim.Enemies)
+                    if (e.IsAlive) _beamSpots.Add(e.position);
+
+                Vector2 origin = _sim.Robot.position;
+                Vector2 aim = TagSkillEffect.CrowdCenter(
+                    _beamSpots, screen, origin + Vector2.right);
+
+                // 고리는 광역 드론 판정 자산을 **다시 쓴다**(사용자가 그 그림을 짚었다).
+                // ⚠️ 판정 반경 고리와 **다른 층**이다 — 같은 그림을 쓸 뿐이다.
+                Sprite ring = tuning != null && tuning.droneAoeSprite != null
+                    ? tuning.droneAoeSprite : PlaceholderSprite.Ring();
+
+                TagSkillEffect.PlaySweep(transform, origin, aim, screen, tuning,
+                    ring, PlaceholderSprite.White(), c);
             }
             else
             {
@@ -1359,6 +1384,7 @@ namespace MBI.Combat
             // 곁눈질 방향을 붙드는 시간 — 값은 조율 SO 가 든다(⚠️ 가정 · §74-12 B).
             _sim.SetSideStepHold(tuning != null ? tuning.enemySideStepHoldTbd : 0f);
             _sim.SetSideDetourCells(tuning != null ? tuning.enemySideDetourCellsTbd : 0f);
+            _sim.SetEnemyPushStrength(tuning != null ? tuning.enemyPushStrengthTbd : 0f);
             _sim.SetSideDetourRecoverSeconds(
                 tuning != null ? tuning.enemySideDetourRecoverSecondsTbd : 0f);
 

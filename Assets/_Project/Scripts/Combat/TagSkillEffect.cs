@@ -31,6 +31,7 @@ namespace MBI.Combat
         private Color _color;
 
         private bool _isFlash;
+        private bool _isSweep;
         private float _elapsed;
         private float _sweepSeconds;
 
@@ -39,6 +40,15 @@ namespace MBI.Combat
         private int _waves = 1;
         private float _waveSeconds = 0.22f;
         private SpriteRenderer _flash;
+
+        // ── 빔 + 파동 (2026-09-21 사용자 확정) ────────────────────────────
+        private SpriteRenderer _beam;
+        private float _beamSeconds;
+        private SpriteRenderer[] _rings;
+        private float _ringInterval;
+        private float _ringSeconds;
+        private float _ringMaxRadius;
+        private float _ringSpritePixels = 256f;
 
         // ── 자리를 고르는 법 — 순수 계산이라 시험이 여기를 잰다 ──────────────
 
@@ -140,6 +150,106 @@ namespace MBI.Combat
         /// ⚠️ **처음이 가장 밝고 뒤로 갈수록 걷힌다.** 반대로 두면 화면이 「덮여 가는」
         /// 것처럼 보여 다음 화면이 안 보인다.
         /// </summary>
+        /// <summary>
+        /// **적 무리의 무게중심** — 빔이 향할 곳 (2026-09-21).
+        ///
+        /// ⚠️ **화면 안에 있는 산 적만 센다** — 판정이 화면 안 전부에 나누므로 겨냥도
+        /// 같은 무리를 봐야 한다. 화면 밖의 적에게 빔이 가면 「저기는 왜 쏘나」가 된다.
+        ///
+        /// ⚠️ **빈 경우에는 <paramref name="fallback"/> 이다** — 적이 없는데 스킬이 나가는
+        /// 판(마지막 한 마리를 같은 프레임에 죽인 경우)에서 원점을 향한 빔은 길이가 0 이다.
+        ///
+        /// 📌 **회전 스윕이 아니라 한 방향이다** — 사용자 설명에 방향이 없어 **무리 쪽으로
+        /// 가정**했다. 판정은 화면 전부라 방향이 판정을 안 바꾼다(되돌릴 수 있다).
+        /// </summary>
+        public static Vector2 CrowdCenter(System.Collections.Generic.IReadOnlyList<Vector2> spots,
+                                          Rect screen, Vector2 fallback)
+        {
+            if (spots == null || spots.Count == 0) return fallback;
+
+            var sum = Vector2.zero;
+            int n = 0;
+            for (int i = 0; i < spots.Count; i++)
+            {
+                if (!screen.Contains(spots[i])) continue;
+                sum += spots[i];
+                n++;
+            }
+            return n == 0 ? fallback : sum / n;
+        }
+
+        /// <summary>
+        /// **빔 한 줄기 + 고리 파동 셋** (2026-09-21 사용자 확정 · B 태그 인).
+        ///
+        /// 🗑️ **구 연출 「화면 전체 섬광」 폐기** — 09-18 에 반투명·짧게로 고쳐 두었는데
+        /// 09-21 육안에서 **여전히 「녹색 큰 화면」**으로 왔다. 알파를 더 낮추는 것은
+        /// 같은 그림을 흐리게 하는 것일 뿐이라, 그림 자체를 바꾼다.
+        ///
+        /// ⚠️ **판정은 그대로다** — 화면 안 전부에 나눈다. 빔이 한 방향이라고 그쪽만
+        /// 맞는 것이 아니다(연출 문서 10-1 「판정 무개입」).
+        /// </summary>
+        public static TagSkillEffect PlaySweep(Transform parent, Vector2 origin, Vector2 aim,
+                                               Rect screen, CombatTuning tuning,
+                                               Sprite ring, Sprite white, Color color)
+        {
+            TagSkillEffect fx = Create(parent, origin, tuning, color);
+            fx._isSweep = true;
+
+            float beamSeconds = tuning != null && tuning.tagBeamSecondsTbd > 0f
+                ? tuning.tagBeamSecondsTbd : 0.3f;
+            float waveSeconds = tuning != null && tuning.tagWaveSecondsTbd > 0f
+                ? tuning.tagWaveSecondsTbd : 0.45f;
+            int waves = tuning != null ? Mathf.Max(1, tuning.tagWaveCountTbd) : 3;
+            float interval = tuning != null ? Mathf.Max(0f, tuning.tagWaveIntervalSecondsTbd) : 0.15f;
+            float thickness = tuning != null && tuning.tagBeamCellsTbd > 0f
+                ? tuning.tagBeamCellsTbd : 1.5f;
+
+            // 화면 대각선 — 빔 길이이자 파동이 다다를 곳이다. 어디서 쏘든 화면을 벗어난다.
+            float diagonal = new Vector2(screen.width, screen.height).magnitude;
+
+            fx._beamSeconds = beamSeconds;
+            fx._ringSeconds = waveSeconds;
+            fx._ringInterval = interval;
+            fx._ringMaxRadius = diagonal * 0.5f;
+            fx._sweepSeconds = Mathf.Max(beamSeconds, interval * (waves - 1) + waveSeconds);
+
+            // ── 빔 ──
+            Vector2 dir = aim - origin;
+            if (dir.sqrMagnitude < 1e-6f) dir = Vector2.right;
+            dir.Normalize();
+
+            var beamGo = new GameObject("TagBeam");
+            beamGo.transform.SetParent(fx.transform, false);
+            // 가운데가 원점에서 길이의 절반만큼 나아간 자리다 — 스프라이트 기준점이 한가운데다.
+            beamGo.transform.localPosition = new Vector3(dir.x, dir.y, 0f) * (diagonal * 0.5f);
+            beamGo.transform.localRotation =
+                Quaternion.Euler(0f, 0f, Mathf.Atan2(dir.y, dir.x) * Mathf.Rad2Deg);
+            beamGo.transform.localScale = new Vector3(diagonal, thickness, 1f);
+            fx._beam = beamGo.AddComponent<SpriteRenderer>();
+            fx._beam.sprite = white;
+            fx._beam.color = color;
+            fx._beam.sortingOrder = SortingLayers.EffectOver;
+
+            // ── 파동 ──
+            fx._rings = new SpriteRenderer[waves];
+            for (int i = 0; i < waves; i++)
+            {
+                var go = new GameObject("TagWave" + i);
+                go.transform.SetParent(fx.transform, false);
+                go.transform.localScale = Vector3.zero;
+                var sr = go.AddComponent<SpriteRenderer>();
+                sr.sprite = ring;
+                sr.color = new Color(color.r, color.g, color.b, 0f);
+                sr.sortingOrder = SortingLayers.EffectOver - 1;   // 빔 아래
+                fx._rings[i] = sr;
+            }
+
+            // 고리 자산의 한 변(유닛) — 스케일 1 일 때의 지름이다. 이것을 모르면
+            // 「반경 n 칸」이 자산 크기에 따라 달라진다.
+            fx._ringSpritePixels = ring != null && ring.rect.width > 0f ? ring.rect.width : 256f;
+            return fx;
+        }
+
         public static TagSkillEffect PlayFlash(Transform parent, Rect screen,
                                                CombatTuning tuning, Sprite white, Color color)
         {
@@ -189,7 +299,11 @@ namespace MBI.Combat
             _elapsed += Time.deltaTime;
             float turn = _sweepSeconds <= 0f ? 1f : Mathf.Clamp01(_elapsed / _sweepSeconds);
 
-            if (_isFlash)
+            if (_isSweep)
+            {
+                TickSweep();
+            }
+            else if (_isFlash)
             {
                 if (_flash != null)
                 {
@@ -225,6 +339,48 @@ namespace MBI.Combat
 
             // 한 번만 나간다 — 시간이 다 되면 사라진다(반복 없음).
             if (turn >= 1f) Destroy(gameObject);
+        }
+
+        /// <summary>
+        /// 빔은 **처음이 가장 밝고 걷힌다**, 파동은 **저마다 제 차례에 커진다**.
+        ///
+        /// ⚠️ 파동은 **고리 자산의 지름을 1 로 보고** 키운다 — 자산이 256 이든 512 든
+        /// 화면에서 같은 크기가 되게, 픽셀을 유닛으로 옮겨 나눈다. 안 그러면
+        /// 「반경 몇 칸」이 자산 크기에 따라 달라진다.
+        /// </summary>
+        private void TickSweep()
+        {
+            if (_beam != null)
+            {
+                float u = _beamSeconds <= 0f ? 1f : Mathf.Clamp01(_elapsed / _beamSeconds);
+                Color c = _color;
+                _beam.color = new Color(c.r, c.g, c.b, 1f - u);
+            }
+
+            if (_rings == null) return;
+
+            float unitDiameter = _ringSpritePixels / PixelsPerUnit;
+            if (unitDiameter <= 0f) unitDiameter = 1f;
+
+            for (int i = 0; i < _rings.Length; i++)
+            {
+                SpriteRenderer sr = _rings[i];
+                if (sr == null) continue;
+
+                float start = i * _ringInterval;
+                if (_elapsed < start) continue;                 // 아직 제 차례가 아니다
+
+                float u = _ringSeconds <= 0f ? 1f
+                    : Mathf.Clamp01((_elapsed - start) / _ringSeconds);
+
+                // 반경 0 에서 화면 끝까지. 지름으로 환산해 자산 크기를 지운다.
+                float diameter = _ringMaxRadius * 2f * u;
+                float scale = diameter / unitDiameter;
+                sr.transform.localScale = new Vector3(scale, scale, 1f);
+
+                Color c = _color;
+                sr.color = new Color(c.r, c.g, c.b, 1f - u);
+            }
         }
     }
 }

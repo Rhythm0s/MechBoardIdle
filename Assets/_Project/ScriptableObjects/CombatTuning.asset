@@ -54,6 +54,11 @@ MonoBehaviour:
   tagLaserMaxBeamsTbd: 16
   tagFlashAlphaTbd: 0.35
   tagFlashSecondsTbd: 0.18
+  tagBeamCellsTbd: 1.5
+  tagBeamSecondsTbd: 0.3
+  tagWaveCountTbd: 3
+  tagWaveIntervalSecondsTbd: 0.15
+  tagWaveSecondsTbd: 0.45
   tagBulletSizeMultTbd: 2
   tagBulletWavesTbd: 3
   tagBulletWaveSecondsTbd: 0.22
@@ -71,6 +76,7 @@ MonoBehaviour:
   enemySideStepHoldTbd: 0.4
   enemySideDetourCellsTbd: 3
   enemySideDetourRecoverSecondsTbd: 2
+  enemyPushStrengthTbd: 6
   hitStandardFrames:
   - {fileID: 21300000, guid: 5f34f486e6b420043b2cda2787bf7180, type: 3}
   - {fileID: 21300000, guid: 1e23c4388967a514aa3d3ef4c55918e6, type: 3}

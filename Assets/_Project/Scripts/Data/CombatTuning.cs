@@ -241,10 +241,34 @@ namespace MBI.Data
         // ── 태그 섬광·탄환비 다듬기 (2026-09-18 사용자 리허설 ⑥⑦ · 값은 **구현 가정**) ──
         // ⑥ 「화면 전체가 녹색 사각으로 가려진다」 — 흰 사각을 색만 입혀 덮었으니 **불투명**했다.
         //    반투명하게, 그리고 **짧게** 스친다.
-        [Tooltip("⚠️ 구현 가정 — 태그 섬광이 가장 밝을 때의 알파. 1 이면 화면이 통째로 가려진다.")]
+        // 🗑️ **섬광 폐기**(2026-09-21 사용자 확정 — 「화면 전체 녹색 섬광을 걷는다」).
+        //    값 둘은 지우지 않고 남긴다: 자산에 이미 실려 있고, 되돌릴 때 쓸 수 있다.
+        //    ⚠️ **읽는 곳이 없다** — `TagSkillEffect.PlayFlash` 와 함께 폐기 표기다.
+        [Tooltip("🗑️ 폐기(2026-09-21) — 구 태그 섬광 알파. 읽는 곳 없음.")]
         public float tagFlashAlphaTbd = 0.35f;
-        [Tooltip("⚠️ 구현 가정 — 태그 섬광이 스치는 시간(초). 짧을수록 덜 가린다.")]
+        [Tooltip("🗑️ 폐기(2026-09-21) — 구 태그 섬광 시간. 읽는 곳 없음.")]
         public float tagFlashSecondsTbd = 0.18f;
+
+        // ── B 태그 스킬 — 빔 + 파동 (2026-09-21 사용자 확정 · ⚠️ 값 전부 가정) ──
+        //
+        // 「고출력 에너지 빔이 모든 것을 쓸어버리고, 고리 파장이 로봇 주변에서
+        //  파도처럼 커져 나가며 두세 번」이 받은 말이다. 아래는 그 말을 수로 옮긴
+        //  **첫 판**이고, 전부 되돌릴 수 있다.
+
+        [Tooltip("⚠️ 가정 — 빔 굵기(칸). 「굵게」만 받았다.")]
+        public float tagBeamCellsTbd = 1.5f;
+
+        [Tooltip("⚠️ 가정 — 빔이 머무는 시간(초).")]
+        public float tagBeamSecondsTbd = 0.3f;
+
+        [Tooltip("⚠️ 가정 — 파동을 몇 번 내보내는가. 사용자 말은 「2~3번」이었다.")]
+        public int tagWaveCountTbd = 3;
+
+        [Tooltip("⚠️ 가정 — 파동 사이 간격(초).")]
+        public float tagWaveIntervalSecondsTbd = 0.15f;
+
+        [Tooltip("⚠️ 가정 — 파동 하나가 반경 0 에서 화면 끝까지 커지는 데 걸리는 시간(초).")]
+        public float tagWaveSecondsTbd = 0.45f;
 
         // ⑦ 탄환비 — 「탄이 작고 한 번에 쏟아진다」 → **크게 · 파도 여럿 · 빠르게**.
         [Tooltip("⚠️ 구현 가정 — 탄환 크기 배율. 1 이면 자산 제 크기(아트 픽셀 기준).")]
@@ -337,6 +361,9 @@ namespace MBI.Data
                  + "크면 적이 표적을 두고 옆으로 오래 미끄러진다. "
                  + "⚠️ 몇 칸이 옳은지는 여전히 설계 몫이다 — 3 은 처음 재 본 값이다.")]
         public float enemySideDetourCellsTbd = 3f;
+
+        [Tooltip("⚠️ 가정 — 겹친 적끼리 서로 미는 세기(초당 배). 0 이면 안 민다(구 거동 · 2026-09-16 규칙).")]
+        public float enemyPushStrengthTbd = 6f;
 
         [Tooltip("⚠️ 가정 — 다 쓴 곁눈질 예산이 가득 차는 데 걸리는 시간(초). 0 이면 안 돌아온다(구 거동 · 굳는다).")]
         public float enemySideDetourRecoverSecondsTbd = 2f;
