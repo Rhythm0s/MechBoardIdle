@@ -625,10 +625,13 @@ namespace MBI.Logistics
                     ? NodeTypeColor(inst.Definition.type)
                     : NodeBaseColor;
 
-            // ✅ **직전 단계를 보고 정한다**(2026-09-21 사용자 육안 — 노드 깜빡임).
-            //    문턱 하나로는 1.000 언저리의 떨림이 그대로 밝기 튐이 된다.
+            // ✅ **직전 단계 + 머무는 시간**(2026-09-21 · 두 번째 고침).
+            //
+            // ⚠️ 첫 고침(문턱 이력)만으로는 **안 잡혔다.** 활성 로봇 판은 소비가 있어
+            //    산출률이 0 과 1 사이를 통째로 오간다 — 어느 문턱이든 넘는다.
+            //    그래서 **새 단계가 버틴 뒤에만** 바꾼다(`NodeStatusTint.DwellSeconds`).
             float prev = _nodeTints.TryGetValue(cell, out float had) ? had : NodeStatusTint.Normal;
-            float tint = NodeStatusTint.Of(ratio, prev);
+            float tint = SettleTint(cell, NodeStatusTint.Of(ratio, prev), prev);
             _nodeTints[cell] = tint;
 
             Color c = baseColor * tint;
@@ -638,6 +641,48 @@ namespace MBI.Logistics
 
         /// <summary>노드 상태색 적용(§L4-R #5). 진단은 Provider(LogisticsDiagnostics)가 공급 — UI는 색 매핑만.
         /// 선택 중인 셀은 선택 하이라이트 유지.</summary>
+        /// <summary>칸마다 **바뀌려고 기다리는 단계**와 그 시작 시각.</summary>
+        private readonly Dictionary<Vector2Int, float> _tintCandidate =
+            new Dictionary<Vector2Int, float>();
+        private readonly Dictionary<Vector2Int, float> _tintCandidateSince =
+            new Dictionary<Vector2Int, float>();
+
+        /// <summary>
+        /// **버틴 단계만 통과시킨다** (2026-09-21 · 노드 깜빡임 두 번째 고침).
+        ///
+        /// 새 단계가 나오면 바로 쓰지 않고 **후보**로 둔다. 그 후보가
+        /// <see cref="NodeStatusTint.DwellSeconds"/> 동안 유지되면 그때 바꾼다.
+        /// 한 틱 튄 값은 버티기 전에 되돌아가므로 화면이 안 떨고, 진짜로 멈춘 노드는
+        /// 계속 멈춰 있으므로 곧 어두워진다.
+        ///
+        /// ⚠️ **시간은 `unscaledTime` 이다** — 설정 판이 게임을 세워도 색은 안 굳는다.
+        /// </summary>
+        private float SettleTint(Vector2Int cell, float wanted, float current)
+        {
+            if (Mathf.Approximately(wanted, current))
+            {
+                _tintCandidate.Remove(cell);
+                _tintCandidateSince.Remove(cell);
+                return current;
+            }
+
+            float now = Time.unscaledTime;
+            if (!_tintCandidate.TryGetValue(cell, out float cand)
+                || !Mathf.Approximately(cand, wanted))
+            {
+                _tintCandidate[cell] = wanted;
+                _tintCandidateSince[cell] = now;
+                return current;                       // 이제 막 나온 후보 — 아직 안 바꾼다
+            }
+
+            float since = _tintCandidateSince.TryGetValue(cell, out float t) ? t : now;
+            if (now - since < NodeStatusTint.DwellSeconds) return current;
+
+            _tintCandidate.Remove(cell);
+            _tintCandidateSince.Remove(cell);
+            return wanted;                            // 버텼다 — 이제 바꾼다
+        }
+
         /// <summary>
         /// 칸마다의 **직전 밝기 단계** — 이력 문턱이 이것을 본다(2026-09-21).
         /// ⚠️ 색(<c>_nodeColors</c>)에서 되읽지 않는다: 아트 색이 곱해져 있어
