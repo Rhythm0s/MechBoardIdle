@@ -625,7 +625,12 @@ namespace MBI.Logistics
                     ? NodeTypeColor(inst.Definition.type)
                     : NodeBaseColor;
 
-            float tint = NodeStatusTint.Of(ratio);
+            // ✅ **직전 단계를 보고 정한다**(2026-09-21 사용자 육안 — 노드 깜빡임).
+            //    문턱 하나로는 1.000 언저리의 떨림이 그대로 밝기 튐이 된다.
+            float prev = _nodeTints.TryGetValue(cell, out float had) ? had : NodeStatusTint.Normal;
+            float tint = NodeStatusTint.Of(ratio, prev);
+            _nodeTints[cell] = tint;
+
             Color c = baseColor * tint;
             c.a = baseColor.a; // 알파는 밝기 축이 아니다 — 곱하면 노드가 투명해진다
             return c;
@@ -633,6 +638,14 @@ namespace MBI.Logistics
 
         /// <summary>노드 상태색 적용(§L4-R #5). 진단은 Provider(LogisticsDiagnostics)가 공급 — UI는 색 매핑만.
         /// 선택 중인 셀은 선택 하이라이트 유지.</summary>
+        /// <summary>
+        /// 칸마다의 **직전 밝기 단계** — 이력 문턱이 이것을 본다(2026-09-21).
+        /// ⚠️ 색(<c>_nodeColors</c>)에서 되읽지 않는다: 아트 색이 곱해져 있어
+        /// 나눠 되돌리면 자산마다 다른 수가 나온다.
+        /// </summary>
+        private readonly Dictionary<Vector2Int, float> _nodeTints =
+            new Dictionary<Vector2Int, float>();
+
         public void ApplyDiagnostics(IReadOnlyList<NodeDiagnostic> diags)
         {
             if (diags == null) return;
@@ -2097,7 +2110,16 @@ namespace MBI.Logistics
                 Vector3 sp = cam.WorldToScreenPoint(under);
                 if (sp.z <= 0f) continue;
 
-                float y = Screen.height - sp.y;
+                // ⚠️⚠️ **묶음 안쪽으로 들인다**(2026-09-21 사용자 육안 — 「마운트 이름표가
+                //    아래 노드 이름판과 겹친다」).
+                //
+                // 🗑️ 구 자리(묶음 **밑변 아래**) 폐기. 노드 이름판은 타일 **위쪽 안쪽**에
+                // 앉으므로, 마운트 아래 칸에 노드가 있으면 둘이 **정확히 같은 줄**을 쓴다 —
+                // x3·x8 의 「변환기」가 그 자리였다.
+                //
+                // 📌 **아래 칸은 그 칸의 것이 쓴다.** 이름표가 제 묶음 안으로 들어오면
+                //    「무엇에 붙은 이름인가」도 오히려 또렷해진다.
+                float y = Screen.height - sp.y - boxH;
                 float x = sp.x - boxW * 0.5f;
                 if (x < -boxW || x > Screen.width || y < -boxH || y > Screen.height + boxH) continue;
 

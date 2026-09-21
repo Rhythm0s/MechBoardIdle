@@ -37,5 +37,45 @@ namespace MBI.Core
             if (ratio < 0.999f) return Slow;       // 깎여서 돌아감
             return Normal;                         // 설계대로
         }
+
+        /// <summary>
+        /// 되돌아가는 문턱 — **정상에서 감속으로 내려오려면 여기까지 떨어져야 한다.**
+        /// ⚠️ 0.97 은 가정이다(설계 역기입 자리).
+        /// </summary>
+        public const float NormalExit = 0.97f;
+
+        /// <summary>정지에서 감속으로 올라오는 문턱. ⚠️ 가정.</summary>
+        public const float StoppedExit = 0.02f;
+
+        /// <summary>
+        /// **직전 단계를 보고 정한다** (2026-09-21 사용자 육안 — 「작동 중인 노드가 깜빡인다」).
+        ///
+        /// ⚠️⚠️ **문턱 하나로는 떨림을 못 막는다.** 설계대로 도는 노드도 산출률이
+        /// **1.000 언저리에서 미세하게 떨린다** — 벨트 도착이 이산이라 틱마다 조금씩
+        /// 다르다. <see cref="Of(float)"/> 는 0.999 에서 딱 잘리므로 그 떨림이
+        /// **1.0 ↔ 0.7 밝기 튐**이 되어 화면에서 깜빡임으로 보였다.
+        ///
+        /// 📌 **이 리포에 같은 병을 고친 자리가 있다** — `DirectionHysteresis`
+        /// (「대각에서 얼굴이 빠르게 뒤집힌다」). 올라가는 문턱과 내려오는 문턱을
+        /// 벌려 두면 경계에서 떨어도 단계가 안 바뀐다.
+        ///
+        /// ⚠️ **올라가는 문턱은 그대로다**(0.999) — 느슨하게 하면 「깎여 도는데 정상」이
+        /// 되어 진단이 거짓말을 한다. 벌리는 것은 **내려오는 쪽**뿐이다.
+        /// </summary>
+        public static float Of(float ratio, float previous)
+        {
+            if (ratio <= 0.0001f) return Stopped;              // 완전 정지는 문턱이 없다
+
+            // 정지에서 올라올 때 — 아주 조금이라도 돌면 감속으로 올린다.
+            if (previous <= Stopped + 0.0001f)
+                return ratio >= StoppedExit ? Slow : Stopped;
+
+            // 정상이었으면 **많이 떨어져야** 감속으로 내려온다.
+            if (previous >= Normal - 0.0001f)
+                return ratio >= NormalExit ? Normal : Slow;
+
+            // 감속이었으면 올라가는 문턱은 종전 그대로다.
+            return ratio >= 0.999f ? Normal : Slow;
+        }
     }
 }
