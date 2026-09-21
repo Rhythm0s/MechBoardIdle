@@ -273,6 +273,19 @@ namespace MBI.Core
         /// </summary>
         public void SetSideDetourCells(float cells) => _sideDetourCells = Mathf.Max(0f, cells);
 
+        /// <summary>
+        /// 다 쓴 곁눈질 예산이 **가득 차는 데 걸리는 시간**(초) (2026-09-21 육안 ⑤).
+        /// 0 이면 안 돌아온다 — 구 거동이고, 그것이 무리를 굳혔다.
+        /// </summary>
+        public void SetSideDetourRecoverSeconds(float seconds) =>
+            _sideDetourRecoverSeconds = Mathf.Max(0f, seconds);
+
+        private float _sideDetourRecoverSeconds = 2f;
+
+        /// <summary>초당 돌아오는 칸. 시간이 0 이면 0(안 돌아온다).</summary>
+        private float SideDetourRecoverPerSecond =>
+            _sideDetourRecoverSeconds > 0f ? _sideDetourCells / _sideDetourRecoverSeconds : 0f;
+
         private float _sideStepHold;
         private float _sideDetourCells;
 
@@ -1654,10 +1667,27 @@ namespace MBI.Core
                     //
                     // ⚠️ 경로 탐색이 아니다 — **한 칸짜리 곁눈질**이고 둘 다 막히면 그대로 선다.
                     //    통과·밀어내기는 여전히 없다.
+                    // ⚠️⚠️ **예산을 처음 한 번 채워 준다**(2026-09-21 사용자 육안 ⑤ —
+                    //    「몬스터가 뭉쳐 서서 안 달려든다」).
+                    //
+                    // `sideStepBudget` 기본값은 0 이고 채우는 곳은 `StepOrSide` 안의
+                    // **「주 축이 뚫렸을 때」** 하나뿐이었다. 앞이 처음부터 막힌 적은
+                    // 그 가지에 **한 번도 안 들어가므로** 예산이 영영 0 이고,
+                    // `allowance` 가 0 이라 곁눈질을 **시도조차 못 했다.**
+                    // 우회 3칸(09-19)은 그 적들에게 닿은 적이 없다.
+                    //
+                    // 📌 스폰 자리마다 적지 않고 **여기 한 곳**에서 채운다 — 스폰이 둘이고
+                    //    (묶음·대기열) 셋째가 생기는 날 또 빠진다.
+                    if (!e.sideStepPrimed)
+                    {
+                        e.sideStepBudget = _sideDetourCells;
+                        e.sideStepPrimed = true;
+                    }
+
                     Vector2? next = GridMovement.StepOrSide(
                         e.position, Act.body.position, e.moveSpeed * dt, e.radius, e, _enemies, Act.body,
                         ref e.sideStepHold, ref e.sideStepDir, _sideStepHold, dt,
-                        ref e.sideStepBudget, _sideDetourCells);
+                        ref e.sideStepBudget, _sideDetourCells, SideDetourRecoverPerSecond);
                     if (next.HasValue) e.position = next.Value;
 
                     e.attackCooldown = 0f; // 접근 중엔 즉시 타격 준비

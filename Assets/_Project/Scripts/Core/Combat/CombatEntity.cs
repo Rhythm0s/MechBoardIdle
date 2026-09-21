@@ -53,6 +53,15 @@ namespace MBI.Core
         /// </summary>
         public float sideStepBudget;
 
+        /// <summary>
+        /// 곁눈질 예산을 **한 번이라도 받아 봤는가** (2026-09-21 사용자 육안 ⑤).
+        ///
+        /// ⚠️⚠️ 이것이 없으면 <see cref="sideStepBudget"/> 의 0 이 **두 가지 뜻**을 갖는다 —
+        /// 「다 썼다」와 「아직 못 받았다」. 채우는 곳이 「주 축이 뚫렸을 때」 하나뿐이라
+        /// **태어날 때부터 막힌 적은 영영 0** 이었고, 무리 뒤쪽이 통째로 굳었다.
+        /// </summary>
+        public bool sideStepPrimed;
+
         public float radius;       // 충돌 반경 — 완전 겹침 방지(분리 처리). 0이면 분리 없음.
 
         // 적 전용 이동·공격

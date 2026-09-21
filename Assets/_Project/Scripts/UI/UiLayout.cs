@@ -679,6 +679,19 @@ namespace MBI.UI
         public const float BoardHintHeight = 44f;
         public const float BoardHintMargin = 24f;
 
+        /// <summary>안내 줄 글자 크기 (기준 캔버스). ⚠️ 가정.</summary>
+        public const float BoardHintFontDesign = 32f;
+
+        /// <summary>
+        /// 안내 줄이 **실제로 쓸** 글자 크기 — 사다리로 올려 잡은 뒤의 값.
+        ///
+        /// ⚠️⚠️ **그리는 쪽에서 따로 스냅하면 안 된다.** 상자 높이가 이 값을 따라가야
+        /// 하는데, 두 곳에서 각자 스냅하면 **같은 창에서 다른 답**이 나온다(지침 §7).
+        /// </summary>
+        public static int BoardHintFontSize(float screenHeight) =>
+            KoreanFont.Snap(Mathf.Max(9, Mathf.RoundToInt(
+                BoardHintFontDesign * Scale(screenHeight))));
+
         /// <summary>
         /// 조립 화면 안내 줄 자리 — 보드 띠 **왼쪽 아래**, ⚠️ **모드 막대를 피해서**.
         ///
@@ -703,7 +716,17 @@ namespace MBI.UI
             Rect mode = ModeBarRect(screenWidth, screenHeight);
             float s = Scale(screenHeight);
 
-            float h = BoardHintHeight * s;
+            // ⚠️⚠️ **높이는 글자에서 낸다**(2026-09-21 사용자 육안 3차 ② — 「안내 줄이
+            //    아직도 아래가 잘린다」). 종전 `44 × s` 는 **박힌 수**였다.
+            //
+            // `KoreanFont.Snap` 은 사다리에서 **위로** 올려 잡는다. 1080 창(s=0.42)에서
+            // 글자는 13.4 → **16** 인데 상자는 **18.5** 였다 — 16px 한 줄이 IMGUI 에서
+            // 20px 가까이 쓰니 **아래가 잘린다.** 1536 창은 19.2 → **24** 에 상자 26.4 로
+            // 더 심했다. 기준 창(s=1)에서만 36 대 44 로 맞아서, 내 쪽에서는 멀쩡해 보였다.
+            //
+            // 📌 **글자를 올려 잡았으면 상자도 따라 커져야 한다** — 1.5 는 IMGUI 한 줄
+            //    여유다(⚠️ 가정). 박힌 44 는 **아래 한계**로만 남긴다.
+            float h = Mathf.Max(BoardHintHeight * s, BoardHintFontSize(screenHeight) * 1.5f);
             float x = band.x + BoardHintMargin * s;
 
             // 아랫변 기준 종전 자리 · 모드 막대에 닿으면 그 위로 올린다.

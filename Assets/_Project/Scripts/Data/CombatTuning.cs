@@ -335,6 +335,9 @@ namespace MBI.Data
                  + "⚠️ 몇 칸이 옳은지는 여전히 설계 몫이다 — 3 은 처음 재 본 값이다.")]
         public float enemySideDetourCellsTbd = 3f;
 
+        [Tooltip("⚠️ 가정 — 다 쓴 곁눈질 예산이 가득 차는 데 걸리는 시간(초). 0 이면 안 돌아온다(구 거동 · 굳는다).")]
+        public float enemySideDetourRecoverSecondsTbd = 2f;
+
         [Header("피격 VFX 셋 (2026-09-16 설치)")]
         [Tooltip("표준탄 명중 · 4칸. 비어 있으면 코드 플래시로 떨어진다.")]
         public Sprite[] hitStandardFrames;

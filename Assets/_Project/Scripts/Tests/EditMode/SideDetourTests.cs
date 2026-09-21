@@ -56,7 +56,7 @@ namespace MBI.Tests
             Vector2 dir = Vector2.zero;
 
             Vector2? next = GridMovement.StepOrSide(self.position, target, 0.075f, self.radius,
-                self, all, null, ref hold, ref dir, Hold, Dt, ref budget, budgetCells: 0f);
+                self, all, null, ref hold, ref dir, Hold, Dt, ref budget, budgetCells: 0f, recoverPerSecond: 0f);
 
             Assert.IsNull(next, "예산이 없으면 그대로 선다");
         }
@@ -69,12 +69,38 @@ namespace MBI.Tests
             Vector2 dir = Vector2.zero;
 
             Vector2? next = GridMovement.StepOrSide(self.position, target, 0.075f, self.radius,
-                self, all, null, ref hold, ref dir, Hold, Dt, ref budget, budgetCells: 3f);
+                self, all, null, ref hold, ref dir, Hold, Dt, ref budget, budgetCells: 3f, recoverPerSecond: 0f);
 
             Assert.IsNotNull(next, "옆이 비었는데 안 갔다");
             Assert.Greater(Mathf.Abs(next.Value.y), D, "부 축으로 움직여야 한다");
             Assert.AreEqual(0f, next.Value.x, D, "주 축은 막혀 있다 — 대각선으로 가지 않는다");
             Assert.Less(budget, 3f, "간 만큼 예산이 깎여야 한다");
+        }
+
+        /// <summary>
+        /// **0 은 두 가지 뜻이다** (2026-09-21 사용자 육안 ⑤ — 「몬스터가 뭉쳐 서 있다」).
+        ///
+        /// ⚠️⚠️ 위 시험은 예산을 **3 으로 쥐여 주고** 물었다. 그런데 실제 적은
+        /// <c>sideStepBudget = 0</c> 으로 태어난다 — 채우는 곳이 `StepOrSide` 안의
+        /// **「주 축이 뚫렸을 때」** 하나뿐이라, **앞이 처음부터 막힌 적은 영영 0** 이다.
+        /// 그래서 우회 3칸(09-19)이 켜져 있어도 무리 뒤쪽은 굳어 있었다.
+        ///
+        /// 📌 **시험이 빈 자리를 지나갔다** — 「예산이 있으면」과 「예산이 0 이면 종전」
+        /// 둘은 썼는데, **「받아야 할 예산을 아직 못 받았으면」**은 안 썼다.
+        /// 규칙은 이대로 두고 **부르는 쪽이 처음 한 번 채운다**(`CombatSimulation`).
+        /// </summary>
+        [Test]
+        public void 예산을_아직_못_받았으면_못_돌아간다()
+        {
+            (CombatEntity self, List<CombatEntity> all, Vector2 target) = Walled();
+            float hold = 0f, budget = 0f;          // ← 갓 태어난 적의 상태
+            Vector2 dir = Vector2.zero;
+
+            Vector2? next = GridMovement.StepOrSide(self.position, target, 0.075f, self.radius,
+                self, all, null, ref hold, ref dir, Hold, Dt, ref budget, budgetCells: 3f, recoverPerSecond: 0f);
+
+            Assert.IsNull(next,
+                "예산 칸이 3 이어도 **쥔 것이 0** 이면 못 돈다 — 부르는 쪽이 채워야 한다");
         }
 
         [Test]
@@ -93,7 +119,7 @@ namespace MBI.Tests
             float hold = 0f, budget = 3f;
             Vector2 dir = Vector2.zero;
             Vector2? next = GridMovement.StepOrSide(self.position, target, 0.075f, self.radius,
-                self, all, null, ref hold, ref dir, Hold, Dt, ref budget, budgetCells: 3f);
+                self, all, null, ref hold, ref dir, Hold, Dt, ref budget, budgetCells: 3f, recoverPerSecond: 0f);
 
             Assert.IsNotNull(next, "반대쪽이 비었는데 안 갔다");
             Assert.Less(next.Value.y, 0f, "표적 쪽이 막혔으니 반대쪽(아래)으로 간다");
@@ -107,7 +133,7 @@ namespace MBI.Tests
             Vector2 dir = Vector2.zero;
 
             Vector2? next = GridMovement.StepOrSide(self.position, target, 0.075f, self.radius,
-                self, all, null, ref hold, ref dir, Hold, Dt, ref budget, budgetCells: 3f);
+                self, all, null, ref hold, ref dir, Hold, Dt, ref budget, budgetCells: 3f, recoverPerSecond: 0f);
 
             Assert.IsNull(next, "예산이 다했으면 옆이 비어도 안 간다 — 하염없이 미끄러지지 않는다");
         }
@@ -121,7 +147,7 @@ namespace MBI.Tests
             Vector2 dir = Vector2.up;
 
             Vector2? next = GridMovement.StepOrSide(self.position, new Vector2(5f, 0f), 0.075f,
-                self.radius, self, all, null, ref hold, ref dir, Hold, Dt, ref budget, budgetCells: 3f);
+                self.radius, self, all, null, ref hold, ref dir, Hold, Dt, ref budget, budgetCells: 3f, recoverPerSecond: 0f);
 
             Assert.IsNotNull(next);
             Assert.AreEqual(3f, budget, D, "주 축이 뚫렸으면 예산을 다시 채운다");
@@ -144,7 +170,7 @@ namespace MBI.Tests
             float hold = 0f, budget = 3f;
             Vector2 dir = Vector2.zero;
             Vector2? next = GridMovement.StepOrSide(self.position, new Vector2(5f, 0.5f), 0.075f,
-                self.radius, self, all, null, ref hold, ref dir, Hold, Dt, ref budget, budgetCells: 3f);
+                self.radius, self, all, null, ref hold, ref dir, Hold, Dt, ref budget, budgetCells: 3f, recoverPerSecond: 0f);
 
             Assert.IsNull(next, "세 방향이 다 막혔으면 선다 — 밀어내기는 없다");
         }

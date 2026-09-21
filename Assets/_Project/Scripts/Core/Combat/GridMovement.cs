@@ -72,7 +72,7 @@ namespace MBI.Core
             ref float hold, ref Vector2 heldDir, float holdSeconds, float dt)
             => StepOrSide(from, to, distance, radius, self, others, robot,
                           ref hold, ref heldDir, holdSeconds, dt,
-                          budget: ref _discardBudget, budgetCells: 0f);
+                          budget: ref _discardBudget, budgetCells: 0f, recoverPerSecond: 0f);
 
         /// <summary>예산을 안 쥔 옛 호출이 쓰는 버림 칸 — 값을 안 읽는다.</summary>
         private static float _discardBudget;
@@ -97,9 +97,22 @@ namespace MBI.Core
         public static Vector2? StepOrSide(Vector2 from, Vector2 to, float distance,
             float radius, CombatEntity self, IReadOnlyList<CombatEntity> others, CombatEntity robot,
             ref float hold, ref Vector2 heldDir, float holdSeconds, float dt,
-            ref float budget, float budgetCells)
+            ref float budget, float budgetCells, float recoverPerSecond)
         {
             if (hold > 0f) hold -= dt;
+
+            // ⚠️⚠️ **예산은 시간으로 돌아온다**(2026-09-21 사용자 육안 ⑤ —
+            //    「몬스터가 뭉쳐 서서 안 달려든다」).
+            //
+            // 종전에는 채우는 곳이 아래 「주 축이 뚫렸을 때」 하나뿐이라 예산이
+            // **평생 할당량**이었다. 무리에 닿은 적은 2초쯤 곁눈질하면 0 이 되고,
+            // 앞을 막은 것이 저희 무리라 **영영 안 뚫려** 그 자리에 굳었다.
+            // 화면에서는 「무리가 뭉쳐 정지」로 보였다.
+            //
+            // ⚠️ **다 쓰면 잠깐 서는 것은 그대로다** — 길막은 살아 있다. 다만
+            //    「잠깐」이 「영영」이 되지 않게 한다.
+            if (recoverPerSecond > 0f && budgetCells > 0f)
+                budget = Mathf.Min(budgetCells, budget + recoverPerSecond * dt);
 
             Vector2 main = Step(from, to, distance);
             if (main != from && !IsBlocked(main, radius, self, others, robot))

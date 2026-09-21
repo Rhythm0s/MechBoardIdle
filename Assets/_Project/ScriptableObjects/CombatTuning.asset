@@ -69,6 +69,7 @@ MonoBehaviour:
   droneAoeRingOn: 1
   enemySideStepHoldTbd: 0.4
   enemySideDetourCellsTbd: 3
+  enemySideDetourRecoverSecondsTbd: 2
   hitStandardFrames:
   - {fileID: 21300000, guid: 5f34f486e6b420043b2cda2787bf7180, type: 3}
   - {fileID: 21300000, guid: 1e23c4388967a514aa3d3ef4c55918e6, type: 3}

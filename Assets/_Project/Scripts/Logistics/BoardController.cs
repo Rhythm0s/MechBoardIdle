@@ -3299,7 +3299,9 @@ namespace MBI.Logistics
                 : "빈 칸 = 벨트 · 노드 탭 = 조합표 · 놓인 것 위에서 끌면 제거",
                 new GUIStyle(GUI.skin.label)
                 {
-                    fontSize = KoreanFont.Snap(Mathf.Max(9, Mathf.RoundToInt(32f * sc))),
+                    // ⚠️ **스냅을 여기서 다시 하지 않는다** — 상자 높이가 이 크기를 보고
+                    //    정해지므로 둘이 같은 곳에서 나와야 한다(육안 3차 ②).
+                    fontSize = UiLayout.BoardHintFontSize(Screen.height),
                     normal = { textColor = NameTextColor },
                 });
 

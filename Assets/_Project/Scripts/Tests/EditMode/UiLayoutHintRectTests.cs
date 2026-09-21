@@ -62,6 +62,25 @@ namespace MBI.Tests
         }
 
         /// <summary>
+        /// **글자를 올려 잡았으면 상자도 따라 커져야 한다** (2026-09-21 사용자 육안 3차 ②).
+        ///
+        /// `KoreanFont.Snap` 은 사다리에서 **위로** 올려 잡는데 높이는 `44 × s` 로 박혀
+        /// 있었다 — 720 창에서 상자 **12.4** 에 글자 **16** 이었다. 기준 창에서만 맞아서
+        /// 눈으로는 한참 못 봤다.
+        /// </summary>
+        [Test]
+        public void 상자가_글자보다_낮지_않다()
+        {
+            foreach (Vector2 w in Windows)
+            {
+                Rect hint = UiLayout.BoardHintRect(w.x, w.y);
+                int font = UiLayout.BoardHintFontSize(w.y);
+                Assert.GreaterOrEqual(hint.height, font * 1.4f,
+                    $"{w.x}x{w.y} — 상자 {hint.height:F1} 에 글자 {font} 다(아래가 잘린다)");
+            }
+        }
+
+        /// <summary>
         /// ⚠️ **폭은 안 줄인다.** 모드 막대 왼끝까지로 좁히면 겹침은 없어지지만
         /// 문장이 잘린다 — 가려진 글자를 잘린 글자로 바꾸는 것은 고친 것이 아니다.
         /// </summary>

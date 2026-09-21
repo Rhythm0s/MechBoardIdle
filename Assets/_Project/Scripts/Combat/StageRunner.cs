@@ -1353,6 +1353,8 @@ namespace MBI.Combat
             // 곁눈질 방향을 붙드는 시간 — 값은 조율 SO 가 든다(⚠️ 가정 · §74-12 B).
             _sim.SetSideStepHold(tuning != null ? tuning.enemySideStepHoldTbd : 0f);
             _sim.SetSideDetourCells(tuning != null ? tuning.enemySideDetourCellsTbd : 0f);
+            _sim.SetSideDetourRecoverSeconds(
+                tuning != null ? tuning.enemySideDetourRecoverSecondsTbd : 0f);
 
             // ⚠️ **매 프레임 넣는다**(2026-09-16 · 사용자 확정 §74-16 ③).
             //    설정은 `PlayerPrefs` 에 살고 버튼이 그것을 바꾸므로, 한 번만 넣으면
