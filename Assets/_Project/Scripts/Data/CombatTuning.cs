@@ -255,14 +255,20 @@ namespace MBI.Data
         //  파도처럼 커져 나가며 두세 번」이 받은 말이다. 아래는 그 말을 수로 옮긴
         //  **첫 판**이고, 전부 되돌릴 수 있다.
 
-        [Tooltip("⚠️ 가정 — 빔 굵기(칸). 「굵게」만 받았다.")]
-        public float tagBeamCellsTbd = 1.5f;
+        // ⚠️ **1.5 → 0.5 · 0.3 → 0.15**(2026-09-21 사용자 확정 · 갈래 1+3).
+        //    내가 띄워서 잡은 그림이 근거다 — 굵기 1.5칸에 길이가 화면 대각선이라
+        //    페이드가 그 긴 길이에 퍼져 **가장자리가 안 느껴졌다.** 화면에서는 빔이
+        //    아니라 **넓은 녹색 판**으로 읽혔고, 로봇 B 가 들어오는 축과 같아서
+        //    「등장 궤적을 따라 생긴 선」으로 보였다.
+        //    📌 「쓸어버리는」 느낌은 **파동 고리**가 낸다 — 빔은 **방향을 가리키는 줄기**다.
+        [Tooltip("⚠️ 가정 — 빔 굵기(칸). 판이 아니라 줄기로 읽히게 가늘다.")]
+        public float tagBeamCellsTbd = 0.5f;
 
         [Tooltip("⚠️ 가정 — 누적형 드론이 붙은 적에게 쏘는 조사 빔의 굵기(칸). 태그 빔보다 훨씬 가늘다.")]
         public float droneBeamCellsTbd = 0.12f;
 
-        [Tooltip("⚠️ 가정 — 빔이 머무는 시간(초).")]
-        public float tagBeamSecondsTbd = 0.3f;
+        [Tooltip("⚠️ 가정 — 빔이 머무는 시간(초). 짧을수록 덜 덮는다.")]
+        public float tagBeamSecondsTbd = 0.15f;
 
         [Tooltip("⚠️ 가정 — 파동을 몇 번 내보내는가. 사용자 말은 「2~3번」이었다.")]
         public int tagWaveCountTbd = 3;

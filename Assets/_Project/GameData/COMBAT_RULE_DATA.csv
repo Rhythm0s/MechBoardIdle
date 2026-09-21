@@ -41,9 +41,9 @@ ID,FieldName,Value,Confirmed
 40,tagLaserMaxBeamsTbd,16,0
 41,tagFlashAlphaTbd,0.35,0
 42,tagFlashSecondsTbd,0.18,0
-43,tagBeamCellsTbd,1.5,0
+43,tagBeamCellsTbd,0.5,0
 44,droneBeamCellsTbd,0.12,0
-45,tagBeamSecondsTbd,0.3,0
+45,tagBeamSecondsTbd,0.15,0
 46,tagWaveCountTbd,3,0
 47,tagWaveIntervalSecondsTbd,0.15,0
 48,tagWaveSecondsTbd,0.45,0
@@ -56,8 +56,8 @@ ID,FieldName,Value,Confirmed
 55,droneAoeRingOn,1,0
 56,enemySideStepHoldTbd,0.4,0
 57,enemySideDetourCellsTbd,3,0
-58,enemySideDetourRecoverSecondsTbd,2,0
-59,enemyPushStrengthTbd,6,0
+58,enemyPushStrengthTbd,6,0
+59,enemySideDetourRecoverSecondsTbd,2,0
 60,ammoOutScaleAssumed,0.5,0
 61,vfxOneShotSeconds,0.2,0
 62,waveSizeTbd,4,0
