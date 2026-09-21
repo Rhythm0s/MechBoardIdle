@@ -461,6 +461,20 @@ namespace MBI.Editor
             Sprite unit = LoadArt(artName);
             if (unit != null) return unit;
 
+            // ✅ **면별 폴더도 본다**(2026-09-21 아트 `mob_cannon` 스틸 넷).
+            //
+            // ⚠️⚠️ **아트가 넣은 것을 아무도 안 읽고 있었다.** 새 스틸은
+            // `Units/mob_cannon/south.png` 처럼 **폴더 안 네 면**으로 왔는데,
+            // `LoadArt` 는 `Units/mob_cannon.png` **파일**만 찾는다 — 그 파일은 없다.
+            // 그래서 지금까지 대기 벌 첫 칸으로 떨어졌고 **새 그림은 화면에 안 나왔다.**
+            //
+            // ⚠️ **남면을 쓴다** — 스틸은 한 장이고, 플레이어를 향해 선 면이 남면이다
+            // (대기 벌 폴백도 남면을 쓴다 · 같은 규칙).
+            // 📌 아트 커밋이 끝났다고 배선이 끝난 것이 아니다 — 읽는 쪽이 경로를 알아야 한다.
+            Sprite faced = AssetDatabase.LoadAssetAtPath<Sprite>(
+                $"Assets/_Project/Art/Units/{artName}/south.png");
+            if (faced != null) return faced;
+
             return AssetDatabase.LoadAssetAtPath<Sprite>(
                 $"Assets/_Project/Art/Anim/{artName}_Idle/south/frame_000.png");
         }

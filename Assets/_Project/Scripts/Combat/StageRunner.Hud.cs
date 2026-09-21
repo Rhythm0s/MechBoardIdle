@@ -93,14 +93,16 @@ namespace MBI.Combat
             {
                 double amount = KillRewardRule.Scrap(1, perKill);
                 for (int i = 0; i < _killSpots.Count; i++)
-                    SpawnDrop(_killSpots[i], ScrapColor, "고철", amount);
+                    SpawnDrop(_killSpots[i], ScrapColor, "고철", amount,
+                              tuning != null ? tuning.iconScrapSprite : null);
             }
 
             // 골드는 **스무 마리에 한 번**이라 처치마다 안 떨어진다 —
             // 지급 사건을 가져와 그때만 하나 띄운다.
             int gold = IdleSignals.DrainGoldAwarded();
             if (gold > 0 && _hasKillSpot)
-                SpawnDrop(_lastKillSpot, GoldColor, "골드", gold);
+                SpawnDrop(_lastKillSpot, GoldColor, "골드", gold,
+                          tuning != null ? tuning.iconGoldSprite : null);
         }
 
         /// <summary>
@@ -114,14 +116,20 @@ namespace MBI.Combat
         /// ⚠️ **같은 재화는 합친다.** 한 프레임에 여럿 죽으면 「고철 +2」가 줄줄이 서서
         /// 로봇을 덮는다 — 아직 날고 있는 같은 이름의 글자가 있으면 **개수만 더한다.**
         /// </summary>
-        private void SpawnDrop(Vector2 world, Color color, string name, double amount)
+        private void SpawnDrop(Vector2 world, Color color, string name, double amount,
+                               Sprite art = null)
         {
             Transform target = _robotView != null ? _robotView.transform : null;
 
-            // ⚠️ **자산이 오기 전에는 원형 폴백**(설계 지시 ① · 「코인 스프라이트는 아트」).
-            //    색 사각을 안 쓰는 까닭은 보드의 색 축과 섞이기 때문이다.
+            // ✅ **아이콘 자산이 왔다**(2026-09-21 · `icon_gold` · `icon_scrap`).
+            //    🗑️ 구 주석 「코인 스프라이트는 아트」의 기다림이 끝난 자리다.
+            //    ⚠️ 자산은 **제 색**을 들고 오므로 틴트를 흰색으로 둔다 — 없을 때만
+            //    종전 원형 폴백에 재화 색을 입힌다(색 사각을 안 쓰는 까닭은 보드의
+            //    색 축과 섞이기 때문이다).
+            bool hasArt = art != null;
             DropMagnet.Play(transform, new Vector3(world.x, world.y, 0f), target,
-                PlaceholderSprite.SoftDisc(), color,
+                hasArt ? art : PlaceholderSprite.SoftDisc(),
+                hasArt ? Color.white : color,
                 tuning.dropViewUnitsTbd > 0f ? tuning.dropViewUnitsTbd : 0.3f,
                 tuning.dropRestSecondsTbd, tuning.dropMagnetSecondsTbd,
                 SortingLayers.Actor + 3);
@@ -290,10 +298,21 @@ namespace MBI.Combat
             float coin = chip.height * 0.42f;
             var coinRect = new Rect(chip.x + 10f * sc, chip.y + (chip.height * 0.58f - coin) * 0.5f,
                                     coin, coin);
-            Color coinPrev = GUI.color;
-            GUI.color = GoldColor;
-            GUI.DrawTexture(coinRect, PlaceholderSprite.SoftDisc().texture, ScaleMode.ScaleToFit);
-            GUI.color = coinPrev;
+            // ✅ **아이콘 자산이 있으면 그것을 쓴다**(2026-09-21 아트 `icon_gold`).
+            //    🗑️ 구 폴백(색 원)은 자산이 없을 때만 남는다.
+            //    ⚠️ **자산에는 틴트를 안 입힌다** — 제 색을 들고 온다(적 포탄과 같은 규칙).
+            Sprite coinArt = tuning != null ? tuning.iconGoldSprite : null;
+            if (coinArt != null && coinArt.texture != null)
+            {
+                GUI.DrawTextureWithTexCoords(coinRect, coinArt.texture, SpriteUv(coinArt), true);
+            }
+            else
+            {
+                Color coinPrev = GUI.color;
+                GUI.color = GoldColor;
+                GUI.DrawTexture(coinRect, PlaceholderSprite.SoftDisc().texture, ScaleMode.ScaleToFit);
+                GUI.color = coinPrev;
+            }
 
             // 칩은 **지금 골드만** 적는다(2026-09-21 사용자 확정 ①).
             //

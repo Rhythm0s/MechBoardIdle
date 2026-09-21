@@ -66,8 +66,10 @@ MonoBehaviour:
   invincibleBlinkSecondsTbd: 0.06
   invincibleBlinkMinAlphaTbd: 0.3
   enemyProjectileViewUnitsTbd: 0.5
-  hudThumbnailSprite: {fileID: 21300000, guid: d3b36ee4e73e768498498d6ad574ae4d, type: 3}
   tagBulletSprite: {fileID: 21300000, guid: 4e4a26246db35c7419895a638e727efc, type: 3}
+  hudThumbnailSprite: {fileID: 21300000, guid: d3b36ee4e73e768498498d6ad574ae4d, type: 3}
+  iconGoldSprite: {fileID: 21300000, guid: 85518aabd6b566d4fad97fa3b52146d2, type: 3}
+  iconScrapSprite: {fileID: 21300000, guid: 959b11c582c2b8740ad2223b7af41c69, type: 3}
   droneLaunchSprite: {fileID: 21300000, guid: 5b0929e11aac00345b82ce0cc95b4db3, type: 3}
   boosterSprite: {fileID: 21300000, guid: 3524cc9e4bf76bb44bdaa6d87e232889, type: 3}
   droneExpireSprite: {fileID: 21300000, guid: 57ec3a9efbdb0374fbdf4e83ebb8f789, type: 3}
@@ -76,8 +78,8 @@ MonoBehaviour:
   droneAoeRingOn: 1
   enemySideStepHoldTbd: 0.4
   enemySideDetourCellsTbd: 3
-  enemySideDetourRecoverSecondsTbd: 2
   enemyPushStrengthTbd: 6
+  enemySideDetourRecoverSecondsTbd: 2
   hitStandardFrames:
   - {fileID: 21300000, guid: 5f34f486e6b420043b2cda2787bf7180, type: 3}
   - {fileID: 21300000, guid: 1e23c4388967a514aa3d3ef4c55918e6, type: 3}

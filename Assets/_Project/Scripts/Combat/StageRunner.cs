@@ -1110,12 +1110,21 @@ namespace MBI.Combat
                 Sprite shell = EnemyProjectileSprite();
                 sr.sprite = shell != null ? shell : PlaceholderSprite.White();
                 sr.sortingOrder = SortingLayers.EffectOver;
-                // ⚠️ **자산은 무채색이다 — 색은 코드가 입힌다**(2026-09-16 아트 규약).
-                //    자리표시(흰 사각)일 때도 같은 색이라 **틴트를 갈래로 안 나눈다.**
-                sr.color = EnemyShellTint;
-                // ⚠️ **크기는 가정**이고 값은 자산이 든다(`enemyProjectileViewUnitsTbd`).
-                //    연출 문서에 적 포탄 절이 없어 확정이 아니다 — 2026-09-18 에 사용자가
-                //    「안 보인다」로 키웠다(0.25 → 0.5).
+
+                // ✅ **자산이 제 색을 들고 온다**(2026-09-21 아트 교체 · 진홍 구슬).
+                //    🗑️ 구 규약 「자산은 무채색 · 색은 코드가 입힌다」 폐기 —
+                //    제 색 위에 주황 틴트를 **곱하면** 그림이 덮여 색이 뒤집힌다.
+                //    ⚠️ **자리표시(흰 사각)에는 아직 틴트가 필요하다** — 흰 사각을
+                //    그대로 두면 「적 포탄」으로 안 읽힌다. 그래서 갈래가 생겼다.
+                sr.color = shell != null ? Color.white : EnemyShellTint;
+
+                // ⚠️⚠️ **값은 그대로 두고 잰 것만 적는다**(2026-09-21).
+                //    자산이 **56×24 → 54×54** 로 바뀌었다(PPU 192). 배율 0.5 에서
+                //    화면 크기는 **0.146×0.062 → 0.141×0.141 유닛** 이다 —
+                //    **가로는 거의 그대로이고 세로가 2.25 배**가 된다.
+                //    📌 **안 고친 까닭** — 이 값은 09-18 에 사용자가 **눈으로** 정한 것이다
+                //       (「안 보인다」 → 0.25에서 0.5). 화면을 안 보고 다시 정하면
+                //       그 판단을 덮어쓰는 것이 된다. 커진 것이 과하면 육안으로 부른다.
                 go.transform.localScale = Vector3.one * ProjectileViewUnits;
                 _projectileViews.Add(sr);
             }

@@ -308,6 +308,12 @@ namespace MBI.Data
         [Tooltip("헤더 칩 줄의 로봇 A 썸네일(얼굴 크롭). 비우면 로봇 전신 그림으로 떨어진다.")]
         public Sprite hudThumbnailSprite;
 
+        [Tooltip("골드 아이콘(24). 헤더 칩의 동전과 떨어지는 골드가 쓴다. 비우면 색 원으로 떨어진다.")]
+        public Sprite iconGoldSprite;
+
+        [Tooltip("고철 아이콘(24). 떨어지는 고철이 쓴다. 비우면 색 원으로 떨어진다.")]
+        public Sprite iconScrapSprite;
+
         [Header("설치된 VFX 자산 (2026-09-08 배선 · 260908_W06 6장)")]
         // 경로는 생성기에만 있고 런타임은 이 참조만 본다(§8 명명 규칙).
         // 비어 있으면 **연출을 그리지 않는다** — 자리표시로 대신하지 않는다.
