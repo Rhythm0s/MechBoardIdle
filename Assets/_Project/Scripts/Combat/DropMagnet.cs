@@ -47,10 +47,24 @@ namespace MBI.Combat
             d._sr = sr;
             d._target = target;
             d._from = worldPos;
-            d._rest = Mathf.Max(0f, restSeconds);
-            d._fly = Mathf.Max(0.01f, flySeconds);
+            d._rest = RestOf(restSeconds);
+            d._fly = FlyOf(flySeconds);
             return d;
         }
+
+        /// <summary>쉬는 시간 · 나는 시간의 **하한**. 값이 두 곳에 살지 않게 뺀다.</summary>
+        public static float RestOf(float seconds) => Mathf.Max(0f, seconds);
+
+        public static float FlyOf(float seconds) => Mathf.Max(0.01f, seconds);
+
+        /// <summary>
+        /// 떨어진 자리에서 **로봇에 닿기까지** 걸리는 시간(초).
+        ///
+        /// ⚠️ **글자 쪽이 이것을 읽는다**(`StageRunner.Hud` 의 팝). 흡수 시점을 저쪽에서
+        /// 따로 계산하면 연출값을 만질 때마다 **둘이 어긋난다** — 지침 §7 의 그 자리다.
+        /// </summary>
+        public static float FlightSeconds(float restSeconds, float flySeconds) =>
+            RestOf(restSeconds) + FlyOf(flySeconds);
 
         private void Update()
         {

@@ -95,6 +95,7 @@ MonoBehaviour:
   dropViewUnitsTbd: 0.3
   dropPopSecondsTbd: 0.9
   dropPopRiseUnitsTbd: 0.8
+  dropPopSideUnitsTbd: 1.1
   combatPowerMountFactorTbd: 0
   dodgeAfterimageCountTbd: 5
   dodgeTrailSecondsTbd: 0.6

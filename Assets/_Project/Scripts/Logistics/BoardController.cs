@@ -3289,10 +3289,12 @@ namespace MBI.Logistics
             // ⚠️ **자리도 틀렸다.** `band.y − 30` 은 **탭 줄과 겹치는 자리**였다(개편 ②로
             // 부유 띠 위쪽이 탭 줄이 됐다). 보드 띠 **왼쪽 아래**로 내린다 —
             // 모드 판이 오른쪽 아래를 쓰므로 반대 구석이다. ⚠️ 자리는 가정이다.
-            Rect boardBand = UiLayout.BandRect(UiLayout.Band.Board, Screen.width, Screen.height);
-            float hintH = 44f * sc;
-            GUI.Label(new Rect(boardBand.x + 24f * sc, boardBand.yMax - 24f * sc - hintH,
-                    boardBand.width * 0.6f, hintH),
+            // ⚠️⚠️ **자리를 `UiLayout` 으로 뺐다**(2026-09-21 사용자 육안 ⓐ — 「안내 줄이
+            // 절반 가려진다」). 여기서 재던 `boardBand.yMax − 24 − 44` 는 **모드 막대
+            // 속**이었다(막대 1932~2082 · 안내 줄 2030~2074). 자리가 코드 안에 흩어져
+            // 있으면 **겹치는지를 눈으로만** 볼 수 있다 — 순수 함수로 빼면 시험이 본다
+            // (`UiLayoutHintRectTests`).
+            GUI.Label(UiLayout.BoardHintRect(Screen.width, Screen.height),
                 _selectedModule >= 0 ? "모듈 — 놓인 노드를 탭하면 붙는다"
                 : "빈 칸 = 벨트 · 노드 탭 = 조합표 · 놓인 것 위에서 끌면 제거",
                 new GUIStyle(GUI.skin.label)
@@ -3695,6 +3697,21 @@ namespace MBI.Logistics
             if (x + w < 0f || x > Screen.width || y + h < 0f || y > Screen.height) return;
 
             var box = new Rect(x, y, w, h);
+
+            // ⚠️⚠️ **인셋 경계에 걸치면 통째로 안 그린다**(2026-09-21 사용자 육안 ⓒ —
+            //    「인셋 아래 경계에 이름판이 반쯤 가려진다」).
+            //
+            // 그릇(`BeginClip(boardView)`)이 이미 보드 띠 밖을 자르고 있고, 보드 띠 윗변은
+            // **인셋 밑변과 같은 줄**이다(768 × h/2560 = 0.3h = `BottomPixels`). 그래서
+            // 경계에 걸친 판은 **막히는 것이 아니라 반으로 잘렸다** — 「변환기」가 윗동강
+            // 없이 인셋 밑변에 붙어 떠 있었다.
+            //
+            // ⚠️ **판정은 윗변으로 한다** — 구역 이름표는 한가운데로 재는데(`area.center.y`)
+            // 그쪽은 사각이 커서 한 귀퉁이가 걸렸다고 통째로 숨기면 멀쩡한 이름이 사라진다.
+            // 이름판은 **한 줄 높이**라 윗변이 걸리는 순간 이미 못 읽는다 — 같은 규칙을
+            // 쓰면 반 토막이 그대로 남는다.
+            if (box.y < CombatInsetView.BottomPixels(Screen.height)) return;
+
             Color prev = GUI.color;
             GUI.color = NamePlateColor;
             GUI.DrawTexture(box, Texture2D.whiteTexture);

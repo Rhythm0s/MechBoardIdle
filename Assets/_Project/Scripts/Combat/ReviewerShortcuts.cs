@@ -240,9 +240,37 @@ namespace MBI.Combat
             int count = 0;
             for (int i = 0; i < stages.Count; i++) if (Shows(stages[i])) count++;
             if (count == 0) return;
-            float bw = (236f - pad * (count - 1)) / count;
-            float bx = x;
 
+            // ⚠️⚠️ **똑같이 나누면 한글 버튼만 잘린다**(2026-09-21 사용자 육안 ⓑ —
+            //    「튜토」가 **「류토」처럼** 보인다).
+            //
+            // 236 을 일곱으로 나누면 한 칸이 **30px** 인데, 13px 한글 두 자는 테두리까지
+            // 26 + 여백이라 **칸을 넘는다.** `S1` 은 라틴 두 자라 들어가서, 화면에서는
+            // **한글 버튼 하나만** 망가진 것처럼 보였다 — 글자가 잘리며 「튜」의 오른쪽이
+            // 날아가 다른 글자로 읽혔다.
+            //
+            // 📌 **폭은 글자에서 낸다** — 칸 수로 나누면 「무엇이 들어가는가」를 안 본 것이다.
+            //    09-16 이름판 · 09-19 태그 원형과 **같은 병**이고, 고치는 법도 같다.
+            var labels = new List<string>(count);
+            for (int i = 0; i < stages.Count; i++)
+                if (Shows(stages[i]))
+                    // 튜토리얼은 번호를 안 쓴다(260902_W09 §2). 버튼이 좁아 짧게 적는다.
+                    labels.Add(stages[i] == tutorialStage ? "튜토" : stages[i].stageId);
+
+            float avail = 236f - pad * (count - 1);
+
+            // ⚠️ **새 글자 크기를 안 만든다** — 12·13 은 이 패널이 이미 쓰는 둘이다.
+            //    동적 폰트 아틀라스는 크기마다 굽는다(09-15 촬영 차단 결함의 뿌리).
+            var need = new float[count];
+            float sum = Measure(style, labels, need);
+            if (sum > avail && style.fontSize > 12)
+            {
+                style.fontSize = 12;
+                sum = Measure(style, labels, need);
+            }
+
+            float bx = x;
+            int k = 0;
             for (int i = 0; i < stages.Count; i++)
             {
                 StageDefinition s = stages[i];
@@ -252,13 +280,33 @@ namespace MBI.Combat
                 Color prev = GUI.color;
                 if (here) GUI.color = new Color(1f, 0.92f, 0.45f); // 지금 있는 곳
 
-                // 튜토리얼은 번호를 안 쓴다(260902_W09 §2). 버튼이 좁아 짧게 적는다.
-                string label = s == tutorialStage ? "튜토" : s.stageId;
-                if (UiSkin.Button(new Rect(bx, y, bw, h), label, style)) GoTo(s);
+                // 남는 폭은 **글자 넓이에 비례해서** 나눈다. 모자라면 같은 비율로 줄어
+                // 「한 칸만 잘리는」 일이 안 생긴다.
+                float bw = sum > 0.01f ? avail * (need[k] / sum) : avail / count;
+                if (UiSkin.Button(new Rect(bx, y, bw, h), labels[k], style)) GoTo(s);
 
                 GUI.color = prev;
                 bx += bw + pad;
+                k++;
             }
+        }
+
+
+        /// <summary>
+        /// 버튼마다 **글자가 드는 폭**을 잰다. 돌려주는 것은 그 합이다.
+        ///
+        /// ⚠️ <see cref="GUIStyle.CalcSize"/> 는 테두리 여백까지 넣어 잰다 — 거기에
+        /// 손가락 여백을 조금 더한다(⚠️ 4 는 가정).
+        /// </summary>
+        private static float Measure(GUIStyle style, List<string> labels, float[] need)
+        {
+            float sum = 0f;
+            for (int i = 0; i < labels.Count; i++)
+            {
+                need[i] = style.CalcSize(new GUIContent(labels[i])).x + 4f;
+                sum += need[i];
+            }
+            return sum;
         }
 
         /// <summary>목록에 뜨는 항목인가. 튜토리얼은 개발 빌드에서만 뜬다.</summary>

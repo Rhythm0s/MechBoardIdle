@@ -673,6 +673,50 @@ namespace MBI.UI
             return new Rect(screenWidth - margin - w, band.yMax - margin - h, w, h);
         }
 
+        // ───────────────────────── 조립 안내 줄 (가정) ─────────────────────────
+
+        /// <summary>안내 줄 높이 · 왼쪽 여백 (기준 캔버스). ⚠️ 가정.</summary>
+        public const float BoardHintHeight = 44f;
+        public const float BoardHintMargin = 24f;
+
+        /// <summary>
+        /// 조립 화면 안내 줄 자리 — 보드 띠 **왼쪽 아래**, ⚠️ **모드 막대를 피해서**.
+        ///
+        /// ⚠️⚠️ **종전 자리는 모드 막대 속이었다**(2026-09-21 사용자 육안 ⓐ — 「안내 줄이
+        /// 절반 가려진다」). `boardBand.yMax − 24 − 44` 는 세로로 **2030~2074** 인데
+        /// <see cref="ModeBarRect"/> 가 **1932~2082** 를 쓴다 — 두 자리가 겹쳐 있었다.
+        /// 가로도 겹쳤다: 안내 줄은 폭을 `띠 × 0.6` 으로 잡아 창이 넓을수록 오른쪽으로
+        /// 자라고, 모드 막대는 **화면 한가운데**라 넓어질수록 왼쪽으로 온다.
+        ///
+        /// 📌 **자리를 눈으로 고르지 않는다** — 두 사각이 안 겹치는지는 셈으로 답이 난다.
+        /// <c>UiLayoutHintRectTests</c> 가 창 넷에서 그것을 지킨다.
+        ///
+        /// **세로로 피한다 — 모드 막대 윗변 위로 올린다.**
+        ///
+        /// ⚠️ **가로로 좁히는 길은 안 골랐다.** 막대 왼끝까지면 폭이 380(기준 캔버스)인데
+        /// 이 문장은 32px 로 **900 넘게** 쓴다 — 좁히면 안 가려지는 대신 **문장이 잘린다.**
+        /// 가려진 글자를 잘린 글자로 바꾸는 것은 고친 것이 아니다.
+        /// </summary>
+        public static Rect BoardHintRect(float screenWidth, float screenHeight)
+        {
+            Rect band = BandRect(Band.Board, screenWidth, screenHeight);
+            Rect mode = ModeBarRect(screenWidth, screenHeight);
+            float s = Scale(screenHeight);
+
+            float h = BoardHintHeight * s;
+            float x = band.x + BoardHintMargin * s;
+
+            // 아랫변 기준 종전 자리 · 모드 막대에 닿으면 그 위로 올린다.
+            float y = Mathf.Min(band.yMax - BoardHintMargin * s - h,
+                                mode.y - 8f * s - h);
+
+            // 창이 좁아 막대가 화면을 다 먹으면 띠 안에는 남는다.
+            y = Mathf.Max(band.y, y);
+
+            // 폭은 **종전 그대로 0.6** — 위로 올렸으므로 가로로 겹쳐도 상관없다.
+            return new Rect(x, y, band.width * 0.6f, h);
+        }
+
         // ───────────────────────── 조합표 팝오버 (가정) ─────────────────────────
         //
         // ⚠️ **전부 가정이다** — UI 문서에 조합표 패널 절이 없다(설계 역기입).

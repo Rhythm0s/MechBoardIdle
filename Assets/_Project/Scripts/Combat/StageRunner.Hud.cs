@@ -42,10 +42,14 @@ namespace MBI.Combat
         /// </summary>
         private struct Pop
         {
+            /// <summary>로봇이 없을 때 쓸 자리 — 평소에는 **로봇을 따라간다**.</summary>
             public Vector2 world;
-            public string text;
+            public string name;      // 「고철」 · 「골드」
+            public double amount;
             public Color color;
-            public float bornAt;
+
+            /// <summary>**흡수되는 순간** — 이때부터 글자가 뜬다.</summary>
+            public float showAt;
         }
 
         private readonly List<Pop> _pops = new List<Pop>(16);
@@ -89,17 +93,28 @@ namespace MBI.Combat
             {
                 double amount = KillRewardRule.Scrap(1, perKill);
                 for (int i = 0; i < _killSpots.Count; i++)
-                    SpawnDrop(_killSpots[i], ScrapColor, "+" + amount.ToString("0.##") + " 고철");
+                    SpawnDrop(_killSpots[i], ScrapColor, "고철", amount);
             }
 
             // 골드는 **스무 마리에 한 번**이라 처치마다 안 떨어진다 —
             // 지급 사건을 가져와 그때만 하나 띄운다.
             int gold = IdleSignals.DrainGoldAwarded();
             if (gold > 0 && _hasKillSpot)
-                SpawnDrop(_lastKillSpot, GoldColor, "+" + gold + " 골드");
+                SpawnDrop(_lastKillSpot, GoldColor, "골드", gold);
         }
 
-        private void SpawnDrop(Vector2 world, Color color, string label)
+        /// <summary>
+        /// 떨어뜨리고, **닿을 시각에 글자를 예약한다** (2026-09-21 사용자 요청 · §85-8 ⑦).
+        ///
+        /// ⚠️⚠️ **글자는 떨어질 때가 아니라 들어올 때 뜬다.** 종전은 죽은 자리에서 죽은
+        /// 순간 떠올랐다 — 마그넷이 **아직 날지도 않았는데** 수입이 먼저 적혔고, 글자가
+        /// 스테이지 판 위에 겹쳤다(사용자 스크린샷). 「무엇이 왜 늘었나」는 **들어오는
+        /// 순간 로봇 옆**에서 읽혀야 한다.
+        ///
+        /// ⚠️ **같은 재화는 합친다.** 한 프레임에 여럿 죽으면 「고철 +2」가 줄줄이 서서
+        /// 로봇을 덮는다 — 아직 날고 있는 같은 이름의 글자가 있으면 **개수만 더한다.**
+        /// </summary>
+        private void SpawnDrop(Vector2 world, Color color, string name, double amount)
         {
             Transform target = _robotView != null ? _robotView.transform : null;
 
@@ -111,8 +126,26 @@ namespace MBI.Combat
                 tuning.dropRestSecondsTbd, tuning.dropMagnetSecondsTbd,
                 SortingLayers.Actor + 3);
 
+            float showAt = Time.time + DropMagnet.FlightSeconds(
+                tuning.dropRestSecondsTbd, tuning.dropMagnetSecondsTbd);
+
+            // 아직 안 뜬 같은 재화가 있으면 **거기에 더한다** — 줄을 세우지 않는다.
+            for (int i = 0; i < _pops.Count; i++)
+            {
+                if (_pops[i].name != name || _pops[i].showAt <= Time.time) continue;
+                Pop merged = _pops[i];
+                merged.amount += amount;
+                merged.showAt = Mathf.Min(merged.showAt, showAt);   // 먼저 닿는 쪽을 따른다
+                _pops[i] = merged;
+                return;
+            }
+
             if (_pops.Count < 24)
-                _pops.Add(new Pop { world = world, text = label, color = color, bornAt = Time.time });
+                _pops.Add(new Pop
+                {
+                    world = world, name = name, amount = amount,
+                    color = color, showAt = showAt,
+                });
         }
 
         /// <summary>떠오르는 글자들. **월드 → 화면**은 그릴 때 한 번만 푼다.</summary>
@@ -125,7 +158,15 @@ namespace MBI.Combat
 
             float life = tuning.dropPopSecondsTbd > 0f ? tuning.dropPopSecondsTbd : 0.9f;
             float rise = tuning.dropPopRiseUnitsTbd;
+            float side = tuning.dropPopSideUnitsTbd;
             float sc = UiLayout.Scale(Screen.height);
+
+            // **로봇 옆**이 기준 자리다 — 로봇이 없으면(격리 씬·교대 중) 떨어진 자리로 돈다.
+            bool hasRobot = _robotView != null;
+            Vector3 robot = hasRobot ? _robotView.transform.position : Vector3.zero;
+
+            // 둘(고철·골드)이 같이 들어오면 위아래로 벌린다 — 겹치면 둘 다 안 읽힌다.
+            int shown = 0;
 
             var style = new GUIStyle(GUI.skin.label)
             {
@@ -138,16 +179,28 @@ namespace MBI.Combat
             for (int i = _pops.Count - 1; i >= 0; i--)
             {
                 Pop p = _pops[i];
-                float u = (Time.time - p.bornAt) / life;
+
+                // 아직 날아오는 중이다 — 닿아야 뜬다.
+                if (Time.time < p.showAt) continue;
+
+                float u = (Time.time - p.showAt) / life;
                 if (u >= 1f) { _pops.RemoveAt(i); continue; }
 
-                var w = new Vector3(p.world.x, p.world.y + rise * u, 0f);
+                Vector3 anchor = hasRobot
+                    ? new Vector3(robot.x + side, robot.y, 0f)
+                    : new Vector3(p.world.x, p.world.y, 0f);
+                var w = new Vector3(anchor.x, anchor.y + rise * u + shown * 0.45f, 0f);
+                shown++;
                 Vector3 sp = cam.WorldToScreenPoint(w);
                 if (sp.z < 0f) continue;
 
                 style.normal.textColor = new Color(p.color.r, p.color.g, p.color.b, 1f - u);
+
+                // ✅ **「자원 이름 + 개수」**(2026-09-21 사용자 요청) — 종전은 「+2 고철」로
+                //    부호가 앞이었다. 무엇이 들어왔는지가 먼저 읽혀야 한다.
+                string text = p.name + " +" + p.amount.ToString("0.##");
                 GUI.Label(new Rect(sp.x - 90f * sc, Screen.height - sp.y - 20f * sc,
-                                   180f * sc, 40f * sc), p.text, style);
+                                   180f * sc, 40f * sc), text, style);
             }
         }
 
