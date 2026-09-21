@@ -20,8 +20,10 @@ V01 초안 → **노션이 안 깨뜨리는 꼴**로.
 import io, re, sys
 sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 
-SRC = r"C:\Unity_Project\26_MechBoardIdle\MechBoardIdle\Docs\260920_V01_draft.md"
-DST = r"C:\Users\Kang\AppData\Local\Temp\claude\C--Users-Kang-OneDrive------\4b27ebae-8565-4ef9-951d-a870936a2e68\scratchpad\v01_0920_notion.md"
+# ⚠️ 경로는 **인자로 받는다** — 박아 두면 다음 날 다른 문서를 굽는다.
+#    (2026-09-21 실측: 인자를 줬는데 어제 초안이 구워졌다.)
+SRC = sys.argv[1]
+DST = sys.argv[2]
 
 
 def unbold_cells(line):
