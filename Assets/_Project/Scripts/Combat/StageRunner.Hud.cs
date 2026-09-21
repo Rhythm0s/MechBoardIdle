@@ -557,6 +557,9 @@ namespace MBI.Combat
                 fontSize = KoreanFont.Ladder[0],
                 alignment = TextAnchor.MiddleCenter,
                 clipping = TextClipping.Overflow,
+                // 막대는 좁다 — 안 끄면 「1000 / 1000」이 두 줄로 갈려 HP 와 보호막이
+                // 서로 겹쳐 찍힌다(2026-09-21 내가 직접 띄워 보고 확인했다).
+                wordWrap = false,
             };
 
             float h = KoreanFont.Ladder[0] * 1.4f;

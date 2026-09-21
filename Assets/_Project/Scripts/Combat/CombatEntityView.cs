@@ -29,16 +29,21 @@ namespace MBI.Combat
         /// <summary>보호막 막대가 HP 막대에서 더 내려간 거리 ÷ 막대 높이. ⚠️ 가정.</summary>
         public const float ShieldGapRatio = 1.25f;
 
-        /// <summary>이 몸의 크기(월드) — 막대 폭이 곧 이 값이다.</summary>
-        public float ViewSize => _size;
+        /// <summary>
+        /// **막대가 실제로 쓰는 폭**(월드) — 게이지 안 수치가 이 값으로 자리를 잡는다.
+        /// ⚠️ `_size`(수치에서 온 수)가 아니다 — 2026-09-21 에 둘이 갈렸던 자리다.
+        /// </summary>
+        public float ViewSize => _barWidth > 0.0001f ? _barWidth : _size;
 
-        /// <summary>HP 막대 한가운데(월드).</summary>
-        public Vector2 HpBarCenter => (Vector2)transform.position
-            + new Vector2(0f, -_size * BarCenterRatio);
+        /// <summary>HP 막대 한가운데(월드). 눕힌 자리를 그대로 읽는다.</summary>
+        public Vector2 HpBarCenter => _hpBg != null
+            ? (Vector2)_hpBg.position
+            : (Vector2)transform.position + new Vector2(0f, -_size * BarCenterRatio);
 
         /// <summary>보호막 막대 한가운데(월드).</summary>
-        public Vector2 ShieldBarCenter => HpBarCenter
-            + new Vector2(0f, -_size * BarHeightRatio * ShieldGapRatio);
+        public Vector2 ShieldBarCenter => _shieldBar != null
+            ? (Vector2)_shieldBar.transform.position
+            : HpBarCenter + new Vector2(0f, -_size * BarHeightRatio * ShieldGapRatio);
         private Transform _hpFill;
 
         // ── 쉴드 바 (2026-09-17 · `260917_W07` 4장 4번) ───────────────────────
@@ -57,6 +62,10 @@ namespace MBI.Combat
 
         // 본체 — 반동(위치)·피격 점멸(색)이 여기에 걸린다. 스프라이트를 갈아끼우지 않는다.
         private Transform _body;
+
+        /// <summary>막대 배경 둘 — 매 틱 몸에 맞춰 다시 눕힌다(2026-09-21).</summary>
+        private Transform _hpBg;
+        private Transform _shieldBg;
         private SpriteRenderer _bodyRenderer;
         private Color _bodyBaseColor = Color.white;
         private Vector2 _recoilDirection;
@@ -200,6 +209,7 @@ namespace MBI.Combat
             float barH = size * BarHeightRatio;
             float barY = -size * BarCenterRatio;
             var bgGo = new GameObject("HpBg");
+            _hpBg = bgGo.transform;
             bgGo.transform.SetParent(transform, false);
             bgGo.transform.localPosition = new Vector3(0f, barY, 0f);
             bgGo.transform.localScale = new Vector3(barW, barH, 1f);
@@ -232,6 +242,7 @@ namespace MBI.Combat
             _shieldBar.transform.localPosition = new Vector3(0f, shieldY, 0f);
 
             var sBgGo = new GameObject("ShieldBg");
+            _shieldBg = sBgGo.transform;
             sBgGo.transform.SetParent(_shieldBar.transform, false);
             sBgGo.transform.localScale = new Vector3(barW, barH, 1f);
             var sBg = sBgGo.AddComponent<SpriteRenderer>();
@@ -286,6 +297,19 @@ namespace MBI.Combat
                 if (t >= 1f) _entryElapsed = -1f;
             }
 
+            // ⚠️⚠️ **막대는 그려진 몸을 따라간다**(2026-09-21 사용자 리허설 · 촬영 차단 —
+            //    「적 HP 바가 몬스터와 떨어져 거대한 빨간 막대로 찍힌다」).
+            //
+            // 🗑️ 구 규칙 「막대 치수는 실제 아트 여부와 무관하게 `size` 를 쓴다」 폐기.
+            //    `size` 는 `EnemySize(maxHp)` 가 낸 **수치에서 온 수**이고, 몸은 아트가
+            //    있으면 **캔버스가 정한다**(PPU 192 × viewScale) — 둘이 만난 적이 없다.
+            //    64px 스프라이트(0.33칸)에 `size` 0.9 막대가 붙으면 **몸의 세 배**이고,
+            //    자리도 `-size × 0.62` 라 한참 아래로 떨어진다.
+            //
+            // 📌 **막대는 몸에 붙는 표시다** — 몸이 실제로 차지하는 사각을 따라야 한다.
+            //    폴백(흰 사각)일 때는 몸이 곧 `size` 라 값이 종전과 같다.
+            LayOutBars();
+
             float ratio = _entity.maxHp > 0f ? Mathf.Clamp01(_entity.hp / _entity.maxHp) : 0f;
             if (_hpFill != null)
             {
@@ -299,9 +323,11 @@ namespace MBI.Combat
                 // **왼변이 제자리에 있도록 중심을 민다** — 줄어든 만큼의 절반이다.
                 // ⚠️ **0.14 → 0.10**(2026-09-21). 배경은 09-18 에 얇게 고쳤는데 **채움은
                 //    안 고쳤다** — 채움이 배경보다 두꺼워 위아래로 삐져나와 있었다.
-                _hpFill.localScale = new Vector3(_size * ratio, _size * BarHeightRatio, 1f);
-                Vector3 lp = _hpFill.localPosition;
-                _hpFill.localPosition = new Vector3(-_size * (1f - ratio) * 0.5f, lp.y, lp.z);
+                _hpFill.localScale = new Vector3(_barWidth * ratio, _barWidth * BarHeightRatio, 1f);
+                _hpFill.localPosition = new Vector3(
+                    -_barWidth * (1f - ratio) * 0.5f,
+                    _hpBg != null ? _hpBg.localPosition.y : _hpFill.localPosition.y,
+                    _hpFill.localPosition.z);
             }
 
             if (_shieldBar != null) _shieldBar.SetActive(_shieldRatio >= 0f);
@@ -309,9 +335,49 @@ namespace MBI.Combat
             {
                 // HP 바와 **같은 규칙**이다 — 왼변을 제자리에 두고 오른쪽에서 줄인다.
                 float r = Mathf.Clamp01(_shieldRatio);
-                _shieldFill.localScale = new Vector3(_size * r, _size * BarHeightRatio, 1f);
-                _shieldFill.localPosition = new Vector3(-_size * (1f - r) * 0.5f, 0f, 0f);
+                _shieldFill.localScale = new Vector3(_barWidth * r, _barWidth * BarHeightRatio, 1f);
+                _shieldFill.localPosition = new Vector3(-_barWidth * (1f - r) * 0.5f, 0f, 0f);
             }
+        }
+
+        /// <summary>지금 막대가 쓸 폭(월드). 그려진 몸을 따른다.</summary>
+        private float _barWidth;
+
+        /// <summary>
+        /// 막대 둘을 **그려진 몸에 맞춰** 다시 눕힌다 (2026-09-21).
+        ///
+        /// ⚠️ **`bounds` 는 월드다** — 뷰 뿌리에는 배율이 없으므로(몸에만 있다)
+        /// 월드에서 뿌리 자리를 빼면 그대로 로컬이다.
+        ///
+        /// ⚠️ **몸이 없거나 아직 안 그려졌으면 종전 값으로 떨어진다** — 수를 지어내지 않는다.
+        /// </summary>
+        private void LayOutBars()
+        {
+            float w = _size, bottom = -_size * BarCenterRatio;
+
+            if (_bodyRenderer != null && _bodyRenderer.sprite != null)
+            {
+                Bounds b = _bodyRenderer.bounds;
+                if (b.size.x > 0.0001f)
+                {
+                    w = b.size.x;
+                    // 발밑 — 몸 사각의 아랫변에서 막대 반 칸만큼 더 내려간 자리.
+                    bottom = b.min.y - transform.position.y - w * BarHeightRatio;
+                }
+            }
+
+            _barWidth = w;
+            float h = w * BarHeightRatio;
+
+            if (_hpBg != null)
+            {
+                _hpBg.localPosition = new Vector3(0f, bottom, 0f);
+                _hpBg.localScale = new Vector3(w, h, 1f);
+            }
+            if (_shieldBar != null)
+                _shieldBar.transform.localPosition =
+                    new Vector3(0f, bottom - h * ShieldGapRatio, 0f);
+            if (_shieldBg != null) _shieldBg.localScale = new Vector3(w, h, 1f);
         }
 
         /// <summary>
