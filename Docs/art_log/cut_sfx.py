@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""효과음 자르기 — 머리를 남기고 꼬리를 코사인으로 닫는다 (sfx_fire_a 09-10 방식 그대로).
+"""효과음 자르기 - 머리를 남기고 꼬리를 코사인으로 닫는다 (sfx_fire_a 09-10 방식 그대로).
 
   남기는 것 : 앞 `keep` 초
   페이드     : 끝 `fade` 초에 0.5*(1+cos(pi*t)) 를 곱한다.
@@ -47,4 +47,4 @@ if __name__ == '__main__':
           % (os.path.basename(p)[:-4], a['dur'], a['keep'], a['cut'], a['tail_ratio']*100, a['head_peak_at']))
     if '--apply' in sys.argv:
         dur, last = cut(p, keep, fade)
-        print('  잘랐다 — 길이 %.3f초 · 마지막 표본 진폭 %.2f' % (dur, last))
+        print('  잘랐다 - 길이 %.3f초 · 마지막 표본 진폭 %.2f' % (dur, last))
