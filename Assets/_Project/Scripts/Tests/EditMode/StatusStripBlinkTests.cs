@@ -59,5 +59,41 @@ namespace MBI.Tests
             Assert.Greater(a, 0.3f);
             Assert.LessOrEqual(a, 1.0001f);
         }
+
+        /// <summary>
+        /// **글자 크기는 사다리를 한 칸씩 내려간다** (2026-09-30 · 빌드 육안 두 번째).
+        ///
+        /// ⚠️⚠️ `KoreanFont.Snap` 은 **올려** 잡으므로 `Snap(px - 1)` 로는 안 내려간다
+        /// (44 → Snap(43) = 44). 그래서 줄이는 길을 따로 뒀고, 이 시험이 그것을 지킨다.
+        /// 안 지키면 긴 경고문이 칸 밖으로 흘러 옆의 마일스톤 카드를 다시 침범한다.
+        /// </summary>
+        [Test]
+        public void 사다리를_한_칸씩_내려간다()
+        {
+            int[] ladder = KoreanFont.Ladder;
+
+            // 위에서부터 훑으며 **반드시 작아지는지** 본다.
+            int px = ladder[ladder.Length - 1];
+            for (int i = ladder.Length - 1; i > 0; i--)
+            {
+                int next = StatusStrip.NextSmallerForTest(px);
+                Assert.Less(next, px, $"{px} 에서 안 내려갔다 — Snap 이 다시 올린 것이다");
+                Assert.Contains(next, ladder, $"{next} 는 사다리 위의 값이 아니다");
+                px = next;
+            }
+
+            // 바닥에서는 제자리 — 부르는 쪽이 그것으로 멈춘다(무한 반복 방지).
+            Assert.AreEqual(ladder[0], StatusStrip.NextSmallerForTest(ladder[0]),
+                "바닥에서 더 내려갔다 — 부르는 쪽이 안 멈춘다");
+        }
+
+        /// <summary>사다리 밖의 수를 줘도 사다리 위로 떨어진다.</summary>
+        [Test]
+        public void 사다리_밖의_수도_사다리로_떨어진다()
+        {
+            int next = StatusStrip.NextSmallerForTest(40);   // 36 과 44 사이
+            Assert.Contains(next, KoreanFont.Ladder);
+            Assert.Less(next, 40);
+        }
     }
 }

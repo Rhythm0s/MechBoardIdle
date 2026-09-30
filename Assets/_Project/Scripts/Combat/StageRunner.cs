@@ -2115,8 +2115,30 @@ namespace MBI.Combat
             // 고철 + 물류 문제 요약 — **하단 큰 버튼 바로 위**(2026-09-18 사용자 육안 · 시안 4 ②).
             // ⚠️ 조립 화면과 **같은 자리 · 같은 함수**다. 경고가 캐릭터 옆에 뜨던 것은 폐기 —
             //    「나가는 곳이 없다」는 물류의 말이지 로봇의 말이 아니다.
-            StatusStrip.Draw(StatusStrip.RectAbove(
-                UiLayout.EnterBoardRect(Screen.width, Screen.height), Screen.width, Screen.height));
+            //
+            // ⚠️⚠️ **마일스톤 카드 위로 올린다**(2026-09-30 · 빌드 육안 세 번째).
+            //
+            //    판을 걷고 글자를 **가운데**로 옮기자(사용자 확정 ①) 줄이 화면 폭을 다 쓰게
+            //    됐고, 오른쪽 아래의 **마일스톤 카드와 글자가 겹쳤다.** 판이 있던 동안에는
+            //    글자가 왼쪽에 몰려 있어 안 닿았다 — **가운데 정렬이 드러낸 겹침**이다.
+            //
+            // 🗑️ **구 고침 둘 폐기.**
+            //    ① **자리만 좁혔다** — `Overflow` 라 좁힌 칸 밖으로 그대로 흘러넘쳤다.
+            //       자리를 좁히는 것과 글자가 드는 것은 다른 일이다.
+            //    ② **글자를 줄여 넣으려 했다** — 카드 옆에 남는 폭이 글자보다 좁아
+            //       사다리 바닥(16)까지 내려가도 안 들었다. **줄여서 될 일이 아니었다.**
+            //       (재서 줄이는 규칙 자체는 `StatusStrip` 에 남는다 — 좁은 창에서 쓸모가 있다.)
+            //
+            // 📌 **가로로 안 되면 세로로 피한다.** 카드 위쪽은 비어 있으므로 줄을 그리로
+            //    올리면 폭을 다 쓰면서 가운데 정렬도 지킨다.
+            //    ⚠️ **카드 자리는 카드가 안다** — 여기서 좌표를 다시 적지 않고 받아서 피한다.
+            //    ⚠️ 이 화면에만 있는 일이다 — 조립 화면에는 카드가 없어 그쪽은 안 올린다.
+            Rect statusStrip = StatusStrip.RectAbove(
+                UiLayout.EnterBoardRect(Screen.width, Screen.height), Screen.width, Screen.height);
+            Rect card = UiLayout.MilestoneCardRect(Screen.width, Screen.height);
+            if (card.yMax > statusStrip.y && card.y < statusStrip.yMax)
+                statusStrip.y = card.y - 10f * hudScale - statusStrip.height;
+            StatusStrip.Draw(statusStrip);
 
             if (_sim.Result != CombatResult.InProgress)
             {

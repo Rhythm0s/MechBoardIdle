@@ -98,6 +98,23 @@ namespace MBI.UI
         }
 
         /// <summary>
+        /// 사다리에서 **한 칸 아래** 크기. 맨 아래면 제 값을 그대로 돌려준다.
+        ///
+        /// ⚠️ <see cref="KoreanFont.Snap"/> 은 **올려** 잡으므로 내려갈 때는 쓸 수 없다.
+        /// </summary>
+        /// <summary>시험이 보는 문 — 규칙은 하나이고 시험이 그 하나를 본다.</summary>
+        public static int NextSmallerForTest(int px) => NextSmaller(px);
+
+        private static int NextSmaller(int px)
+        {
+            int[] ladder = KoreanFont.Ladder;
+            int best = ladder[0];
+            for (int i = 0; i < ladder.Length; i++)
+                if (ladder[i] < px && ladder[i] > best) best = ladder[i];
+            return best < px ? best : px;
+        }
+
+        /// <summary>
         /// 그린다. **자리는 부르는 쪽이 준다**(두 화면의 큰 버튼이 다른 데 있다).
         ///
         /// ⚠️⚠️ **판을 안 깐다** (2026-09-30 사용자 확정 ①).
@@ -142,6 +159,29 @@ namespace MBI.UI
             else if (problems.Count == 1) text = "⚠ " + problems[0];
             else text = "⚠ " + problems[0] + "  외 " + (problems.Count - 1) + "건";
 
+            // ⚠️⚠️ **칸에 맞게 줄인다**(2026-09-30 · 빌드 육안 두 번째).
+            //
+            // 🗑️ 구 처리 폐기 — 자리만 좁히고 글자는 그대로 뒀다. `Overflow` 라
+            //    좁힌 칸 밖으로 **그대로 흘러넘쳐** 마일스톤 카드를 다시 침범했다.
+            //    자리를 좁히는 것과 글자가 드는 것은 **다른 일**이다.
+            //
+            // 📌 **재서 줄인다** — `CalcSize` 로 실제 폭을 보고 들 때까지 내린다.
+            //
+            // ⚠️⚠️ **1 씩 빼면 안 내려간다.** `KoreanFont.Snap` 은 사다리
+            //    <c>{16,24,36,44}</c> 위로 **올려** 잡으므로 <c>Snap(44-1)</c> 이 다시 44 다.
+            //    사다리를 **한 칸씩 내려가야** 한다 — 크기 가짓수가 넷뿐인 것은 아틀라스
+            //    때문이고(`KoreanFont.Snap` 주석), 그 제약을 여기서 우회하면 안 된다.
+            //
+            // ⚠️ 맨 아래(16)에서도 넘치면 **넘치는 채로 둔다** — 글자를 잘라 뜻을 바꾸지
+            //    않는다. 그때는 자리가 좁은 것이지 글자가 큰 것이 아니다.
+            var content = new GUIContent(text);
+            while (row.CalcSize(content).x > strip.width)
+            {
+                int next = NextSmaller(row.fontSize);
+                if (next == row.fontSize) break;      // 사다리 바닥 — 더 못 내린다
+                row.fontSize = next;
+            }
+
             Color prev = GUI.color;
             if (alarm)
             {
@@ -154,7 +194,7 @@ namespace MBI.UI
                 row.normal.textColor = QuietText;
             }
 
-            GUI.Label(strip, text, row);
+            GUI.Label(strip, content, row);
             GUI.color = prev;
         }
     }
