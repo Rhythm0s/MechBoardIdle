@@ -136,6 +136,15 @@ namespace MBI.Core
         }
 
         public const string CoreId = "core";
+
+        /// <summary>
+        /// **코어가 앉는 칸** (2026-09-30 사용자 확정 ② — 코어는 자리를 못 옮긴다).
+        ///
+        /// ⚠️ 판 둘이 같은 자리를 쓴다(`StartingBoardB` 도 (5,8) 이다). 그래서 여기 하나가
+        /// 답이고, 복원 쪽은 이 값을 **받아서** 쓴다 — 좌표를 두 곳에 적으면 한쪽만
+        /// 고쳐지는 날이 온다(지침 §7).
+        /// </summary>
+        public static readonly UnityEngine.Vector2Int CoreCell = new UnityEngine.Vector2Int(5, 8);
         public const string ProcId = "proc";
         public const string MuniId = "muni";
         public const string EnergyId = "ener";

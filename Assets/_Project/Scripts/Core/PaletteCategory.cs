@@ -160,8 +160,21 @@ namespace MBI.Core
         public static PaletteCategory OfBeltElement() => PaletteCategory.Logistics;
 
         /// <summary>이 탭에서 그 노드가 보이는가.</summary>
+        /// <summary>
+        /// 이 탭에서 이 노드가 보이는가.
+        ///
+        /// ⚠️⚠️ **코어는 어느 탭에도 안 보인다** (2026-09-30 사용자 확정 ①).
+        /// 코어는 **시작 보드에 박힌 한 대**뿐이고 플레이어가 놓는 것이 아니다.
+        /// 「전체」 탭도 예외가 아니다 — 전체는 **놓을 수 있는 것 전부**라는 뜻이지
+        /// **있는 것 전부**가 아니다.
+        ///
+        /// 📌 **여기 한 곳에서 막는다** — 탭마다 막으면 탭이 늘 때 빠뜨린다.
+        /// ⚠️ 놓는 것을 막는 자리는 따로다(<c>BoardGrid.TryPlace</c> — 코어는 한 대).
+        /// 보이지 않는 것과 놓을 수 없는 것은 **다른 문**이고 둘 다 필요하다.
+        /// </summary>
         public static bool Shows(PaletteCategory tab, NodeDefinition def) =>
-            tab == PaletteCategory.All || Of(def) == tab;
+            def != null && def.type != NodeType.Core
+            && (tab == PaletteCategory.All || Of(def) == tab);
 
         /// <summary>이 탭에서 벨트 요소가 보이는가.</summary>
         public static bool ShowsBeltElement(PaletteCategory tab) =>

@@ -875,6 +875,19 @@ namespace MBI.Logistics
                 return false;
             }
 
+            // ⚠️⚠️ **코어를 먼저 제자리에 세운다** (2026-09-30 사용자 확정 ②).
+            //
+            //    코어는 **시작 보드에 박힌 한 대**이고 자리를 못 옮긴다. 그런데 복원은
+            //    시작 배치를 **아예 안 깔고** 저장된 판을 그대로 세운다 — 저장 파일이
+            //    코어를 다른 칸에 적고 있으면 그 자리가 이겼다.
+            //
+            // 📌 **먼저 세우면 나중 것이 거절된다** — 판에는 코어가 한 대뿐이라
+            //    (`BoardGrid.TryPlace`) 저장 쪽 코어는 자동으로 못 들어온다. 막는 규칙을
+            //    또 만들지 않고 **이미 있는 규칙을 쓴다.**
+            // ⚠️ 자리는 `StartingBoard.CoreCell` 이 든다 — 여기서 좌표를 다시 적지 않는다.
+            NodeDefinition coreDef = FindStartingNode(StartingBoard.CoreId);
+            if (coreDef != null) grid.TryPlace(StartingBoard.CoreCell, coreDef, out _);
+
             // ⚠️ **마커는 안 짓는다**(2026-09-16). 그림은 `RespawnMarkersFromGrid` 한 곳이
             //    판을 읽어 짓는다 — 안 보이는 판에까지 마커를 세우지 않기 위해서다.
             int missed = BoardStateCodec.Restore(
@@ -2837,12 +2850,26 @@ namespace MBI.Logistics
             _dimOverlay.SetActive(_mode == BoardMode.Pan);
         }
 
-        /// <summary>현재 팔레트에서 선택된 배치 노드(비었으면 placeTarget 폴백).</summary>
+        /// <summary>
+        /// 현재 팔레트에서 선택된 배치 노드(비었으면 placeTarget 폴백).
+        ///
+        /// ⚠️⚠️ **코어는 절대 안 돌려준다** (2026-09-30 사용자 확정 ①).
+        /// 팔레트에서 감추는 것만으로는 모자라다 — 고른 번호는 **숫자**라 감춘 칸을
+        /// 가리킬 수 있고(기본값 0 이 코어 자리였다), 그러면 **버튼은 없는데 놓이는**
+        /// 일이 난다. 보이는 문과 놓는 문은 따로 잠근다.
+        /// </summary>
         private NodeDefinition CurrentNode()
         {
             if (palette != null && palette.Count > 0)
-                return palette[Mathf.Clamp(_selectedNode, 0, palette.Count - 1)];
-            return placeTarget;
+            {
+                NodeDefinition picked = palette[Mathf.Clamp(_selectedNode, 0, palette.Count - 1)];
+                if (picked != null && picked.type != NodeType.Core) return picked;
+
+                // 고른 것이 코어(또는 빈 칸)다 — 팔레트에서 **놓을 수 있는 첫 것**으로 내린다.
+                for (int i = 0; i < palette.Count; i++)
+                    if (palette[i] != null && palette[i].type != NodeType.Core) return palette[i];
+            }
+            return placeTarget != null && placeTarget.type == NodeType.Core ? null : placeTarget;
         }
 
         private void Place(Vector2Int cell)
@@ -4024,11 +4051,17 @@ namespace MBI.Logistics
             //
             // ⚠️ **누르면 배선을 다시 잡는다** — 면이 돌면 링크·품목·색이 전부 바뀐다.
             // 마커도 다시 짓는다(포트 탭이 면을 따라 붙어 있다).
+            // ⚠️⚠️ **코어는 못 돌린다** (2026-09-30 사용자 확정 ②).
+            //    코어는 시작 보드에 **박힌 한 대**이고 자리도 방향도 플레이어의 것이 아니다.
+            //    버튼을 그려 두고 눌러도 아무 일이 없게 하면 「고장」으로 읽힌다 —
+            //    **아예 안 그린다.** 이름과 각도 줄은 남는다(무엇을 고른지는 알아야 한다).
+            bool canRotate = inst.Definition == null || inst.Definition.type != NodeType.Core;
+
             var rotRect = new Rect(x, y, w * 0.32f, h);
             // ⚠️ **화살표 기호를 걷었다**(2026-09-15 육안 · 글리프). 「↻」(U+21BB)가
             // 폰트에 없어 **두부(□)로 찍혔다** — 한글 폰트에 없는 기호는 안 쓴다
             // (09-02 에 「⚡」·「🔥」가 같은 이유로 걷혔다 · `VariablePanel` 주석).
-            if (UiSkin.Button(rotRect, "90도 돌리기", style))
+            if (canRotate && UiSkin.Button(rotRect, "90도 돌리기", style))
             {
                 inst.Rotation = inst.Rotation + 1;
                 RebuildMarker(_selected.Value);
