@@ -385,6 +385,76 @@ namespace MBI.Combat
         ///
         /// ⚠️ 리젠은 <see cref="WaveSpawnRule"/> 가 낸 수를 그대로 옮긴다 — 화면이 안 센다.
         /// </summary>
+        /// <summary>
+        /// **스테이지 진행 띠** — 「Stage k/6」 + 맵 이름 + k/6 막대
+        /// (2026-09-30 사용자 확정 ⑦ · 메이플 키우기식).
+        ///
+        /// ⚠️ **배지와 다른 것을 말한다.** 배지는 「지금 이 판이 무엇인가」이고 이 띠는
+        /// **「여섯 중 몇 번째인가」**다. 그래서 줄을 나눴고, 여기에는 판의 목표나
+        /// 남은 몬스터를 안 적는다 — 적으면 두 줄이 같은 말을 하게 된다.
+        ///
+        /// ⚠️ **번호를 못 읽으면 안 그린다.** 튜토리얼 전용 스테이지가 그 경우다
+        /// (여섯에 안 든다 — 스테이지 기획서 3장). 「Stage 0/6」 같은 것을 지어내지 않는다.
+        ///
+        /// ⚠️ 맵 이름 여섯은 **가정 문안**이다(<see cref="StageMapName"/>) — 설계가 고칠 자리다.
+        /// 자리·색·글자 크기도 전부 가정이다.
+        /// </summary>
+        private void DrawStageProgress()
+        {
+            if (stage == null) return;
+
+            int k = StageMapName.NumberOf(stage.stageId);
+            if (k <= 0) return;                       // 여섯에 안 드는 판 — 안 그린다
+
+            float sc = UiLayout.Scale(Screen.height);
+            Rect r = UiLayout.StageProgressRect(Screen.width, Screen.height);
+            UiPlate.Draw(r);
+            UiBlockers.Add(r);
+
+            float pad = 14f * sc;
+            Rect inner = new Rect(r.x + pad, r.y, r.width - pad * 2f, r.height);
+
+            // ── 윗줄 — 「Stage k/6」 · 맵 이름 ──
+            var head = new GUIStyle(GUI.skin.label)
+            {
+                fontSize = KoreanFont.Snap(Mathf.Max(11, Mathf.RoundToInt(30f * sc))),
+                fontStyle = FontStyle.Bold,
+                wordWrap = false,
+                clipping = TextClipping.Overflow,
+                alignment = TextAnchor.MiddleLeft,
+            };
+            head.normal.textColor = new Color(1f, 0.86f, 0.45f);
+
+            float rowH = r.height * 0.52f;
+            var headRect = new Rect(inner.x, inner.y, inner.width, rowH);
+            GUI.Label(headRect, $"Stage {k}/{StageMapName.TotalStages}", head);
+
+            string mapName = StageMapName.Of(k);
+            if (!string.IsNullOrEmpty(mapName))
+            {
+                var nameStyle = new GUIStyle(head)
+                {
+                    fontStyle = FontStyle.Normal,
+                    alignment = TextAnchor.MiddleRight,
+                };
+                nameStyle.normal.textColor = Color.white;
+                GUI.Label(headRect, mapName, nameStyle);
+            }
+
+            // ── 아랫줄 — k/6 막대 ──
+            //
+            // ⚠️ **채움은 「몇 번째 판에 서 있는가」다**(가정) — 「이 판을 얼마나 깼는가」가
+            //    아니다. 그래서 S1 에 들어선 순간 이미 1/6 이 차 있다.
+            float barH = 12f * sc;
+            var barBg = new Rect(inner.x, inner.yMax - barH - 10f * sc, inner.width, barH);
+            UiPlate.DrawTinted(barBg, new Color(0.10f, 0.12f, 0.16f, 1f));
+
+            float ratio = Mathf.Clamp01(k / (float)StageMapName.TotalStages);
+            if (ratio > 0f)
+                UiPlate.DrawTinted(new Rect(barBg.x, barBg.y, barBg.width * ratio, barBg.height),
+                                   BadgeTint);
+        }
+
         private void DrawStageBadge()
         {
             if (_sim == null || stage == null) return;

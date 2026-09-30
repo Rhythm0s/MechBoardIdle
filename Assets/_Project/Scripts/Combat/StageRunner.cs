@@ -2103,6 +2103,9 @@ namespace MBI.Combat
             }
 
             DrawChipBar();
+            // ✅ **진행 띠는 전투 화면에 늘 뜬다**(2026-09-30 사용자 확정 ⑦).
+            //    조립 화면은 위의 이른 반환이 이미 막는다 — 여기서 또 묻지 않는다.
+            DrawStageProgress();
             DrawStageBadge();
             DrawRobotGauges();
             DrawPops();

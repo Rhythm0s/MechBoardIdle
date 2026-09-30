@@ -306,15 +306,41 @@ namespace MBI.UI
             return new Rect(sound.x - 12f * sc - w, bar.y, w, bar.height);
         }
 
+        /// <summary>진행 띠 높이 (기준 캔버스 · ⚠️ 가정).</summary>
+        public const float StageProgressHeight = 96f;
+
         /// <summary>
-        /// 스테이지 배지 + 목표 한 줄 + 「남은 몬스터 · 리젠」 — 칩 줄 **바로 아래 왼쪽**.
+        /// **스테이지 진행 띠** — 「Stage k/6」 + 맵 이름 + k/6 막대
+        /// (2026-09-30 사용자 확정 ⑦ · 전투 화면에 **늘** 뜬다 · 조립 화면은 제외).
+        ///
+        /// ⚠️ **자리는 칩 줄과 배지 사이다.** 배지는 「지금 이 판이 무엇인가」를 말하고
+        /// 이 띠는 **「여섯 중 몇 번째인가」**를 말한다 — 축이 다르므로 줄을 나눈다.
+        ///
+        /// ⚠️ 가로는 칩 줄과 같은 폭을 쓴다(화면 전체) — 진행은 한 화면의 일이라
+        /// 왼쪽에 몰면 「어디까지 왔나」가 안 읽힌다.
+        /// ⚠️ 높이·글자 크기는 가정이다(설계 역기입 자리).
+        /// </summary>
+        public static Rect StageProgressRect(float screenWidth, float screenHeight)
+        {
+            float sc = Scale(screenHeight);
+            return new Rect(ChipBarPad * sc, (ChipBarHeight + 8f) * sc,
+                            screenWidth - ChipBarPad * 2f * sc, StageProgressHeight * sc);
+        }
+
+        /// <summary>
+        /// 스테이지 배지 + 목표 한 줄 + 「남은 몬스터 · 리젠」 — 진행 띠 **바로 아래 왼쪽**.
         /// ⚠️ 가정 — 폭은 상태창과 같은 760(화면 절반을 안 넘긴다).
+        ///
+        /// ⚠️ **진행 띠가 생기며 아래로 밀렸다**(2026-09-30 ⑦). 자리를 띠에서 받아 내므로
+        /// 띠 높이를 만지면 배지도 따라 내려온다 — 두 수를 따로 적으면 겹치는 날이 온다.
+        /// 아래 딸린 것들(「i」 손잡이 · 진단 패널)은 배지에서 자리를 받으므로 함께 움직인다.
         /// </summary>
         public static Rect StageBadgeRect(float screenWidth, float screenHeight)
         {
             float sc = Scale(screenHeight);
             float w = Mathf.Min(760f * sc, screenWidth - ChipBarPad * 2f * sc);
-            return new Rect(ChipBarPad * sc, (ChipBarHeight + 16f) * sc, w, 210f * sc);
+            Rect prog = StageProgressRect(screenWidth, screenHeight);
+            return new Rect(ChipBarPad * sc, prog.yMax + 8f * sc, w, 210f * sc);
         }
 
         /// <summary>
