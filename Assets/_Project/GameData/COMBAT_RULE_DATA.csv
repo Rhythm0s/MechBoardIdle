@@ -2,7 +2,7 @@ ID,FieldName,Value,Confirmed
 1,robotHp,1000,0
 2,dodgeVfxSeconds,0.5,0
 3,robotAttackRangeTbd,9.2,0
-4,autoPilotHoldWhenMoreThanTbd,1,0
+4,autoPilotHoldWhenMoreThanTbd,0,0
 5,robotMoveSpeedTbd,4.5,0
 6,enemyMoveSpeedTbd,1.5,0
 7,enemyAttackRangeTbd,1,0
