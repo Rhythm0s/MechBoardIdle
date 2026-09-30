@@ -151,6 +151,12 @@ namespace MBI.Logistics
         // ---- 조작 모드(UI 문서 9장) ----
         // 벨트 설치도 화면 이동도 「터치 후 드래그」다. 한 동작에 두 뜻이 붙으면 기계가 구분할 수
         // 없으므로 모드로 가른다. 기본은 **이동** — 처음 보는 사람이 실수로 벨트를 깔지 않게.
+        //
+        // ✅ **사용자 확정**(2026-09-28) — 「보드 기본 모드는 이동 모드」. 가정이 아니다.
+        //    ⚠️ 그래서 조립 화면에 들어가면 **아무것도 안 해도 판이 덮여 있다**
+        //    (`PanDimColor` 가 이동 모드에서 켜진다). 09-23 육안의 「무언가 DIM 고정」이
+        //    이것이었고, **규칙대로인 화면**이다. 모드를 바꾸면 걷히는 것을 09-28 에
+        //    같은 창·같은 자리에서 두 장으로 대조해 확인했다.
         private BoardMode _mode = BoardMode.Pan;
         private BoardPan _pan;
         private bool _panning;
@@ -258,7 +264,17 @@ namespace MBI.Logistics
         private static readonly Color GridBgColor = new Color(0.11f, 0.13f, 0.17f, 0.55f);      // 설치 영역 배경
         private static readonly Color GridLineColor = new Color(0.40f, 0.85f, 0.60f, 0.35f);    // 셀 경계선
         private static readonly Color GridBorderColor = new Color(0.45f, 0.9f, 0.65f, 0.85f);   // 바깥 테두리
-        private static readonly Color PanDimColor = new Color(0.03f, 0.05f, 0.08f, 0.55f);     // 이동 모드 흐림 막
+        /// <summary>
+        /// 이동 모드 흐림 막 — **알파 0.55 는 사용자 확정**(2026-09-28).
+        ///
+        /// ✅ 09-23 육안(「무언가 DIM 고정」)이 이 막이라는 것을 09-28 에 두 모드 대조로
+        /// 가린 뒤, 사용자가 **0.55 를 그대로 쓴다**고 정했다. 🗑️ 구 「⚠️ 가정」 표기 폐기 —
+        /// 이제 이 수는 **사람이 정한 수**다.
+        ///
+        /// ⚠️ <see cref="TutorialDimColor"/> 가 이 값을 따라 쓰고 있다 — **그쪽은 아직 가정**이다.
+        /// 여기를 고치면 저기도 같이 볼 것.
+        /// </summary>
+        private static readonly Color PanDimColor = new Color(0.03f, 0.05f, 0.08f, 0.55f);
 
         /// <summary>
         /// 튜토리얼 어둠막의 불투명도 — **가정 0.55** (2026-09-11 · 플랜 §68-5 ①).
