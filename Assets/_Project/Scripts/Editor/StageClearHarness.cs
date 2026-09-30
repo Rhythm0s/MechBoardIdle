@@ -1913,6 +1913,30 @@ namespace MBI.EditorTools
             sb.AppendLine($"    회피 스택 최고 {peakDodgeB} (추진제 줄) · 보호막 최고 {peakShieldB:F0} (보호막 줄)");
             sb.AppendLine("    ⚠️ 둘 다 0 이면 코어 서면 분류기가 기존 줄을 굶긴 것이다.");
 
+            // ══ 회피 축 (2026-09-30 · 사용자 물음 「회피는 발동하였는가?」) ══════════
+            //
+            // ⚠️⚠️ **이 판에는 이 열이 없었다.** 한 로봇 판(`Run`)에만 있었고, 두 로봇 판은
+            //    「회피 스택 최고」만 찍었다. 그런데 **스택 최고는 발동 여부가 아니다** —
+            //    가득 찬 순간이 있었다는 뜻일 뿐이라, 한 번도 안 쓰고 8 이 찍힐 수 있다.
+            //    `autoPilotHoldWhenMoreThanTbd` 를 0 으로 바꾼 뒤 S5 가 29 초 빨리 죽었는데,
+            //    그 까닭을 가르려면 **발동 회수**가 있어야 한다.
+            //
+            // 📌 **값은 하나도 안 건드렸다** — 하네스가 세는 열만 늘렸다.
+            sb.AppendLine();
+            sb.AppendLine("[회피 축 — 두 로봇 판]  ← 측정법: 한 로봇 판(`Run`)과 같은 값을 읽는다");
+            sb.AppendLine($"    **자동 회피 발동 {sim.Dodge.TotalDodges} 회**"
+                          + "  ← 측정법: `DodgeSystem.TotalDodges`(발동할 때마다 1 증가) 를 판 끝에서 읽는다");
+            sb.AppendLine($"    **피격 {sim.HitsTaken} 회**(회피로 무효가 된 것 포함)"
+                          + "  ← 측정법: 근접·포탄이 **명중 판정에 들어온** 순간마다 1 증가");
+            sb.AppendLine($"    **받은 총 피해 {sim.DamageTaken:F0}**"
+                          + "  ← 측정법: 실제로 **HP 에서** 깎인 값의 합");
+            sb.AppendLine($"    **회피로 무효화한 피해 {sim.DamageAvoided:F0}**"
+                          + "  ← 측정법: 무적이라 **계산에 들어가지도 않은** 공격력의 합");
+            sb.AppendLine($"    **쉴드가 막은 피해 {sim.ShieldAbsorbed:F0}**"
+                          + "  ← 측정법: 피격마다 게이지에서 실제로 빠진 양의 합");
+            sb.AppendLine("    ⚠️ **스택 최고 8 과 발동 0 회는 같이 설 수 있다** — 그릇은 찼는데"
+                          + " 쓸 일이 없었거나, 쓸 수 없었다는 뜻이다. 둘은 다른 물음이다.");
+
             sb.AppendLine();
             sb.AppendLine("[목적 4 — 광역형 한 기의 평균 표적 수]  ← 측정법: 광역 타격마다 (주 표적 1 + 곁에 닿은 수)");
             sb.AppendLine(sim.AoeHitEvents > 0
