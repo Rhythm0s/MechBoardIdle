@@ -306,6 +306,23 @@ namespace MBI.UI
             return new Rect(sound.x - 12f * sc - w, bar.y, w, bar.height);
         }
 
+        /// <summary>
+        /// 칩 줄 **고철 칩** — 골드 칩 **왼쪽** (2026-09-30 사용자 확정 ②).
+        ///
+        /// 🗑️ **구 자리(하단 줄) 폐기.** 고철은 골드와 같은 **재화**인데 한쪽은 화면 위,
+        /// 한쪽은 화면 아래에 있어 **같은 것을 두 군데서 찾아야 했다.** 재화는 재화끼리 둔다.
+        ///
+        /// ⚠️ 폭은 골드 칩보다 좁다(가정) — 고철은 「+n/초」 없이 **지금 값만** 적는다.
+        /// </summary>
+        public static Rect ChipScrapRect(float screenWidth, float screenHeight)
+        {
+            Rect bar = ChipBarRect(screenWidth, screenHeight);
+            Rect gold = ChipGoldRect(screenWidth, screenHeight);
+            float sc = Scale(screenHeight);
+            float w = Mathf.Min(300f * sc, bar.width * 0.24f);
+            return new Rect(gold.x - 10f * sc - w, bar.y, w, bar.height);
+        }
+
         /// <summary>진행 띠 높이 (기준 캔버스 · ⚠️ 가정).</summary>
         public const float StageProgressHeight = 96f;
 

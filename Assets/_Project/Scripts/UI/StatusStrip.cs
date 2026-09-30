@@ -70,62 +70,92 @@ namespace MBI.UI
             return SupplyStopRules.Problems(notConnected, stopped, powerShort, mountEmpty);
         }
 
-        private static readonly Color WarnText = new Color(1f, 0.72f, 0.42f);
-        private static readonly Color ScrapText = new Color(0.95f, 0.94f, 0.90f);
+        // 🗑️ **폐기**(2026-09-30) — `WarnText`(주황)와 `ScrapText`(흰끼)는 부르는 곳이 0 이다.
+        //    주황은 **빨강**으로 갈렸고(확정 ③), 고철 글자는 **칩 줄로 옮겨 갔다**(확정 ②).
+        //    값을 남겨 두면 다음 사람이 「여기도 쓰나」를 다시 확인해야 한다.
+
         private static readonly Color QuietText = new Color(0.72f, 0.74f, 0.78f);
+
+        /// <summary>
+        /// 경고 글자색 — **빨강** (2026-09-30 사용자 확정 ③). ⚠️ 값은 가정이다.
+        /// </summary>
+        private static readonly Color AlarmText = new Color(1f, 0.32f, 0.28f);
+
+        /// <summary>점멸 한 주기(초). ⚠️ 가정 — 너무 빠르면 읽기 전에 사라진다.</summary>
+        public const float BlinkSeconds = 0.8f;
+
+        /// <summary>
+        /// 점멸의 지금 밝기(0~1). **꺼져도 완전히 안 사라진다** — 0 까지 내리면
+        /// 글자가 있다 없다 해서 읽는 사람이 눈으로 쫓게 된다.
+        ///
+        /// ⚠️ **`unscaledTime` 이다** — 설정 판이 게임을 세워도 경고는 계속 뛴다.
+        /// 멈춘 동안 경고가 굳으면 「지금 문제가 있다」가 안 읽힌다.
+        /// </summary>
+        public static float BlinkAlpha(float time)
+        {
+            float phase = Mathf.Repeat(time, BlinkSeconds) / BlinkSeconds;
+            return Mathf.Lerp(0.45f, 1f, Mathf.Abs(Mathf.Sin(phase * Mathf.PI)));
+        }
 
         /// <summary>
         /// 그린다. **자리는 부르는 쪽이 준다**(두 화면의 큰 버튼이 다른 데 있다).
         ///
+        /// ⚠️⚠️ **판을 안 깐다** (2026-09-30 사용자 확정 ①).
+        /// 🗑️ 구 꼴 폐기 — 판 + 왼쪽 정렬 두 줄(고철 / 문제 요약).
+        ///    · **고철은 위로 갔다**(골드 칩 옆 · 확정 ②) — 재화는 재화끼리 둔다.
+        ///    · 남은 한 줄에 판을 두르면 **아무 일도 없는데 화면에 상자가 하나 더** 있다.
+        ///      문제가 없을 때 가장 좋은 표시는 **거의 안 보이는 것**이다.
+        ///
         /// ⚠️ **한 줄로 요약한다** — 목록 셋을 다 펴면 큰 버튼을 밀어낸다. 자세한 것은
         /// 노드 위 표식과 팝오버가 이미 말하고, 여기는 **「지금 막힌 데가 있다」**를 말한다.
+        ///
+        /// ✅ **문제가 있으면 빨갛게 점멸한다**(확정 ③) — 조용한 회색과 **색이 갈려야**
+        /// 눈이 간다. 문구는 물류가 낸 **그 문제의 말**을 그대로 쓴다(여기서 지어내지 않는다).
         /// </summary>
         public static void Draw(Rect strip)
         {
             if (strip.height <= 4f || strip.width <= 4f) return;
 
-            UiPlate.Draw(strip);
+            // ⚠️ `warn`(띠 노출 판정)은 이제 여기서 안 쓴다 — 색을 가르는 것은 **문제가 있는가**
+            //    하나다. 부르는 쪽이 그 값을 여전히 쓰므로 함수는 그대로 둔다.
+            List<string> problems = Problems(out _);
+            bool alarm = problems.Count > 0;
+
+            // ⚠️ **막는 자리는 그대로 잡는다** — 글자 뒤로 터치가 새면 그 밑의 판이 눌린다.
             UiBlockers.Add(strip);
 
-            List<string> problems = Problems(out bool warn);
-
             float sc = UiLayout.Scale(Screen.height);
-            float pad = 18f * sc;
-            float rowH = strip.height * 0.5f;
 
-            // ✅ **작게**(2026-09-18 사용자 육안 ④ — 「하단 고철 개수가 너무 큼」).
-            //    🗑️ 구 0.58 폐기. 이 줄은 **읽는 수**이지 화면의 머리글이 아니다 —
-            //    크게 두면 그 아래 문제 요약보다 무거워져 눈이 수부터 읽는다.
-            var head = new GUIStyle(GUI.skin.label)
+            var row = new GUIStyle(GUI.skin.label)
             {
-                fontSize = KoreanFont.Snap(Mathf.Max(11, Mathf.RoundToInt(rowH * 0.40f))),
-                fontStyle = FontStyle.Bold,
-                alignment = TextAnchor.MiddleLeft,
+                fontSize = KoreanFont.Snap(Mathf.Max(11,
+                    Mathf.RoundToInt(strip.height * 0.30f))),
+                fontStyle = alarm ? FontStyle.Bold : FontStyle.Normal,
+                alignment = TextAnchor.MiddleCenter,
+                wordWrap = false,
                 clipping = TextClipping.Overflow,
             };
-            head.normal.textColor = ScrapText;
-
-            // 고철 — **방치 런타임이 게시한 잔액**이다(여기서 세지 않는다).
-            GUI.Label(new Rect(strip.x + pad, strip.y, strip.width - pad * 2f, rowH),
-                      "고철 " + IdleSignals.WalletScrap.ToString("N0"), head);
-
-            // ⚠️ **머리 줄보다 작아야 한다.** 고철을 0.40 으로 줄였으니 이 줄도 같이 내린다 —
-            //    안 내리면 요약이 수보다 커져 무게가 뒤집힌다(구 0.46 폐기).
-            var row = new GUIStyle(head)
-            {
-                fontSize = KoreanFont.Snap(Mathf.Max(10, Mathf.RoundToInt(rowH * 0.34f))),
-                fontStyle = FontStyle.Normal,
-            };
-            row.normal.textColor = warn ? WarnText : QuietText;
 
             // ⚠️ 문제가 없으면 「문제 없음」이다 — **없는 문제를 지어내 채우지 않는다.**
             string text;
-            if (problems.Count == 0) text = "물류 · 조립 — 문제 없음";
+            if (!alarm) text = "물류 · 조립 — 문제 없음";
             else if (problems.Count == 1) text = "⚠ " + problems[0];
             else text = "⚠ " + problems[0] + "  외 " + (problems.Count - 1) + "건";
 
-            GUI.Label(new Rect(strip.x + pad, strip.y + rowH, strip.width - pad * 2f, rowH),
-                      text, row);
+            Color prev = GUI.color;
+            if (alarm)
+            {
+                row.normal.textColor = AlarmText;
+                GUI.color = new Color(prev.r, prev.g, prev.b,
+                                      prev.a * BlinkAlpha(Time.unscaledTime));
+            }
+            else
+            {
+                row.normal.textColor = QuietText;
+            }
+
+            GUI.Label(strip, text, row);
+            GUI.color = prev;
         }
     }
 }

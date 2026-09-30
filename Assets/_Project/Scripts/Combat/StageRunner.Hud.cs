@@ -323,6 +323,42 @@ namespace MBI.Combat
                                chip.width - coinRect.width - 20f * sc, chip.height),
                       IdleSignals.WalletGold.ToString("N0"), goldStyle);
 
+            // ── 고철 칩 — 골드 **왼쪽** (2026-09-30 사용자 확정 ②) ──
+            //
+            // 🗑️ **구 자리(하단 상태 줄) 폐기.** 고철과 골드는 둘 다 재화인데 한쪽은 화면
+            //    위, 한쪽은 아래에 있어 **같은 것을 두 군데서 찾아야 했다.**
+            //
+            // 📌 **값은 방치 런타임이 게시한 잔액 그대로다** — 여기서 세지 않는다.
+            //    옮긴 것은 자리뿐이고 수의 출처는 안 바뀐다(지침 §7).
+            Rect scrapChip = UiLayout.ChipScrapRect(Screen.width, Screen.height);
+            UiPlate.Draw(scrapChip);
+            UiBlockers.Add(scrapChip);
+
+            var scrapStyle = new GUIStyle(goldStyle);
+            scrapStyle.normal.textColor = ScrapColor;
+
+            float scIcon = scrapChip.height * 0.42f;
+            var scrapIcon = new Rect(scrapChip.x + 10f * sc,
+                                     scrapChip.y + (scrapChip.height * 0.58f - scIcon) * 0.5f,
+                                     scIcon, scIcon);
+            // ✅ 아이콘 자산이 있으면 **제 색 그대로** 쓴다(골드와 같은 규칙).
+            Sprite scrapArt = tuning != null ? tuning.iconScrapSprite : null;
+            if (scrapArt != null && scrapArt.texture != null)
+            {
+                GUI.DrawTextureWithTexCoords(scrapIcon, scrapArt.texture, SpriteUv(scrapArt), true);
+            }
+            else
+            {
+                Color sPrev = GUI.color;
+                GUI.color = ScrapColor;
+                GUI.DrawTexture(scrapIcon, PlaceholderSprite.SoftDisc().texture, ScaleMode.ScaleToFit);
+                GUI.color = sPrev;
+            }
+
+            GUI.Label(new Rect(scrapIcon.xMax + 6f * sc, scrapChip.y,
+                               scrapChip.width - scrapIcon.width - 20f * sc, scrapChip.height),
+                      IdleSignals.WalletScrap.ToString("N0"), scrapStyle);
+
             // ── 설정 ──
             // ⚠️⚠️ **소리 아이콘은 여기서 안 그린다.** 자리(`ChipSoundRect`)만 비워 두고
             //    `AudioOptionsPanel` 이 제 버튼을 거기에 그린다 — 같은 일을 하는 자리를
@@ -818,6 +854,11 @@ namespace MBI.Combat
             float stepDeg = 360f / RingSegments;
             // 토막 하나가 덮어야 할 호의 길이. 살짝 겹치게 해서 사이에 틈이 안 보이게 한다.
             float segLen = 2f * Mathf.PI * radius / RingSegments * 1.35f;
+            // ⚠️⚠️ **토막은 접선 방향으로 눕는다**(2026-09-30 · 빌드 육안).
+            //    처음에 `Rect(폭 t · 높이 segLen)` 로 그렸더니 12 시에서 **세로로** 서서
+            //    둘레를 따라 **눈금처럼 방사로 뻗었다** — 링이 아니라 눈금 고리였다.
+            //    12 시의 접선은 **가로**이므로 폭이 호의 길이이고 높이가 굵기다.
+            //    📌 **띄워 보고 잡았다** — 시험은 자리만 보고 방향은 못 본다.
 
             Matrix4x4 prev = GUI.matrix;
             for (int i = 0; i < count; i++)
@@ -830,7 +871,7 @@ namespace MBI.Combat
                                      c.y + Mathf.Sin(rad) * radius);
 
                 GUIUtility.RotateAroundPivot(deg, at);
-                HudBars.Fill(new Rect(at.x - t * 0.5f, at.y - segLen * 0.5f, t, segLen), color);
+                HudBars.Fill(new Rect(at.x - segLen * 0.5f, at.y - t * 0.5f, segLen, t), color);
                 GUI.matrix = prev;
             }
         }
