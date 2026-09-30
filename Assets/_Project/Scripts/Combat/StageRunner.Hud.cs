@@ -781,12 +781,25 @@ namespace MBI.Combat
 
         // ───────────────────────────── 링 게이지 ────────────────────────────
 
+        /// <summary>둘레를 몇 토막으로 쪼개 그리는가. ⚠️ 가정 — 48 이면 눈에 각이 안 진다.</summary>
+        private const int RingSegments = 48;
+
         /// <summary>
         /// 태그 원형 둘레의 **적재 링** (설계 지시 「태그 원형(적재 링 40)」).
         ///
-        /// ⚠️ **사각 테두리를 둘레로 쓴다** — IMGUI 로 원호를 그리려면 그림이 하나 더 있어야
-        ///    한다. 없는 자산을 지어내지 않고 <c>DrawTagSkillRing</c> 과 같은 수법을 쓴다.
-        ///    차는 방향은 **왼위에서 시계 방향**이다.
+        /// ⚠️⚠️ **둥글게 그린다** (2026-09-30 사용자 육안 ⑩ — 「청록 사각 프레임」).
+        ///
+        /// 🗑️ **구 수법 폐기 — 사각 테두리.** 종전에는 네 변을 차례로 채웠는데, 붙는 버튼이
+        ///    **원형**이라 화면에서는 링이 아니라 **동그라미를 두른 네모**로 보였다.
+        ///    쿨다운 링까지 겹쳐 사각이 둘이 됐다(청록 + 주황) — 사용자가 본 그것이다.
+        ///    「원호를 그리려면 그림이 하나 더 있어야 한다」고 적어 두었지만, 그림 없이도
+        ///    **토막을 둘레에 돌려 놓으면** 된다.
+        ///
+        /// 📌 **토막마다 돌려서 깐다** — 한 토막은 얇은 사각이고, 그것을 제 각도로 돌려
+        ///    둘레에 놓는다. <see cref="RingSegments"/> 개면 눈에 각이 안 진다.
+        ///
+        /// ⚠️ 차는 방향은 **12시에서 시계 방향**이다(종전 「왼위에서」와 다르다 — 원형에는
+        ///    모서리가 없으므로 시작점이 꼭대기여야 읽힌다).
         ///
         /// ⚠️ **상한이 없으면(0) 안 그린다** — 만충 판정 자체가 없는 자리다.
         /// </summary>
@@ -796,28 +809,30 @@ namespace MBI.Combat
             if (ratio <= 0f) return;
 
             float t = Mathf.Max(2f, thickness);
-            var outer = new Rect(r.x - t, r.y - t, r.width + t * 2f, r.height + t * 2f);
-            float w = outer.width, h = outer.height;
-            float filled = (w + h) * 2f * ratio;
+            // 반지름은 버튼 바깥으로 t 의 절반만큼 나간 자리 — 테두리에 걸쳐 앉는다.
+            Vector2 c = r.center;
+            float radius = Mathf.Min(r.width, r.height) * 0.5f + t * 0.5f;
+            if (radius <= 0f) return;
 
-            // 위 → 오른 → 아래 → 왼. 각 변은 남은 길이만큼만 채운다.
-            float run = Mathf.Min(filled, w);
-            if (run > 0f) HudBars.Fill(new Rect(outer.x, outer.y, run, t), color);
-            filled -= w;
-            if (filled <= 0f) return;
+            int count = Mathf.Max(1, Mathf.CeilToInt(RingSegments * ratio));
+            float stepDeg = 360f / RingSegments;
+            // 토막 하나가 덮어야 할 호의 길이. 살짝 겹치게 해서 사이에 틈이 안 보이게 한다.
+            float segLen = 2f * Mathf.PI * radius / RingSegments * 1.35f;
 
-            run = Mathf.Min(filled, h);
-            HudBars.Fill(new Rect(outer.xMax - t, outer.y, t, run), color);
-            filled -= h;
-            if (filled <= 0f) return;
+            Matrix4x4 prev = GUI.matrix;
+            for (int i = 0; i < count; i++)
+            {
+                // 12시(위)에서 시계 방향. 화면 y 는 아래로 자라므로 각도를 그렇게 잡는다.
+                float deg = i * stepDeg;
+                // ⚠️ **마지막 토막은 남은 만큼만** — 안 그러면 링이 ratio 를 넘겨 찬다.
+                float rad = (deg - 90f) * Mathf.Deg2Rad;
+                var at = new Vector2(c.x + Mathf.Cos(rad) * radius,
+                                     c.y + Mathf.Sin(rad) * radius);
 
-            run = Mathf.Min(filled, w);
-            HudBars.Fill(new Rect(outer.xMax - run, outer.yMax - t, run, t), color);
-            filled -= w;
-            if (filled <= 0f) return;
-
-            run = Mathf.Min(filled, h);
-            HudBars.Fill(new Rect(outer.x, outer.yMax - run, t, run), color);
+                GUIUtility.RotateAroundPivot(deg, at);
+                HudBars.Fill(new Rect(at.x - t * 0.5f, at.y - segLen * 0.5f, t, segLen), color);
+                GUI.matrix = prev;
+            }
         }
 
         /// <summary>배지 색 — 주황(사용자 육안 「S1 주황 배지」). ⚠️ 값은 가정이다.</summary>
