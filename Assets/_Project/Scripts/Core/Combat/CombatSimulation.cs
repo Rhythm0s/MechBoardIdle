@@ -148,6 +148,15 @@ namespace MBI.Core
         public float radius;      // 충돌 반경(분리). 0이면 분리 없음.
         /// <summary>투사체 속도(유닛/초). 0 = 즉발(현행). 포격만 >0 이다(§71-33 ②).</summary>
         public float projectileSpeed;
+
+        /// <summary>
+        /// **보스인가** (2026-09-30 사용자 확정 ⑫ — 「보스는 로봇을 민다」).
+        ///
+        /// ⚠️ **종전에는 시뮬이 보스를 몰랐다** — `EnemyRole` 이 여기까지 안 왔고,
+        /// 시뮬이 쥔 것은 수치(체력·공격력·반경)뿐이라 「누가 보스인가」를 물을 수 없었다.
+        /// 미는 규칙이 보스에만 걸리므로 그 물음이 처음으로 필요해졌다.
+        /// </summary>
+        public bool isBoss;
     }
 
     /// <summary>
@@ -1231,6 +1240,7 @@ namespace MBI.Core
                     attackRange = s.attackRange,
                     attackInterval = s.attackInterval,
                     radius = s.radius,
+                    isBoss = s.isBoss,
                 });
             }
         }
@@ -1465,8 +1475,13 @@ namespace MBI.Core
             RefillMount(Act);
             // ⚠️⚠️ **겹친 적끼리 민다**(2026-09-21 사용자 확정 · 육안 ⑤ⓐ).
             //    이동 **뒤에** 푼다 — 먼저 풀면 그 틱의 이동이 다시 겹쳐 놓는다.
-            //    로봇은 안 민다(적 목록만 넘긴다).
+            //    일반 몹은 로봇을 안 민다(적 목록만 넘긴다).
             CrowdSeparation.Resolve(_enemies, _enemyPush, dt);
+
+            // ✅ **보스만 로봇을 민다**(2026-09-30 사용자 확정 ⑫). 적끼리 푼 **뒤**다 —
+            //    먼저 밀면 그 틱의 분리가 로봇을 도로 겹쳐 놓는다.
+            //    ⚠️ 세기는 적끼리와 **같은 값**을 쓴다(가정) — 0 이면 구 거동이다.
+            CrowdSeparation.PushRobot(Robot, _enemies, _enemyPush, dt);
 
             StandbyTick(dt);   // 대기 로봇의 공장도 계속 돈다 — 그 산출이 태그 인 순간 비축 화력이 된다
             MergeTick(dt);     // 게이지 충전·지속 소모. 합체가 끝나면 태그 잠금이 풀린다

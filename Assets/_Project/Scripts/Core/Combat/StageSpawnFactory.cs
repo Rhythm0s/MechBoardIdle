@@ -87,6 +87,9 @@ namespace MBI.Core.Combat
                         projectileSpeed = Pick(def != null ? def.projectileSpeed : 0f,
                             RoleProjectile(def), 0f),
                         radius = EnemySize(c.hp) * 0.5f,
+                        // ✅ **보스 표식**(2026-09-30 사용자 확정 ⑫) — `EnemyRole` 을 시뮬까지
+                        //    들고 간다. 자산이 없으면 거짓이다(지어내지 않는다).
+                        isBoss = def != null && def.role == EnemyRole.Boss,
                     });
                 }
             }

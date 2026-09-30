@@ -157,13 +157,40 @@ namespace MBI.Core
         }
 
         /// <summary>
+        /// 이 판에 **코어가 이미 있는가** (2026-09-30 사용자 확정 ③).
+        ///
+        /// ⚠️ 판마다 따로 센다 — A 와 B 는 다른 `BoardGrid` 이고 각자 한 대씩 갖는다.
+        /// </summary>
+        public bool HasCore
+        {
+            get
+            {
+                foreach (NodeInstance n in _occupancy.Values)
+                    if (n != null && n.Definition != null && n.Definition.type == NodeType.Core)
+                        return true;
+                return false;
+            }
+        }
+
+        /// <summary>
         /// 셀에 노드를 배치. 경계 밖·노드/벨트 점유·def null 이면 실패(겹침 방지).
+        ///
+        /// ✅ **코어는 판에 한 대뿐이다** (2026-09-30 사용자 확정 ③ · 조립 문서 11장).
+        ///
+        /// ⚠️⚠️ **종전에는 제한이 아예 없었다** — 여기서 보는 것이 「빈 칸인가」 하나뿐이라
+        /// 팔레트 첫 칸의 코어를 **몇 개든 놓을 수 있었다.** 문서는 처음부터 한 대라고
+        /// 적고 있었고, 코드만 그것을 몰랐다.
+        ///
+        /// 📌 **놓는 길이 하나라서 여기 한 곳이면 된다** — 시작 보드도 플레이어도
+        /// 이 함수를 지난다(`BoardController` 주석 「배치 경로는 플레이어 조작과 동일」).
+        /// 화면 쪽에서 따로 막으면 답이 둘이 된다(지침 §7).
         /// </summary>
         public bool TryPlace(Vector2Int cell, NodeDefinition def, out NodeInstance placed)
         {
             placed = null;
             if (def == null) return false;
             if (!IsFree(cell)) return false;
+            if (def.type == NodeType.Core && HasCore) return false;   // 코어는 한 대
             // TODO(§8): def.implemented==false(쉴드 스텁) 배치 차단 — 배치 가능 노드 필터링은 팔레트/검증 단계 소관.
 
             placed = new NodeInstance(def, cell);

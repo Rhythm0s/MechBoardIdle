@@ -78,6 +78,12 @@ namespace MBI.Core
         /// </summary>
         public float projectileSpeed;
 
+        /// <summary>
+        /// **보스인가** (2026-09-30 사용자 확정 ⑫). 미는 규칙이 이 칸 하나로 갈린다 —
+        /// 보스는 로봇을 밀고 일반 몹은 못 민다.
+        /// </summary>
+        public bool isBoss;
+
         public bool IsAlive => hp > 0f;
     }
 }

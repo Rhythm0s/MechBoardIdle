@@ -26,6 +26,12 @@ namespace MBI.Tests
         {
             var n = ScriptableObject.CreateInstance<NodeDefinition>();
             n.implemented = true;
+            // ⚠️⚠️ **종류를 꼭 적는다** (2026-09-30). `NodeType.Core` 가 **0** 이라
+            //    안 적으면 만드는 노드가 전부 **코어**가 된다. 코어는 판에 한 대라
+            //    (사용자 확정 ⑨) 둘째부터 `TryPlace` 가 거절하고, 이 파일의 시험 넷이
+            //    「벨트가 안 이어진다」로 빨개졌다 — **벨트와 아무 상관 없는 까닭**으로.
+            //    이 시험들이 재는 것은 벨트 연결이지 노드 종류가 아니다.
+            n.type = NodeType.Processing;
             n.ports = new List<NodePort>(ports);
             _created.Add(n);
             return n;
