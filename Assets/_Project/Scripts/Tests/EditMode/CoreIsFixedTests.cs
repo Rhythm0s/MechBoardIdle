@@ -108,6 +108,52 @@ namespace MBI.Tests
                 "StartingBoard.CoreCell 이 시작 배치와 갈렸다");
         }
 
+        /// <summary>
+        /// **코어는 못 돌린다** (확정 ②). 종전에는 이 규칙이 `OnGUI` 안의 지역 변수라
+        /// **시험이 닿지 못했다** — `CoreNodeRule` 로 빼면서 닿는다.
+        /// </summary>
+        [Test]
+        public void 코어는_못_돌린다()
+        {
+            var g = new BoardGrid(6, 6, 1f, Vector2.zero);
+            g.TryPlace(new Vector2Int(1, 1), Def(NodeType.Core), out NodeInstance core);
+            g.TryPlace(new Vector2Int(2, 1), Def(NodeType.MunitionsBasic), out NodeInstance muni);
+
+            Assert.IsFalse(CoreNodeRule.CanRotate(core), "코어가 돌아간다");
+            Assert.IsTrue(CoreNodeRule.CanRotate(muni), "코어가 아닌 것까지 막혔다");
+        }
+
+        /// <summary>**코어는 못 지운다** (2026-09-15 확정) — 되돌릴 수 없는 유일한 칸이다.</summary>
+        [Test]
+        public void 코어는_못_지운다()
+        {
+            var g = new BoardGrid(6, 6, 1f, Vector2.zero);
+            g.TryPlace(new Vector2Int(1, 1), Def(NodeType.Core), out NodeInstance core);
+            g.TryPlace(new Vector2Int(2, 1), Def(NodeType.MunitionsBasic), out NodeInstance muni);
+
+            Assert.IsFalse(CoreNodeRule.CanRemove(core), "코어가 지워진다");
+            Assert.IsTrue(CoreNodeRule.CanRemove(muni), "코어가 아닌 것까지 막혔다");
+        }
+
+        /// <summary>
+        /// ⚠️ **노드가 없으면 막지 않는다** — 빈 칸에 「못 돌린다」고 답하면 부르는 쪽이
+        /// 코어와 빈 칸을 못 가린다.
+        /// </summary>
+        [Test]
+        public void 빈_칸은_코어가_아니다()
+        {
+            Assert.IsFalse(CoreNodeRule.IsCore((NodeInstance)null));
+            Assert.IsTrue(CoreNodeRule.CanRotate(null));
+            Assert.IsTrue(CoreNodeRule.CanRemove(null));
+        }
+
+        /// <summary>복원이 쓰는 자리도 같은 곳에서 나온다 — 좌표를 두 곳에 안 적는다.</summary>
+        [Test]
+        public void 복원_자리는_시작_보드_값이다()
+        {
+            Assert.AreEqual(StartingBoard.CoreCell, CoreNodeRule.FixedCell);
+        }
+
         /// <summary>판에는 여전히 한 대만 선다 — 감추기가 놓기 규칙을 대신하지 않는다.</summary>
         [Test]
         public void 감췄어도_판에는_한_대만_선다()

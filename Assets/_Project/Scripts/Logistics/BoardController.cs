@@ -232,10 +232,7 @@ namespace MBI.Logistics
         /// **되돌릴 수 없는 상태**가 되는 유일한 칸이라 규칙이 따로 있다.
         /// </summary>
         private bool IsCore(Vector2Int cell)
-        {
-            NodeInstance n = _grid != null ? _grid.GetAt(cell) : null;
-            return n != null && n.Definition != null && n.Definition.type == NodeType.Core;
-        }
+            => CoreNodeRule.IsCore(_grid != null ? _grid.GetAt(cell) : null);
 
         /// <summary>컨펌을 기다리는 제거 경로. null 이면 팝업이 안 뜬다(육안 ⑧).</summary>
         private List<Vector2Int> _pendingRemoval;
@@ -886,7 +883,7 @@ namespace MBI.Logistics
             //    또 만들지 않고 **이미 있는 규칙을 쓴다.**
             // ⚠️ 자리는 `StartingBoard.CoreCell` 이 든다 — 여기서 좌표를 다시 적지 않는다.
             NodeDefinition coreDef = FindStartingNode(StartingBoard.CoreId);
-            if (coreDef != null) grid.TryPlace(StartingBoard.CoreCell, coreDef, out _);
+            if (coreDef != null) grid.TryPlace(CoreNodeRule.FixedCell, coreDef, out _);
 
             // ⚠️ **마커는 안 짓는다**(2026-09-16). 그림은 `RespawnMarkersFromGrid` 한 곳이
             //    판을 읽어 짓는다 — 안 보이는 판에까지 마커를 세우지 않기 위해서다.
@@ -4055,7 +4052,8 @@ namespace MBI.Logistics
             //    코어는 시작 보드에 **박힌 한 대**이고 자리도 방향도 플레이어의 것이 아니다.
             //    버튼을 그려 두고 눌러도 아무 일이 없게 하면 「고장」으로 읽힌다 —
             //    **아예 안 그린다.** 이름과 각도 줄은 남는다(무엇을 고른지는 알아야 한다).
-            bool canRotate = inst.Definition == null || inst.Definition.type != NodeType.Core;
+            //    📌 규칙은 `CoreNodeRule` 한 곳이 든다 — 화면에서 다시 묻지 않는다(지침 §7).
+            bool canRotate = CoreNodeRule.CanRotate(inst);
 
             var rotRect = new Rect(x, y, w * 0.32f, h);
             // ⚠️ **화살표 기호를 걷었다**(2026-09-15 육안 · 글리프). 「↻」(U+21BB)가
