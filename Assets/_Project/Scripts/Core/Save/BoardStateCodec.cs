@@ -144,12 +144,20 @@ namespace MBI.Core
         /// `BeltFlow.Resolve` 를 돌린다(설계 규칙 3). 저장이 그것까지 들고 있으면 진실이 둘이 된다.
         /// </summary>
         /// <returns>못 놓은 항목 수. 0 이면 저장 그대로 섰다.</returns>
+        /// <param name="onMissed">
+        /// **못 놓은 것 하나하나를 알린다** — (무엇, 어느 칸, 왜).
+        ///
+        /// ⚠️⚠️ 2026-10-01 에 이것이 없어서 하루를 썼다. 경고가 「1 개를 못 놓았다」까지만
+        /// 말해서, 그 하나가 **거절되어야 마땅한 저장 쪽 코어**인지 **라인을 끊는 진짜
+        /// 노드**인지 화면에서 가릴 수가 없었다. **숫자는 사고를 못 가린다.**
+        /// </param>
         public static int Restore(
             BoardStateV1 state, BoardGrid grid,
             Func<string, NodeDefinition> nodeById,
             Func<string, ModuleDefinition> moduleById = null,
             Action<Vector2Int> onNode = null,
-            Action<Vector2Int, PortFace> onBelt = null)
+            Action<Vector2Int, PortFace> onBelt = null,
+            Action<string, Vector2Int, string> onMissed = null)
         {
             if (!Fits(state, grid)) return -1;
 
@@ -160,7 +168,13 @@ namespace MBI.Core
                 {
                     NodeDefinition def = nodeById?.Invoke(e.nodeId);
                     var cell = new Vector2Int(e.x, e.y);
-                    if (def == null || !grid.TryPlace(cell, def, out NodeInstance placed)) { missed++; continue; }
+                    if (def == null || !grid.TryPlace(cell, def, out NodeInstance placed))
+                    {
+                        missed++;
+                        onMissed?.Invoke(e.nodeId, cell,
+                            def == null ? "정의를 못 찾았다" : "칸이 막혔다");
+                        continue;
+                    }
 
                     placed.Rotation = e.rotation;
                     placed.AmmoKind = (AmmoKind)e.ammo;
@@ -168,10 +182,13 @@ namespace MBI.Core
                     // ⚠️ `SelectRecipe` 는 **이 노드가 실제로 돌릴 수 있는 조합표만** 받는다.
                     //    거절당하면 기본값으로 남는다 — 그것도 못 놓은 것으로 센다.
                     var recipe = (RecipeKind)e.recipe;
-                    if (recipe != RecipeKind.None && !placed.SelectRecipe(recipe)) missed++;
+                    if (recipe != RecipeKind.None && !placed.SelectRecipe(recipe))
+                    { missed++; onMissed?.Invoke(e.nodeId, cell, $"조합표 {recipe} 를 거절했다"); }
 
-                    if (!AttachModule(placed, 0, e.module0, moduleById)) missed++;
-                    if (!AttachModule(placed, 1, e.module1, moduleById)) missed++;
+                    if (!AttachModule(placed, 0, e.module0, moduleById))
+                    { missed++; onMissed?.Invoke(e.module0, cell, "모듈 0 을 못 붙였다"); }
+                    if (!AttachModule(placed, 1, e.module1, moduleById))
+                    { missed++; onMissed?.Invoke(e.module1, cell, "모듈 1 을 못 붙였다"); }
 
                     onNode?.Invoke(cell);
                 }
@@ -182,10 +199,13 @@ namespace MBI.Core
                     var cell = new Vector2Int(e.x, e.y);
                     PortFace[] ins = FacesOf(e.inMask);
                     PortFace[] outs = FacesOf(e.outMask);
-                    if (outs.Length == 0) { missed++; continue; }   // 나가는 면이 없으면 벨트가 아니다
+                    // 나가는 면이 없으면 벨트가 아니다
+                    if (outs.Length == 0)
+                    { missed++; onMissed?.Invoke("벨트", cell, "나가는 면이 없다"); continue; }
 
                     if (!grid.TryPlaceBeltElement(cell, (BeltElementKind)e.element, ins, outs,
-                            FlowKind.None, out _)) { missed++; continue; }
+                            FlowKind.None, out _))
+                    { missed++; onMissed?.Invoke("벨트", cell, "칸이 막혔다"); continue; }
 
                     onBelt?.Invoke(cell, outs[0]);
                 }

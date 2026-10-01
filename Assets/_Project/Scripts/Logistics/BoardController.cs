@@ -887,12 +887,26 @@ namespace MBI.Logistics
 
             // ⚠️ **마커는 안 짓는다**(2026-09-16). 그림은 `RespawnMarkersFromGrid` 한 곳이
             //    판을 읽어 짓는다 — 안 보이는 판에까지 마커를 세우지 않기 위해서다.
+            // ⚠️⚠️ **무엇을 못 놓았는지 하나하나 찍는다**(2026-10-01).
+            //    종전에는 개수만 찍어서, 그 하나가 **거절되어야 마땅한 저장 쪽 코어**인지
+            //    **라인을 끊는 진짜 노드**인지 화면에서 가릴 수가 없었다.
+            //    📌 코어가 거절되는 것은 **정상**이다(위에서 먼저 세웠다) — 그래서
+            //       코어는 「정상」으로 적고 나머지와 눈으로 갈린다.
+            var dropped = new System.Text.StringBuilder();
             int missed = BoardStateCodec.Restore(
-                saved, grid, FindStartingNode, FindModuleById, NoMarker, NoBeltMarker);
+                saved, grid, FindStartingNode, FindModuleById, NoMarker, NoBeltMarker,
+                (what, cell, why) =>
+                {
+                    bool isCore = what == StartingBoard.CoreId;
+                    dropped.AppendLine();
+                    dropped.Append("  · ").Append(what).Append(" @").Append(cell)
+                           .Append(" — ").Append(why)
+                           .Append(isCore ? "  ✅ 정상(코어는 이미 제자리에 섰다)" : "  ⚠️");
+                });
 
             if (missed > 0)
-                Debug.LogWarning($"[MBI] 저장된 보드({grid.Owner})에서 {missed} 개를 못 놓았다 — "
-                                 + "자산 id 가 바뀜었거나 칸이 막혔다. 나머지는 그대로 섬.");
+                Debug.LogWarning($"[MBI] 저장된 보드({grid.Owner})에서 {missed} 개를 못 놓았다."
+                                 + dropped + System.Environment.NewLine + "나머지는 그대로 섬.");
 
             return true;
         }

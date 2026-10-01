@@ -38,7 +38,16 @@ namespace MBI.EditorTools
         [MenuItem("MBI/Probe Tutorial Mount")]
         public static void RunMenu() => Debug.Log(Run());
 
-        public static void RunBatch() => Debug.Log(Run());
+        /// <summary>
+        /// ⚠️ **끝났으면 나간다**(2026-10-01) — 이 줄이 없으면 일을 다 끝낸 배치가
+        /// 프로젝트 잠금을 쥐고 안 나가고, 뒤따르는 실행이 **오류 한 줄 없이 반환 1** 로
+        /// 죽는다. `RunBossPushBatch` 에서 같은 일로 26분을 잃었다.
+        /// </summary>
+        public static void RunBatch()
+        {
+            Debug.Log(Run());
+            if (Application.isBatchMode) EditorApplication.Exit(0);
+        }
 
         public static string Run()
         {
