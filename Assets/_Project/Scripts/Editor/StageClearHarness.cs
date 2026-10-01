@@ -131,6 +131,55 @@ namespace MBI.EditorTools
             if (Application.isBatchMode) EditorApplication.Exit(0);
         }
 
+        /// <summary>
+        /// **S6 을 구 추격 규칙(`hold = 1`)으로 한 판** — 겹침이 밀기 때문이 아니라
+        /// **로봇이 보스 쪽으로 걸어 들어간 것**이었는지 가른다
+        /// (2026-10-01 사용자 지시 · 계획 세션 가설).
+        ///
+        /// ⚠️ **게임 코드는 0 줄이다** — 자산 값 `autoPilotHoldWhenMoreThanTbd` 만
+        /// 재는 동안 1 로 두고 **되돌린다.** 09-30 에 사용자가 0 으로 확정한 값이므로
+        /// 되돌리기가 빠지면 확정이 조용히 뒤집힌다.
+        ///
+        /// 배치 실행: <c>-executeMethod MBI.EditorTools.StageClearHarness.RunHoldProbeBatch</c>
+        /// </summary>
+        [MenuItem("MBI/Harness S6 구 추격 hold=1 (1001)")]
+        public static void RunHoldProbeMenu() => Debug.Log(RunHoldProbe());
+
+        public static void RunHoldProbeBatch()
+        {
+            Debug.Log(RunHoldProbe());
+            if (Application.isBatchMode) EditorApplication.Exit(0);
+        }
+
+        public static string RunHoldProbe()
+        {
+            var tuning = AssetDatabase.LoadAssetAtPath<CombatTuning>($"{SoRoot}/CombatTuning.asset");
+            if (tuning == null) return "자산을 못 읽었다 — CombatTuning.asset";
+            int keep = tuning.autoPilotHoldWhenMoreThanTbd;
+
+            var sb = new System.Text.StringBuilder();
+            sb.AppendLine("############ S6 구 추격 규칙 비교 (2026-10-01 · ⑫ 가설 가르기) ############");
+            sb.AppendLine();
+            sb.AppendLine($"⚠️ **`autoPilotHoldWhenMoreThanTbd` 자산 값은 {keep} 다** — 재는 동안만 바꾸고 되돌린다.");
+            sb.AppendLine("📌 묻는 것: 09-30 에 본 「계속 겹침」이 밀기 탓이 아니라");
+            sb.AppendLine("   **로봇이 보스 쪽으로 걸어 들어간 것**이었는가. 겹친 틱과 최소 거리를 본다.");
+            sb.AppendLine();
+
+            sb.AppendLine($"======== 지금 규칙 (hold = {keep}) ========");
+            sb.AppendLine(Run("S6"));
+
+            tuning.autoPilotHoldWhenMoreThanTbd = 1;
+            sb.AppendLine();
+            sb.AppendLine("======== 구 규칙 (hold = 1) ========");
+            sb.AppendLine(Run("S6"));
+            tuning.autoPilotHoldWhenMoreThanTbd = keep;   // ⚠️ 반드시 되돌린다
+            sb.AppendLine();
+            sb.AppendLine($"✅ `autoPilotHoldWhenMoreThanTbd` 를 {keep} 로 되돌렸다.");
+
+            sb.AppendLine("############ 끝 ############");
+            return sb.ToString();
+        }
+
         public static string RunBossPush()
         {
             var tuning = AssetDatabase.LoadAssetAtPath<CombatTuning>($"{SoRoot}/CombatTuning.asset");
