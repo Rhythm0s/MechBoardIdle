@@ -1225,23 +1225,10 @@ namespace MBI.Core
             for (int i = 0; i < batch.Count; i++)
             {
                 EnemySpawn s = batch[i];
-                _enemies.Add(new CombatEntity
-                {
-                    faction = Faction.Enemy,
-                    label = s.label,
-                    // ⚠️ **로봇 기준이다**(2026-09-11) — 원점 기준이면 로봇이 움직인 만큼
-                    // 적이 **화면 안에서 튀어나온다.**
-                    position = SpawnRingRule.Position(RobotPosition, i, batch.Count, SpawnDistance(i)),
-                    hp = s.hp,
-                    maxHp = s.hp,
-                    def = s.def,
-                    atk = s.atk,
-                    moveSpeed = s.moveSpeed,
-                    attackRange = s.attackRange,
-                    attackInterval = s.attackInterval,
-                    radius = s.radius,
-                    isBoss = s.isBoss,
-                });
+                // ⚠️ **로봇 기준이다**(2026-09-11) — 원점 기준이면 로봇이 움직인 만큼
+                //    적이 **화면 안에서 튀어나온다.**
+                _enemies.Add(MakeEnemy(s,
+                    SpawnRingRule.Position(RobotPosition, i, batch.Count, SpawnDistance(i))));
             }
         }
 
@@ -1646,26 +1633,43 @@ namespace MBI.Core
                 if (Elapsed < spawnAt) break;
 
                 EnemySpawn s = _spawnQueue[_spawnedCount];
-                _enemies.Add(new CombatEntity
-                {
-                    faction = Faction.Enemy,
-                    label = s.label,
-                    position = SpawnRingRule.Position(
-                        RobotPosition, _spawnedCount, _spawnQueue.Count, SpawnDistance(_spawnedCount)),
-                    hp = s.hp,
-                    maxHp = s.hp,
-                    def = s.def,
-                    atk = s.atk,
-                    moveSpeed = s.moveSpeed,
-                    attackRange = s.attackRange,
-                    attackInterval = s.attackInterval,
-                    attackCooldown = 0f, // 사거리 진입 즉시 첫 타
-                    radius = s.radius,
-                    projectileSpeed = s.projectileSpeed,
-                });
+                _enemies.Add(MakeEnemy(s, SpawnRingRule.Position(
+                    RobotPosition, _spawnedCount, _spawnQueue.Count, SpawnDistance(_spawnedCount))));
                 _spawnedCount++;
             }
         }
+
+        /// <summary>
+        /// **적 한 기를 정의에서 만든다 — 모든 칸을 여기서 베낀다**
+        /// (2026-10-01 · 지침 §7 「한 값이 두 곳에 살면 답이 둘이 된다」).
+        ///
+        /// ⚠️⚠️ **전에는 만드는 자리가 둘이었고, 서로 다른 칸을 빠뜨렸다.**
+        /// 묶음 생성(<c>SpawnBatch</c>)은 <c>projectileSpeed</c> 를, 줄줄이 생성
+        /// (<c>SpawnDue</c>)은 <c>isBoss</c> 를 안 베꼈다. 대가가 바로 나왔다 —
+        /// **보스 밀기(2026-10-01 ⑫)가 S6 에서 한 번도 안 돌았다.** 게임이 쓰는 생성
+        /// 경로는 줄줄이 쪽인데 그쪽에 <c>isBoss</c> 가 없어, 밀 대상이 없는 채 조용히
+        /// 통과했다(하네스가 「보스를 못 봤다」로 침묵한 것이 그 증거다).
+        ///
+        /// 📌 칸을 나중에 더해도 **한 자리만 고치면 된다.**
+        /// </summary>
+        private static CombatEntity MakeEnemy(EnemySpawn s, Vector2 position) =>
+            new CombatEntity
+            {
+                faction = Faction.Enemy,
+                label = s.label,
+                position = position,
+                hp = s.hp,
+                maxHp = s.hp,
+                def = s.def,
+                atk = s.atk,
+                moveSpeed = s.moveSpeed,
+                attackRange = s.attackRange,
+                attackInterval = s.attackInterval,
+                attackCooldown = 0f, // 사거리 진입 즉시 첫 타
+                radius = s.radius,
+                projectileSpeed = s.projectileSpeed,
+                isBoss = s.isBoss,
+            };
 
         private void MoveAndAttackEnemies(float dt)
         {

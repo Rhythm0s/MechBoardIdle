@@ -442,9 +442,20 @@ namespace MBI.Combat
         /// ⚠️ **구 규칙 「우세 축이 이긴다」는 폐기**다. 대각으로 갈 때 두 축이 거의 같아
         /// 프레임마다 승자가 뒤집혔고, 그때마다 벌이 갈려 **동면과 북면이 번갈아 깜빡였다.**
         /// 이제 새 축이 옛 축을 1.5배 넘게 이겨야 넘어간다.
+        ///
+        /// ⚠️⚠️ **한 축짜리 걸음 하나로는 관성이 안 걸린다**(2026-10-01 육안 ⑭ ②).
+        /// 격자 걸음은 한 틱에 한 축만 내므로 <c>ax</c> 가 0 이 되고, 0 에 배수를 곱해도
+        /// 0 이라 **매 프레임 면이 뒤집혔다.** 직전 걸음을 같이 넘겨 **대각선을 보여준다** —
+        /// 규칙과 값은 그대로다(<see cref="StepFacing"/>).
         /// </summary>
-        private static UnitAnimDirection ToDirection(Vector2 delta, UnitAnimDirection last) =>
-            DirectionHysteresis.Resolve(delta, last);
+        private UnitAnimDirection ToDirection(Vector2 delta, UnitAnimDirection last) =>
+            StepFacing.Resolve(delta, ref _previousStep, last);
+
+        /// <summary>
+        /// **직전 걸음** — 대각선을 복원하는 데만 쓴다(판정에 안 들어간다).
+        /// ⚠️ 안 움직인 프레임에는 안 지운다(<see cref="StepFacing.Resolve"/> 가 지킨다).
+        /// </summary>
+        private Vector2 _previousStep;
 
         // 애니메이션 상태 선택. 위치 변화로 이동을 판정한다 — 시뮬은 속도를 내주지 않는다.
         private void DriveAnimation(float dt)

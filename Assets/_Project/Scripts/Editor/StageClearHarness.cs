@@ -99,6 +99,67 @@ namespace MBI.EditorTools
         [MenuItem("MBI/Harness S0~S5 자체 시험")]
         public static void RunStageSweepMenu() => Debug.Log(RunStageSweep());
 
+        /// <summary>
+        /// 【S6 보스 판】 **로봇이 실제로 밀려나는가** (2026-10-01 · ⑫ 확인).
+        ///
+        /// ⚠️ **단위 시험만으로는 못 본다** — `BossPushesRobotTests` 는 규칙이 맞는지 보고,
+        /// 이것은 **판에서 실제로 걸리는지**를 본다. 보스가 로봇에 닿지도 않으면 규칙이
+        /// 맞아도 아무 일이 안 난다.
+        ///
+        /// 📌 **세기 0 판과 나란히 돈다** — 밀린 거리에는 **제 걸음도 섞이므로**
+        ///    한 판만 봐서는 밀기의 몫을 못 가른다. 끄고 켠 둘을 견주는 것이 측정법이다.
+        ///
+        /// ⚠️ **값을 안 고친다** — 세기만 잠시 0 으로 두고 **원래 값으로 되돌린다.**
+        ///
+        /// 배치 실행: <c>-executeMethod MBI.EditorTools.StageClearHarness.RunBossPushBatch</c>
+        /// </summary>
+        [MenuItem("MBI/Harness S6 보스 밀기 (1001 ⑫)")]
+        public static void RunBossPushMenu() => Debug.Log(RunBossPush());
+
+        /// <summary>
+        /// ⚠️ **끝났으면 나가야 한다**(2026-10-01) — 이 줄이 빠져 있어서 일을 다 끝낸
+        /// 배치 프로세스가 **26 분간 프로젝트 잠금을 쥐고 안 나갔다.** 뒤따르던 시험 실행이
+        /// 컴파일도 못 하고 반환 1 로 죽었는데, 로그에는 오류가 없어 **컴파일 실패로 오진**했다.
+        ///
+        /// 📌 다른 열두 배치 함수는 다 이 줄을 들고 있었다 — 빠진 것은 이 하나였다.
+        /// ⚠️ <c>-runTests</c> 에 <c>-quit</c> 를 붙이는 것과 다른 일이다(그쪽은 금지).
+        ///    여기는 **내 코드가 끝낸 뒤** 스스로 나가는 자리다.
+        /// </summary>
+        public static void RunBossPushBatch()
+        {
+            Debug.Log(RunBossPush());
+            if (Application.isBatchMode) EditorApplication.Exit(0);
+        }
+
+        public static string RunBossPush()
+        {
+            var tuning = AssetDatabase.LoadAssetAtPath<CombatTuning>($"{SoRoot}/CombatTuning.asset");
+            float keep = tuning != null ? tuning.enemyPushStrengthTbd : 0f;
+
+            var sb = new System.Text.StringBuilder();
+            sb.AppendLine("############ S6 보스 밀기 (2026-10-01 · ⑫) ############");
+            sb.AppendLine();
+            sb.AppendLine($"⚠️ **세기 {keep} 는 자산 값 그대로다** — 끈 판은 재는 동안만 0 이고 되돌린다.");
+            sb.AppendLine();
+
+            sb.AppendLine("======== 켠 판 (세기 " + keep.ToString("F0") + ") ========");
+            sb.AppendLine(Run("S6"));
+
+            if (tuning != null)
+            {
+                tuning.enemyPushStrengthTbd = 0f;
+                sb.AppendLine();
+                sb.AppendLine("======== 끈 판 (세기 0 · 구 거동) ========");
+                sb.AppendLine(Run("S6"));
+                tuning.enemyPushStrengthTbd = keep;   // ⚠️ 반드시 되돌린다
+                sb.AppendLine();
+                sb.AppendLine($"✅ 세기를 {keep} 로 되돌렸다.");
+            }
+
+            sb.AppendLine("############ 끝 ############");
+            return sb.ToString();
+        }
+
         public static void RunStageSweepBatch()
         {
             Debug.Log(RunStageSweep());
@@ -693,6 +754,12 @@ namespace MBI.EditorTools
             int shots = 0;
             CombatResult result = CombatResult.InProgress;
 
+            // ⚠️ 보스 밀기 계측(2026-10-01) — 보스가 없는 판에서는 전부 0 으로 남는다.
+            float bossGapMin = float.MaxValue;
+            int bossOverlapTicks = 0;
+            float bossPushTotal = 0f;
+            bool bossSeen = false;
+
             for (int i = 0; i < steps; i++)
             {
                 // 1) 물류 — 실제 보드가 실제로 나른다
@@ -769,7 +836,28 @@ namespace MBI.EditorTools
                 }
 
                 // 4) 전투
+                // ⚠️ **보스–로봇 거리를 틱 앞뒤로 잰다**(2026-10-01 ⑫ 확인 · 하네스 열만).
+                //    밀기는 `Tick` 안에서 일어나므로 **앞뒤를 둘 다 봐야** 밀린 양이 나온다.
+                Vector2 beforePush = sim.Robot != null ? sim.Robot.position : Vector2.zero;
+
                 sim.Tick(Dt);
+
+                CombatEntity bossNow = null;
+                for (int bi = 0; bi < sim.Enemies.Count; bi++)
+                    if (sim.Enemies[bi] != null && sim.Enemies[bi].isBoss && sim.Enemies[bi].IsAlive)
+                    { bossNow = sim.Enemies[bi]; break; }
+                if (bossNow != null && sim.Robot != null)
+                {
+                    float d = Vector2.Distance(bossNow.position, sim.Robot.position);
+                    if (d < bossGapMin) bossGapMin = d;
+                    float want = bossNow.radius + sim.Robot.radius;
+                    if (d < want)
+                    {
+                        bossOverlapTicks++;
+                        bossPushTotal += Vector2.Distance(beforePush, sim.Robot.position);
+                    }
+                    bossSeen = true;
+                }
 
                 // ⚠️⚠️ **게임이 지나는 문을 그대로 지난다**(2026-09-19 · 리허설 1 ② 실측 중 발견).
                 //
@@ -975,6 +1063,25 @@ namespace MBI.EditorTools
             sb.AppendLine(firstShotAt >= 0f
                 ? $"  첫 발사 {firstShotAt:F1}초"
                 : "  첫 발사 **없음**");
+
+            // ── 보스 밀기 (2026-10-01 ⑫ 확인) ──────────────────────────────
+            //
+            // ⚠️ **보스가 없는 판에서는 안 적는다** — 0 을 적으면 「밀기가 안 걸렸다」로
+            //    읽히는데, 사실은 **밀 보스가 없는 판**이다. 둘은 다른 말이다.
+            if (bossSeen)
+            {
+                sb.AppendLine();
+                sb.AppendLine("[보스 밀기 — 로봇이 실제로 밀려나는가]"
+                              + "  ← 측정법: 틱마다 보스–로봇 중심 거리와 로봇이 움직인 양");
+                sb.AppendLine($"    보스–로봇 **최소 거리 {bossGapMin:F3} 유닛**"
+                              + "  ← 겹침 판정선(반지름 합)보다 작게 내려갔는가를 본다");
+                sb.AppendLine($"    **겹친 틱 {bossOverlapTicks}**"
+                              + "  ← 겹친 동안에만 민다. 0 이면 애초에 안 붙었다는 뜻이다");
+                sb.AppendLine($"    **밀린 총 거리 {bossPushTotal:F2} 유닛**"
+                              + "  ← 겹친 틱에 로봇이 움직인 양의 합(제 걸음도 섞인다)");
+                sb.AppendLine("    ⚠️ 세기 0 판과 **나란히 놓고** 봐야 밀기의 몫이 갈린다 —"
+                              + " 이 수만으로는 제 걸음과 밀린 몫을 못 가른다.");
+            }
 
             sb.AppendLine();
             sb.AppendLine("[회피 축 — `260917_W02` 2-2]");

@@ -89,12 +89,21 @@ namespace MBI.Core.Combat
                         radius = EnemySize(c.hp) * 0.5f,
                         // ✅ **보스 표식**(2026-09-30 사용자 확정 ⑫) — `EnemyRole` 을 시뮬까지
                         //    들고 간다. 자산이 없으면 거짓이다(지어내지 않는다).
-                        isBoss = def != null && def.role == EnemyRole.Boss,
+                        isBoss = IsBossRole(def),
                     });
                 }
             }
 
             return spawns;
         }
+
+        /// <summary>
+        /// **이 정의가 보스인가** (2026-09-30 확정 ⑫ · 2026-10-01 에 여기로 모았다).
+        ///
+        /// ⚠️ 자산이 없으면 **거짓**이다 — 지어내지 않는다. 종전에는 이 판단이
+        /// 생성 식 안의 한 줄이라 **시험이 닿지 못했다.**
+        /// </summary>
+        public static bool IsBossRole(EnemyDefinition def) =>
+            def != null && def.role == EnemyRole.Boss;
     }
 }
