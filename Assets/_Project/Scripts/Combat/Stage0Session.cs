@@ -106,7 +106,14 @@ namespace MBI.Combat
             sim.Endless = true;
 
             // 관찰은 **직전 프레임의 결과**를 본다. 억제보다 한 틱 늦지만, 8초짜리 목표라 무해하다.
-            _goal.Observe(TutorialSignals.GhostCellFilled,
+            //
+            // ⚠️⚠️ **첫 목표는 「채워졌는가」가 아니라 「흐르는가」다**(2026-10-02 ·
+            //    `260928_W01` 3장 사용자 확정의 이행 · <see cref="TutorialLinkRule"/>).
+            //    종전에는 `GhostCellFilled` 를 그대로 넘겨, 벨트 대신 변환기를 놓아도
+            //    첫 목표가 켜지고 **둘째 목표에서 영영 막혔다.** 까닭과 재현은 그 규칙에 적었다.
+            // ⚠️ `GhostCellFilled` 는 여전히 **막·고스트·국면**이 읽는다 — 그쪽은
+            //    「물리적으로 채워졌는가」가 맞는 물음이라 안 건드렸다.
+            _goal.Observe(TutorialLinkRule.LinkIsLive(LogisticsOutputBridge.AmmoProduce),
                 sim.ActiveMount != null && sim.ActiveMount.IsFull);
 
             // 목표 둘을 화면 쪽에 게시한다 — **마일스톤 카드가 읽는다**(2026-09-18 ④).
