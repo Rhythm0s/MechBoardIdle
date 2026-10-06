@@ -63,7 +63,10 @@ namespace MBI.Core
             // 그 국면은 조립 버튼 하나만 허락하므로 **보드가 통째로 잠겼다.**
             Resolve(TutorialSignals.HighlightBoardButton && !TutorialSignals.BoardViewOpen,
                     TutorialSignals.HighlightBuildMode,
-                    TutorialSignals.GhostCell.HasValue && !TutorialSignals.GhostCellFilled,
+                    // ⚠️ **제 판에서만 기다린다**(2026-10-06 육안 결함) — 고스트 좌표에는
+                    //    주인이 없어서, B 탭을 열면 A 의 고스트가 B 판을 덮고 잠갔다.
+                    TutorialSignals.GhostCell.HasValue && !TutorialSignals.GhostCellFilled
+                        && TutorialSignals.BoardViewIsTutorialBoard,
                     TutorialSignals.BoardInBuildMode);
 
         /// <summary>

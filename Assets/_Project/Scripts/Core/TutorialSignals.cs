@@ -142,6 +142,24 @@ namespace MBI.Core
         /// <summary>목표 ② — 마운트가 가득 찬다.</summary>
         public static bool GoalMountFilled;
 
+        /// <summary>
+        /// **지금 열린 판이 튜토리얼이 가르치는 그 판인가** (2026-10-06 사용자 육안 결함).
+        ///
+        /// ⚠️⚠️ **고스트 칸에는 주인이 없다.** <see cref="GhostCell"/> 은 좌표 하나뿐인데
+        /// 보드는 **둘**(로봇 A · 로봇 B)이고, `BoardController` 는 **지금 보는 탭의 판**에
+        /// 그 좌표를 건다. 그래서 튜토리얼이 안 끝난 채 **B 탭을 열면 A 의 고스트가
+        /// B 판 위에 걸리고 막이 덮였다** — B 판에는 그 칸을 채울 이유가 없으니 막이
+        /// 영영 안 걷히고, 국면이 「놓기」에 머물러 **보드가 통째로 잠겼다.**
+        ///
+        /// 📌 **좌표에 주인을 붙이는 대신 「지금 판이 그 판인가」를 따로 묻는다** —
+        /// 좌표에 주인을 달면 그것을 읽는 자리마다 주인을 또 따져야 하고, 묻는 자리가
+        /// 늘면 답이 갈린다(지침 §7). 보드가 제 사정을 한 줄로 알리는 쪽이 싸다.
+        ///
+        /// ⚠️ **기본값은 참이다** — 보드가 아직 한 번도 안 알렸을 때(전투 화면 등)
+        /// 거짓으로 두면 튜토리얼이 시작부터 안 걸린다. 없는 것을 「아니다」로 읽지 않는다.
+        /// </summary>
+        public static bool BoardViewIsTutorialBoard = true;
+
         /// <summary>도메인 리로드 비활성 시 이전 Play의 값이 남는 것을 막는다.</summary>
         public static void Reset()
         {
@@ -154,6 +172,7 @@ namespace MBI.Core
             FillEmptySlotRequested = false;
             BoardInBuildMode = false;
             BoardViewOpen = false;
+            BoardViewIsTutorialBoard = true;
             GoalActive = false;
             GoalSlotFilled = false;
             GoalMountFilled = false;

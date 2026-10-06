@@ -101,6 +101,12 @@ namespace MBI.Logistics
         private readonly BeltItemFlow[] _flows = { new BeltItemFlow(), new BeltItemFlow() };
 
         /// <summary>지금 **편집 중인** 판의 주인 — 조립 화면 로봇 탭이 정한다.</summary>
+        /// <summary>
+        /// **튜토리얼이 가르치는 판** — 비워 둔 칸(<see cref="StartingBoard.EmptySlot"/>)이
+        /// 사는 보드다. 좌표를 두 곳에 적지 않으려고 주인도 여기 한 곳에 적는다(지침 §7).
+        /// </summary>
+        private const MountOwner TutorialBoardOwner = MountOwner.RobotA;
+
         private MountOwner _editing = MountOwner.RobotA;
 
         /// <summary>지금 편집 중인 판의 주인. 탭이 읽는다.</summary>
@@ -1732,7 +1738,11 @@ namespace MBI.Logistics
         {
             if (_grid == null) return;
 
-            Vector2Int? target = TutorialSignals.GhostCell;
+            // ⚠️ **제 판에만 건다**(2026-10-06 육안 결함) — 고스트 좌표에는 주인이 없다.
+            //    B 탭에서는 막도 고스트도 **걷은 채로 둔다**(채울 이유가 없는 칸이다).
+            Vector2Int? target = _editing == TutorialBoardOwner
+                ? TutorialSignals.GhostCell
+                : null;
             if (!target.HasValue)
             {
                 RefreshTutorialDim(null); // 튜토리얼이 끝났거나 꺼졌다 — 막을 걷는다
@@ -2382,6 +2392,11 @@ namespace MBI.Logistics
             // 안 정해진다 — 이동 모드인 채로 고스트가 뜨면 할 수 있는 일은
             // 「조립 모드로 바꾸기」 하나뿐이다.
             TutorialSignals.BoardInBuildMode = _mode == BoardMode.Build;
+
+            // ⚠️ **지금 보는 판이 튜토리얼이 가르치는 그 판인가**(2026-10-06 육안 결함).
+            //    고스트 좌표에는 주인이 없어서, 이것을 안 알리면 **B 탭을 열었을 때
+            //    A 의 고스트가 B 판 위에 걸려 막이 덮이고 보드가 통째로 잠겼다.**
+            TutorialSignals.BoardViewIsTutorialBoard = _editing == TutorialBoardOwner;
 
             UpdateTutorialDim();
 
