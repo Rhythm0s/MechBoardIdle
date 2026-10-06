@@ -204,6 +204,27 @@ namespace MBI.EditorTools
             sb.AppendLine(fullAt >= 0f
                 ? "  ✅ 마운트 만충 = **" + fullAt.ToString("F1") + "초**"
                 : "  ⛔ **" + Seconds.ToString("F0") + "초 동안 만충이 안 섰다** — 둘째 목표가 영영 안 닫힌다");
+            // ⚠️⚠️ **슬롯 넷을 하나하나 찍는다**(2026-10-06 · 설계 `261002_W01` 3장 1번).
+            //
+            // 묻는 것 — 「막대가 가득인데 만충 판정이 거짓」이 성립하는가.
+            // 📌 `Capacity` 는 **임자가 정해진 슬롯만** 더하고 `IsFull` 은 **모든 슬롯**이
+            //    임자를 찾아야 참이라, 둘이 갈릴 수 있는지는 **슬롯을 봐야** 말할 수 있다.
+            // ⚠️ 게임 코드는 0 줄이다 — 여기는 하네스 출력이다.
+            sb.AppendLine();
+            sb.AppendLine("  [슬롯 넷 — 끝 상태]");
+            for (int si = 0; si < mount.SlotCount; si++)
+            {
+                MountItem it = mount.ItemAt(si);
+                sb.AppendLine($"    슬롯 {si} — 임자 {it} · 재고 {mount.AmountAt(si):F1}"
+                              + $" · 스택 상한 {mount.StackLimitOf(it):F1}");
+            }
+            sb.AppendLine($"    Capacity {mount.Capacity:F1} · Total {mount.Total:F1}"
+                          + $" · 전 슬롯 임자 있음 {mount.AllSlotsClaimed}"
+                          + $" · 만충 판정 {mount.IsFull} · 판정 가능 {mount.CanJudgeFullness}");
+            sb.AppendLine("    📌 로봇 아래 막대 둘은 **HP 와 보호막**이다"
+                          + "(`CombatEntityView.HpBarCenter` · `ShieldBarCenter`) — 마운트가 아니다.");
+            sb.AppendLine();
+
             sb.AppendLine("  끝 상태 — 라인 " + lineBuffer.Count + "줄 · 창고 "
                           + store.Total.ToString("F1") + "/" + cap.ToString("F0")
                           + " · 마운트 " + mount.Total.ToString("F1"));
