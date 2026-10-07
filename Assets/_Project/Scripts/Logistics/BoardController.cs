@@ -821,6 +821,27 @@ namespace MBI.Logistics
             grid.TryPlaceBelt(run.cell, run.inFace, run.outFace, FlowKind.None, out _);
         }
 
+        /// <summary>
+        /// **튜토리얼 칸을 비운다** — <see cref="PlaceTutorialFill"/> 의 짝
+        /// (2026-10-07 사용자 육안 ② · 「안 이었는데 이미 이어져 있다」).
+        ///
+        /// ⚠️⚠️ **저장이 채운 판을 복원하면 수업이 사라진다.** 튜토리얼은 **빈 칸 하나**로
+        /// 가르치는데, 복원이 그 칸을 메워 오면 고스트가 설 자리가 없다. 그러면 플레이어는
+        /// 배울 것도 못 배우고, 그 칸에 **안 흐르는 것**(예: 변환기)이 들어 있으면
+        /// 첫 목표가 영영 안 켜져 **잠긴 채로 남는다** — B 탭이 흐린 것도 그 잠금이다.
+        ///
+        /// ⚠️ **A 판에서 지운다** — 지금 B 를 보고 있어도 그렇다. 채우는 쪽이 이미
+        /// 그렇게 하고 있었고, 한쪽만 「지금 보는 판」이면 짝이 어긋난다.
+        /// </summary>
+        private void ClearTutorialSlot(BoardGrid grid)
+        {
+            if (grid == null || grid.Owner != MountOwner.RobotA) return;
+
+            Vector2Int cell = StartingBoard.EmptySlot;
+            if (grid.IsOccupied(cell)) grid.TryRemove(cell);
+            else if (grid.HasBelt(cell)) grid.TryRemoveBelt(cell);
+        }
+
         // 시작 배치가 쓰는 노드 자산을 인스펙터 목록에서 찾는다. 시작 보드는 id로만 적고
         // 자산 참조를 갖지 않으므로(순수 데이터), 씬 쪽에서 이어 준다.
         private NodeDefinition FindStartingNode(string nodeId)
@@ -2409,7 +2430,14 @@ namespace MBI.Logistics
             if (TutorialSignals.ClearEmptySlotRequested)
             {
                 TutorialSignals.ClearEmptySlotRequested = false;
-                RemoveAt(StartingBoard.EmptySlot);
+                // ⚠️ **튜토리얼 칸은 A 판의 것이다** — 채우는 쪽과 짝을 맞춘다
+                //    (2026-10-07). 종전에는 「지금 보는 판」에서 지워, B 를 보고 있으면
+                //    엉뚱한 판이 깎이고 A 는 그대로 남았다.
+                BoardGrid a = _boards[Index(MountOwner.RobotA)];
+                ClearTutorialSlot(a);
+                ResolveFlow(a, _flows[Index(MountOwner.RobotA)]);
+                if (_editing == MountOwner.RobotA) RespawnMarkersFromGrid();
+                RefreshConnections();
             }
 
             // 심사자 바로가기가 튜토리얼을 건너뛰고 들어왔다 — 그 칸을 채워 준다
