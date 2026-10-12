@@ -24,15 +24,31 @@ namespace MBI.UI
         /// <summary>판 색. 조립 화면 바탕과 같은 계열이라 새 색을 들이지 않는다.</summary>
         public static Color Tint => new Color(0.04f, 0.05f, 0.07f, Alpha);
 
-        /// <summary>글자가 판 가장자리에 닿지 않게 넓히는 여백.</summary>
+        /// <summary>
+        /// 글자가 판 가장자리에 닿지 않게 넓히는 여백 — **기준 캔버스 값**이다.
+        ///
+        /// ⚠️⚠️ **날 픽셀이었다**(2026-10-13 사용자 스크린샷 ①② · 빌드 2687da8).
+        ///
+        /// 종전에는 이 6 을 **그 창의 픽셀로** 그대로 둘렀다. 그런데 자리를 쌓는 쪽
+        /// (<see cref="UiLayout"/>)은 틈을 **기준 캔버스 값 × 배율**로 내므로, 창이 작아지면
+        /// 틈만 줄고 여백은 안 줄었다 — 넓은 창(세로 690)에서 진행 띠와 배지 카드의
+        /// **판이 9.8 픽셀 겹쳤다.** 기준 캔버스(2560)에서도 이미 4 픽셀 겹쳐 있었다.
+        ///
+        /// 📌 **시험은 초록이었다.** <c>StageProgressTests</c> 가 견준 것은 `Rect` 였고
+        /// 사람이 본 것은 **판**이다 — 재는 문이 사람이 지나는 문과 달랐다.
+        /// 그래서 판끼리 견주는 시험을 따로 세웠다(<c>UiPlateGapTests</c>).
+        /// </summary>
         public const float Pad = 6f;
+
+        /// <summary>이 창에서 실제로 두르는 여백 픽셀.</summary>
+        public static float PadPx(float scale) => Pad * scale;
 
         /// <summary>
         /// 이 자리에 판을 깐다. **그리기 전에** 부른다 — IMGUI 는 뒤에 그리는 쪽이 위로 온다.
         /// </summary>
         public static void Draw(Rect area)
         {
-            Rect r = Padded(area);
+            Rect r = Padded(area, UiLayout.CurrentScale);
 
             // ⚠️⚠️ **그림이 있으면 그림을 깐다**(2026-09-18 사용자 육안 · 시안 4 ①).
             //
@@ -71,8 +87,17 @@ namespace MBI.UI
             GUI.color = prev;
         }
 
-        /// <summary>여백을 두른 자리. 시험이 같은 셈을 쓰도록 밖으로 낸다.</summary>
-        public static Rect Padded(Rect area) =>
-            new Rect(area.x - Pad, area.y - Pad, area.width + Pad * 2f, area.height + Pad * 2f);
+        /// <summary>
+        /// 여백을 두른 자리 — **배율을 받아서** 두른다. 시험이 같은 셈을 쓰도록 밖으로 낸다.
+        ///
+        /// ⚠️ 배율을 **받는다**: 편집기 시험에서 <c>Screen.height</c> 는 그 창의 수라
+        /// 안에서 읽으면 시험이 돌 때마다 답이 달라진다.
+        /// </summary>
+        public static Rect Padded(Rect area, float scale)
+        {
+            float pad = PadPx(scale);
+            return new Rect(area.x - pad, area.y - pad,
+                            area.width + pad * 2f, area.height + pad * 2f);
+        }
     }
 }

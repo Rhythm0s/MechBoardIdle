@@ -323,8 +323,52 @@ namespace MBI.UI
             return new Rect(gold.x - 10f * sc - w, bar.y, w, bar.height);
         }
 
+        /// <summary>
+        /// **위아래로 쌓은 두 판 사이의 틈** (기준 캔버스 · 2026-10-13 신설).
+        ///
+        /// ⚠️⚠️ **왜 상수가 되었나.** 쌓이는 자리마다 틈을 따로 적어 두었고(8 · 12 · 16),
+        /// <see cref="UiPlate"/> 가 판을 <see cref="UiPlate.Pad"/> 만큼 **넓혀서** 그리는 것을
+        /// 아무도 셈에 넣지 않았다 — 양쪽이 각각 6 을 두르니 **틈이 12 를 넘지 않으면 판이
+        /// 겹친다.** 8 과 12 는 둘 다 안 넘었다(사용자 스크린샷 ① ② · 빌드 2687da8).
+        ///
+        /// 그래서 **여백에서 낸다** — <c>Pad</c> 를 고치면 틈이 따라 벌어진다.
+        /// 값을 두 곳에 적으면 답이 둘이 된다(지침 §7).
+        /// </summary>
+        public const float PlateGap = UiPlate.Pad * 2f + 4f;
+
         /// <summary>진행 띠 높이 (기준 캔버스 · ⚠️ 가정).</summary>
         public const float StageProgressHeight = 96f;
+
+        /// <summary>펼친 소리 패널의 가로·세로 (기준 캔버스 · ⚠️ 가정).</summary>
+        public const float SoundPanelWidth = 576f;
+
+        /// <summary>펼친 소리 패널 세로 — 이름표 30 + 슬라이더 26 + 틈 14 를 셋, 위아래 10.</summary>
+        public const float SoundPanelHeight = 10f + (30f + 26f + 14f) * 3f + 10f;
+
+        /// <summary>
+        /// **펼친 소리 패널** — 소리 버튼 아래, 오른쪽 구석 (2026-10-13 신설).
+        ///
+        /// ⚠️⚠️ **왜 자리가 여기로 왔나.** 종전에는 패널이 <c>AudioOptionsPanel</c> 안에서
+        /// 「소리 버튼 아랫변 + 4」로 제 자리를 냈다. 그 자리는 **진행 띠와 겹친다** —
+        /// 띠는 화면 **가로 전체**를 쓰고 윗변이 칩 줄 바로 아래라, 버튼 아래로 펴면
+        /// 반드시 띠를 지난다. 사용자 스크린샷 ①이 그 겹침이다(띠가 패널을 반쯤 가렸다).
+        ///
+        /// 📌 **그리는 차례로 고치지 않는다.** 이 리포는 같은 병을 세 번 그렇게 고치려
+        /// 했고 세 번 실패했다 — <c>GUI.depth</c> 는 안 먹었고(09-10 · 09-15 실측),
+        /// 「무엇 옆」으로 자리를 정하면 그 무엇이 자라면 또 걸린다(09-10 두 번).
+        /// **겹치지 않는 자리에 두는 것**이 이 리포에서 실제로 통한 유일한 길이다.
+        ///
+        /// ⚠️ **띠에서 자리를 받는다.** 띠는 전투 화면에만 뜨지만 이 셈은 창 크기만 쓰므로
+        /// **조립·전투·메인 메뉴 세 화면에서 같은 자리**다(그 규정이 패널 주석에 있다).
+        /// </summary>
+        public static Rect SoundPanelRect(float screenWidth, float screenHeight)
+        {
+            float sc = Scale(screenHeight);
+            Rect prog = StageProgressRect(screenWidth, screenHeight);
+            float pw = SoundPanelWidth * sc;
+            return new Rect(screenWidth - ChipBarPad * sc - pw, prog.yMax + PlateGap * sc,
+                            pw, SoundPanelHeight * sc);
+        }
 
         /// <summary>
         /// **스테이지 진행 띠** — 「Stage k/6」 + 맵 이름 + k/6 막대
@@ -357,7 +401,8 @@ namespace MBI.UI
             float sc = Scale(screenHeight);
             float w = Mathf.Min(760f * sc, screenWidth - ChipBarPad * 2f * sc);
             Rect prog = StageProgressRect(screenWidth, screenHeight);
-            return new Rect(ChipBarPad * sc, prog.yMax + 8f * sc, w, 210f * sc);
+            // ⚠️ 구 8 은 **판 여백 둘(12)보다 좁았다** — 띠와 카드의 판이 겹쳤다.
+            return new Rect(ChipBarPad * sc, prog.yMax + PlateGap * sc, w, 210f * sc);
         }
 
         /// <summary>
@@ -368,7 +413,9 @@ namespace MBI.UI
         {
             float sc = Scale(screenHeight);
             Rect badge = StageBadgeRect(screenWidth, screenHeight);
-            return new Rect(badge.x, badge.yMax + 12f * sc, MinButton * sc * 0.6f, MinButton * sc * 0.6f);
+            // ⚠️ 구 12 는 판 여백 둘과 **같아서** 판이 정확히 맞닿았다.
+            return new Rect(badge.x, badge.yMax + PlateGap * sc,
+                            MinButton * sc * 0.6f, MinButton * sc * 0.6f);
         }
 
         /// <summary>펼친 진단 패널. ⚠️ 가정 — 손잡이 아래로 흐르고 화면 안에서 잘린다.</summary>

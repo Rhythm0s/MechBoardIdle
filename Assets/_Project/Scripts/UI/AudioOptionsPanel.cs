@@ -55,6 +55,11 @@ namespace MBI.UI
 
         private const float ButtonW = 96f;
         private const float ButtonH = 32f;
+        /// <summary>
+        /// 🗑️ **폐기 — 자리를 `UiLayout.SoundPanelRect` 가 낸다**(2026-10-13).
+        /// 가로는 이제 `UiLayout.SoundPanelWidth`(576 = 240 × 2.4) 하나다.
+        /// 지우지 않고 남긴다 — 576 이 어디서 온 수인지 읽는 사람이 알 수 있게.
+        /// </summary>
         private const float PanelW = 240f;
         /// <summary>
         /// 슬라이더 **셋** 이 들어간다 (2026-09-11 · 사운드 문서 7장 채널 셋).
@@ -194,7 +199,6 @@ namespace MBI.UI
             //
             // 🗑️ 구 자리(우상단 여백 24 · MinButton×1.4)는 폐기 — 칩 줄이 그 자리를 덮는다.
             float scale = UiLayout.Scale(Screen.height);
-            float margin = 24f * scale;
             var button = UiLayout.ChipSoundRect(Screen.width, Screen.height);
             float bh = button.height;
             UiBlockers.Add(button);
@@ -226,9 +230,14 @@ namespace MBI.UI
             // ⚠️ **높이를 줄에서 낸다**(2026-09-18). 구 `PanelH`(16 + 52×3)는 **날 픽셀 줄**을
             //    전제한 수라, 줄을 배율에 태우자 패널이 내용보다 작아진다 —
             //    그러면 마지막 슬라이더가 상자 밖으로 밀린다(09-06·09-15 와 같은 병).
-            float pw = PanelW * 2.4f * scale;
-            float ph = (10f + (30f + 26f + 14f) * 3f + 10f) * scale;
-            var panel = new Rect(Screen.width - margin - pw, button.yMax + 4f * scale, pw, ph);
+            //
+            // ⚠️⚠️ **자리를 여기서 안 낸다**(2026-10-13 · 사용자 스크린샷 ①).
+            //
+            // 구 셈은 「소리 버튼 아랫변 + 4」였다. 버튼은 칩 줄에 있고 칩 줄 바로 아래는
+            // **진행 띠**(화면 가로 전체)라, 버튼 아래로 펴면 **반드시 띠를 지난다** —
+            // 띠가 패널을 반쯤 가린 것이 그 결함이다. 자리는 `UiLayout.SoundPanelRect`
+            // 한 곳이 내고 여기는 **그리기만** 한다(지침 §7 · 칩 줄 자리와 같은 꼴).
+            var panel = UiLayout.SoundPanelRect(Screen.width, Screen.height);
             UiBlockers.Add(panel);
             GUI.Box(panel, GUIContent.none);
 

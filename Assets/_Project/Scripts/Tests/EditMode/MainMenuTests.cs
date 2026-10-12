@@ -153,7 +153,9 @@ namespace MBI.Tests
         public void TheBackingPlateCoversTheTextOnly_NotTheWholeInset()
         {
             var hud = new Rect(12f, 10f, 560f, 280f);
-            Rect plate = MBI.UI.UiPlate.Padded(hud);
+            // ⚠️ **배율을 1 로 못 박는다**(2026-10-13). 여백이 배율을 타게 되었으므로
+            //    안에서 `Screen.height` 를 읽으면 시험이 편집기 창 크기에 매달린다.
+            Rect plate = MBI.UI.UiPlate.Padded(hud, 1f);
 
             Assert.Less(plate.width, 1440f * 0.6f, "판이 가로를 절반 넘게 먹으면 전투가 가린다");
             Assert.Less(plate.yMax, MBI.Core.CombatInsetView.BottomPixels(2560f),
