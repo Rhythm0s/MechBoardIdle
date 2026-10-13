@@ -396,6 +396,27 @@ namespace MBI.UI
             return new Rect(box.x + pad, box.y + pad, box.width - pad * 2f, textLinePx);
         }
 
+        /// <summary>
+        /// 결과 화면 단추 **여럿** — 글자 아래 한 줄에 나란히 (2026-10-13 · 기획서 7장).
+        ///
+        /// 통과는 셋([다시 도전] [스테이지로] + [다음 스테이지로]), 실패는 둘이다.
+        /// ⚠️ 칸을 **고르게** 나눈다 — 어느 하나를 크게 하면 그것이 권하는 길처럼 읽히는데,
+        /// 무엇을 권할지는 내가 정할 일이 아니다(설계 역기입 자리).
+        /// </summary>
+        public static Rect ResultBannerButtonRect(float screenWidth, float screenHeight,
+            float textLinePx, int index, int count)
+        {
+            Rect one = ResultBannerButtonRect(screenWidth, screenHeight, textLinePx);
+            if (count <= 1) return one;
+
+            Rect text = ResultBannerTextRect(screenWidth, screenHeight, textLinePx);
+            float gap = PlateGap * Scale(screenHeight) * 0.5f;
+            float w = (text.width - gap * (count - 1)) / count;
+            if (w <= 0f) return one;
+
+            return new Rect(text.x + (w + gap) * index, one.y, w, one.height);
+        }
+
         /// <summary>「다시 (Restart)」 — 글자 아래, 틈은 <see cref="PlateGap"/>.</summary>
         public static Rect ResultBannerButtonRect(float screenWidth, float screenHeight, float textLinePx)
         {

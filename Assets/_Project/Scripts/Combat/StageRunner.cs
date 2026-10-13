@@ -29,6 +29,16 @@ namespace MBI.Combat
         public CombatTuning tuning;
         [Tooltip("적 카탈로그(atk 조회용). Enemy_infantry/artillery/armor/boss.")]
         public List<EnemyDefinition> enemyCatalog = new List<EnemyDefinition>();
+
+        /// <summary>
+        /// 여섯 판 목록 — **파밍에서 부서지면 한 판 뒤로 가야** 하므로 러너가 알아야 한다
+        /// (2026-10-13 · #113).
+        ///
+        /// ⚠️ 심사자 도구(<c>ReviewerShortcuts</c>)도 같은 목록을 들지만 **그쪽은 도구**다.
+        /// 게임이 도는 데 필요한 것을 도구에서 빌려 오면, 도구가 빠진 빌드에서 게임이 선다.
+        /// ⚠️ 비면 뒤로 못 가고 **제자리에서 다시 선다**(멈춰 있는 것보다 낫다).
+        /// </summary>
+        public List<StageDefinition> stageCatalog = new List<StageDefinition>();
         [Tooltip("자동 조종(방치). 수동 입력이 들어오면 잠시 양보한다.")]
         public bool autoPilot = true;
 
@@ -538,6 +548,28 @@ namespace MBI.Combat
             BindRobotView();
 
             _cutscene.Reset(); // 지난 판의 숫자가 남아 있으면 안 된다
+
+            // ⚠️⚠️ **스테이지에 들어가면 파밍 층부터 선다**(2026-10-13 사용자 확정 #111).
+            //    도전은 **버튼으로** 들어간다 — 들어서자마자 120초가 흐르면 보드를 고칠
+            //    틈이 없고, 그러면 「고쳐서 넘는다」는 이 게임의 뼈대가 안 보인다.
+            //
+            // 📌 **깃발로 가른다.** `EnterChallenge` 가 `Restart` 를 거쳐 다시 여기로 오는데,
+            //    뒤에서 층을 덮어쓰면 그 사이에 파밍이 한 번 서고 적이 깔린다 —
+            //    **들어가기 전에** 정해야 그런 틈이 없다.
+            //
+            // ⚠️ 튜토리얼 판에는 파밍 층이 없다(기획서 3장 · 여섯에 안 든다).
+            if (IsTutorialStage || _challengeNext)
+            {
+                _challengeNext = false;
+                StageLayerSignals.Current = StageLayer.Challenge;
+                _farm = null;
+                _farmRespawnLeft = 0f;
+            }
+            else
+            {
+                OpenFarmLayer();
+            }
+
             _ready = true;
         }
 
@@ -1500,7 +1532,16 @@ namespace MBI.Combat
             CombatLayer.Apply(transform);
 
             // 처치를 방치 런타임으로 흘린다. 가져가며 비우는 API라 같은 처치를 두 번 세지 않는다.
-            IdleSignals.AddKills(_sim.ConsumeKills());
+            int killsThisTick = _sim.ConsumeKills();
+            double scrapThisTick = _sim.ConsumeScrap();
+            IdleSignals.AddKills(killsThisTick);
+
+            // 번 것을 지금 층의 장부에 적는다 (2026-10-13 · #111). 파밍과 도전을 섞으면
+            // 「파밍으로 얼마를 버나」를 영영 못 재고 오프라인 시급 기록이 거짓이 된다.
+            StageLayerSignals.Credit(scrapThisTick);
+
+            // 파밍 층이면 바퀴를 돌린다 — 보충·시급은 FarmSession 이 든다.
+            TickFarmLayer(Time.deltaTime, killsThisTick, scrapThisTick);
 
             // 이번 틱 사격 연출(탄선 + 피격). 실제 틱이 돈 경우만(종료 후 스테일 재생성 방지).
             if (running)
@@ -2015,6 +2056,191 @@ namespace MBI.Combat
         }
 
         /// <summary>뷰만 정리하고 전투를 다시 구성한다. 씬 리로드 없음.</summary>
+        // ───────────────────── 파밍 층 (2026-10-13 사용자 확정 #111) ─────────────────────
+
+        /// <summary>
+        /// **파밍 화면의 「도전」 단추** (2026-10-13 · #111 · 항상 활성).
+        ///
+        /// 자리는 결과 배너와 **같은 칸**을 쓴다 — 둘은 동시에 안 뜨므로(하나는 싸우는 중,
+        /// 하나는 끝난 뒤) 자리를 두 벌 만들 까닭이 없다(지침 §7).
+        /// ⚠️ 문구·자리는 가정이다(UI 문서 역기입 자리).
+        /// </summary>
+        private void DrawChallengeButton()
+        {
+            float line = KoreanFont.Snap(Mathf.Max(14,
+                Mathf.RoundToInt(44f * UiLayout.Scale(Screen.height))));
+            Rect r = UiLayout.ResultBannerButtonRect(Screen.width, Screen.height, line, 0, 1);
+            UiBlockers.Add(r);
+
+            var st = new GUIStyle(GUI.skin.button) { wordWrap = false };
+            const string label = "도전";
+            if (st.CalcSize(new GUIContent(label)).x > r.width)
+                UiText.FitOneLine(st, label, r.width);
+
+            if (UiSkin.Button(r, label, st)) EnterChallenge();
+        }
+
+        /// <summary>
+        /// 다음 판 — 없으면 null(마지막 판이다). 목록이 비어도 null 이다.
+        /// ⚠️ 번호로 찾는다. 자산 차례에 기대면 목록을 섞었을 때 조용히 틀린 판으로 간다.
+        /// </summary>
+        private StageDefinition NextStageOf(StageDefinition from)
+        {
+            int here = StageMapName.NumberOf(from != null ? from.stageId : string.Empty);
+            if (here <= 0 || stageCatalog == null) return null;
+
+            foreach (StageDefinition d in stageCatalog)
+                if (d != null && StageMapName.NumberOf(d.stageId) == here + 1) return d;
+            return null;
+        }
+
+        /// <summary>튜토리얼 전용 판인가 — 여섯에 안 드는 판에는 파밍 층이 없다.</summary>
+        private bool IsTutorialStage =>
+            stage != null && StageMapName.NumberOf(stage.stageId) <= 0;
+
+        /// <summary>다음 <c>Begin</c> 을 **도전으로** 열라는 깃발. 열면서 내린다.</summary>
+        private bool _challengeNext;
+
+        /// <summary>
+        /// **파밍 → 도전**. 파밍 화면의 「도전」 버튼이 부른다(사용자 확정 #111 · 항상 활성).
+        ///
+        /// 판을 다시 세운다 — 도전은 **그 판의 구성·제한시간·요구치**로 처음부터 선다.
+        /// ⚠️ 파밍 장부는 그대로 두고 **도전 장부만** 새로 쌓인다(섞지 않는다).
+        /// </summary>
+        public void EnterChallenge()
+        {
+            if (IsTutorialStage) return;
+            Debug.Log($"[MBI] 도전 시작 — {(stage != null ? stage.stageId : "?")}.");
+            _challengeNext = true;
+            Restart();
+        }
+
+        /// <summary>**도전 → 파밍**. 결과 화면의 「스테이지로」가 부른다.</summary>
+        public void ReturnToFarm()
+        {
+            if (IsTutorialStage) return;
+            Debug.Log($"[MBI] 파밍으로 돌아간다 — {(stage != null ? stage.stageId : "?")}.");
+            _challengeNext = false;
+            Restart();      // 몬스터는 그 판 정원부터 새로 · HP 만탱
+        }
+
+        /// <summary>그 판의 파밍 바퀴. 층이 파밍일 때만 돈다. 표가 비면 null 이다.</summary>
+        private FarmSession _farm;
+
+        /// <summary>부서진 뒤 다시 설 때까지 남은 초. 0 이면 서 있다.</summary>
+        private float _farmRespawnLeft;
+
+        /// <summary>이번 바퀴에 넣을 것들 — 매 틱 새 목록을 만들지 않으려고 들고 있는다.</summary>
+        private readonly List<FarmRefillRule.Refill> _farmPlan = new List<FarmRefillRule.Refill>();
+
+        /// <summary>종류별 생존 수 — 같은 까닭으로 들고 있는다.</summary>
+        private readonly Dictionary<string, int> _farmAlive = new Dictionary<string, int>();
+
+        /// <summary>
+        /// **파밍 층을 연다** — 스테이지에 들어가면 여기부터다(사용자 확정 #111).
+        ///
+        /// ⚠️ 표가 비면 바퀴가 **안 선다**. 그 판에 파밍 층이 아직 없다는 뜻이고,
+        /// 지어내지 않는다 — 빈 채로 두면 도전 버튼만 있는 화면이 된다.
+        /// </summary>
+        private void OpenFarmLayer()
+        {
+            StageLayerSignals.Current = StageLayer.Farm;
+            _farmRespawnLeft = 0f;
+            _farm = null;
+
+            if (stage == null || stage.farmComposition == null) return;
+
+            int cap = FarmRefillRule.CapacityOf(stage.farmComposition);
+            if (cap <= 0 || stage.spawnInterval <= 0f)
+            {
+                Debug.LogWarning($"[MBI] 파밍 표가 비었다 — 정원 {cap} · 간격 {stage.spawnInterval}"
+                                 + $" ({stage.stageId}). 파밍 층이 안 선다.");
+                return;
+            }
+
+            // ⚠️ **승패를 멈춘다** — 파밍 층에는 이기고 지는 것이 없다(로봇 파괴만 있다).
+            if (_sim != null) _sim.Endless = true;
+
+            _farm = new FarmSession(cap, stage.spawnInterval);
+
+            // 첫 바퀴를 **바로** 채운다 — 기다리게 하면 들어선 화면이 텅 비어 있다.
+            RefillFarm();
+        }
+
+        /// <summary>한 틱 — 보충·시급·부서짐을 본다.</summary>
+        private void TickFarmLayer(float dt, int kills, double scrap)
+        {
+            if (_farm == null || !StageLayerSignals.IsFarming || _sim == null) return;
+
+            // 부서졌으면 세는 것을 멈추고 돌아갈 채비를 한다.
+            if (_farmRespawnLeft > 0f)
+            {
+                _farmRespawnLeft -= dt;
+                if (_farmRespawnLeft <= 0f) FallBackOneStage();
+                return;
+            }
+
+            if (_sim.Robot != null && !_sim.Robot.IsAlive)
+            {
+                _farmRespawnLeft = FarmDefeatRule.RespawnDelaySeconds;
+                return;
+            }
+
+            FarmTickResult r = _farm.Tick(dt, _sim.Enemies.Count, kills, scrap);
+
+            if (r.lapClosed)
+            {
+                // 바퀴가 닫히면 그 바퀴 시급을 기록한다 — 오프라인 정산이 읽는 수다.
+                IdleSignals.ReportFarmLap(stage != null ? stage.stageId : string.Empty,
+                    (float)r.lapHourlyRate);
+                RefillFarm();
+            }
+        }
+
+        /// <summary>정원까지 채운다 — 무엇을 몇 마리 넣을지는 <c>FarmRefillRule</c> 이 정한다.</summary>
+        private void RefillFarm()
+        {
+            if (_sim == null || stage == null || stage.farmComposition == null) return;
+
+            _farmAlive.Clear();
+            foreach (CombatEntity e in _sim.Enemies)
+            {
+                if (!e.IsAlive || string.IsNullOrEmpty(e.label)) continue;
+                _farmAlive.TryGetValue(e.label, out int n);
+                _farmAlive[e.label] = n + 1;
+            }
+
+            FarmRefillRule.Plan(stage.farmComposition, _farmAlive, _farmPlan);
+            if (_farmPlan.Count == 0) return;
+
+            var batch = new List<EnemySpawn>();
+            foreach (FarmRefillRule.Refill r in _farmPlan)
+                for (int i = 0; i < r.count; i++)
+                    batch.Add(StageSpawnFactory.FarmSpawn(r.entry, enemyCatalog, tuning));
+
+            _sim.SpawnBatch(batch);
+        }
+
+        /// <summary>
+        /// **한 판 뒤로 간다**(사용자 확정 #113). 몬스터는 그 판 정원부터 새로, HP 는 만탱.
+        ///
+        /// ⚠️ 돌아갈 판 자산을 못 찾으면 **제자리에서 다시 선다** — 못 간다고 멈춰 있으면
+        /// 화면이 영영 안 돌아온다.
+        /// </summary>
+        private void FallBackOneStage()
+        {
+            int here = StageMapName.NumberOf(stage != null ? stage.stageId : string.Empty);
+            int back = FarmDefeatRule.NextStageNumber(here);
+
+            StageDefinition target = stage;
+            if (back > 0 && back != here && stageCatalog != null)
+                foreach (StageDefinition d in stageCatalog)
+                    if (d != null && StageMapName.NumberOf(d.stageId) == back) { target = d; break; }
+
+            Debug.Log($"[MBI] 파밍 파괴 — S{here} → S{StageMapName.NumberOf(target.stageId)} 파밍으로.");
+            LoadStage(target);
+        }
+
         public void Restart()
         {
             _ready = false;
@@ -2186,19 +2412,56 @@ namespace MBI.Combat
                 GUI.Label(UiLayout.ResultBannerTextRect(Screen.width, Screen.height, line),
                           resultText, big);
 
-                // 단추 글자도 같은 병을 앓는다 — 칸이 줄어도 기본 글자는 안 줄어 「다시 (Rest」
-                // 처럼 잘린다. 같은 사다리로 맞춘다.
-                Rect againRect = UiLayout.ResultBannerButtonRect(Screen.width, Screen.height, line);
-                const string againLabel = "다시 (Restart)";
-                var againStyle = new GUIStyle(GUI.skin.button) { wordWrap = false };
-                if (againStyle.CalcSize(new GUIContent(againLabel)).x > againRect.width)
-                    UiText.FitOneLine(againStyle, againLabel, againRect.width);
+                // ✅ **결과 화면 셋**(2026-10-13 사용자 확정 #111 · 기획서 7장).
+                //
+                // 통과 — [다시 도전] [스테이지로] [다음 스테이지로]
+                // 실패 — [다시 도전] [스테이지로]
+                //
+                // 🗑️ 구 「다시 (Restart)」 한 단추 폐기. 그 단추는 **같은 판을 또 돈다**는 뜻
+                //    하나뿐이라, 「파밍으로 돌아가 보드를 고친다」는 길이 화면에 없었다 —
+                //    이 게임에서 지고 나서 할 일은 **고치는 것**인데 그 길이 안 보였다.
+                //
+                // ⚠️ 튜토리얼 판에는 층이 없다 — 거기서는 종전처럼 한 단추다.
+                bool won = _sim.Result == CombatResult.Win;
+                bool layered = !IsTutorialStage;
+                var labels = new List<string>();
+                if (layered)
+                {
+                    labels.Add("다시 도전");
+                    labels.Add("스테이지로");
+                    if (won && NextStageOf(stage) != null) labels.Add("다음 스테이지로");
+                }
+                else labels.Add("다시 (Restart)");
 
-                if (UiSkin.Button(againRect, againLabel, againStyle)) Restart();
+                for (int i = 0; i < labels.Count; i++)
+                {
+                    Rect r = UiLayout.ResultBannerButtonRect(
+                        Screen.width, Screen.height, line, i, labels.Count);
+
+                    // 단추 글자도 같은 병을 앓는다 — 칸이 줄어도 기본 글자는 안 줄어
+                    // 「다시 (Rest」 처럼 잘린다. 같은 사다리로 맞춘다.
+                    var bs = new GUIStyle(GUI.skin.button) { wordWrap = false };
+                    if (bs.CalcSize(new GUIContent(labels[i])).x > r.width)
+                        UiText.FitOneLine(bs, labels[i], r.width);
+
+                    if (!UiSkin.Button(r, labels[i], bs)) continue;
+
+                    if (!layered) { Restart(); break; }
+                    if (i == 0) { EnterChallenge(); break; }
+                    if (i == 1) { ReturnToFarm(); break; }
+
+                    StageDefinition next = NextStageOf(stage);
+                    if (next != null) LoadStage(next);   // 다음 판도 파밍부터 선다
+                    break;
+                }
             }
             else
             {
                 TagMergeButtons(style);
+
+                // ✅ **파밍 화면의 「도전」**(사용자 확정 #111 · 항상 활성).
+                //    여기 없으면 파밍 층에서 나갈 길이 없다 — 들어는 가지는데 못 나온다.
+                if (StageLayerSignals.IsFarming && !IsTutorialStage) DrawChallengeButton();
             }
 
             // IMGUI는 나중에 그린 것이 위에 온다 — 연출은 결과 화면 위에도 덮여야 한다.

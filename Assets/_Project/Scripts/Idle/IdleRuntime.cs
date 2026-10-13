@@ -126,6 +126,11 @@ namespace MBI.Idle
                 Wallet.AddScrap(mScrap);
             }
 
+            // 파밍 바퀴 기록 — 스테이지별 **최고 한 바퀴 시급**만 남는다(기획서 6장).
+            // ⚠️ 적는 자리는 여기 하나다. 전투 쪽이 세이브를 직접 만지면 규칙이 흩어진다.
+            if (IdleSignals.TryDrainFarmLap(out string lapStage, out float lapRate))
+                Data.TryRecordFarmRate(lapStage, lapRate);
+
             if (IdleSignals.TryDrainClear(out ClearReport clear))
             {
                 // 최초 클리어에만 강화재료. 재지급하면 Σ(S1~S3)=s4Cost인 닫힌 곡선이 무너진다.

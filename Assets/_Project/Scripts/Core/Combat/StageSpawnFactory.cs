@@ -23,6 +23,60 @@ namespace MBI.Core.Combat
         ///
         /// ⚠️ 종전에는 넷이 튜닝 하나를 똑같이 써서 **보병과 포격이 같이 움직였다.**
         /// </summary>
+        /// <summary>
+        /// **적 하나를 짓는 자리 — 도전과 파밍이 함께 쓴다** (2026-10-13).
+        ///
+        /// ⚠️⚠️ **여기 하나뿐이라야 한다.** 둘이 각자 `EnemySpawn` 을 채우면 새 칸이 생길 때
+        /// 한쪽에만 적히고, 그것이 ⑫(`isBoss` 누락 · 보스가 보스로 안 섬)가 났던 모양이다.
+        /// 종류별 고철을 더할 때도 **여기 한 줄**만 고쳤다.
+        /// </summary>
+        private static EnemySpawn MakeSpawn(StageComposition c, EnemyDefinition def,
+            CombatTuning tuning) =>
+            new EnemySpawn
+            {
+                label = def != null ? def.displayName : c.enemyKey,
+                hp = c.hp,
+                def = c.def,
+                atk = def != null ? def.atk : 0f,
+                moveSpeed = Pick(def != null ? def.moveSpeed : 0f, 0f,
+                    tuning.enemyMoveSpeedTbd),
+                attackRange = Pick(def != null ? def.attackRange : 0f,
+                    RoleRange(def), tuning.enemyAttackRangeTbd),
+                attackInterval = Pick(def != null ? def.attackInterval : 0f, 0f,
+                    tuning.enemyAttackIntervalTbd),
+                // ⚠️ 투사체만 마지막 단이 **0**이다 — 즉발이 현행이라 폴백이 따로 없다.
+                projectileSpeed = Pick(def != null ? def.projectileSpeed : 0f,
+                    RoleProjectile(def), 0f),
+                radius = EnemySize(c.hp) * 0.5f,
+                // ✅ **보스 표식**(2026-09-30 사용자 확정 ⑫) — `EnemyRole` 을 시뮬까지 들고 간다.
+                //    자산이 없으면 거짓이다(지어내지 않는다).
+                isBoss = IsBossRole(def),
+                // ✅ **종류별 고철**(2026-10-13 사용자 확정 #112 ⑤) — 값이 적을 따라 흐른다.
+                //    ⚠️ 자산이 없으면 0 이다. 표가 들어오기 전에는 전부 0 이고, 그 상태는
+                //       「아직 안 정해졌다」가 아니라 **「표가 아직 없다」**이다.
+                scrapPerKill = def != null ? def.scrapPerKill : 0f,
+            };
+
+        /// <summary>
+        /// **파밍 한 마리** (2026-10-13 · #111). 도전 판의 <see cref="Build"/> 와 **같은 꼴**로 짓되
+        /// 줄 하나(종류·체력·방어)만 받는다 — 파밍은 「무엇이 몇 마리 서 있는가」라
+        /// 스테이지 전체가 아니라 **줄 단위**로 보충되기 때문이다.
+        ///
+        /// ⚠️⚠️ **칸을 여기서 또 적지 않는다.** 도전과 파밍이 각자 `EnemySpawn` 을 채우면
+        /// 새 칸이 생길 때 한쪽에만 적히고, 그것이 ⑫(`isBoss` 누락)가 났던 모양이다.
+        /// 그래서 **같은 자리**(<see cref="Build"/> 의 몸)를 함수로 빼서 둘이 같이 쓴다.
+        /// </summary>
+        public static EnemySpawn FarmSpawn(StageComposition entry,
+            IReadOnlyList<EnemyDefinition> catalog, CombatTuning tuning)
+        {
+            EnemyDefinition def = null;
+            if (catalog != null)
+                foreach (EnemyDefinition e in catalog)
+                    if (e != null && e.enemyKey == entry.enemyKey) { def = e; break; }
+
+            return MakeSpawn(entry, def, tuning);
+        }
+
         public static float Pick(float fromAsset, float fromRule, float fallback)
         {
             if (fromAsset > 0f) return fromAsset;
@@ -64,40 +118,12 @@ namespace MBI.Core.Combat
             foreach (StageComposition c in stage.composition)
             {
                 byKey.TryGetValue(c.enemyKey ?? string.Empty, out EnemyDefinition def);
-                float atk = def != null ? def.atk : 0f;
                 string label = def != null ? def.displayName : c.enemyKey;
 
                 onDefinition?.Invoke(label, def);
 
                 for (int i = 0; i < c.count; i++)
-                {
-                    spawns.Add(new EnemySpawn
-                    {
-                        label = label,
-                        hp = c.hp,
-                        def = c.def,
-                        atk = atk,
-                        moveSpeed = Pick(def != null ? def.moveSpeed : 0f, 0f,
-                            tuning.enemyMoveSpeedTbd),
-                        attackRange = Pick(def != null ? def.attackRange : 0f,
-                            RoleRange(def), tuning.enemyAttackRangeTbd),
-                        attackInterval = Pick(def != null ? def.attackInterval : 0f, 0f,
-                            tuning.enemyAttackIntervalTbd),
-                        // ⚠️ 투사체만 마지막 단이 **0**이다 — 즉발이 현행이라 폴백이 따로 없다.
-                        projectileSpeed = Pick(def != null ? def.projectileSpeed : 0f,
-                            RoleProjectile(def), 0f),
-                        radius = EnemySize(c.hp) * 0.5f,
-                        // ✅ **보스 표식**(2026-09-30 사용자 확정 ⑫) — `EnemyRole` 을 시뮬까지
-                        //    들고 간다. 자산이 없으면 거짓이다(지어내지 않는다).
-                        isBoss = IsBossRole(def),
-
-                        // ✅ **종류별 고철**(2026-10-13 사용자 확정 #112 ⑤) — 값이 적을 따라 흐른다.
-                        //    ⚠️ 자산이 없으면 0 이다(지어내지 않는다). 표가 들어오기 전에는
-                        //       전부 0 이고, 그 상태는 「아직 안 정해졌다」가 아니라
-                        //       **「표가 아직 없다」**이다.
-                        scrapPerKill = def != null ? def.scrapPerKill : 0f,
-                    });
-                }
+                    spawns.Add(MakeSpawn(c, def, tuning));
             }
 
             return spawns;

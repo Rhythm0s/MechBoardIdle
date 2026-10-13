@@ -1221,6 +1221,26 @@ namespace MBI.Core
             return k;
         }
 
+        /// <summary>
+        /// 이번 틱에 죽은 것들이 **들고 있던 고철의 합** (2026-10-13 · 종류별 고철 #112 ⑤).
+        ///
+        /// ⚠️⚠️ **마릿수로는 못 낸다.** 단가가 종류마다 갈렸으므로(보병 2 · 장갑 3 · 포격 4)
+        /// 「몇 마리 잡았나」만으로는 얼마를 벌었는지 모른다 — 그래서 수와 **액수를 따로** 센다.
+        /// </summary>
+        public double ScrapThisTick { get; private set; }
+
+        /// <summary>
+        /// 이번 틱 고철을 **가져가며 0으로 비운다** — <see cref="ConsumeKills"/> 와 같은 규약이다.
+        ///
+        /// 그냥 읽게 두면 전투가 끝난 뒤 마지막 값이 멈춰 있어 **매 프레임 다시 적립**된다.
+        /// </summary>
+        public double ConsumeScrap()
+        {
+            double v = ScrapThisTick;
+            ScrapThisTick = 0d;
+            return v;
+        }
+
         /// <summary>이 전투에서 누적 처치 수.</summary>
         public int TotalKills { get; private set; }
 
@@ -2377,6 +2397,9 @@ namespace MBI.Core
                 // ⚠️ **상한을 둔다** — 아무도 안 가져가는 자리(하네스·격리 시뮬)에서
                 //    이 목록이 한없이 자란다. 그림 몫이라 넘치는 것은 버려도 된다.
                 if (_killPositions.Count < KillPositionCap) _killPositions.Add(_enemies[i].position);
+                // ⚠️ **빼기 전에 몫을 거둔다** — 목록에서 빼고 나면 그 적이 얼마짜리였는지가
+                //    사라진다. 세는 자리와 **같은 자리**라야 수와 액수가 안 어긋난다.
+                ScrapThisTick += _enemies[i].scrapPerKill;
                 _enemies.RemoveAt(i);
                 KillsThisTick++;
                 TotalKills++;

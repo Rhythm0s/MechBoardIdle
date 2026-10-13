@@ -156,6 +156,15 @@ namespace MBI.Editor
                 rsl.GetArrayElementAtIndex(i + 1).objectReferenceValue = stageList[i];
             rso.ApplyModifiedPropertiesWithoutUndo();
 
+            // 러너도 여섯 판을 안다 — 파밍에서 부서지면 한 판 뒤로 가야 하기 때문이다(#113).
+            // ⚠️ 심사자 도구에서 빌려 오지 않는다. 도구가 빠진 빌드에서도 게임은 돌아야 한다.
+            var runnerSo = new SerializedObject(runner);
+            SerializedProperty rcl = runnerSo.FindProperty("stageCatalog");
+            rcl.arraySize = stageList.Count;
+            for (int i = 0; i < stageList.Count; i++)
+                rcl.GetArrayElementAtIndex(i).objectReferenceValue = stageList[i];
+            runnerSo.ApplyModifiedPropertiesWithoutUndo();
+
             // 자동 전투 진행(§5-7): 전투가 끝나면 스스로 다음 판을 건다.
             // 사람이 "다시"를 눌러야 이어지면 방치형이 아니다.
             var auto = go.AddComponent<AutoBattleController>();

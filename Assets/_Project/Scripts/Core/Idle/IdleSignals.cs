@@ -182,6 +182,38 @@ namespace MBI.Core
             return had;
         }
 
+        /// <summary>
+        /// **바퀴가 닫혔다** — 그 바퀴의 시급을 알린다 (2026-10-13 · #111 · 기획서 6장).
+        ///
+        /// ⚠️ **여기서 저장에 안 쓴다.** 저장은 방치 런타임이 든다(`IdleRuntime`) —
+        /// 전투 쪽이 세이브를 직접 만지면 적립 규칙이 두 곳으로 흩어진다(지침 §7).
+        /// 그래서 **알리고 비우는** 꼴이고, 가져가는 쪽이 기록을 갱신한다.
+        ///
+        /// ⚠️ **도전 중에는 안 부른다** — 도전 판의 처치로 파밍 시급을 적으면
+        /// 「상주해서 버는 속도」가 거짓이 된다(확정: 도전 중 기록 안 함).
+        /// </summary>
+        public static void ReportFarmLap(string stageId, float scrapPerHour)
+        {
+            if (string.IsNullOrEmpty(stageId)) return;
+            _farmLapStage = stageId;
+            _farmLapRate = scrapPerHour;
+            _farmLapPending = true;
+        }
+
+        private static string _farmLapStage;
+        private static float _farmLapRate;
+        private static bool _farmLapPending;
+
+        /// <summary>닫힌 바퀴를 **가져가며 비운다** — 두 번 적지 않는다.</summary>
+        public static bool TryDrainFarmLap(out string stageId, out float scrapPerHour)
+        {
+            stageId = _farmLapStage;
+            scrapPerHour = _farmLapRate;
+            bool had = _farmLapPending;
+            _farmLapPending = false;
+            return had;
+        }
+
         /// <summary>처치 보고(전투 측). CombatSimulation.ConsumeKills로 가져온 값을 넣는다.</summary>
         public static void AddKills(int count)
         {
