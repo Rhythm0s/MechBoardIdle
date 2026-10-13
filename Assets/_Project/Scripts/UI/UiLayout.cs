@@ -494,6 +494,34 @@ namespace MBI.UI
         }
 
         /// <summary>
+        /// **파밍 화면의 「도전」 단추** — 상단 스테이지 정보의 **오른쪽 아래**
+        /// (2026-10-13 사용자 지시).
+        ///
+        /// 📌 **왜 거기인가.** 배지 카드가 「지금 어느 판·무엇을 하는 곳인가」를 말하는데,
+        /// 도전은 **그 판에서 하는 다음 일**이다 — 말하는 자리 바로 옆에 두면 읽고 바로 누른다.
+        /// 화면 한가운데에 두었더니 **싸우는 장면을 가렸다**(첫 빌드 실측).
+        ///
+        /// 자리를 **배지 카드와 진행 띠에서 받아 낸다** — 오른끝은 띠의 오른끝,
+        /// 아랫변은 카드의 아랫변이다. 둘 중 하나가 움직이면 단추도 따라간다(지침 §7).
+        ///
+        /// ⚠️ 크기는 가정이다(최소 버튼 한 변 · UI 문서 역기입 자리).
+        /// </summary>
+        public static Rect ChallengeButtonRect(float screenWidth, float screenHeight)
+        {
+            float sc = Scale(screenHeight);
+            Rect band = StageProgressRect(screenWidth, screenHeight);
+            Rect badge = StageBadgeRect(screenWidth, screenHeight);
+
+            float w = Mathf.Min(MinButton * 1.4f * sc, screenWidth * 0.3f);
+            float h = Mathf.Max(MinButton * 0.62f * sc, 1f);
+
+            // 카드 아랫변에 **맞춰** 선다 — 카드보다 내려가면 보드 쪽 글자와 다툰다.
+            float y = badge.yMax - h;
+            float x = band.xMax - w;
+            return new Rect(x, y, w, h);
+        }
+
+        /// <summary>
         /// 좌측 「i」 — **개발 빌드 전용** 접이식 진단 패널의 손잡이.
         /// ⚠️ 가정 — 배지 아래, 최소 버튼 한 변.
         /// </summary>

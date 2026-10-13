@@ -2062,15 +2062,16 @@ namespace MBI.Combat
         /// <summary>
         /// **파밍 화면의 「도전」 단추** (2026-10-13 · #111 · 항상 활성).
         ///
-        /// 자리는 결과 배너와 **같은 칸**을 쓴다 — 둘은 동시에 안 뜨므로(하나는 싸우는 중,
-        /// 하나는 끝난 뒤) 자리를 두 벌 만들 까닭이 없다(지침 §7).
-        /// ⚠️ 문구·자리는 가정이다(UI 문서 역기입 자리).
+        /// 자리는 **상단 스테이지 정보의 오른쪽 아래**다(2026-10-13 사용자 지시 ·
+        /// <see cref="UiLayout.ChallengeButtonRect"/>).
+        ///
+        /// 🗑️ 구 자리(화면 한가운데 · 결과 배너 칸을 빌려 씀) 폐기 — **싸우는 장면을 가렸다.**
+        /// ⚠️ 문구는 가정이다(UI 문서 역기입 자리).
         /// </summary>
         private void DrawChallengeButton()
         {
-            float line = KoreanFont.Snap(Mathf.Max(14,
-                Mathf.RoundToInt(44f * UiLayout.Scale(Screen.height))));
-            Rect r = UiLayout.ResultBannerButtonRect(Screen.width, Screen.height, line, 0, 1);
+            Rect r = UiLayout.ChallengeButtonRect(Screen.width, Screen.height);
+            if (r.width <= 1f || r.height <= 1f) return;
             UiBlockers.Add(r);
 
             var st = new GUIStyle(GUI.skin.button) { wordWrap = false };
