@@ -2163,16 +2163,37 @@ namespace MBI.Combat
                 // 📌 **자리를 `UiLayout` 이 낸다** — 글자 한 줄 높이를 넘겨주면 상자가
                 //    그만큼 커지고, 글자와 단추 사이에 `PlateGap` 이 선다(지침 §7 ·
                 //    틈을 여기서 또 지어내지 않는다). 시험이 창 일곱에서 그것을 본다.
+                // ⚠️⚠️ **글자를 폭에 맞춰 줄인다**(2026-10-13 · 아주 작은 창에서 가로로 잘렸다).
+                //
+                // `big` 의 크기는 `Max(16, …)` 로 **아래가 막혀** 있다. 창이 아주 작아지면
+                // 상자만 줄고 글자는 16 밑으로 안 내려가 **「승리 — 적 전」** 처럼 잘렸다
+                // (판 여백·안내 줄·배너 높이와 **같은 병**이고, 이번은 가로다).
+                //
+                // 📌 **아래 한계를 없애지 않는다** — 16 은 읽히는 최소다. 대신 그보다 작아져야
+                //    하는 창에서는 **사다리를 타고 내려간다**(`UiText.FitOneLine`).
+                //    ⚠️ 차례가 중요하다: 폭에 맞춰 줄인 **뒤**라야 한 줄 높이가 정해진다.
+                float innerW = UiLayout.ResultBannerInnerWidth(Screen.width, Screen.height);
+                string resultText = ResultText();
+                if (big.CalcSize(new GUIContent(resultText)).x > innerW)
+                    UiText.FitOneLine(big, resultText, innerW);
+
                 float line = big.lineHeight;
                 Rect box = UiLayout.ResultBannerRect(Screen.width, Screen.height, line);
                 UiPlate.Draw(box);
                 UiBlockers.Add(box);
 
                 GUI.Label(UiLayout.ResultBannerTextRect(Screen.width, Screen.height, line),
-                          ResultText(), big);
-                if (UiSkin.Button(UiLayout.ResultBannerButtonRect(Screen.width, Screen.height, line),
-                                  "다시 (Restart)"))
-                    Restart();
+                          resultText, big);
+
+                // 단추 글자도 같은 병을 앓는다 — 칸이 줄어도 기본 글자는 안 줄어 「다시 (Rest」
+                // 처럼 잘린다. 같은 사다리로 맞춘다.
+                Rect againRect = UiLayout.ResultBannerButtonRect(Screen.width, Screen.height, line);
+                const string againLabel = "다시 (Restart)";
+                var againStyle = new GUIStyle(GUI.skin.button) { wordWrap = false };
+                if (againStyle.CalcSize(new GUIContent(againLabel)).x > againRect.width)
+                    UiText.FitOneLine(againStyle, againLabel, againRect.width);
+
+                if (UiSkin.Button(againRect, againLabel, againStyle)) Restart();
             }
             else
             {

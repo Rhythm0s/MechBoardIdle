@@ -365,10 +365,24 @@ namespace MBI.UI
         /// 글자와 단추 사이에 <see cref="PlateGap"/> 을 둔다 — 틈을 또 지어내지 않는다.
         /// </summary>
         /// <param name="textLinePx">그릴 글자 한 줄의 실제 높이(픽셀). 그리는 쪽이 잰다.</param>
+        /// <summary>
+        /// 배너 상자의 가로 — **높이와 따로 낸다**(2026-10-13).
+        ///
+        /// 📌 **차례 때문이다.** 글자를 이 폭에 맞춰 줄인 **뒤**라야 한 줄 높이가 정해지고,
+        /// 그 높이로 상자가 선다. 폭이 높이를 기다리면 셈이 제자리를 돈다.
+        /// </summary>
+        public static float ResultBannerBoxWidth(float screenWidth, float screenHeight) =>
+            Mathf.Min(ResultBannerWidth * Scale(screenHeight), screenWidth - 24f);
+
+        /// <summary>글자가 실제로 쓸 수 있는 가로 — 상자에서 양쪽 여백을 뺀 것.</summary>
+        public static float ResultBannerInnerWidth(float screenWidth, float screenHeight) =>
+            Mathf.Max(0f,
+                ResultBannerBoxWidth(screenWidth, screenHeight) - ResultBannerPad * Scale(screenHeight) * 2f);
+
         public static Rect ResultBannerRect(float screenWidth, float screenHeight, float textLinePx)
         {
             float sc = Scale(screenHeight);
-            float w = Mathf.Min(ResultBannerWidth * sc, screenWidth - 24f);
+            float w = ResultBannerBoxWidth(screenWidth, screenHeight);
             float pad = ResultBannerPad * sc;
             float h = pad + textLinePx + PlateGap * sc + ResultButtonHeight * sc + pad;
             return new Rect((screenWidth - w) * 0.5f, screenHeight * 0.42f, w, h);

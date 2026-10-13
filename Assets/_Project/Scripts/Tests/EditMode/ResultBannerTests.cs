@@ -82,6 +82,38 @@ namespace MBI.Tests
             }
         }
 
+        /// <summary>
+        /// **글자가 쓸 가로가 남는가** (2026-10-13 · 아주 작은 창에서 가로로 잘렸다).
+        ///
+        /// ⚠️ 상자에서 양쪽 여백을 뺀 것이 0 이하가 되면 그리는 쪽이 글자를 사다리
+        /// 바닥까지 줄여도 소용이 없다 — 줄일 자리 자체가 없는 것이다.
+        /// </summary>
+        [Test]
+        public void 글자가_쓸_가로가_남는다()
+        {
+            foreach (Vector2 s in Screens)
+            {
+                float inner = UiLayout.ResultBannerInnerWidth(s.x, s.y);
+                Assert.Greater(inner, 0f, $"{s} — 글자가 쓸 가로가 0 이다");
+
+                float box = UiLayout.ResultBannerBoxWidth(s.x, s.y);
+                Assert.Less(inner, box, $"{s} — 여백이 하나도 안 들어갔다");
+                Assert.LessOrEqual(box, s.x, $"{s} — 상자가 화면보다 넓다");
+            }
+        }
+
+        /// <summary>⚠️ 상자 가로가 **자리를 내는 쪽과 같은 수**인가 — 두 곳이 갈리면 안 된다.</summary>
+        [Test]
+        public void 상자_가로가_한_곳에서_난다()
+        {
+            foreach (Vector2 s in Screens)
+            {
+                Rect box = UiLayout.ResultBannerRect(s.x, s.y, 20f);
+                Assert.AreEqual(UiLayout.ResultBannerBoxWidth(s.x, s.y), box.width, 0.01f,
+                    $"{s} — 상자 가로가 두 곳에서 따로 난다");
+            }
+        }
+
         /// <summary>상자가 화면 안에 드는가.</summary>
         [Test]
         public void 상자가_화면_안에_든다()
