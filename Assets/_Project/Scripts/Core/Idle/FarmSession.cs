@@ -7,6 +7,7 @@ namespace MBI.Core
         public double scrapEarned;  // 이번 틱에 적립된 고철(킬 기반)
         public bool lapClosed;      // 바퀴가 닫혔는가
         public int lapKills;        // 닫힌 바퀴의 처치 수
+        public double lapScrap;     // 닫힌 바퀴에 번 고철 — 시급의 분자(2026-10-13)
         public double lapHourlyRate; // 닫힌 바퀴의 시급(고철/시간). lapClosed=false면 0
     }
 
@@ -28,16 +29,25 @@ namespace MBI.Core
     public sealed class FarmSession
     {
         private readonly FarmSpawner _spawner;
-        private readonly double _scrapPerKill;
 
-        public FarmSession(int cap, float intervalSeconds, double scrapPerKill)
+        /// <summary>
+        /// ⚠️⚠️ **단가를 더는 안 든다**(2026-10-13 · 종류별 고철 #112 ⑤).
+        ///
+        /// 종전에는 세션이 `scrapPerKill` 하나를 쥐고 `마릿수 × 단가` 로 적립했다.
+        /// 단가가 종류마다 갈린 지금 그 셈은 **틀린다** — 보병 열과 포격 열이 같은 수가 된다.
+        /// 이제 **번 액수를 받아 적는다.** 액수는 적이 제 몫을 들고 다니다가
+        /// 죽을 때 더해진 것이다(`CombatEntity.scrapPerKill`).
+        /// </summary>
+        public FarmSession(int cap, float intervalSeconds)
         {
             _spawner = new FarmSpawner(cap, intervalSeconds);
-            _scrapPerKill = scrapPerKill;
         }
 
         /// <summary>진행 중인 바퀴에서 지금까지 잡은 수.</summary>
         public int KillsThisLap { get; private set; }
+
+        /// <summary>진행 중인 바퀴에서 지금까지 번 고철. 시급의 분자다.</summary>
+        public double ScrapThisLap { get; private set; }
 
         /// <summary>닫힌 바퀴 수.</summary>
         public int Laps => _spawner.Laps;
@@ -51,14 +61,17 @@ namespace MBI.Core
         /// 한 프레임 진행. killsSinceLastTick은 <see cref="CombatSimulation.ConsumeKills"/>로 가져온 값을 넣는다
         /// (그 API가 가져가며 비우므로 같은 처치를 두 번 세지 않는다).
         /// </summary>
-        public FarmTickResult Tick(float dt, int aliveCount, int killsSinceLastTick)
+        /// <param name="scrapFromKills">이번 틱에 죽은 것들이 들고 있던 고철의 합.</param>
+        public FarmTickResult Tick(float dt, int aliveCount, int killsSinceLastTick,
+            double scrapFromKills)
         {
             var r = new FarmTickResult();
 
-            if (killsSinceLastTick > 0)
+            if (killsSinceLastTick > 0 || scrapFromKills > 0d)
             {
-                KillsThisLap += killsSinceLastTick;
-                r.scrapEarned = KillRewardRule.Scrap(killsSinceLastTick, _scrapPerKill);
+                KillsThisLap += killsSinceLastTick > 0 ? killsSinceLastTick : 0;
+                ScrapThisLap += scrapFromKills > 0d ? scrapFromKills : 0d;
+                r.scrapEarned = scrapFromKills > 0d ? scrapFromKills : 0d;
             }
 
             // 처치를 먼저 반영한 뒤에 바퀴를 닫는다. 순서가 뒤바뀌면 바퀴 끝에 잡은 적이 다음 바퀴로 밀린다.
@@ -67,8 +80,10 @@ namespace MBI.Core
                 r.refill = refill;
                 r.lapClosed = true;
                 r.lapKills = KillsThisLap;
-                r.lapHourlyRate = FarmSpawnRule.HourlyRate(KillsThisLap, _scrapPerKill, _spawner.Interval);
+                r.lapScrap = ScrapThisLap;
+                r.lapHourlyRate = FarmSpawnRule.HourlyRateOf(ScrapThisLap, _spawner.Interval);
                 KillsThisLap = 0;
+                ScrapThisLap = 0d;
             }
 
             return r;
@@ -78,6 +93,7 @@ namespace MBI.Core
         {
             _spawner.Reset();
             KillsThisLap = 0;
+            ScrapThisLap = 0d;
         }
     }
 }

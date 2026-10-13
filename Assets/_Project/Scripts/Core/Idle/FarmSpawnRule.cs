@@ -53,6 +53,23 @@ namespace MBI.Core
             return kills * scrapPerKill / lapSeconds * 3600d;
         }
 
+        /// <summary>
+        /// **벌어들인 고철로 내는 시급** (2026-10-13 · 종류별 고철 #112 ⑤).
+        ///
+        /// ⚠️⚠️ **마릿수 × 단가로는 더 못 낸다.** 단가가 종류마다 다르므로
+        /// (보병 2 · 장갑 3 · 포격 4) 「몇 마리 잡았나」만으로는 **얼마를 벌었는지 모른다** —
+        /// 보병 열 마리와 포격 열 마리가 같은 수로 계산돼 버린다.
+        /// 위 <see cref="HourlyRate(int,double,float)"/> 는 **단가가 하나이던 때의 식**이다.
+        ///
+        /// 그래서 **번 액수를 그대로 받는다.** 액수는 적이 제 몫을 들고 다니다가
+        /// 죽을 때 더해진 것이다(`CombatEntity.scrapPerKill`).
+        /// </summary>
+        public static double HourlyRateOf(double scrapEarned, float lapSeconds)
+        {
+            if (scrapEarned <= 0d || lapSeconds <= 0f) return 0d;
+            return scrapEarned / lapSeconds * 3600d;
+        }
+
         /// <summary>보충 배치를 아레나 경계에 균등 배치(결정론 — 난수 0).</summary>
         public static Vector2 RingPosition(int index, int count, float radius)
         {
