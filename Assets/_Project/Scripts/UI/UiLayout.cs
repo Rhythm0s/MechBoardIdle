@@ -339,6 +339,59 @@ namespace MBI.UI
         /// <summary>진행 띠 높이 (기준 캔버스 · ⚠️ 가정).</summary>
         public const float StageProgressHeight = 96f;
 
+        // ───────────────────────── 결과 배너 (가정) ─────────────────────────
+
+        /// <summary>결과 배너 가로 (기준 캔버스 · ⚠️ 가정 — 종전 값 그대로).</summary>
+        public const float ResultBannerWidth = 560f;
+
+        /// <summary>결과 배너 안쪽 여백 (기준 캔버스 · ⚠️ 가정).</summary>
+        public const float ResultBannerPad = 18f;
+
+        /// <summary>「다시 (Restart)」 단추 (기준 캔버스 · ⚠️ 가정 — 종전 값 그대로).</summary>
+        public const float ResultButtonWidth = 200f;
+        public const float ResultButtonHeight = 50f;
+
+        /// <summary>
+        /// **결과 배너** — 「승리 — 적 전멸」과 「다시 (Restart)」가 든 상자.
+        ///
+        /// ⚠️⚠️ **종전에는 글자가 단추를 덮었다**(2026-10-13 사용자 확정 ② · 빌드 c74a0d2).
+        ///
+        /// 종전 꼴은 `GUILayout` 에 맡기고 상자 높이를 **160 × 배율**로 박아 두었다.
+        /// 그런데 글자 크기는 `Mathf.Max(16, …)` 으로 **아래가 막혀 있어** 창이 작아져도
+        /// 16 밑으로 안 내려간다 — 상자만 줄고 글자는 안 줄어 **한 줄이 상자를 먹고**
+        /// 단추가 그 밑에 깔렸다. 판 여백(`PlateGap`)·안내 줄과 **같은 병**이다.
+        ///
+        /// 📌 **높이를 글자에서 낸다.** 글자 한 줄 높이를 받아서 상자를 그만큼 키우고,
+        /// 글자와 단추 사이에 <see cref="PlateGap"/> 을 둔다 — 틈을 또 지어내지 않는다.
+        /// </summary>
+        /// <param name="textLinePx">그릴 글자 한 줄의 실제 높이(픽셀). 그리는 쪽이 잰다.</param>
+        public static Rect ResultBannerRect(float screenWidth, float screenHeight, float textLinePx)
+        {
+            float sc = Scale(screenHeight);
+            float w = Mathf.Min(ResultBannerWidth * sc, screenWidth - 24f);
+            float pad = ResultBannerPad * sc;
+            float h = pad + textLinePx + PlateGap * sc + ResultButtonHeight * sc + pad;
+            return new Rect((screenWidth - w) * 0.5f, screenHeight * 0.42f, w, h);
+        }
+
+        /// <summary>결과 글자 한 줄 — 배너 위쪽.</summary>
+        public static Rect ResultBannerTextRect(float screenWidth, float screenHeight, float textLinePx)
+        {
+            Rect box = ResultBannerRect(screenWidth, screenHeight, textLinePx);
+            float pad = ResultBannerPad * Scale(screenHeight);
+            return new Rect(box.x + pad, box.y + pad, box.width - pad * 2f, textLinePx);
+        }
+
+        /// <summary>「다시 (Restart)」 — 글자 아래, 틈은 <see cref="PlateGap"/>.</summary>
+        public static Rect ResultBannerButtonRect(float screenWidth, float screenHeight, float textLinePx)
+        {
+            Rect text = ResultBannerTextRect(screenWidth, screenHeight, textLinePx);
+            float sc = Scale(screenHeight);
+            return new Rect(text.x, text.yMax + PlateGap * sc,
+                            Mathf.Min(ResultButtonWidth * sc, text.width),
+                            ResultButtonHeight * sc);
+        }
+
         /// <summary>펼친 소리 패널의 가로·세로 (기준 캔버스 · ⚠️ 가정).</summary>
         public const float SoundPanelWidth = 576f;
 
@@ -817,7 +870,25 @@ namespace MBI.UI
             // 📌 **글자를 올려 잡았으면 상자도 따라 커져야 한다** — 1.5 는 IMGUI 한 줄
             //    여유다(⚠️ 가정). 박힌 44 는 **아래 한계**로만 남긴다.
             float h = Mathf.Max(BoardHintHeight * s, BoardHintFontSize(screenHeight) * 1.5f);
-            float x = band.x + BoardHintMargin * s;
+
+            // ⚠️⚠️ **왼쪽 여백도 글자에서 낸다**(2026-10-13 사용자 확정 ③ — 「첫 글자가
+            //    캔버스 왼쪽 가장자리에 잘린다」).
+            //
+            // 종전 `BoardHintMargin × 배율` 은 창이 작아지면 함께 줄었는데(690 창에서 6.5),
+            // **글자는 `Max(9, …)` 로 아래가 막혀** 안 줄었다 — 여백보다 글자가 커지면
+            // 첫 자의 왼쪽이 띠 밖으로 나간다. 바로 위 높이와 **같은 병**이다.
+            //
+            // 📌 **새 수를 안 지어낸다** — 바닥은 `여백 ÷ 글자`(24÷32 = 0.75)다.
+            //    규칙은 「왼쪽 여백은 글자의 ¾ 보다 좁지 않다」 하나다.
+            //
+            // ⚠️ **기준 캔버스에서도 24 가 아니라 27 이다**(시험이 잡았다). `KoreanFont.Snap`
+            //    이 32 를 **사다리에서 36 으로 올려** 잡기 때문이다 — 36 × 0.75 = 27.
+            //    처음에 「기준 캔버스에서는 종전과 똑같이 24」로 적었는데 **틀렸다.**
+            //    3 픽셀 넓어지는 쪽이며, 좁아지는 창은 없다.
+            float gutter = Mathf.Max(
+                BoardHintMargin * s,
+                BoardHintFontSize(screenHeight) * (BoardHintMargin / BoardHintFontDesign));
+            float x = band.x + gutter;
 
             // 아랫변 기준 종전 자리 · 모드 막대에 닿으면 그 위로 올린다.
             float y = Mathf.Min(band.yMax - BoardHintMargin * s - h,

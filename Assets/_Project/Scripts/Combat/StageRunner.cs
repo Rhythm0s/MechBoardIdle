@@ -2142,18 +2142,25 @@ namespace MBI.Combat
 
             if (_sim.Result != CombatResult.InProgress)
             {
-                // 결과 — 화면 한가운데 아래. ⚠️ 자리는 가정이다(설계 역기입).
-                float w = Mathf.Min(560f * hudScale, Screen.width - 24f);
-                var box = new Rect((Screen.width - w) * 0.5f, Screen.height * 0.42f,
-                                   w, 160f * hudScale);
+                // ⚠️⚠️ **글자가 단추를 덮었다**(2026-10-13 사용자 확정 ② · 빌드 c74a0d2).
+                //
+                // 종전에는 `GUILayout` 에 맡기고 상자 높이를 **160 × 배율**로 박았다.
+                // 글자 크기는 `Max(16, …)` 으로 아래가 막혀 있어 창이 작아져도 안 줄고,
+                // **상자만 줄어** 한 줄이 상자를 먹고 단추가 그 밑에 깔렸다.
+                //
+                // 📌 **자리를 `UiLayout` 이 낸다** — 글자 한 줄 높이를 넘겨주면 상자가
+                //    그만큼 커지고, 글자와 단추 사이에 `PlateGap` 이 선다(지침 §7 ·
+                //    틈을 여기서 또 지어내지 않는다). 시험이 창 일곱에서 그것을 본다.
+                float line = big.lineHeight;
+                Rect box = UiLayout.ResultBannerRect(Screen.width, Screen.height, line);
                 UiPlate.Draw(box);
                 UiBlockers.Add(box);
-                GUILayout.BeginArea(box);
-                GUILayout.Label(ResultText(), big);
-                if (UiSkin.ButtonLayout("다시 (Restart)",
-                        GUILayout.Width(200f * hudScale), GUILayout.Height(50f * hudScale)))
+
+                GUI.Label(UiLayout.ResultBannerTextRect(Screen.width, Screen.height, line),
+                          ResultText(), big);
+                if (UiSkin.Button(UiLayout.ResultBannerButtonRect(Screen.width, Screen.height, line),
+                                  "다시 (Restart)"))
                     Restart();
-                GUILayout.EndArea();
             }
             else
             {
@@ -2805,9 +2812,21 @@ namespace MBI.Combat
         /// ⚠️ 코드 식별자(<c>stageId</c> = "S0")는 그대로다 — 저장의 클리어 목록 키이기도 하고,
         /// 게이트 2가 9월 4일이다. 읽는 사람이 있는 곳만 바꾼다.
         /// </summary>
+        /// <remarks>
+        /// ⚠️⚠️ **「튜토리얼 전용 스테이지」를 「튜토리얼」로 줄였다**(2026-10-13 사용자 확정 ①).
+        ///
+        /// 아홉 자가 배지 알약(가로 = 220 과 카드 폭 0.42 중 작은 쪽)을 넘어
+        /// **카드 왼쪽 밖으로 흘렀고**, 화면에서 「리얼 전용 스테이지」로 읽혔다.
+        /// <c>UiText.FitOneLine</c> 이 사다리 바닥까지 내려도 안 들어간다 —
+        /// 09-19 의 「스테이지 S1」 두 줄 넘침과 **같은 병**이고, 그때는 크기로 풀렸지만
+        /// 이번에는 **글자 수**로 푼다(카드·글자 크기는 그대로다 · 사용자 지시).
+        ///
+        /// 📌 **「전용 스테이지」를 잃어도 뜻이 안 바뀐다** — 이 판이 여섯에 안 든다는 것은
+        /// 진행 띠가 **안 뜨는 것**으로 이미 말하고 있다(<c>StageMapName.NumberOf</c> = 0).
+        /// </remarks>
         private string StageTitle() =>
             stage.stageId == IdleSignals.TutorialId
-                ? "튜토리얼 전용 스테이지"
+                ? "튜토리얼"
                 : $"스테이지 {stage.stageId}";
 
         /// <summary>요구치가 있는 스테이지인가. 전투가 없는 튜토리얼에는 없다.</summary>
