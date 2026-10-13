@@ -3073,12 +3073,13 @@ namespace MBI.Logistics
                 // **노드 그림이 포트 타일 넷에 덮였다** — 무엇을 놓았는지가 안 보였다.
                 // 필요한 것은 「어느 변으로 드나드는가」 하나이고 그건 **작은 커넥터**면 된다.
                 //
-                // **1단계는 코드 드로잉**이다(사용자 확정). 아트가 작은 자산 둘을 주면
-                // 그때 `portArt` 갈래를 되살려 그림으로 바꾼다 — 지금은 타일을 안 쓴다.
+                // ⚠️⚠️ **아트가 왔다 — 코드 드로잉에서 그림으로 바꾼다**(2026-10-13 배선).
+                //    위 주석이 적어 둔 「아트가 작은 자산 둘을 주면 `portArt` 갈래를
+                //    되살린다」가 이 자리다. 그림이 없으면 **종전 탭 그대로** 떨어진다.
                 //
                 // ⚠️ **크기는 칸의 약 1/6 — 가정이다**(설계 역기입). 입구는 변 **안쪽**에
                 // 파이고, 출구는 변 **밖으로** 나간다 — 색을 못 가려도 **자리로** 갈린다.
-                Sprite portArt = null;
+                Sprite portArt = outward ? PortOutArt() : PortInArt();
                 {
                     const float Thin = 0.10f;   // 변을 따라 얇은 쪽 (칸 대비)
                     const float Long = 0.22f;   // 변을 따라 긴 쪽
@@ -3086,11 +3087,27 @@ namespace MBI.Logistics
 
                     tab.transform.localPosition = new Vector3(off.x * dist, off.y * dist, 0f);
 
-                    // 면을 따라 납작하게 — 세로면이면 눕히고 가로면이면 세운다.
-                    bool horizontal = Mathf.Abs(off.x) > 0.5f;
-                    tab.transform.localScale = horizontal
-                        ? new Vector3(Thin, Long, 1f)
-                        : new Vector3(Long, Thin, 1f);
+                    if (portArt != null)
+                    {
+                        // ⚠️⚠️ **배율을 그림에서 잰다.** 커넥터는 64px 이고 노드 타일은 192px 이라
+                        //    **같은 배율을 주면 1/3 크기로 선다.** 칸 하나가 로컬 1 인 자리이므로
+                        //    `FitScale` 로 「칸의 몇 분의 몇」을 바로 받는다 — 192 를 여기 다시
+                        //    적지 않는다(아트가 바뀌면 조용히 어긋난다 · 지침 §7).
+                        tab.transform.localScale = Vector3.one * FitScale(portArt, PortArtSpan);
+
+                        // 네 면은 코드가 돌린다 — 자산을 넷으로 안 늘린다.
+                        // 입력 ↑ 과 출력 ↓ 이 **같은 각**을 쓴다(`PortArrowFacing` 주석).
+                        tab.transform.localRotation =
+                            Quaternion.Euler(0f, 0f, PortArrowFacing.ZDegrees(p.face));
+                    }
+                    else
+                    {
+                        // 면을 따라 납작하게 — 세로면이면 눕히고 가로면이면 세운다.
+                        bool horizontal = Mathf.Abs(off.x) > 0.5f;
+                        tab.transform.localScale = horizontal
+                            ? new Vector3(Thin, Long, 1f)
+                            : new Vector3(Long, Thin, 1f);
+                    }
                 }
 
                 var sr = tab.AddComponent<SpriteRenderer>();
@@ -3123,8 +3140,19 @@ namespace MBI.Logistics
                 if (pm.sr == null) continue;
                 bool outward = pm.io == PortIO.Output;
                 // 그림이 붙었으면 품목색을 안 칠한다 — 화살표 그림이 이미 방향을 말하고,
-                // 그 위에 색을 곱하면 아트가 통째로 물든다. 밝기 축(입력은 어둡게)만 남긴다.
-                Color c = pm.hasArt ? Color.white : FlowColor(outward ? outKind : pm.declared);
+                // 그 위에 색을 곱하면 아트가 통째로 물든다.
+                //
+                // ⚠️⚠️ **밝기도 안 곱한다**(2026-10-13 배선 · 종전 「밝기 축만 남긴다」를 뒤집는다).
+                //    입력 커넥터를 0.55 로 어둡게 깔면 **아트가 그대로 어두워진다** —
+                //    입출력은 이미 **화살 방향과 판 색**이 말하므로 어둡게 할 까닭이 없다.
+                //    그림이 없을 때의 색 사각에는 그 밝기 축이 그대로 남는다.
+                if (pm.hasArt)
+                {
+                    pm.sr.color = Color.white;
+                    continue;
+                }
+
+                Color c = FlowColor(outward ? outKind : pm.declared);
                 if (!outward) c *= 0.55f; // 입력은 어둡게
                 c.a = 1f;
                 pm.sr.color = c;
@@ -5232,6 +5260,20 @@ namespace MBI.Logistics
 
         /// <summary>화살표 색 — ⚠️ **가정 미색**(UI 문서에 절이 없다).</summary>
         private static readonly Color WiringArrowColor = new Color(0.97f, 0.95f, 0.86f, 0.92f);
+
+        /// <summary>
+        /// 포트 커넥터가 차지하는 **칸 대비 크기** (⚠️ 가정 · 설계 역기입).
+        ///
+        /// 종전 코드 드로잉 탭의 긴 변이 0.22 였다. 커넥터는 네모난 판이라 그보다
+        /// 조금 커야 화살이 읽히고, 한 칸의 1/3 을 넘으면 노드 그림을 가린다.
+        /// </summary>
+        private const float PortArtSpan = 0.30f;
+
+        /// <summary>입력 커넥터 그림 — 없으면 null 이고 그리는 쪽이 탭으로 떨어진다.</summary>
+        private Sprite PortInArt() => art != null ? art.portInSmall : null;
+
+        /// <summary>출력 커넥터 그림 — 없으면 null.</summary>
+        private Sprite PortOutArt() => art != null ? art.portOutSmall : null;
 
         private static Vector2 FaceOffset(PortFace face)
         {

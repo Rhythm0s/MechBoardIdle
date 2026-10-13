@@ -137,6 +137,9 @@ namespace MBI.Tests
                 { "sorter", art.sorter },
                 { "port_input", art.portInput },
                 { "port_output", art.portOutput },
+                // 실제로 그려지는 커넥터 둘 (2026-10-13 배선 · 64px).
+                { "port_in_small", art.portInSmall },
+                { "port_out_small", art.portOutSmall },
                 { "port_power", art.portPower },
                 { "mount_port", art.mountPort },
             };

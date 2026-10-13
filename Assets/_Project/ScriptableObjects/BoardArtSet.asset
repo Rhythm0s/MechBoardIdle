@@ -36,6 +36,8 @@ MonoBehaviour:
   portArrow: {fileID: 21300000, guid: 07d63dd4fd330c54c92268374311a320, type: 3}
   portInput: {fileID: 21300000, guid: cc0df66d5a411db49bc5671bde3c754b, type: 3}
   portOutput: {fileID: 21300000, guid: 67f2ab5e8b383434083b16d8fd42dcfa, type: 3}
+  portInSmall: {fileID: 21300000, guid: fb0a7320e96bee04b88e57b0cd0bf71f, type: 3}
+  portOutSmall: {fileID: 21300000, guid: 081c61573a7adf94b89ebd8bff2b97a1, type: 3}
   portPower: {fileID: 21300000, guid: 07c016696ace95e4c8625c4240109210, type: 3}
   mountPort: {fileID: 21300000, guid: d6ebdc40b5604d844a5123e1ba91321f, type: 3}
   mountGunA: {fileID: 21300000, guid: c95c1ef30ab8bfb4985f904c0510bdd9, type: 3}

@@ -98,6 +98,11 @@ namespace MBI.Editor
             art.portArrow = LoadBoard("arrow");
             art.portInput = LoadBoard("port_input");
             art.portOutput = LoadBoard("port_output");
+
+            // ⚠️ **실제로 그려지는 것은 이 둘이다**(2026-10-13 · 64px 커넥터).
+            //    위 둘은 한 칸을 덮는 192 타일이라 폐기됐다 — 칸만 남겨 둔다.
+            art.portInSmall = LoadBoard("port_in_small");
+            art.portOutSmall = LoadBoard("port_out_small");
             art.portPower = LoadBoard("port_power");
             art.mountPort = LoadBoard("mount_port");
 

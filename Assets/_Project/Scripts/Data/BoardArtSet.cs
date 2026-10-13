@@ -87,8 +87,30 @@ namespace MBI.Data
         /// </summary>
         public Sprite portArrow;
 
+        /// <summary>
+        /// 🗑️ **폐기 표기 — 한 칸을 통째로 덮던 192 타일**(2026-09-15 · 보드 4-2 폐기).
+        /// 면마다 한 장씩 얹으면 **노드 그림이 포트 타일 넷에 덮였다.**
+        /// 지우지 않는 까닭은 파일이 디스크에 그대로 있고, 배선 시험이
+        /// 「디스크에 있는데 칸이 비었다」를 잡기 때문이다.
+        /// 지금 화면에 서는 것은 아래 <see cref="portInSmall"/>·<see cref="portOutSmall"/> 둘이다.
+        /// </summary>
         public Sprite portInput;
         public Sprite portOutput;
+
+        /// <summary>
+        /// **커넥터 둘 — 실제로 그려지는 포트 그림**(2026-10-13 배선 · 64px).
+        ///
+        /// 한 칸의 1/3 짜리 작은 판이고 안에 화살이 하나 있다 — 입력은 ↑, 출력은 ↓.
+        /// **네 면은 코드가 돌린다**(<c>MBI.Core.PortArrowFacing</c>) — 자산을 넷으로 안 늘린다.
+        ///
+        /// ⚠️ **색을 안 곱한다.** 화살과 판 색이 이미 입출력을 말하므로 품목색을 곱하면
+        /// 아트가 통째로 물든다(`RefreshPortColors` 의 `hasArt` 갈래).
+        ///
+        /// ⚠️ 비면 종전 **코드 드로잉 탭**으로 떨어진다 — 그림이 없다고 면 표시가
+        /// 사라지면 벨트를 어디 붙일지 찍어 볼 수밖에 없다.
+        /// </summary>
+        public Sprite portInSmall;
+        public Sprite portOutSmall;
         public Sprite portPower;
         [Tooltip("마운트 포트 — 보드의 산출이 전투로 넘어가는 자리. **결합부**이며 마운트 본체가 아니다.")]
         public Sprite mountPort;
@@ -223,6 +245,7 @@ namespace MBI.Data
                 {
                     beltStraight, beltCorner, merger, sorter,
                     portInput, portOutput, portPower, mountPort,
+                    portInSmall, portOutSmall,
                 };
                 int n = 0;
                 for (int i = 0; i < parts.Length; i++) if (parts[i] != null) n++;
