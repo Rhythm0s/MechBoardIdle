@@ -468,7 +468,8 @@ namespace MBI.Combat
             //    부르므로, `LoadStage` 에만 적으면 첫 판에서 수가 안 서서 0 으로 남는다.
             //    두 길이 다 지나는 자리는 이곳 하나다.
             //
-            // ⚠️ 심사자가 S5 로 뛰면 저장에 기록이 없어도 열린 것으로 본다(`RobotBGate` 주석).
+            // ✅ 심사자가 S5 로 뛰면 저장에 기록이 없어도 열린 것으로 본다
+            //    — 사용자 확정 2026-10-13(#103 · `RobotBGate` 주석).
             RobotBGate.CurrentStageNumber = StageMapName.NumberOf(stage.stageId);
 
             // 마운트계수: 물류(S1~S3)=base, 그 외(강화/태그/버스트)=enhanced(1.45).

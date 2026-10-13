@@ -37,7 +37,7 @@ namespace MBI.Tests
                     $"S{n} 에서 B 가 열려 있다");
         }
 
-        /// <summary>⚠️ **심사자가 S5 로 뛰면 열린 것으로 본다**(가정 · 그 판은 둘이라야 선다).</summary>
+        /// <summary>✅ **심사자가 S5 로 뛰면 열린 것으로 본다** — 사용자 확정 2026-10-13(#103).</summary>
         [Test]
         public void S5_위로_뛰면_열린_것으로_본다()
         {
