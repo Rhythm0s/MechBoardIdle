@@ -43,6 +43,23 @@ namespace MBI.Core
         /// <summary>도전 장부에 쌓인 고철.</summary>
         public static double ChallengeScrap;
 
+        /// <summary>
+        /// **지금 상주 중인 파밍 판**의 식별자 — 오프라인 정산이 쓸 「끈 시점의 판」이다
+        /// (2026-10-13 · 순서 6).
+        ///
+        /// ⚠️⚠️ **이 칸이 비어 있어서 오프라인 정산이 기록을 못 쓰고 있었다.** 저장에
+        /// `lastFarmStageId` 칸은 처음부터 있었는데 **쓰는 쪽이 없었다** — 늘 빈 글자라
+        /// `BestFarmRate("")` 가 0 을 주고, 정산이 매번 **기본 시급**으로 떨어졌다
+        /// (2026-10-13 추적). 파밍 바퀴가 실제로 서는 자리에서 여기에 적는다.
+        ///
+        /// ⚠️ **도전에 들어가도 지우지 않는다** — 도전은 잠깐 다녀오는 곳이고,
+        /// 상주 판은 그대로다. 비우는 것은 <see cref="Reset"/> 뿐이다.
+        ///
+        /// ⚠️ **파밍 바퀴가 실제로 선 판만** 적는다. 표가 비어 바퀴가 안 서는 판을 적으면
+        /// 꺼둔 동안 **한 번도 번 적 없는 판**으로 정산하게 된다.
+        /// </summary>
+        public static string FarmStageId = string.Empty;
+
         /// <summary>번 것을 지금 층의 장부에 적는다.</summary>
         public static void Credit(double scrap)
         {
@@ -57,6 +74,7 @@ namespace MBI.Core
             Current = StageLayer.Farm;
             FarmScrap = 0d;
             ChallengeScrap = 0d;
+            FarmStageId = string.Empty;
         }
     }
 }
