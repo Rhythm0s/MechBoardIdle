@@ -139,17 +139,23 @@ namespace MBI.Editor
             // ⚠️ 없으면 죽는다. json 으로 되돌아가면 어느 쪽이 값을 냈는지 모르게 된다.
             GameDataTables.WeaponTableValues weapon = GameDataTables.ReadWeapons();
 
-            c.schemaVersion = json.meta.schemaVersion;
+            // 🗑️ **`schemaVersion` 을 json 에서 안 받는다**(2026-10-13 · `META_DATA` 도착).
+            //    표가 원천이고 아래 ApplyBalanceTables 가 넣는다 — 여기서 또 받으면
+            //    같은 값이 두 곳에 산다(지침 §7).
+            //
+            // ⚠️ `exportedAt` 은 **아직 json 이 든다.** 표의 그 칸이 **비어 있어서**다
+            //    (`Confirmed` 는 1 이지만 값이 없다) — 빈 칸으로 덮으면 「언제 뽑았나」가
+            //    사라진다. 표가 값을 들고 오면 그때 옮긴다.
             c.exportedAt = json.meta.exportedAt;
 
             c.origin = json.Param("origin");
             c.enh = json.Param("enh");
 
-            c.enhBandX = json.enhance.enhBand[0];
-            c.enhBandY = json.enhance.enhBand[1];
-            c.snapBand = json.enhance.snapBand;
+            // 🗑️ **강화 넷을 json 에서 안 받는다**(2026-10-13 · `ENHANCE_DATA` 도착 ·
+            //    `Confirmed` 전부 1). 표가 원천이고 아래 ApplyBalanceTables 가 넣는다.
+            //    ⚠️ 표의 값은 여기 있던 수와 **같다**(1.3 · 1.5 · 0.08 · 100) — 옮기는 일이지
+            //       값을 바꾸는 일이 아니다. 달라졌다면 표가 고쳐진 것이다.
             // s3Break · s4Band 미러는 폐기했다(260910_W02 2-1·2-2) — 원천에 수치가 없다.
-            c.s4Cost = json.enhance.s4Cost;
 
             c.challengeTime = json.Stage("S1").challengeTime;
 
@@ -539,6 +545,16 @@ namespace MBI.Editor
             GameDataTables.ApplyFieldTable(
                 LoadOrCreate<CombatTuning>(SoRoot + "/CombatTuning.asset"), "COMBAT_RULE_DATA",
                 RetiredCombatRuleKeys);
+
+            // **강화 넷**(2026-10-13 도착 · 전부 확정) — enhBandX·enhBandY·snapBand·s4Cost.
+            // 종전에는 `balance_v4.json` 의 `enhance` 가 냈다(위 BuildConfig 의 폐기 줄).
+            BalanceConfig config = LoadOrCreate<BalanceConfig>(ConfigPath);
+            GameDataTables.ApplyFieldTable(config, "ENHANCE_DATA");
+
+            // **판본**(2026-10-13 도착) — schemaVersion 만 받는다.
+            // ⚠️ `exportedAt` 은 표의 칸이 **비어 있어** 건너뛴다 — 빈 글자로 덮으면
+            //    「언제 뽑았나」가 사라진다. 값이 오면 이 줄에서 빼면 된다.
+            GameDataTables.ApplyFieldTable(config, "META_DATA", "exportedAt");
         }
 
         /// <summary>
