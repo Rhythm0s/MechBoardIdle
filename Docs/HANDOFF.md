@@ -196,6 +196,17 @@ next_morning: |
   **촬영 빌드 = `c74a0d2`** — `http://localhost:8123/index.html?v=c74a0d2`.
   서버는 켜 둔 채다(`Tools/serve8123.py`). **재빌드 없이 그대로 찍는다.**
 
+  ⚠️⚠️ **서버는 세션에서 떼어 띄운다**(2026-10-13 · 밤새 두 번 죽었다).
+  구현 세션의 배경 명령으로 띄우면 **그 세션이 멈출 때 따라 꺼진다**(둘 다 `exit 4`).
+  떼는 법 — PowerShell 에서 `Start-Process` 로 띄운다:
+
+      Start-Process -FilePath "python" -ArgumentList "Tools/serve8123.py"
+        -WorkingDirectory "C:\Unity_Project\26_MechBoardIdle\MechBoardIdle" -WindowStyle Hidden
+
+  📌 **200 을 한 번 받는 것으로는 못 믿는다** — 죽은 프로세스의 포트에서도 받은 적이
+  있다. **동시 요청 다섯**(index · loader · data · wasm · framework)으로 재고,
+  **1 분 뒤 한 번 더** 재서 세션과 무관하게 살아 있는지 본다.
+
   10-12 밤에 닫은 것 셋 — 쌓인 판 겹침(여백이 날 픽셀이었다 · `cf82fb6`) ·
   「처음부터」 뒤 튜토리얼이 로봇 B 로 서던 것(초기화가 자동 교대를 안 되돌렸다 · `c74a0d2`) ·
   푸시(origin = `c74a0d2`).
