@@ -145,17 +145,18 @@ namespace MBI.Editor
             c.origin = json.Param("origin");
             c.enh = json.Param("enh");
 
-            c.enhBand = new Vector2(json.enhance.enhBand[0], json.enhance.enhBand[1]);
+            c.enhBandX = json.enhance.enhBand[0];
+            c.enhBandY = json.enhance.enhBand[1];
             c.snapBand = json.enhance.snapBand;
             // s3Break · s4Band 미러는 폐기했다(260910_W02 2-1·2-2) — 원천에 수치가 없다.
             c.s4Cost = json.enhance.s4Cost;
 
             c.challengeTime = json.Stage("S1").challengeTime;
 
-            // 경제 항목 중 확정치는 상한 하나뿐. 계수·기본 시급은 confirmed:false라 여기 두지 않는다
-            // (생성기가 덮어써서 인스펙터 조정이 날아가는 것을 막는다 — EconomyConfig 참조).
-            if (json.economy != null && json.economy.offline != null && json.economy.offline.capHours > 0f)
-                c.offlineCapHours = json.economy.offline.capHours;
+            // 🗑️ **오프라인 상한을 여기서 안 받는다** (2026-10-13 사용자 확정 ③).
+            //    칸이 `EconomyConfig` 로 옮겨 갔고, 값은 `ECONOMY_DATA` 표가 낸다.
+            //    ⚠️ 구 줄은 `json.economy.offline.capHours`(= 36) 를 받아 `BalanceConfig` 에
+            //       넣고 있었다. 표가 같은 36 을 내므로 값은 안 바뀐다.
 
             c.storeCapacity = json.Param("store"); // 확정치 40 — 재고 단일 층의 용량
 

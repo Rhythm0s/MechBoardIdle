@@ -32,12 +32,16 @@ namespace MBI.Tests
         private const double ReqRatio = 0.9;
 
         private BalanceConfig _config;
+        private EconomyConfig _economy;
         private BalanceJson _json;
 
         [SetUp]
         public void SetUp()
         {
             _json = BalanceJsonLoader.Load();
+            // 오프라인 상한이 EconomyConfig 로 옮겨 갔다 (2026-10-13 사용자 확정 ③).
+            _economy = AssetDatabase.LoadAssetAtPath<EconomyConfig>(
+                "Assets/_Project/ScriptableObjects/EconomyConfig.asset");
             _config = AssetDatabase.LoadAssetAtPath<BalanceConfig>(ConfigPath);
             if (_config == null)
                 Assert.Ignore($"BalanceConfig 자산 없음: {ConfigPath} — 먼저 메뉴 'MBI/Generate Balance + Nodes' 실행.");
@@ -278,10 +282,14 @@ namespace MBI.Tests
         public void Anchor6_OfflineCapHours_Is36_MirrorsSource()
         {
             float src = _json.economy != null && _json.economy.offline != null ? _json.economy.offline.capHours : 0f;
-            TestContext.WriteLine($"[재현] economy.offline.capHours = {src} → BalanceConfig {_config.offlineCapHours}");
+            Assert.IsNotNull(_economy, "EconomyConfig 자산 없음 — 오프라인 상한이 거기로 옮겨 갔다");
+            TestContext.WriteLine($"[재현] economy.offline.capHours = {src} → EconomyConfig {_economy.offlineCapHours}");
 
             Assert.AreEqual(36f, src, Delta, "원천 계약값");
-            Assert.AreEqual(36f, _config.offlineCapHours, Delta, "SO 미러");
+
+            // ⚠️ **미러가 사는 자산이 바뀌었다**(2026-10-13 사용자 확정 ③ · BalanceConfig → EconomyConfig).
+            //    오프라인 값 셋(상한·계수·기본 시급)을 한 자산에 모으기 위해서다. **값은 안 바뀐다.**
+            Assert.AreEqual(36f, _economy.offlineCapHours, Delta, "SO 미러");
         }
 
         // ---- 드리프트 트립와이어: 경제 TBD가 확정되면 여기서 실패해 승격 판단을 강제한다 ----

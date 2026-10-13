@@ -98,3 +98,32 @@ json 이 아니라 **C# 기본값**에서 온다. 주석은 「확정치는 상�
 - WBS 상태 0.
 
 재는 스크립트는 리포에 안 넣었다(일회성). 위 수는 이 run 의 수다.
+
+---
+
+## ⚠️ 정정 (같은 날 17:4x) — 「capHours 가 json 에 없다」는 **내가 틀렸다**
+
+위 4장과 「곁에서 나온 것」에 **`balance_v4.json` 의 `economy.offline` 에는 `capHours` 라는
+수가 없다 · 그래서 36 은 C# 기본값이다**라고 적었다. **거짓이다.**
+
+    economy.offline 의 키: formula · hourlyRate · lap · record · payoutKey ·
+                           capHours · currency · note · docRef
+    capHours = 36
+
+**왜 틀렸나.** `json.dumps(...)[:200]` 로 **앞 200 자만 찍어** 보고, 거기 보인
+`formula · hourlyRate · lap` 셋만으로 「글뿐이다」라고 단정했다. 잘린 출력을 전부로 읽었다.
+
+📌 **시험이 이미 알고 있었다.** `BalanceAnchorTests.Anchor6_OfflineCapHours_Is36_MirrorsSource`
+가 `Assert.AreEqual(36f, src)` 로 **원천이 36 임을 재고 있었고 통과하고 있었다.**
+내 말이 맞았다면 그 시험은 빨갰어야 한다 — 내 보고와 초록 시험이 어긋났는데 **그것을
+안 보고 보고부터 했다.**
+
+### 바로잡힌 사실
+
+- `offlineCapHours` 36 은 **원천이 있다**(json `economy.offline.capHours`).
+- 구 주석의 「경제 항목 중 유일한 확정치」는 **맞는 말이었다.**
+- 그러므로 **③ 칸 이동**(BalanceConfig → EconomyConfig)은 그대로 옳지만 —
+  오프라인 값 셋을 한 자산에 모으는 일이라 이 오류와 무관하다 —
+  **④ 「표에 Confirmed 0(미확정)으로」는 내가 준 틀린 전제 위에서 정해졌다.**
+  36 은 확정치이므로 **`Confirmed 1` 이 맞아 보인다.** ⚠️ 그러나 바꾸는 것은
+  내가 안 한다 — 다시 판단할 자리다.

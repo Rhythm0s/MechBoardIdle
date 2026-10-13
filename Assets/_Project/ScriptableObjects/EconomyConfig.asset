@@ -17,4 +17,5 @@ MonoBehaviour:
   offlineBaseRateTbd: 0
   killsPerGoldAward: 20
   goldPerAward: 5
+  offlineCapHours: 36
   autosaveIntervalSeconds: 30

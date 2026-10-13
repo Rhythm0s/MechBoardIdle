@@ -27,8 +27,28 @@ namespace MBI.Data
         public float enh = 1.45f;
 
         [Header("강화 밴드 (enhance 블록)")]
-        [Tooltip("강화 배율 밴드 [lo, hi]. enhance.enhBand.")]
-        public Vector2 enhBand = new Vector2(1.3f, 1.5f);
+
+        // ⚠️⚠️ **한 칸(Vector2) 에서 두 칸으로 갈랐다** (2026-10-13 사용자 확정 ①).
+        //
+        // 원천이 표(CSV)로 옮겨 가는데, 그 표는 **한 줄에 값 하나**를 담는 꼴이다
+        // (`FieldName` · `Value`). 벡터를 한 칸에 담으려면 「쉼표로 둘」 같은 **표에 안 적힌
+        // 약속**이 생기고, 그 약속을 모르는 사람은 표를 못 읽는다.
+        //
+        // 📌 **합쳐 내는 쪽은 그대로 둔다**(<see cref="enhBand"/>) — 읽는 코드와 시험은
+        //    종전처럼 `enhBand.x` · `enhBand.y` 를 쓴다. 바뀐 것은 **담는 꼴**뿐이다.
+        [Tooltip("강화 배율 밴드 아래값. ENHANCE 표 enhBandX.")]
+        public float enhBandX = 1.3f;
+
+        [Tooltip("강화 배율 밴드 위값. ENHANCE 표 enhBandY.")]
+        public float enhBandY = 1.5f;
+
+        /// <summary>
+        /// 강화 배율 밴드 [lo, hi] — **두 칸을 합쳐 낸다. 읽기 전용이다.**
+        ///
+        /// ⚠️ 여기에 값을 **쓰지 않는다**. 쓰는 자리는 <see cref="enhBandX"/>·<see cref="enhBandY"/>
+        /// 둘뿐이며, 그 둘의 원천은 `ENHANCE_DATA` 표다 — 한 값이 두 곳에 살면 답이 둘이 된다(§7).
+        /// </summary>
+        public Vector2 enhBand => new Vector2(enhBandX, enhBandY);
         [Tooltip("요구치 스냅 허용 오차(±). enhance.snapBand.")]
         public float snapBand = 0.08f;
 
@@ -51,9 +71,16 @@ namespace MBI.Data
         [Tooltip("도전 제한시간(초). stages[].challengeTime.")]
         public float challengeTime = 120f;
 
-        [Header("경제")]
-        [Tooltip("오프라인 보상 인정 상한(시간). economy.offline.capHours = 36 — 경제 항목 중 유일한 확정치. 계수·기본 시급은 TBD라 EconomyConfig에 있다.")]
-        public float offlineCapHours = 36f;
+        // 🗑️🗑️ **`offlineCapHours` 는 `EconomyConfig` 로 옮겼다** (2026-10-13 사용자 확정 ③).
+        //
+        // **왜 옮겼나.** 오프라인 값이 셋인데(상한 · 계수 · 기본 시급) **상한만 여기 있고
+        // 둘은 `EconomyConfig` 에 있었다.** 한 묶음이 두 자산에 갈려 있으면 표도 둘로
+        // 갈라야 하고, 그러면 「어느 표가 오프라인을 든 표인가」에 답이 둘이 된다.
+        // 이제 셋이 `EconomyConfig` 한 자산 · `ECONOMY_DATA` 한 표에 산다.
+        //
+        // ⚠️ **36 은 원천이 있다.** `balance_v4.json` 의 `economy.offline.capHours = 36` 이고,
+        // 구 주석의 「경제 항목 중 유일한 확정치」는 **맞는 말이었다.** 옮기는 것은 자산일 뿐
+        // 값도 확정 여부도 안 바뀐다 — 표에는 그 36 을 그대로 옮겨 적는다.
 
         [Header("재고")]
         [Tooltip("탄약 재고 용량(발). params.store = 40 확정치. 재고는 단일 층 — 마운트 적재와 창고 비축이 별개가 아니다. 저장 노드 배치에 따른 증가 규칙은 TBD(LogisticsConfig).")]

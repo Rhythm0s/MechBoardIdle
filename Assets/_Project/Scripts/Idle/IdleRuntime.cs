@@ -148,7 +148,8 @@ namespace MBI.Idle
         {
             double coef = economy != null ? economy.offlineCoefTbd : 0d;
             double baseRate = economy != null ? economy.offlineBaseRateTbd : 0d;
-            double capHours = balance != null ? balance.offlineCapHours : 36d;
+            // 오프라인 값 셋이 한 자산에 산다 (2026-10-13 · 상한이 BalanceConfig 에서 옮겨 왔다).
+            double capHours = economy != null ? economy.offlineCapHours : 36d;
 
             OfflineRewardResult r = OfflineRewardCalculator.FromSave(Data, _clock, coef, capHours, baseRate);
             LastOfflineReward = r;

@@ -33,6 +33,19 @@ namespace MBI.Data
         [Tooltip("한 번에 주는 골드. 사용자 확정 5. ⚠️ 활용처는 아직 없다(설계 몫).")]
         public int goldPerAward = 5;
 
+        /// <summary>
+        /// 오프라인 보상 인정 상한(시간) — **2026-10-13 에 `BalanceConfig` 에서 옮겨 왔다**(사용자 확정 ③).
+        ///
+        /// 오프라인 값 셋(상한 · 계수 · 기본 시급)이 **한 자산 한 표**에 모이게 하려는 것이다.
+        ///
+        /// ⚠️ **확정치다.** 원천은 `balance_v4.json` 의 `economy.offline.capHours = 36` 이며,
+        /// 옮겨 온 것은 **칸뿐**이고 값도 확정 여부도 안 바뀌었다.
+        /// 같은 자산에 있는 `offlineCoefTbd`·`offlineBaseRateTbd` 는 미확정치다 — 한 묶음이지만
+        /// 확정 여부는 저마다 다르다.
+        /// </summary>
+        [Tooltip("오프라인 보상 인정 상한(시간). ECONOMY 표 offlineCapHours. ⚠️ 미확정 — 설계 역기입 자리.")]
+        public float offlineCapHours = 36f;
+
         [Header("운영 (비밸런스 — §3 분리)")]
         [Tooltip("자동 저장 주기(초). 웹빌드엔 원자적 쓰기가 없어 너무 잦으면 손상 위험만 커진다.")]
         public float autosaveIntervalSeconds = 30f;
