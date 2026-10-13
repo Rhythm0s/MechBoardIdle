@@ -118,6 +118,30 @@ namespace MBI.Tests
         }
 
         /// <summary>
+        /// **안내 줄이 띠 안에 들고, 양쪽 여백이 같다** (2026-10-13 · 오른쪽이 잘렸다).
+        ///
+        /// ⚠️ 종전 폭은 `띠 × 0.6` 이라 창이 작아지면 문장이 안 들어갔다 — 글자는
+        /// 아래가 막혀 안 줄고 폭만 줄기 때문이다. 왼쪽만 고치면 **가려진 글자를
+        /// 잘린 글자로 바꾼** 것이 된다(이 함수 주석이 그것을 금한다).
+        /// </summary>
+        [Test]
+        public void 안내_줄이_띠_안에_들고_양쪽_여백이_같다()
+        {
+            foreach (Vector2 s in Screens)
+            {
+                Rect band = UiLayout.BandRect(UiLayout.Band.Board, s.x, s.y);
+                Rect hint = UiLayout.BoardHintRect(s.x, s.y);
+
+                float left = hint.x - band.x;
+                float right = band.xMax - hint.xMax;
+
+                Assert.LessOrEqual(hint.xMax, band.xMax + 0.01f, $"{s} — 안내 줄이 띠 오른쪽으로 나갔다");
+                Assert.AreEqual(left, right, 0.01f, $"{s} — 양쪽 여백이 다르다");
+                Assert.Greater(hint.width, band.width * 0.6f, $"{s} — 폭이 종전보다 안 넓어졌다");
+            }
+        }
+
+        /// <summary>
         /// ⚠️ **여백은 좁아지지 않는다** — 어느 창에서도 종전 `24 × 배율` 밑으로 안 내려간다.
         ///
         /// ⚠️⚠️ 기준 캔버스에서 **24 가 아니라 27** 이다. `KoreanFont.Snap` 이 32 를
