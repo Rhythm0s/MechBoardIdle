@@ -347,12 +347,16 @@ namespace MBI.UI
         /// <summary>결과 배너 안쪽 여백 (기준 캔버스 · ⚠️ 가정).</summary>
         public const float ResultBannerPad = 18f;
 
-        /// <summary>「다시 (Restart)」 단추 (기준 캔버스 · ⚠️ 가정 — 종전 값 그대로).</summary>
+        /// <summary>결과 화면 단추 한 칸 (기준 캔버스 · ⚠️ 가정 — 종전 값 그대로).</summary>
         public const float ResultButtonWidth = 200f;
         public const float ResultButtonHeight = 50f;
 
         /// <summary>
-        /// **결과 배너** — 「승리 — 적 전멸」과 「다시 (Restart)」가 든 상자.
+        /// **결과 배너** — 「승리 — 적 전멸」과 **단추 셋**이 든 상자.
+        ///
+        /// 🗑️ 구 문안 「…와 「다시 (Restart)」가 든 상자」 폐기(2026-10-13) — 단추가
+        /// 하나이던 때의 말이다. 지금은 통과 「다시 도전」·「스테이지로」·「다음 스테이지로」,
+        /// 실패 앞 둘이고, 튜토리얼 판만 「다시 하기」 하나다(#111·#114).
         ///
         /// ⚠️⚠️ **종전에는 글자가 단추를 덮었다**(2026-10-13 사용자 확정 ② · 빌드 c74a0d2).
         ///
@@ -447,7 +451,7 @@ namespace MBI.UI
             return new Rect(text.x + (w + gap) * index, one.y, w, one.height);
         }
 
-        /// <summary>「다시 (Restart)」 — 글자 아래, 틈은 <see cref="PlateGap"/>.</summary>
+        /// <summary>결과 화면 단추 — 글자 아래, 틈은 <see cref="PlateGap"/>. 여럿이면 나눠 쓴다.</summary>
         public static Rect ResultBannerButtonRect(float screenWidth, float screenHeight, float textLinePx)
         {
             Rect text = ResultBannerTextRect(screenWidth, screenHeight, textLinePx);

@@ -137,3 +137,44 @@ json 이 아니라 **C# 기본값**에서 온다. 주석은 「확정치는 상�
 
 - **출력이 잘리면 전부를 다시 연다.** 앞 200 자는 전부가 아니다.
 - **보고가 초록 시험과 어긋나면, 틀린 쪽은 보고라고 먼저 의심한다.**
+
+---
+
+## 배선 — 닫힘 (26.10.13 밤 · 문서가 늦게 따라왔다)
+
+⚠️ **이 로그의 1장 「안 걸린 셋」은 더 이상 사실이 아니다.** 아래가 그 뒤 일어난 일이다.
+
+### 미확정치 셋 — 걸렸다 (`0f1d71a`)
+
+사용자가 「재실행이 조정값을 지우면 안 된다」를 **폐기**하고 표를 원천으로 확정했다.
+`ApplyBalanceTables` 가 `ECONOMY_DATA` → `EconomyConfig` ·
+`LOGISTICS_DATA` → `LogisticsConfig` · `COMBAT_RULE_DATA` → `CombatTuning` 를 넣는다.
+2장이 쟀듯 **값은 하나도 안 바뀌었다.**
+
+### 강화·판본 둘 — 걸렸다 (`f515010` · `db5e265`)
+
+사용자 시트가 도착했다(10-13 21:33 · `Confirmed` 전부 1).
+`ENHANCE_DATA` → `enhBandX 1.3` · `enhBandY 1.5` · `snapBand 0.08` · `s4Cost 100`,
+`META_DATA` → `schemaVersion` 만. `balance_v4.json` 의 `enhance`·`meta.schemaVersion`
+읽기 경로는 폐기했다.
+
+📌 **다시 구운 `BalanceConfig.asset` 이 한 글자도 안 바뀌었다** —
+「옮기는 일이지 값을 바꾸는 일이 아니다」의 증거다.
+
+⚠️ `exportedAt` 은 **빈 칸 유지**로 재확정됐다(아무도 안 찍는다 ·
+`261013_enhance_meta_table_spec.md` 참조).
+
+### 아직 안 걸린 것
+
+- `TEXT_DATA` — 범위 밖 그대로(`261013_text_table_block.log`).
+- `ENEMY_DATA.ScrapPerKill` · `STAGE_DATA` 의 Spawn 세 열 — **열이 xlsx 에 없다.**
+  CSV 에만 임시로 들어 있어 **변환기를 돌리면 지워진다**(실제로 한 번 지워졌고 되돌렸다).
+  생성기의 `Has`/`Exists` 보호가 그 고장을 **조용히 감췄으므로**, 표를 직접 보는
+  시험을 세웠다(`FarmTableColumnsTests` · 열이 없으면 빨개진다).
+  → **사용자 시트 대기.**
+
+### 📌 남길 것
+
+**차단 로그는 풀린 날 닫는다.** 이 문서는 배선이 `0f1d71a` 에서 풀린 뒤에도
+「안 걸렸다」고 적힌 채 남아 있었다 — 뒤에 온 사람은 코드와 문서 중 어느 쪽이
+지금인지 모른다.
