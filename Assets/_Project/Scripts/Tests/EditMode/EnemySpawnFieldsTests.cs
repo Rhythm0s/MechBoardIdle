@@ -41,6 +41,9 @@ namespace MBI.Tests
             radius = 0.9f,
             projectileSpeed = 11f,
             isBoss = true,
+            // ⚠️ **0 을 넣으면 안 된다.** 적 쪽도 기본값 0 이라 안 건너가도 통과한다 —
+            //    헛통과다. 다른 칸들과도 겹치지 않는 수를 넣는다(2026-10-13 · 종류별 고철).
+            scrapPerKill = 13f,
         };
 
         /// <summary>
@@ -62,7 +65,7 @@ namespace MBI.Tests
                     $"{path}: `{f.Name}` 가 적에게 안 건너갔다 — 만드는 자리에서 빠졌다");
                 checked_++;
             }
-            Assert.GreaterOrEqual(checked_, 9,
+            Assert.GreaterOrEqual(checked_, 10,
                 $"{path}: 본 칸이 {checked_} 개뿐이다 — 이름이 갈려 시험이 헛돌고 있다");
         }
 

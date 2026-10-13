@@ -22,6 +22,14 @@ namespace MBI.Core
         public float hp;
         public float maxHp;
         public float def;          // 적: composition def(히트당 뺄셈). 로봇: 0(방어 스탯 없음 §9).
+
+        /// <summary>
+        /// 이 적을 잡으면 나오는 고철 (2026-10-13 · #112 ⑤). 로봇은 0 이다.
+        ///
+        /// 📌 **몸이 제 몫을 들고 다닌다** — 잡는 쪽이 「무슨 종류였나」를 되묻지 않게.
+        /// 되물으면 시뮬이 적 자산 목록을 들어야 하고 그 목록이 또 하나의 원천이 된다(§7).
+        /// </summary>
+        public float scrapPerKill;
         /// <summary>
         /// 부 축으로 곁눈질한 방향과 **남은 유지 시간** (2026-09-16 설계 완화 · §74-12 B).
         ///

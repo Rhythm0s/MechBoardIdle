@@ -65,6 +65,15 @@ namespace MBI.Core
             return t;
         }
 
+        /// <summary>
+        /// 그 열이 있는가 — **「없어도 되는 열」을 묻는 자리** (2026-10-13 신설).
+        ///
+        /// ⚠️ 없는 열을 <c>Row.Text</c> 로 물으면 **죽는다**(그 편이 맞다 — 있어야 할 열이
+        /// 없으면 시트를 고쳐야 한다). 다만 **새로 들어오는 중인 열**은 다르다 —
+        /// 그 한 열 때문에 자산 전부가 안 구워지면 안 되므로, 먼저 이것으로 묻는다.
+        /// </summary>
+        public bool Has(string field) => IndexOf(field) >= 0;
+
         /// <summary>그 열이 몇 째인가. 없으면 −1 — 부르는 쪽이 「없어도 되는 열」을 가릴 수 있다.</summary>
         public int IndexOf(string field)
         {

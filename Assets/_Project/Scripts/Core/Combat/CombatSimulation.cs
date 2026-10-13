@@ -157,6 +157,22 @@ namespace MBI.Core
         /// 미는 규칙이 보스에만 걸리므로 그 물음이 처음으로 필요해졌다.
         /// </summary>
         public bool isBoss;
+
+        /// <summary>
+        /// **이 적 한 마리를 잡으면 나오는 고철** (2026-10-13 사용자 확정 #112 ⑤).
+        ///
+        /// 보병 2 · 장갑 3 · 포격 4 · 강적 **0**.
+        ///
+        /// ⚠️ **강적 0 은 「미확정」이 아니다** — 강적은 **도전 층에만** 나오고 도전 고철은
+        /// 파밍 기록과 섞지 않으므로, 파밍으로 벌리는 몫이 **없다**는 뜻이다.
+        ///
+        /// 📌 **값이 적을 따라 흐른다**(`hp`·`def` 와 같은 길). 잡는 쪽이 「무슨 종류였나」를
+        /// 되묻지 않게 하려는 것이다 — 되물으면 시뮬이 적 자산 목록을 들어야 하고,
+        /// 그 목록이 또 하나의 원천이 된다(지침 §7).
+        ///
+        /// 🗑️ `ECONOMY_DATA` 의 `scrapPerKillTbd` **단일값은 폐기**다 — 종류별로 갈렸다.
+        /// </summary>
+        public float scrapPerKill;
     }
 
     /// <summary>
@@ -1687,6 +1703,7 @@ namespace MBI.Core
                 radius = s.radius,
                 projectileSpeed = s.projectileSpeed,
                 isBoss = s.isBoss,
+                scrapPerKill = s.scrapPerKill,
             };
 
         private void MoveAndAttackEnemies(float dt)

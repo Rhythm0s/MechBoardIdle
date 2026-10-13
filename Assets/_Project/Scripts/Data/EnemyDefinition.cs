@@ -69,6 +69,9 @@ namespace MBI.Data
                  "명중은 접촉으로 본다 — 유도가 아니라 쏜 순간의 로봇 자리를 겨눈다.")]
         public float projectileSpeed;
 
+        [Tooltip("한 마리 잡을 때 나오는 고철. 보병 2 · 장갑 3 · 포격 4 · 강적 0(도전 전용). 원천 = ENEMY_DATA.ScrapPerKill.")]
+        public float scrapPerKill;
+
         [Header("그림 (경로는 생성기에만 — 런타임은 이 참조만 본다)")]
         [Tooltip("스틸 한 장. 벌이 없거나 아직 안 걸린 방향에서 그대로 남는다. null이면 색 사각 폴백.")]
         public Sprite sprite;

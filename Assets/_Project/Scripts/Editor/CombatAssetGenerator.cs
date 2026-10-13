@@ -522,6 +522,14 @@ namespace MBI.Editor
                     d.attackRange = er.Num("AttackRange");
                     d.attackInterval = er.Num("AttackInterval");
                     d.projectileSpeed = er.Num("ProjectileSpeed");
+
+                    // ✅ **종류별 고철**(2026-10-13 사용자 확정 #112 ⑤).
+                    //
+                    // ⚠️ **열이 아직 없을 수 있다**(사용자 시트 대기). 없으면 0 으로 두고
+                    //    한 줄로 말한다 — 없는 열을 물으면 `Text` 가 죽는데, 그러면
+                    //    **고철 한 열 때문에 적 자산 전부가 안 구워진다.**
+                    d.scrapPerKill = enemyTable.Has("ScrapPerKill") ? er.Num("ScrapPerKill") : 0f;
+
                     d.atkConfirmed = er.Bool("Confirmed");
                 }
                 else
