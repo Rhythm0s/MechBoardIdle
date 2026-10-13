@@ -81,6 +81,23 @@ namespace MBI.Combat
             // 다시 내 것이 된다(`Stage0Session` 이 `nextStage` 로 그렇게 한다).
             if (!Owns(stages, runner.CurrentStage)) return;
 
+            // ⚠️⚠️ **도전 층의 끝은 사람이 받는다**(2026-10-13 사용자 확정 #111).
+            //
+            // 🗑️ **자동 진행 폐기 — 도전에 한해서.** 종전에는 전투가 끝나면 1.5 초 뒤
+            //    스스로 다음 판을 걸었고, 그래서 #111 이 정한 결과 화면
+            //    (「다시 도전」·「스테이지로」·「다음 스테이지로」)이 **아무도 못 보는
+            //    화면**이었다 — 빌드로 S1 도전을 끝까지 돌려 보고 잡았다(2026-10-13).
+            //    통과하자마자 S2 파밍으로 넘어가 버렸다.
+            //
+            // 📌 **「사람이 안 눌러도 돈다」는 이제 파밍 층이 맡는다**(§5-7 의 본뜻).
+            //    파밍은 끝나지 않으므로 여기 올 일이 없고, 도전은 사람이 「도전」을 눌러
+            //    들어가는 곳이다 — 그 결과도 사람이 받는 것이 짝이 맞는다.
+            //    자동으로 넘기면 **「도전」 단추 자체가 뜻을 잃는다**(안 눌러도 넘어가니까).
+            //
+            // ⚠️ 통과 보고(해금·보상)는 **러너로 옮겼다**(`ReportChallengeClearOnce`) —
+            //    이 길이 안 돌아도 판이 열려야 하기 때문이다.
+            if (!StageLayerSignals.IsFarming) { _restartAt = -1f; return; }
+
             CombatResult result = runner.CurrentResult;
             if (result == CombatResult.InProgress)
             {

@@ -1544,6 +1544,9 @@ namespace MBI.Combat
             // 파밍 층이면 바퀴를 돌린다 — 보충·시급은 FarmSession 이 든다.
             TickFarmLayer(Time.deltaTime, killsThisTick, scrapThisTick);
 
+            // 도전 통과를 **러너가 보고한다**(2026-10-13 · 순서 5·#111).
+            ReportChallengeClearOnce();
+
             // 이번 틱 사격 연출(탄선 + 피격). 실제 틱이 돈 경우만(종료 후 스테일 재생성 방지).
             if (running)
                 foreach (ShotEvent s in _sim.ShotsThisTick)
@@ -2271,6 +2274,33 @@ namespace MBI.Combat
             Restart();      // 몬스터는 그 판 정원부터 새로 · HP 만탱
         }
 
+        /// <summary>이 판의 도전 통과를 이미 보고했는가. 판이 갈리면 내려간다.</summary>
+        private bool _clearReported;
+
+        /// <summary>
+        /// **도전을 통과했다고 한 번만 보고한다** (2026-10-13 · 순서 5).
+        ///
+        /// ⚠️⚠️ **종전에는 자동 진행만 보고했다.** <see cref="AutoBattleController"/> 가
+        /// 다음 판을 걸면서 그 길에 보고했는데, #111 로 **결과 화면이 사람을 기다리게**
+        /// 되면서 그 길이 안 돌게 됐다 — 그대로 두면 **깨도 다음 판이 안 열린다.**
+        /// 통과를 아는 것은 판을 돌린 쪽이므로 여기로 옮긴다.
+        ///
+        /// ⚠️ **파밍 층에서는 보고하지 않는다** — 파밍에는 이기고 지는 것이 없다.
+        /// ⚠️ **튜토리얼도 아니다** — 그쪽은 <c>Stage0Session</c> 이 제 몫을 보고한다.
+        /// ⚠️ 두 번 보고해도 저장이 막는다(`MarkCleared` 가 거짓을 준다) — 그래도
+        ///    한 번만 보내는 쪽이 맞다. 보상은 저장이 아니라 **보고**에 붙어 있다.
+        /// </summary>
+        private void ReportChallengeClearOnce()
+        {
+            if (_clearReported || stage == null || _sim == null) return;
+            if (IsTutorialStage || StageLayerSignals.IsFarming) return;
+            if (_sim.Result != CombatResult.Win) return;
+
+            _clearReported = true;
+            IdleSignals.ReportClear(stage.stageId, stage.enhMaterialReward);
+            Debug.Log($"[MBI] 도전 통과 — {stage.stageId} 보고(해금·보상).");
+        }
+
         /// <summary>다음 보충까지 남은 초 — 화면이 「리젠 mm:ss」로 읽는다. 바퀴가 없으면 -1.</summary>
         public float FarmSecondsToRefill => _farm != null ? _farm.SecondsToRefill : -1f;
 
@@ -2422,6 +2452,8 @@ namespace MBI.Combat
         public void Restart()
         {
             _ready = false;
+            // ⚠️ 통과 보고 깃발을 내린다 — 안 내리면 다시 도전해도 보고가 안 나간다.
+            _clearReported = false;
             foreach (KeyValuePair<CombatEntity, CombatEntityView> kv in _enemyViews)
                 if (kv.Value != null) Destroy(kv.Value.gameObject);
             _enemyViews.Clear();
@@ -2767,7 +2799,13 @@ namespace MBI.Combat
             //    대기 마운트가 만충일 때만이며, 판정은 `TagSystem.SkillReady` 하나가 낸다 —
             //    다른 잣대를 쓰면 **빛나는데 안 나가는** 버튼이 생긴다.
             //    ⚠️ 밝기 값은 **가정**이다(UI 12장 역기입 자리).
-            bool skillReady = TagSystem.SkillReady(
+            //
+            // ⚠️⚠️ **해금도 같이 본다**(2026-10-13 · 사용자 스크린샷). 종전에는 이 줄이
+            //    `SkillReady` 만 보고 `robotBReady` 를 안 봐서, **「로봇 B 미해금」이라
+            //    눌리지도 않는 단추에 「지금 누르라」는 노란 링**이 그려졌다.
+            //    단추를 막은 손질(5a00a0c)이 **버튼만 막고 링은 안 막은** 자리다 —
+            //    못 하는 일을 권하는 표시는 밝기보다 나쁘다.
+            bool skillReady = robotBReady && TagSystem.SkillReady(
                 _sim.Tag.Tag.CanTag, _sim.Tag.StandbyMount != null && _sim.Tag.StandbyMount.IsFull);
             // ⚠️ **밝기만으로는 사용자 눈에 안 보였다**(2026-09-16 육안 2차 ③) —
             //    원형 버튼은 이미 밝은 판이라 1.45배가 묻힌다. **테두리를 같이 두른다.**
