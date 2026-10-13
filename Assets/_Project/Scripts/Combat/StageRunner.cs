@@ -2177,9 +2177,13 @@ namespace MBI.Combat
                 // 「S3 — 물류 다시 짜기」. 맵 이름이 비면 **번호만** 적는다(지어내지 않는다).
                 string name = StageMapName.Of(e.number);
                 string label = "S" + e.number + (name.Length > 0 ? "  —  " + name : string.Empty);
+                // ⚠️⚠️ **그림 글자를 안 쓴다**(2026-10-13 빌드 실측). 자물쇠(U+1F512)와
+                //    체크(U+2713)는 한글 아틀라스에 없어 화면에 **□ 로 빠졌다** —
+                //    잠긴 네 줄 앞이 전부 네모였다. WebGL 에는 시스템 폰트 폴백이 없다.
+                //    뜻을 글자로 적는다.
                 if (e.number == here) label += "  (지금)";
-                else if (e.cleared) label += "  ✓";
-                if (!e.unlocked) label = "🔒  " + label + "  (앞 판 도전 통과 필요)";
+                else if (e.cleared) label += "  (통과)";
+                if (!e.unlocked) label = "잠김 · " + label + "  (앞 판 도전 통과 필요)";
 
                 var bs = new GUIStyle(GUI.skin.button)
                 {
@@ -2605,7 +2609,15 @@ namespace MBI.Combat
                     labels.Add("스테이지로");
                     if (won && NextStageOf(stage) != null) labels.Add("다음 스테이지로");
                 }
-                else labels.Add("다시 (Restart)");
+                else
+                {
+                    // 🗑️ **「다시 (Restart)」 폐기** — 2026-10-13 빌드 실측에서
+                    //    **「다 (Resta」로 잘려** 있었다. 괄호 속 영문은 한글이 이미 한 말을
+                    //    되풀이하는데 칸은 그만큼 안 넓어진다 — 줄이는 사다리를 다 내려가도
+                    //    모자랐다. 층이 있는 판의 「다시 도전」과 **같은 길이**로 맞춘다
+                    //    (그쪽은 같은 칸에서 안 잘린다 — 같은 날 같은 빌드에서 확인).
+                    labels.Add("다시 하기");
+                }
 
                 for (int i = 0; i < labels.Count; i++)
                 {

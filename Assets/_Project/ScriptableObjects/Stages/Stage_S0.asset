@@ -25,3 +25,4 @@ MonoBehaviour:
   spawnConfirmed: 0
   composition: []
   bossHp: 0
+  farmComposition: []
