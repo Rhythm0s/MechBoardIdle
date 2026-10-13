@@ -189,6 +189,90 @@ namespace MBI.Editor
 
         /// <summary>표를 다시 읽게 한다 — 변환기를 돌린 뒤 유니티가 파일을 다시 보게 한다.</summary>
         [MenuItem("MBI/밸런스 표 다시 읽기")]
+        /// <summary>
+        /// **FieldName / Value 꼴 표를 자산에 그대로 붓는다** (2026-10-13 사용자 확정 · 미확정치 표 셋).
+        ///
+        /// ⚠️⚠️ **구 규칙 「미확정치는 안 덮어쓴다」가 폐기된 자리다.** 조정하는 자리가
+        /// 인스펙터에서 **표로** 옮겨 갔으므로, 생성기가 덮는 것이 맞다(#62 CSV 가 원천).
+        ///
+        /// 📌 **형은 자산이 정한다.** `SerializedProperty` 의 종류를 보고 넣으므로
+        /// 표에 수를 적어 두면 float 든 int 든 bool 이든 그 칸이 알아서 받는다 —
+        /// 표에 형을 적지 않는다(적으면 형이 두 곳에 산다 · 지침 §7).
+        ///
+        /// ⚠️ **모르는 이름은 경고 한 줄로 넘긴다.** 표에 남아 있는 폐기된 줄
+        /// (예: `COMBAT_RULE_DATA` 의 `robotHp` — 임자는 `BALANCE_PARAM_DATA` 다)이
+        /// 생성을 멈추면 안 된다. 멈추면 표 한 줄 때문에 자산 전부가 안 선다.
+        /// </summary>
+        /// <param name="ignore">표에 있어도 **일부러 안 넣는** 이름(폐기된 줄).</param>
+        /// <returns>실제로 넣은 칸 수.</returns>
+        public static int ApplyFieldTable(Object target, string tableName,
+            params string[] ignore)
+        {
+            if (target == null) return 0;
+
+            CsvTable table = Load(tableName);
+            var so = new SerializedObject(target);
+            var skip = new HashSet<string>(ignore ?? System.Array.Empty<string>());
+
+            int applied = 0, unknown = 0, skipped = 0;
+            foreach (CsvTable.Row row in table.Rows)
+            {
+                string name = row.Text("FieldName");
+                if (string.IsNullOrEmpty(name)) continue;
+
+                if (skip.Contains(name)) { skipped++; continue; }
+
+                SerializedProperty p = so.FindProperty(name);
+                if (p == null) { unknown++; continue; }
+
+                string raw = row.Text("Value");
+                if (!Assign(p, raw)) { unknown++; continue; }
+                applied++;
+            }
+
+            so.ApplyModifiedPropertiesWithoutUndo();
+            EditorUtility.SetDirty(target);
+
+            Debug.Log($"[MBI] {tableName} → {target.name}: 넣음 {applied}"
+                      + (skipped > 0 ? $" · 폐기 줄 건너뜀 {skipped}" : "")
+                      + (unknown > 0 ? $" · ⚠️ 모르는 칸 {unknown}" : ""));
+            return applied;
+        }
+
+        /// <summary>표의 글자를 그 칸의 형으로 넣는다. 못 넣으면 거짓.</summary>
+        private static bool Assign(SerializedProperty p, string raw)
+        {
+            raw = raw == null ? "" : raw.Trim();
+            switch (p.propertyType)
+            {
+                case SerializedPropertyType.Float:
+                    if (!float.TryParse(raw, System.Globalization.NumberStyles.Float,
+                            System.Globalization.CultureInfo.InvariantCulture, out float f)) return false;
+                    p.floatValue = f;
+                    return true;
+
+                case SerializedPropertyType.Integer:
+                    if (!int.TryParse(raw, System.Globalization.NumberStyles.Integer,
+                            System.Globalization.CultureInfo.InvariantCulture, out int i)) return false;
+                    p.intValue = i;
+                    return true;
+
+                case SerializedPropertyType.Boolean:
+                    // 표는 0/1 로 적는다 — true/false 글자도 받는다.
+                    if (raw == "0") { p.boolValue = false; return true; }
+                    if (raw == "1") { p.boolValue = true; return true; }
+                    if (bool.TryParse(raw, out bool b)) { p.boolValue = b; return true; }
+                    return false;
+
+                case SerializedPropertyType.String:
+                    p.stringValue = raw;
+                    return true;
+
+                default:
+                    return false;   // 벡터·참조 따위는 이 꼴의 표가 담을 것이 아니다
+            }
+        }
+
         public static void Refresh()
         {
             AssetDatabase.Refresh();

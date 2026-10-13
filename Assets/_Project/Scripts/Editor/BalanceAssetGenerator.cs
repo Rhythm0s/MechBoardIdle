@@ -112,8 +112,16 @@ namespace MBI.Editor
             BuildNodes(config, json);
             BuildModules(config);
 
-            // 미확정치 SO는 만들기만 하고 값은 덮어쓰지 않는다 — 생성기 재실행이 조정값을 지우면 안 된다.
-            LoadOrCreate<EconomyConfig>(SoRoot + "/EconomyConfig.asset");
+            // ⚠️⚠️ **표가 원천이라 미확정치도 덮는다** (2026-10-13 사용자 확정 · #62 의 귀결).
+            //
+            // 🗑️ **구 규칙 폐기** — 「미확정치 SO는 만들기만 하고 값은 덮어쓰지 않는다 ·
+            //    생성기 재실행이 조정값을 지우면 안 된다」. 그 규칙이 지키려던 것은
+            //    **인스펙터에서 만진 수**였는데, 조정하는 자리가 **표(CSV)로 옮겨 갔다.**
+            //    원천이 표인데 생성기가 안 덮으면 **표를 고쳐도 화면이 안 바뀐다** —
+            //    그 편이 더 조용히 틀린다.
+            //
+            // 📌 **이제 인스펙터에서 만진 수는 다음 생성 때 사라진다.** 고치는 자리는 표다.
+            ApplyBalanceTables();
 
             AssetDatabase.SaveAssets();
             AssetDatabase.Refresh();
@@ -506,6 +514,37 @@ namespace MBI.Editor
             // ⚠️ **F(냉각)는 만들지 않는다** — 발열 축과 함께 폐기됐다(2026-09-02 · `260902_W15`).
             // 자리를 남겨 두면 폐기된 것이 이름만으로 되살아난다.
         }
+
+        /// <summary>
+        /// **미확정치 표 셋을 제 자산에 붓는다** (2026-10-13 사용자 확정).
+        ///
+        /// 표마다 임자가 하나다 — 이름이 흩어져 있지 않은지 재서 확인했다
+        /// (`COMBAT_RULE` 81/81 → `CombatTuning` · `ECONOMY` 4/4 → `EconomyConfig` ·
+        /// `LOGISTICS` 5/5 → `LogisticsConfig`).
+        ///
+        /// ⚠️ **`robotHp` 는 안 넣는다.** 그 값의 임자는 `BALANCE_PARAM_DATA` 하나이며
+        /// (2026-10-13 사용자 확정), `COMBAT_RULE_DATA` 에 남은 줄은 **폐기**다 —
+        /// 넣으면 한 값이 두 곳에 산다(지침 §7). 시트에서 그 줄을 지우는 것은 사용자 몫이고,
+        /// 지워질 때까지 로더가 **건너뛰고 경고 한 줄**을 남긴다.
+        /// </summary>
+        private static void ApplyBalanceTables()
+        {
+            GameDataTables.ApplyFieldTable(
+                LoadOrCreate<EconomyConfig>(SoRoot + "/EconomyConfig.asset"), "ECONOMY_DATA");
+
+            GameDataTables.ApplyFieldTable(
+                LoadOrCreate<LogisticsConfig>(SoRoot + "/LogisticsConfig.asset"), "LOGISTICS_DATA");
+
+            GameDataTables.ApplyFieldTable(
+                LoadOrCreate<CombatTuning>(SoRoot + "/CombatTuning.asset"), "COMBAT_RULE_DATA",
+                RetiredCombatRuleKeys);
+        }
+
+        /// <summary>
+        /// 🗑️ `COMBAT_RULE_DATA` 에 남아 있지만 **임자가 딴 표**인 줄
+        /// (2026-10-13 사용자 확정 — `robotHp` 의 임자는 `BALANCE_PARAM_DATA`).
+        /// </summary>
+        private static readonly string[] RetiredCombatRuleKeys = { "robotHp" };
 
         private static T LoadOrCreate<T>(string path) where T : ScriptableObject
         {

@@ -15,5 +15,7 @@ MonoBehaviour:
   powerDraw: 66
   powerSupply: 80
   beltCapacity: 14
+  moduleCoolingTbd: 0
   heatGenerate: 8
   heatThreshold: 12
+  storageCapacityPerNodeTbd: 0

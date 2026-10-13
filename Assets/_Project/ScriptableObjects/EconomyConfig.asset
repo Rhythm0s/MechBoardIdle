@@ -15,4 +15,6 @@ MonoBehaviour:
   scrapPerKillTbd: 2
   offlineCoefTbd: 0.5
   offlineBaseRateTbd: 0
+  killsPerGoldAward: 20
+  goldPerAward: 5
   autosaveIntervalSeconds: 30
