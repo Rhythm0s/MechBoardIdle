@@ -563,6 +563,24 @@ namespace MBI.Editor
             var compByStage = GameDataTables.CompositionByStage(
                 GameDataTables.Load("STAGE_COMP_DATA"));
 
+            // ⚠️ **파밍 표는 아직 없을 수 있다**(2026-10-13 · 사용자 시트 대기).
+            //    없으면 **죽지 않고 비운다** — 그 상태는 「파밍 층이 아직 안 선다」이지
+            //    고장이 아니다. 한 줄로 그렇게 말해 둔다.
+            System.Collections.Generic.Dictionary<string,
+                System.Collections.Generic.List<CsvTable.Row>> farmByStage = null;
+            if (GameDataTables.Exists("FARM_COMP_DATA"))
+            {
+                // ⚠️ **열이 틀리면 여기서 죽는다**(`Require`). 「없다」와 「틀렸다」는 다른 일이고,
+                //    틀린 것을 「없다」로 넘기면 시트를 영영 안 고친다.
+                farmByStage = GameDataTables.FarmCompositionByStage(
+                    GameDataTables.Load("FARM_COMP_DATA"));
+            }
+            else
+            {
+                Debug.LogWarning("[MBI] 파밍 표가 비었다 — 정원 0 · 파밍 층이 안 선다"
+                                 + " (FARM_COMP_DATA 가 아직 없다 · 시트가 들어오면 채워진다).");
+            }
+
             int n = 0;
             foreach (StageEntry s in json.stages)
             {
@@ -603,6 +621,28 @@ namespace MBI.Editor
                         });
                 }
                 d.composition = comp;
+
+                // ⚠️⚠️ **파밍 구성은 따로 읽는다**(2026-10-13 · `FARM_COMP_DATA`).
+                //    도전 판과 **다른 줄**이다 — 같은 줄을 둘로 쓰면 한쪽을 고칠 때
+                //    다른 쪽이 조용히 따라 움직인다.
+                //
+                // ⚠️ **표가 없거나 그 판 줄이 없으면 빈 채로 둔다.** 「파밍 층이 아직
+                //    안 선 판」이라는 뜻이고, 지어내면 없는 판이 서 있는 것처럼 보인다.
+                var farm = new List<StageComposition>();
+                if (farmByStage != null && farmByStage.TryGetValue(s.id ?? string.Empty,
+                        out System.Collections.Generic.List<CsvTable.Row> farmRows))
+                {
+                    foreach (CsvTable.Row c in farmRows)
+                        farm.Add(new StageComposition
+                        {
+                            enemyKey = GameDataTables.EnemyKeyOf(c.Int("EnemyKey")),
+                            count = c.Int("Weight"),      // 비율이 아니라 마릿수다
+                            hp = c.Num("Hp"),
+                            def = c.Num("Def"),
+                        });
+                }
+                d.farmComposition = farm;
+
                 EditorUtility.SetDirty(d);
                 n++;
             }

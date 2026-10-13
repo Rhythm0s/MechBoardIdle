@@ -83,5 +83,23 @@ namespace MBI.Data
         public List<StageComposition> composition = new List<StageComposition>();
         [Tooltip("보스 HP(Budget/S6만). 그 외 0. bossHp = 36000.")]
         public float bossHp;
+
+        [Header("파밍 층 구성 (2026-10-13 사용자 확정 #111·#112)")]
+        /// <summary>
+        /// **상주 파밍 층에 서는 것들** — 원천은 `FARM_COMP_DATA` 표다.
+        ///
+        /// ⚠️⚠️ **도전 판(<see cref="composition"/>)과 다른 줄이다.** 도전은 「이 판을 깨려면
+        /// 무엇을 몇 마리 잡아야 하는가」이고, 파밍은 「화면에 늘 몇 마리가 서 있는가」다 —
+        /// 같은 종류라도 수도 체력도 다를 수 있다(S5·S6 이 실제로 그렇다).
+        /// 한 줄을 둘로 쓰면 한쪽을 고칠 때 다른 쪽이 조용히 따라 움직인다.
+        ///
+        /// 📌 **`count` 는 마릿수다**(표의 `Weight`). 그 합이 곧 정원이며
+        /// <see cref="MBI.Core.FarmRefillRule.CapacityOf"/> 가 그렇게 센다 —
+        /// <see cref="spawnCap"/> 과 **따로 세지 않는다**(지침 §7).
+        ///
+        /// ⚠️ 비면 그 판에는 파밍 층이 **안 선다**. 지어내지 않는다 — 표가 비었다는 뜻이다.
+        /// </summary>
+        [Tooltip("파밍 층에 상주하는 구성. count = 마릿수이고 그 합이 정원이다. 원천 = FARM_COMP_DATA.")]
+        public List<StageComposition> farmComposition = new List<StageComposition>();
     }
 }

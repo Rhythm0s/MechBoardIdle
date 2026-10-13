@@ -29,3 +29,4 @@ MonoBehaviour:
     hp: 36000
     def: 12
   bossHp: 36000
+  farmComposition: []

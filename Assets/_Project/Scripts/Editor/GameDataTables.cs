@@ -23,7 +23,18 @@ namespace MBI.Editor
     {
         public const string Dir = "Assets/_Project/GameData";
 
+        /// <summary>
+        /// 그 표가 디스크에 있는가 — **「없다」와 「틀렸다」를 가르려고** 둔다.
+        ///
+        /// ⚠️ 없는 표를 <see cref="Load"/> 로 더듬어 보면 예외가 나는데, 그 예외를 삼켜서
+        /// 「없다」로 읽으면 **열 이름이 틀린 표까지 「없다」가 된다** — 그러면 시트를
+        /// 영영 안 고친다. 있는지는 이것으로 묻고, 있으면 <see cref="Load"/> 가
+        /// 열 계약으로 죽게 둔다.
+        /// </summary>
+        public static bool Exists(string name) => File.Exists($"{Dir}/{name}.csv");
+
         /// <summary>표 하나를 연다. 못 열면 **경로와 까닭을 들고** 죽는다.</summary>
+
         public static CsvTable Load(string name)
         {
             string path = $"{Dir}/{name}.csv";
@@ -76,9 +87,32 @@ namespace MBI.Editor
         /// 스테이지별 구성 줄들 — `StageID` 로 묶어 준다.
         /// ⚠️ **표의 차례를 지킨다** — 차례가 바뀌면 같은 판이 다른 순서로 스폰된다.
         /// </summary>
+        /// <summary>
+        /// **파밍 구성 줄들** — `StageID` 로 묶어 준다 (2026-10-13 · `FARM_COMP_DATA`).
+        ///
+        /// ⚠️⚠️ **도전 표와 열 이름이 다르다** — 도전은 `Count`(그 판에 나오는 총수),
+        /// 파밍은 `Weight`(화면에 늘 서 있는 마릿수)다. 뜻이 다르므로 이름도 다르고,
+        /// <see cref="CompositionByStage"/> 를 그대로 쓰면 **열이 없다고 죽는다.**
+        ///
+        /// 📌 **열 계약을 따로 둔 까닭** — 한 함수로 둘을 받으면 `Count` 든 `Weight` 든
+        /// 아무거나 받아 주게 되고, 그러면 **파밍 표에 `Count` 를 적어도 조용히 돈다.**
+        /// 이름이 틀리면 **여기서 죽어야** 시트를 고친다.
+        /// </summary>
+        public static Dictionary<string, List<CsvTable.Row>> FarmCompositionByStage(CsvTable t)
+        {
+            t.Require("StageID", "EnemyKey", "Weight", "Hp", "Def");
+            return GroupByStage(t);
+        }
+
         public static Dictionary<string, List<CsvTable.Row>> CompositionByStage(CsvTable t)
         {
             t.Require("StageID", "EnemyKey", "Count", "Hp", "Def");
+            return GroupByStage(t);
+        }
+
+        /// <summary>`StageID` 로 묶기만 한다 — 열 계약은 부르는 쪽이 이미 걸었다.</summary>
+        private static Dictionary<string, List<CsvTable.Row>> GroupByStage(CsvTable t)
+        {
 
             var map = new Dictionary<string, List<CsvTable.Row>>();
             foreach (CsvTable.Row r in t.Rows)
