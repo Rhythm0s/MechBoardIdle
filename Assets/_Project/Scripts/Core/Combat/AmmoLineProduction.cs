@@ -8,9 +8,21 @@ namespace MBI.Core
     public struct MunitionsLine
     {
         public AmmoKind kind;
-        /// <summary>100% 가동 시 발사율(발/초). params specA0/1/2 = 5 / 4 / 2.</summary>
+        /// <summary>
+        /// 100% 가동 시 발사율(발/초). `BALANCE_PARAM_DATA` 의 `specA0/1/2` = **5 / 6 / 2**.
+        ///
+        /// ⚠️ **구 주석은 「5 / 4 / 2」였고 틀렸다**(2026-10-13 정정). 표의 `specA1` 은 **6** 이다.
+        /// 읽히는 것은 표이므로 **동작은 표가 맞고 주석이 낡았던 것**이다 — 값은 안 건드렸다.
+        /// </summary>
         public float specShotsPerSec;
-        /// <summary>발당피해. params dA0/1/2 = 20 / 25 / 50.</summary>
+
+        /// <summary>
+        /// 발당피해. `BALANCE_PARAM_DATA` 의 `dA0/1/2` = **20 / 10 / 50**.
+        ///
+        /// ⚠️ **구 주석은 「20 / 25 / 50」이었고 틀렸다**(2026-10-13 정정). 표의 `dA1` 은 **10** 이다.
+        /// 관통탄은 **한 방이 작고 자주 쏘는** 쪽이며, 그래서 `def` 가 두꺼운 적에게 특히 약하다
+        /// (`DamageFormula.PerHit` 가 한 방마다 `def` 를 깎는다).
+        /// </summary>
         public float damagePerShot;
         /// <summary>이 탄종에 배정된 군수 노드 수.</summary>
         public int nodeCount;
