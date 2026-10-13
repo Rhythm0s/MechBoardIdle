@@ -1,0 +1,100 @@
+# 26.10.13 — 표 배선: 걸기 전에 재 보니 규칙이 가로막는다
+
+착수 전 표 열셋과 생성기·SO·`balance_v4.json` 을 맞대어 쟀다(HEAD e7dce89).
+**안 걸었다** — 거는 일이 **기록된 규칙 하나를 뒤집는 일**이기 때문이다.
+
+## 1. 지금 몇이 걸려 있나
+
+생성기가 `GameDataTables.Load(...)` 로 여는 표 **열** —
+`BALANCE_PARAM` · `ENEMY` · `MODULE` · `NODE` · `RECIPE` · `ROBOT` ·
+`STAGE_COMP` · `STAGE` · `TEXT` · `WEAPON`.
+
+**안 걸린 셋** — `ECONOMY_DATA` · `LOGISTICS_DATA` · `COMBAT_RULE_DATA`.
+(열셋째 `TEXT_DATA` 는 이번 범위 밖 · `261013_text_table_block.log`)
+
+## 2. 값은 이미 맞다 — 고칠 것이 없다
+
+세 표의 `FieldName`/`Value` 를 지금 SO 값과 한 줄씩 견줬다.
+
+| 표 | 줄 | SO 와 같다 | 이름 없음 | **값 다름** |
+|---|---|---|---|---|
+| `ECONOMY_DATA` | 4 | 4 | 0 | **0** |
+| `LOGISTICS_DATA` | 5 | 5 | 0 | **0** |
+| `COMBAT_RULE_DATA` | 81 | 81 | 0 | **0** |
+
+`BALANCE_PARAM_DATA` 도 `balance_v4.json` 의 `params` 와 **48/48 · 값 차이 0** 이다.
+
+**그래서 배선은 값을 하나도 안 바꾼다.** 거기까지는 깨끗하다.
+
+## 3. 막는 것 — 미확정치는 생성기가 **일부러** 안 덮어쓴다
+
+`BalanceAssetGenerator` 에 규칙이 적혀 있다:
+
+> 미확정치 SO는 만들기만 하고 값은 덮어쓰지 않는다 — **생성기 재실행이 조정값을 지우면 안 된다.**
+> (경제 항목 중 확정치는 상한 하나뿐. 계수·기본 시급은 `confirmed:false` 라 여기 두지 않는다.)
+
+그런데 안 걸린 세 표는 **전부 미확정치**다:
+
+| 표 | 줄 | 확정 | 미확정 |
+|---|---|---|---|
+| `ECONOMY_DATA` | 4 | 0 | **4** |
+| `LOGISTICS_DATA` | 5 | 0 | **5** |
+| `COMBAT_RULE_DATA` | 81 | 0 | **81** |
+| (견줌) `BALANCE_PARAM_DATA` | 48 | 33 | 15 |
+
+**이미 걸린 표는 확정치를 든 표**(`BALANCE_PARAM` 33 확정)이고, **안 걸린 셋은 미확정치만
+든 표**다. 안 걸린 것이 빠뜨린 것이 아니라 **규칙대로 안 건 것**이다.
+
+그 셋을 생성기에 걸면 **생성기를 돌릴 때마다 인스펙터 조정이 표 값으로 덮인다** —
+위 규칙이 막으려던 바로 그 일이다. 값은 지금 같으니 당장은 아무 일도 안 일어나지만,
+**다음에 누가 인스펙터에서 수를 만지는 순간 조용히 사라진다.**
+
+이것은 배선이 아니라 **규칙 변경**이고, 규칙은 사용자가 정한다.
+
+## 4. json 읽기 경로는 아직 못 건는다 — 표가 못 덮는 칸 일곱
+
+`BalanceConfig` 가 json 에서 받는 것 가운데 **어느 표에도 없는 것**:
+
+    enhBand · snapBand · s4Cost        (json.enhance — ENHANCE 표가 없다)
+    schemaVersion · exportedAt         (json.meta — META 표가 없다)
+    capHours / offlineCapHours         (아래 ⚠️)
+
+받은 조건이 「json 읽기 경로 제거는 **표가 전부 덮은 뒤**」였으므로, 지금은 못 건는다.
+
+### ⚠️ 곁에서 나온 것 — `offlineCapHours` 의 원천이 주석과 다르다
+
+생성기는 이렇게 적는다:
+
+    if (json.economy != null && json.economy.offline != null && json.economy.offline.capHours > 0f)
+        c.offlineCapHours = json.economy.offline.capHours;
+
+그런데 `balance_v4.json` 의 `economy.offline` 은 **글(formula · hourlyRate · lap)뿐이고
+`capHours` 라는 수가 없다.** 그러니 조건이 참이 되는 일이 없고, SO 의 **36** 은
+json 이 아니라 **C# 기본값**에서 온다. 주석은 「확정치는 상한 하나뿐」이라고 말하지만
+그 상한조차 원천에서 안 오고 있다.
+
+⚠️ **값은 안 건드렸다** — 36 이 맞는지는 내가 판단할 일이 아니다.
+
+## 5. 곁에서 나온 것 하나 더 — 같은 값이 표 둘에 산다
+
+`robotHp` 가 `COMBAT_RULE_DATA` 와 `BALANCE_PARAM_DATA` **둘 다**에 있다(값은 1000 로 같다).
+지금은 `BALANCE_PARAM` 쪽만 읽히므로 탈이 없지만, `COMBAT_RULE` 을 걸면 **한 값이 두 곳에
+사는** 꼴이 된다(지침 §7). 거는 날 임자를 정해야 한다 — `BALANCE_PARAM` 이 json params 의
+거울이므로 그쪽이 임자로 보이고, `COMBAT_RULE` 의 그 줄은 폐기 표기가 맞아 보인다.
+⚠️ **이것도 내가 안 정했다.**
+
+## 정해 주셔야 하는 것
+
+1. **미확정치 표 셋을 생성기에 걸 것인가** — 걸면 「생성기 재실행이 조정값을 지우면
+   안 된다」가 폐기된다. 아니면 표는 **읽기 전용 기록**으로 두고 SO 를 손으로 둔다.
+2. **없는 표 둘**(`ENHANCE` · `META`)을 만들 것인가, 아니면 그 일곱 칸은 json 에 남길 것인가.
+3. `offlineCapHours` 36 의 임자 — json 에 수를 넣을 것인가, C# 기본값으로 둘 것인가.
+4. `robotHp` 임자 — `BALANCE_PARAM` 하나로 할 것인가.
+
+## 안 한 것
+
+- 배선 0 · 생성기 변경 0 · 표 변경 0 · SO 변경 0 · 값 0.
+- json 읽기 경로 손 안 댐. 폐기 표기도 안 붙였다 — 무엇이 폐기인지가 위 1~4 에 달려 있다.
+- WBS 상태 0.
+
+재는 스크립트는 리포에 안 넣었다(일회성). 위 수는 이 run 의 수다.
