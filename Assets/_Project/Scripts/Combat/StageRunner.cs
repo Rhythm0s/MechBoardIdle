@@ -2256,6 +2256,54 @@ namespace MBI.Combat
             if (UiSkin.Button(close, "닫기", cs)) _stageListOpen = false;
         }
 
+        /// <summary>
+        /// **파밍 층에서 부서졌을 때의 한 줄** (2026-10-13 · #113).
+        ///
+        /// 단추가 없다 — 고를 것이 없기 때문이다. 남은 초는
+        /// <see cref="FarmDefeatRule.RespawnDelaySeconds"/> 하나가 센다(화면이 또 안 센다).
+        ///
+        /// ⚠️ 문구·자리는 가정이다(UI 문서 역기입 자리).
+        /// </summary>
+        private void DrawFarmBrokenNotice(GUIStyle big)
+        {
+            int here = StageMapName.NumberOf(stage != null ? stage.stageId : string.Empty);
+            int back = FarmDefeatRule.NextStageNumber(here);
+
+            // ⚠️⚠️ **짧게 적는다**(2026-10-13 빌드 실측 — 두 번 잘렸다).
+            //
+            // 처음에는 「로봇 파괴 — S4 파밍으로 돌아간다」였다. `UiText.FitOneLine` 이
+            // 사다리를 타고 내려가도 **바닥이 16** 이라(읽히는 최소 · 결과 배너와 같은 규약)
+            // 좁은 창에서는 그 길이가 안 든다 — 화면에 **「파괴 — S4 파밍으로 돌아」**까지만
+            // 떴다. 바닥을 없애는 대신 **문구를 띠에 맞춘다** — 이 띠는 결과 배너와 같은
+            // 폭을 쓰므로, 거기 드는 「승리 — 적 전멸」 길이가 곧 여기 예산이다.
+            //
+            // ⚠️ 뜻은 다 남긴다 — 무슨 일이 났는가(파괴)와 어디로 가는가(S4 파밍).
+            // ⚠️ 문구는 가정이다(UI 문서 역기입 자리).
+            string text = back > 0 && back != here
+                ? "파괴 — S" + back + " 파밍으로"
+                : "파괴 — 다시 세운다";
+
+            // ⚠️⚠️ **차례가 중요하다**(결과 배너와 같은 문 · 2026-10-13).
+            //    ① 폭에 맞춰 **먼저 줄인다** → ② 그제야 한 줄 높이가 정해진다 →
+            //    ③ 그 높이로 상자를 세우고 → ④ **안쪽 칸**에 그린다.
+            //    차례를 건너뛰면 상자만 줄고 글자는 안 줄어 **가로로 잘린다**
+            //    (「승리 — 적 전」으로 잘렸던 그 병이다).
+            var st = new GUIStyle(big) { alignment = TextAnchor.MiddleCenter, wordWrap = false };
+            st.normal.textColor = Color.white;
+
+            float innerW = UiLayout.ResultBannerInnerWidth(Screen.width, Screen.height);
+            if (st.CalcSize(new GUIContent(text)).x > innerW)
+                UiText.FitOneLine(st, text, innerW);
+
+            float line = st.lineHeight;
+            Rect box = UiLayout.FarmBrokenNoticeRect(Screen.width, Screen.height, line);
+            UiPlate.Draw(box);
+            UiBlockers.Add(box);
+
+            GUI.Label(UiLayout.FarmBrokenNoticeTextRect(Screen.width, Screen.height, line),
+                      text, st);
+        }
+
         /// <summary>번호로 판 자산을 찾는다 — 없으면 null. ⚠️ 차례에 기대지 않는다.</summary>
         private StageDefinition StageOfNumber(int number)
         {
@@ -2624,7 +2672,22 @@ namespace MBI.Combat
                 statusStrip.y = card.y - 10f * hudScale - statusStrip.height;
             StatusStrip.Draw(statusStrip);
 
-            if (_sim.Result != CombatResult.InProgress)
+            // ⚠️⚠️ **파밍 층에는 결과 화면이 없다**(2026-10-13 빌드 실측 · 사용자 확정 #111).
+            //
+            // 파밍에서 로봇이 부서지면 시뮬이 `LoseDead` 를 낸다 — 그것은 **맞는 거동**이고
+            // (`Endless` 는 전멸·제한시간만 멈춘다 · 「로봇 파괴만 남는다」),
+            // 그래서 **그 배너가 파밍 화면에 그대로 떴다**: 「패배 — 로봇 파괴」 +
+            // 「다시 도전」·「스테이지로」. 둘 다 파밍에서는 뜻이 없는 말이다 —
+            // 파밍에는 **이기고 지는 것이 없고**(#111), 부서지면 **한 판 뒤로 간다**(#113).
+            //
+            // 📌 그 자리에는 「무슨 일이 났고 무엇이 일어날 것인가」만 적는다.
+            //    고르게 하지 않는다 — 고를 것이 없다.
+            if (_sim.Result != CombatResult.InProgress
+                && StageLayerSignals.IsFarming && !IsTutorialStage)
+            {
+                DrawFarmBrokenNotice(big);
+            }
+            else if (_sim.Result != CombatResult.InProgress)
             {
                 // ⚠️⚠️ **글자가 단추를 덮었다**(2026-10-13 사용자 확정 ② · 빌드 c74a0d2).
                 //

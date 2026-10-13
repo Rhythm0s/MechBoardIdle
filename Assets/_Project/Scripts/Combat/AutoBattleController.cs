@@ -99,7 +99,25 @@ namespace MBI.Combat
             //
             // ⚠️ 통과 보고(해금·보상)는 **러너로 옮겼다**(`ReportChallengeClearOnce`) —
             //    이 길이 안 돌아도 판이 열려야 하기 때문이다.
-            if (!StageLayerSignals.IsFarming) { _restartAt = -1f; return; }
+            //
+            // 🗑️🗑️ **자동 진행은 이제 어느 층에서도 안 돈다**(2026-10-13 빌드 실측).
+            //
+            // ⚠️⚠️ 종전 가드 `if (!StageLayerSignals.IsFarming) return;` 는 **거꾸로였다.**
+            //    「파밍은 끝나지 않으니 여기 올 일이 없다」고 적어 두었는데 **틀렸다** —
+            //    파밍에서도 **로봇이 부서지면** 시뮬이 `LoseDead` 를 낸다
+            //    (`Endless` 는 전멸·제한시간만 멈춘다). 그래서 파밍 패배가 이 길로 새어
+            //    `LoadStage(stages[CurrentIndex])` 가 돌았고, `CurrentIndex` 는 설정
+            //    바로가기로 건너뛴 판을 모르므로 **S5 에서 부서졌는데 S1 으로** 갔다
+            //    (실측). 러너의 `FallBackOneStage`(S4 로 가야 한다)와 정면으로 싸운 것이다.
+            //
+            // 📌 **끝나는 자리는 전부 임자가 있다.**
+            //    · 도전이 끝나면 → **결과 화면의 단추 셋**(#114)
+            //    · 파밍에서 부서지면 → **한 판 뒤로**(#113 · `FallBackOneStage`)
+            //    둘 다 러너가 쥔다. 여기서 또 판을 걸면 **두 손이 같은 판을 민다.**
+            //
+            // ⚠️ 컴포넌트를 지우지 않는 까닭 — `CurrentIndex`·`MaxClearedIndex` 를 보는
+            //    곳이 아직 있고, 자동 진행을 되살릴 판단은 설계 몫이다. 거동만 멈춘다.
+            if (Owns(stages, runner.CurrentStage)) { _restartAt = -1f; return; }
 
             CombatResult result = runner.CurrentResult;
             if (result == CombatResult.InProgress)

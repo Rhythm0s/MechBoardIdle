@@ -379,6 +379,36 @@ namespace MBI.UI
             Mathf.Max(0f,
                 ResultBannerBoxWidth(screenWidth, screenHeight) - ResultBannerPad * Scale(screenHeight) * 2f);
 
+        /// <summary>
+        /// **파밍 파괴 안내 띠** — 결과 배너와 **같은 폭·같은 자리**, 단추 줄만 없다
+        /// (2026-10-13 · #113).
+        ///
+        /// 📌 **폭과 여백을 결과 배너에서 받아 쓴다**(지침 §7) — 두 띠가 같은 자리에
+        /// 번갈아 뜨므로 폭이 다르면 화면이 들썩인다.
+        /// ⚠️ 단추 줄을 빼는 것이 다른 점의 전부다 — 고를 것이 없는 안내라
+        /// 그 높이를 남겨 두면 **빈 칸**이 생긴다.
+        /// </summary>
+        public static Rect FarmBrokenNoticeRect(float screenWidth, float screenHeight,
+                                                float textLinePx)
+        {
+            float sc = Scale(screenHeight);
+            float w = ResultBannerBoxWidth(screenWidth, screenHeight);
+            float pad = ResultBannerPad * sc;
+            float h = pad + textLinePx + pad;
+            return new Rect((screenWidth - w) * 0.5f, screenHeight * 0.42f, w, h);
+        }
+
+        /// <summary>안내 띠 안의 글자 칸 — 여백만큼 안쪽이다.</summary>
+        public static Rect FarmBrokenNoticeTextRect(float screenWidth, float screenHeight,
+                                                    float textLinePx)
+        {
+            float sc = Scale(screenHeight);
+            Rect box = FarmBrokenNoticeRect(screenWidth, screenHeight, textLinePx);
+            float pad = ResultBannerPad * sc;
+            return new Rect(box.x + pad, box.y + pad,
+                            Mathf.Max(0f, box.width - pad * 2f), textLinePx);
+        }
+
         public static Rect ResultBannerRect(float screenWidth, float screenHeight, float textLinePx)
         {
             float sc = Scale(screenHeight);
