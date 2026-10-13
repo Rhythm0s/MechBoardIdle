@@ -4505,16 +4505,26 @@ namespace MBI.Logistics
         private void DrawRobotTabs()
         {
             var owners = new[] { MountOwner.RobotA, MountOwner.RobotB };
-            var labels = new[] { "로봇 A", "로봇 B" };
+
+            // ⚠️⚠️ **로봇 B 는 S4 를 넘겨야 열린다**(2026-10-13 · 사용자 확정 · #84).
+            //    잠긴 동안에도 **탭은 그린다** — 자리가 사라지면 「둘째 판이 있다」는 것
+            //    자체가 안 보이고, 열렸을 때 갑자기 생긴 칸이 된다. 대신 **무엇을 하면
+            //    열리는지**를 글자가 말한다.
+            //    ⚠️ 문구는 가정이다(설계 역기입 자리). 판정은 `RobotBGate` 하나가 낸다.
+            bool bOpen = RobotBGate.IsUnlocked;
+            var labels = new[] { "로봇 A", bOpen ? "로봇 B" : "로봇 B · 잠김" };
 
             // 탭 줄과 **같은 잠금**을 쓴다 — 팔레트가 잠긴 동안 여기만 살아 있으면
             // 「눌러도 아무 일 없는 버튼」이 둘 생긴다.
             bool allowed = TutorialGate.Allows(TutorialGate.Control.PaletteOther);
             bool was = GUI.enabled;
-            GUI.enabled = was && allowed;
 
             for (int i = 0; i < owners.Length; i++)
             {
+                // ⚠️ **B 만 따로 더 잠근다** — 튜토리얼 잠금과 해금 잠금은 **다른 문**이고,
+                //    둘을 한 변수로 묶으면 튜토리얼이 끝나는 순간 B 까지 같이 열린다.
+                GUI.enabled = was && allowed && (i == 0 || bOpen);
+
                 Rect r = UiLayout.RobotTabRect(i == 1, Screen.width, Screen.height);
                 if (r.width <= 0f || r.height <= 0f) continue;
                 UiBlockers.Add(r);
@@ -4524,8 +4534,13 @@ namespace MBI.Logistics
                 {
                     fontSize = KoreanFont.Snap(Mathf.Max(9,
                         // 탭 줄과 같은 셈이다 — 높이만 보면 좁은 창에서 글자가 옆으로 잘린다.
+                        //
+                        // ⚠️ **나누는 수를 글자 수에서 낸다**(2026-10-13). 종전 `4.2` 는
+                        //    「로봇 A」 넉 자를 전제한 수였다 — 잠김 문구는 더 길어서
+                        //    그 수를 그대로 쓰면 글자가 칸 밖으로 흘렀다(`Overflow` 라
+                        //    잘리지도 않고 넘친다). 넉 자면 종전과 **똑같이 4.2** 다.
                         Mathf.Min(Mathf.RoundToInt(r.height * 0.30f),
-                                  Mathf.RoundToInt(r.width / 4.2f)))),
+                                  Mathf.RoundToInt(r.width / (1.05f * labels[i].Length))))),
                     wordWrap = false,
                     clipping = TextClipping.Overflow,
                     fontStyle = on ? FontStyle.Bold : FontStyle.Normal,

@@ -462,6 +462,15 @@ namespace MBI.Combat
 
         private void Begin()
         {
+            // 지금 판 번호를 알린다 (2026-10-13 · #84) — 로봇 B 해금이 이 수를 읽는다.
+            //
+            // 📌 `LoadStage` 가 아니라 여기다 — 처음 들어올 때는 `Start` 가 `Begin` 을 바로
+            //    부르므로, `LoadStage` 에만 적으면 첫 판에서 수가 안 서서 0 으로 남는다.
+            //    두 길이 다 지나는 자리는 이곳 하나다.
+            //
+            // ⚠️ 심사자가 S5 로 뛰면 저장에 기록이 없어도 열린 것으로 본다(`RobotBGate` 주석).
+            RobotBGate.CurrentStageNumber = StageMapName.NumberOf(stage.stageId);
+
             // 마운트계수: 물류(S1~S3)=base, 그 외(강화/태그/버스트)=enhanced(1.45).
             _mountCoef = stage.powerModel == StagePowerModel.Logistics
                 ? robot.mountCoef : robot.enhancedMountCoef;
@@ -1414,7 +1423,10 @@ namespace MBI.Combat
             // ⚠️ **매 프레임 넣는다**(2026-09-16 · 사용자 확정 §74-16 ③).
             //    설정은 `PlayerPrefs` 에 살고 버튼이 그것을 바꾸므로, 한 번만 넣으면
             //    켜고 끈 것이 이번 판에 안 먹는다. 캐지 않는 까닭도 같다(지침 §7).
-            _sim.AutoTagEnabled = TagAutoMode.Enabled;
+            // 로봇 B 가 안 열렸으면 자동 교대도 안 돈다 (2026-10-13 · #84).
+            // 여기를 안 막으면 S4 전에도 자동으로 B 가 나간다 — 10-13 아침의
+            // 「초기화 뒤 B 로 시작」이 바로 그 길이었다.
+            _sim.AutoTagEnabled = TagAutoMode.Enabled && RobotBGate.IsUnlocked;
 
             // 처치한 자리에 재화를 떨어뜨린다(2026-09-18 설계 지시 ①).
             // ⚠️ **적립이 아니라 그림이다** — 규칙은 방치 런타임 한 곳에 있다.
@@ -2261,7 +2273,12 @@ namespace MBI.Combat
             UiBlockers.Add(mergeRect);
 
             // 태그 — 쿨다운 중이거나 합체로 잠겨 있으면 비활성. 누르면 시뮬이 활성 인덱스까지 맞춘다.
-            GUI.enabled = _sim.Tag.Tag.CanTag;
+            //
+            // ⚠️⚠️ 로봇 B 가 안 열렸으면 아예 안 눌린다 (2026-10-13 · #84 · S4 통과 뒤 해금).
+            //    교대는 둘째 로봇이 있어야 성립하는 동작이라, 없는 동안 누르면
+            //    「눌러도 아무 일 없는 버튼」이 된다. 까닭은 글자가 말한다.
+            bool robotBReady = RobotBGate.IsUnlocked;
+            GUI.enabled = _sim.Tag.Tag.CanTag && robotBReady;
 
             // ⚠️⚠️ **길게 누르면 자동 교대가 켜진다**(2026-09-16 사용자 확정 · §74-16 ③).
             //    버튼을 그리기 **전에** 눌린 시간을 잰다 — 그래야 길게 누른 프레임에
@@ -2311,7 +2328,10 @@ namespace MBI.Combat
             Color tagPrev = GUI.color;
             if (skillReady) GUI.color = TagSkillReadyTint;
 
-            bool tagHit = UiSkin.Button(tagRect, TagButtonLabel(), round);
+            bool tagHit = UiSkin.Button(
+                tagRect,
+                robotBReady ? TagButtonLabel() : "로봇 B" + System.Environment.NewLine + "미해금",
+                round);
             GUI.color = tagPrev;
 
             if (tagHit && !longPressed && _sim.TryManualTag())

@@ -53,6 +53,10 @@ namespace MBI.Idle
             // 실행 순서(-100 → -50)가 뒤집히면 매번 튜토리얼이 다시 열린다.
             IdleSignals.TutorialCleared = Data.HasCleared(IdleSignals.TutorialId);
 
+            // ⚠️ **로봇 B 해금도 저장에서 복원한다**(2026-10-13 · #84).
+            //    튜토리얼 복원과 **같은 자리 같은 꼴**이다 — 둘 다 「깼는가」가 답이다.
+            RobotBGate.S4Cleared = Data.HasCleared(RobotBGate.UnlockStageId);
+
             // 저장된 보드를 물류 쪽에 내놓는다. **Awake 에서 한다** —
             // `BoardController` 가 자기 `Start` 에서 이것을 읽어 판을 세우므로,
             // 실행 순서(-100 → 기본)가 뒤집히면 **매번 시작 보드로 돌아간다.**
@@ -78,6 +82,7 @@ namespace MBI.Idle
             {
                 ResetSave();
                 IdleSignals.TutorialCleared = false;
+                RobotBGate.Reset();   // 처음부터면 B 도 다시 잠긴다
             }
 
             CreditSignals();
@@ -126,6 +131,12 @@ namespace MBI.Idle
                 // 최초 클리어에만 강화재료. 재지급하면 Σ(S1~S3)=s4Cost인 닫힌 곡선이 무너진다.
                 if (Data.MarkCleared(clear.stageId))
                     Wallet.AddEnhMaterial(clear.enhMaterialReward);
+
+                // ⚠️ **깬 그 자리에서 B 를 연다**(2026-10-13 · #84). 다음 실행까지 기다리면
+                //    S4 를 깬 직후의 화면에서는 아직 잠겨 있다 — 깨자마자 열려야 말이 된다.
+                //    ⚠️ `MarkCleared` 가 거짓(이미 깬 판)이어도 다시 읽는다 — 저장이 참이면 참이다.
+                if (!RobotBGate.S4Cleared)
+                    RobotBGate.S4Cleared = Data.HasCleared(RobotBGate.UnlockStageId);
             }
         }
 
