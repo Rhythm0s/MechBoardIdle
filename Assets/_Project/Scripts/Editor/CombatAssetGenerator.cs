@@ -571,6 +571,19 @@ namespace MBI.Editor
             var compByStage = GameDataTables.CompositionByStage(
                 GameDataTables.Load("STAGE_COMP_DATA"));
 
+            // 스테이지 표 — 정원·간격·확정 여부를 여기서 받는다(원천은 표다).
+            var stageRows = new System.Collections.Generic.Dictionary<string, CsvTable.Row>();
+            if (GameDataTables.Exists("STAGE_DATA"))
+            {
+                CsvTable st = GameDataTables.Load("STAGE_DATA");
+                st.Require("StageID", "SpawnCap", "SpawnInterval", "SpawnConfirmed");
+                foreach (CsvTable.Row r in st.Rows)
+                {
+                    string sid = r.Text("StageID");
+                    if (sid.Length > 0) stageRows[sid] = r;
+                }
+            }
+
             // ⚠️ **파밍 표는 아직 없을 수 있다**(2026-10-13 · 사용자 시트 대기).
             //    없으면 **죽지 않고 비운다** — 그 상태는 「파밍 층이 아직 안 선다」이지
             //    고장이 아니다. 한 줄로 그렇게 말해 둔다.
@@ -607,9 +620,27 @@ namespace MBI.Editor
 
                 // 상주 파밍 정원·간격(둘 다 TBD 0). 0이면 FarmSpawner가 돌지 않는다 —
                 // 미확정 상태를 기본값으로 덮어 감추지 않는다.
-                d.spawnCap = s.spawnCap;
-                d.spawnInterval = s.spawnInterval;
-                d.spawnConfirmed = s.spawnConfirmed;
+                // ⚠️⚠️ **정원·간격의 원천은 표다**(2026-10-13 · #112 · `STAGE_DATA`).
+                //
+                // 종전에는 json 의 `stages[]` 에서 받았는데 거기 값이 **전부 0** 이라
+                // 표를 채워도 자산이 0 으로 구워졌다 — 파밍 층이 **표를 채운 뒤에도
+                // 안 섰다**(빌드로 돌려 보고 잡았다: 화면에 「리젠 —」).
+                //
+                // 📌 표에 그 판 줄이 없으면 **json 값으로 떨어진다** — 표가 덜 채워진 동안에도
+                //    종전 거동이 그대로여야 한다.
+                if (stageRows != null && stageRows.TryGetValue(s.id ?? string.Empty,
+                        out CsvTable.Row srow))
+                {
+                    d.spawnCap = srow.Int("SpawnCap");
+                    d.spawnInterval = srow.Num("SpawnInterval");
+                    d.spawnConfirmed = srow.Int("SpawnConfirmed") != 0;
+                }
+                else
+                {
+                    d.spawnCap = s.spawnCap;
+                    d.spawnInterval = s.spawnInterval;
+                    d.spawnConfirmed = s.spawnConfirmed;
+                }
 
                 // ⚠️⚠️ **구성의 원천도 표다**(2026-09-18 · `STAGE_COMP_DATA`).
                 //    🗑️ json `stages[].composition` 은 폐기 표기 대상이다 — **값은 남기되**

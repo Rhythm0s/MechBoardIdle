@@ -20,8 +20,8 @@ MonoBehaviour:
   powerModel: 2
   challengeTime: 120
   enhMaterialReward: 0
-  spawnCap: 0
-  spawnInterval: 0
+  spawnCap: 10
+  spawnInterval: 10
   spawnConfirmed: 0
   composition:
   - enemyKey: armor
