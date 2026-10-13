@@ -137,7 +137,14 @@ namespace MBI.Combat
             // 📌 **높이를 먼저 내고 윗변을 거기서 뺀다** — 줄이 늘어도 다시 안 잘린다.
             //    아랫변 여백 16 은 가정이다(다른 패널과 같은 여백).
             // ✅ **닫기 한 줄이 늘었다**(2026-09-21 사용자 확정 ③ — 「닫기 버튼 = 패널 하단」).
-            const int buttonRows = 7;   // 스테이지 · 게이지 · 전멸 · 초기화 · 덤프 · 메인 메뉴 · 닫기
+            // ⚠️⚠️ **줄 수를 한 곳에서 낸다**(2026-10-13). 「도전 즉시 종료」는
+            //    **도전 중일 때만** 뜨는 유일한 줄이라, 높이와 그리는 쪽이 따로 세면
+            //    둘이 어긋난다 — 높이만 7 로 두면 뜬 날 **「닫기」가 판 밖으로** 밀리고
+            //    (09-19 에 「메인 메뉴로」가 그렇게 사라졌다), 자리만 밀면 안 뜬 날
+            //    **빈 칸**이 남는다(빌드 실측). 한 값이 두 곳에 살면 안 된다(지침 §7).
+            bool showFinish = ShowTutorial && runner != null && runner.CanFinishChallengeNow;
+            // 스테이지 · 게이지 · 전멸 · [도전 즉시 종료] · 초기화 · 덤프 · 메인 메뉴 · 닫기
+            int buttonRows = showFinish ? 8 : 7;
             float noteH = 44f * scale;  // 안내 두 줄
             float plateH = 8f * scale + (h + pad) + noteH + (h + pad) * buttonRows + 8f * scale;
             // 세로도 가운데 — 다만 화면보다 길면 위에서 8 을 띄우고 시작한다
@@ -181,6 +188,13 @@ namespace MBI.Combat
 
             DrawKillAllButton(y, x, w, h, button);
             y += h + pad;
+
+            // ⚠️ 위에서 낸 `showFinish` 를 그대로 쓴다 — 여기서 다시 묻지 않는다.
+            if (showFinish)
+            {
+                DrawFinishChallengeButton(y, x, w, h, button);
+                y += h + pad;
+            }
 
             DrawResetButton(y, x, w, h, button);
             y += h + pad;
@@ -278,6 +292,25 @@ namespace MBI.Combat
 
             int n = runner.KillAllEnemies();
             Debug.Log($"[MBI] 적 전멸(개발 빌드): {n}기.");
+        }
+
+        /// <summary>
+        /// **도전 즉시 종료** — 개발 빌드 전용(2026-10-13 사용자 요청).
+        ///
+        /// 결과 화면(단추 셋)을 보려면 도전을 끝까지 돌려야 하는데 S1 이 95 초다.
+        /// 자리·문안을 볼 때마다 그만큼 기다리면 눈으로 고치는 일이 안 된다.
+        ///
+        /// ⚠️ **도전 중일 때만 뜬다** — 파밍에는 끝이 없고 튜토리얼에는 도전이 없다.
+        ///    안 뜨는 자리에 회색 단추를 두면 「왜 안 눌리나」를 또 묻게 된다.
+        /// ⚠️ 승패는 러너가 지어내지 않는다(`FinishChallengeNow` 주석).
+        /// </summary>
+        /// <remarks>⚠️ 띄울지 말지는 <c>showFinish</c> 가 **한 곳에서** 정한다 — 여기서 또 묻지 않는다.</remarks>
+        private void DrawFinishChallengeButton(float y, float x, float w, float h, GUIStyle style)
+        {
+            if (!UiSkin.Button(new Rect(x, y, w, h), "도전 즉시 종료 (결과 화면)", style)) return;
+
+            runner.FinishChallengeNow();
+            SettingsGate.Close();   // 판이 열려 있으면 결과가 그 뒤에서 난다
         }
 
         /// <summary>

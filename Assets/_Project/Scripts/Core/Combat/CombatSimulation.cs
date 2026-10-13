@@ -1188,6 +1188,18 @@ namespace MBI.Core
         /// </summary>
         public IReadOnlyList<EnemyProjectile> EnemyProjectiles => _enemyProjectiles;
         public int TotalEnemies => _spawnQueue.Count;
+
+        /// <summary>
+        /// **아직 안 나온 수** — 줄에 남은 것 (2026-10-13).
+        ///
+        /// ⚠️⚠️ **화면이 빼기로 짐작하던 값이다.** 종전에는 HUD 가
+        /// `TotalEnemies − TotalKills − 생존` 으로 **추정**했는데, 그 식은
+        /// 「줄에서 빠진 적이 없다」를 전제로 한다. <see cref="DrainSpawnQueue"/> 가
+        /// 생기면서 그 전제가 깨졌고, **이겼는데 「남은 몬스터 96」**이 떴다(빌드 실측).
+        ///
+        /// 📌 **줄의 길이를 아는 것은 여기 하나다**(지침 §7) — 화면은 읽기만 한다.
+        /// </summary>
+        public int Unspawned => _spawnQueue.Count - _spawnedCount;
         public int Remaining => _enemies.Count;
 
         // ── 실제로 나간 발 (2026-09-15 사용자 확정 ㉮) ───────────────────────
@@ -1697,6 +1709,28 @@ namespace MBI.Core
         /// 한 깃발에 둘을 매달면 튜토리얼(판정만 멈추고 싶다)이 함께 막힌다.
         /// </summary>
         public bool SuspendQueuedSpawns { get; set; }
+
+        /// <summary>
+        /// **남은 줄을 다 나온 것으로 친다** — 개발 도구가 판을 앞당길 때 쓴다
+        /// (2026-10-13 · 결과 화면을 95 초 안 기다리고 보려고).
+        ///
+        /// 📌 **승패를 여기서 정하지 않는다.** 승리 조건은 「전원 스폰 완료 · 생존 0」인데
+        /// 이 메서드는 **앞의 절반만** 참으로 만든다 — 뒤의 절반은 적을 실제로 죽여야 선다.
+        /// 그래서 판정은 늘 <c>Evaluate</c> 가 제 문으로 내린다.
+        /// `Result` 를 직접 쓰면 **사람이 지나는 문을 안 지나는 판**을 보게 된다
+        /// (이 리포가 09-15 에 겪은 자리다 — 프로브는 초록인데 화면은 낡았다).
+        ///
+        /// ⚠️ 이미 나온 적은 건드리지 않는다. 줄만 비운다.
+        /// ⚠️ 파밍 층에는 뜻이 없다 — 거기는 `Endless` 라 판정 자체를 안 한다.
+        /// </summary>
+        /// <returns>이 호출로 건너뛴 마릿수(= 아직 안 나온 수).</returns>
+        public int DrainSpawnQueue()
+        {
+            int skipped = _spawnQueue.Count - _spawnedCount;
+            if (skipped <= 0) return 0;
+            _spawnedCount = _spawnQueue.Count;
+            return skipped;
+        }
 
         private void SpawnDue()
         {

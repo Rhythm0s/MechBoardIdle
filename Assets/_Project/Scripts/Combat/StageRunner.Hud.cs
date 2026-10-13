@@ -617,7 +617,11 @@ namespace MBI.Combat
             // ⚠️ **「남은」은 살아 있는 것 + 아직 안 나온 것이다** — 화면에 보이는 수만 적으면
             //    묶음 사이에 0 이 떠서 「다 잡았다」로 읽힌다.
             int alive = _sim.Remaining;
-            int unspawned = Mathf.Max(0, _sim.TotalEnemies - _sim.TotalKills - alive);
+            // ⚠️ **빼기로 짐작하지 않는다**(2026-10-13). 구 식
+            //    `TotalEnemies − TotalKills − 생존` 은 「줄에서 빠진 적이 없다」를
+            //    전제로 하는데, 개발 도구가 줄을 비울 수 있게 되면서 그 전제가 깨졌다 —
+            //    **이겼는데 「남은 몬스터 96」**이 떴다. 줄의 길이는 시뮬이 안다(지침 §7).
+            int unspawned = Mathf.Max(0, _sim.Unspawned);
             // 🗑️ **「리젠 없음(마지막 묶음)」 폐기** — 묶음으로 부르던 날의 백이다.
             //    도전 줄이 묻는 것은 「언제 또 나오나」가 아니라 **「얼마 남았나」**다
             //    (사용자 확정 #111 · <see cref="ChallengeClock"/>).

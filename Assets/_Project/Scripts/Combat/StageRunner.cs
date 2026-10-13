@@ -434,6 +434,41 @@ namespace MBI.Combat
             return n;
         }
 
+        /// <summary>
+        /// **도전을 지금 끝낸다** — 개발 빌드 전용(2026-10-13 사용자 요청).
+        ///
+        /// 📌 **왜 필요한가.** 결과 화면(단추 셋)을 보려면 도전을 끝까지 돌려야 하는데
+        /// S1 이 **95 초**다. 자리·문안을 한 번 볼 때마다 95 초를 기다리면
+        /// 눈으로 고치는 일이 사실상 안 된다.
+        ///
+        /// ⚠️⚠️ **승패를 지어내지 않는다.** `Result` 를 직접 쓰지 않고
+        /// **줄을 비우고(<see cref="CombatSimulation.DrainSpawnQueue"/>) 산 것을 죽인다** —
+        /// 그러면 시뮬이 **제 문으로** 「전원 스폰 완료 · 생존 0」을 보고 승리를 낸다.
+        /// 강제로 쓰면 사람이 지나는 문을 안 지난 판을 보게 되고, 그 판으로 고친 자리는
+        /// 진짜 판에서 안 맞는다(09-15 에 겪은 자리다).
+        ///
+        /// ⚠️ **파밍 층에서는 아무것도 안 한다** — 거기엔 끝이 없다.
+        /// ⚠️ 이미 끝난 판에서도 안 한다.
+        /// </summary>
+        /// <returns>건너뛴 마릿수 + 죽인 마릿수. 아무 일도 안 했으면 0.</returns>
+        public int FinishChallengeNow()
+        {
+            if (_sim == null || IsTutorialStage) return 0;
+            if (StageLayerSignals.IsFarming) return 0;
+            if (_sim.Result != CombatResult.InProgress) return 0;
+
+            int skipped = _sim.DrainSpawnQueue();
+            int killed = KillAllEnemies();
+            Debug.Log($"[MBI] 도전 즉시 종료(개발 빌드) — 줄 건너뜀 {skipped}기 · 전멸 {killed}기."
+                      + " 판정은 시뮬이 다음 틱에 제 문으로 낸다.");
+            return skipped + killed;
+        }
+
+        /// <summary>지금 도전 층에서 싸우는 중인가 — 개발 도구가 단추를 띄울지 보는 값.</summary>
+        public bool CanFinishChallengeNow =>
+            _sim != null && !IsTutorialStage && !StageLayerSignals.IsFarming
+            && _sim.Result == CombatResult.InProgress;
+
         public void ResetCarry()
         {
             _storeA = null;
