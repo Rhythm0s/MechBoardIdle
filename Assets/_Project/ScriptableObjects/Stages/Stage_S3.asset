@@ -37,4 +37,16 @@ MonoBehaviour:
     hp: 600
     def: 3
   bossHp: 0
-  farmComposition: []
+  farmComposition:
+  - enemyKey: infantry
+    count: 14
+    hp: 35
+    def: 3
+  - enemyKey: artillery
+    count: 2
+    hp: 105
+    def: 3
+  - enemyKey: armor
+    count: 1
+    hp: 600
+    def: 3

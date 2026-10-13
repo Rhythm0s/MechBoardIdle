@@ -29,4 +29,8 @@ MonoBehaviour:
     hp: 20
     def: 0
   bossHp: 0
-  farmComposition: []
+  farmComposition:
+  - enemyKey: infantry
+    count: 13
+    hp: 20
+    def: 0

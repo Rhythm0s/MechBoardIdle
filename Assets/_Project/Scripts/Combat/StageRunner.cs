@@ -2133,6 +2133,19 @@ namespace MBI.Combat
         /// <summary>이번 바퀴에 넣을 것들 — 매 틱 새 목록을 만들지 않으려고 들고 있는다.</summary>
         private readonly List<FarmRefillRule.Refill> _farmPlan = new List<FarmRefillRule.Refill>();
 
+        /// <summary>
+        /// 표시명 → `enemyKey`. 표와 싸우는 몸이 **서로 다른 이름을 쓰기 때문에** 필요하다.
+        ///
+        /// ⚠️ 못 찾으면 빈 글자다 — 그 적은 세지 않는다(지어내 세면 정원이 틀어진다).
+        /// </summary>
+        private string KeyOfLabel(string label)
+        {
+            if (enemyCatalog == null) return null;
+            foreach (EnemyDefinition d in enemyCatalog)
+                if (d != null && d.displayName == label) return d.enemyKey;
+            return null;
+        }
+
         /// <summary>종류별 생존 수 — 같은 까닭으로 들고 있는다.</summary>
         private readonly Dictionary<string, int> _farmAlive = new Dictionary<string, int>();
 
@@ -2202,12 +2215,17 @@ namespace MBI.Combat
         {
             if (_sim == null || stage == null || stage.farmComposition == null) return;
 
+            // ⚠️⚠️ **세는 이름과 표의 이름이 다르다.** 싸우는 몸은 `label`(표시명 — 「보병」)을
+            //    들고 다니고 표는 `enemyKey`(「infantry」)로 적는다. 그대로 맞대면 **늘 0 으로
+            //    보여** 정원을 넘겨 넣는다. 자산 목록으로 **표시명 → 키**를 옮긴 뒤 센다.
             _farmAlive.Clear();
             foreach (CombatEntity e in _sim.Enemies)
             {
                 if (!e.IsAlive || string.IsNullOrEmpty(e.label)) continue;
-                _farmAlive.TryGetValue(e.label, out int n);
-                _farmAlive[e.label] = n + 1;
+                string key = KeyOfLabel(e.label);
+                if (string.IsNullOrEmpty(key)) continue;
+                _farmAlive.TryGetValue(key, out int n);
+                _farmAlive[key] = n + 1;
             }
 
             FarmRefillRule.Plan(stage.farmComposition, _farmAlive, _farmPlan);
