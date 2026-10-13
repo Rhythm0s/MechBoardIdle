@@ -523,6 +523,24 @@ namespace MBI.Combat
             return regen + "  ·  맵 " + alive + "/" + cap;
         }
 
+        /// <summary>
+        /// 도전 층의 시계 — **「남은 시간 mm:ss」** (2026-10-13 사용자 확정 #111).
+        ///
+        /// ⚠️⚠️ **「리젠」을 안 쓴다.** 그 낱말은 **파밍 층 전용**이다(확정) —
+        /// 도전에서 묻는 것은 「언제 또 나오나」가 아니라 **「얼마 남았나」**다.
+        /// 첫 빌드에서 도전 줄에 「리젠 00:04」가 그대로 떠 있었다.
+        ///
+        /// ⚠️ 제한시간이 없으면(0) 남은 시간을 안 적는다 — 지어내지 않는다.
+        /// </summary>
+        private string ChallengeClock()
+        {
+            float limit = stage != null ? stage.challengeTime : 0f;
+            if (limit <= 0f || _sim == null) return "남은 시간 —";
+
+            float left = Mathf.Max(0f, limit - _sim.Elapsed);
+            return "남은 시간 " + WaveSpawnRule.Clock(left);
+        }
+
         private void DrawStageBadge()
         {
             if (_sim == null || stage == null) return;
@@ -593,7 +611,7 @@ namespace MBI.Combat
             string regen = next < 0f ? "리젠 없음(마지막 묶음)" : "리젠 " + WaveSpawnRule.Clock(next);
             GUI.Label(new Rect(r.x + pad, r.y + rowH * 2f, r.width - pad * 2f, rowH),
                       farming ? FarmStatusLine(alive)
-                              : "남은 몬스터 " + (alive + unspawned) + "  ·  " + regen,
+                              : "남은 몬스터 " + (alive + unspawned) + "  ·  " + ChallengeClock(),
                       line);
         }
 
