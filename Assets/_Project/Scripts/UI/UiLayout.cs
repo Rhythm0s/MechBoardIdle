@@ -522,6 +522,71 @@ namespace MBI.UI
         }
 
         /// <summary>
+        /// **「스테이지」 단추** — 「도전」 **왼쪽**, 같은 줄 (2026-10-13 · 순서 5).
+        ///
+        /// 📌 **왜 「도전」 옆인가.** 둘은 같은 물음의 두 답이다 —
+        /// 「이 판에서 도전한다」와 「다른 판으로 간다」. 멀리 떼면 목록이 어디 있는지
+        /// 찾아야 한다. 자리를 **「도전」에서 받아 낸다**(지침 §7) — 그쪽이 움직이면 따라간다.
+        ///
+        /// ⚠️ 왼끝이 띠 왼끝보다 왼쪽으로 가면 **빈 칸을 준다**(폭 1 이하 → 안 그린다) —
+        /// 창이 아주 좁을 때 배지 카드를 덮는 쪽이 더 나쁘다.
+        /// </summary>
+        public static Rect StageListButtonRect(float screenWidth, float screenHeight)
+        {
+            float sc = Scale(screenHeight);
+            Rect chal = ChallengeButtonRect(screenWidth, screenHeight);
+            Rect band = StageProgressRect(screenWidth, screenHeight);
+
+            float x = chal.x - PlateGap * sc - chal.width;
+            if (x < band.x) return new Rect(0f, 0f, 0f, 0f);
+            return new Rect(x, chal.y, chal.width, chal.height);
+        }
+
+        /// <summary>목록 한 줄의 높이 (기준 캔버스 · ⚠️ 가정).</summary>
+        public const float StageListRowHeight = 104f;
+
+        /// <summary>
+        /// **스테이지 목록 패널** — 화면 가운데.
+        ///
+        /// 📌 **가운데에 둔다.** 목록은 고를 때까지 다른 일을 멈추는 화면이고,
+        /// 고르는 동안은 싸우는 장면을 가려도 된다 — 「도전」 단추와 다른 점이 그것이다.
+        ///
+        /// ⚠️ **진행 띠·배지 카드 아래에서 시작한다** — 위로 올라가면 띠와 겹친다
+        /// (<see cref="SoundPanelRect"/> 주석의 같은 이유다 · 그리는 차례로는 안 고쳐진다).
+        ///
+        /// <paramref name="rows"/> 는 적을 줄 수다(열린 판만이 아니라 **목록 전체**).
+        /// </summary>
+        public static Rect StageListPanelRect(float screenWidth, float screenHeight, int rows)
+        {
+            float sc = Scale(screenHeight);
+            Rect badge = StageBadgeRect(screenWidth, screenHeight);
+
+            float w = Mathf.Min(SoundPanelWidth * sc, screenWidth - 24f);
+            // 머리 한 줄 + 줄들 + 닫기 한 줄 + 위아래 틈.
+            float h = (StageListRowHeight * (Mathf.Max(0, rows) + 2) + 20f) * sc;
+
+            float top = badge.yMax + PlateGap * sc;
+            float y = Mathf.Max(top, (screenHeight - h) * 0.5f);
+            // 아래로 넘치면 위로 당긴다 — 넘친 채 두면 닫기 단추가 화면 밖으로 간다.
+            if (y + h > screenHeight - 12f) y = Mathf.Max(top, screenHeight - 12f - h);
+
+            return new Rect((screenWidth - w) * 0.5f, y, w, h);
+        }
+
+        /// <summary>
+        /// 목록 패널 안의 <paramref name="index"/> 번째 칸 — 0 은 **머리줄**,
+        /// 1..rows 가 판들, 마지막이 닫기다.
+        /// </summary>
+        public static Rect StageListSlotRect(float screenWidth, float screenHeight,
+                                             int rows, int index)
+        {
+            float sc = Scale(screenHeight);
+            Rect panel = UiPlate.Padded(StageListPanelRect(screenWidth, screenHeight, rows), sc);
+            float rh = StageListRowHeight * sc;
+            return new Rect(panel.x, panel.y + 10f * sc + rh * index, panel.width, rh);
+        }
+
+        /// <summary>
         /// 좌측 「i」 — **개발 빌드 전용** 접이식 진단 패널의 손잡이.
         /// ⚠️ 가정 — 배지 아래, 최소 버튼 한 변.
         /// </summary>

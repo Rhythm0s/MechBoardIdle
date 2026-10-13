@@ -57,6 +57,11 @@ namespace MBI.Idle
             //    튜토리얼 복원과 **같은 자리 같은 꼴**이다 — 둘 다 「깼는가」가 답이다.
             RobotBGate.S4Cleared = Data.HasCleared(RobotBGate.UnlockStageId);
 
+            // ⚠️ **스테이지 목록의 해금도 같은 장부에서 온다**(2026-10-13 · 순서 5).
+            //    위 둘과 같은 자리 같은 꼴이다 — 통과 기록 하나가 셋을 다 먹인다.
+            //    해금을 따로 저장하지 않는 까닭이 이것이다(지침 §7 · StageUnlockRule).
+            IdleSignals.PublishClearedStages(Data.clearedStageIds);
+
             // 저장된 보드를 물류 쪽에 내놓는다. **Awake 에서 한다** —
             // `BoardController` 가 자기 `Start` 에서 이것을 읽어 판을 세우므로,
             // 실행 순서(-100 → 기본)가 뒤집히면 **매번 시작 보드로 돌아간다.**
@@ -137,6 +142,10 @@ namespace MBI.Idle
                 if (Data.MarkCleared(clear.stageId))
                     Wallet.AddEnhMaterial(clear.enhMaterialReward);
 
+                // ⚠️ **깬 그 자리에서 다음 판을 연다** — 다음 실행까지 기다리면 통과 직후의
+                //    목록에서 아직 잠겨 있다. 저장에 쓴 **뒤** 사본을 갱신한다(원천은 저장이다).
+                IdleSignals.NoteClearedStage(clear.stageId);
+
                 // ⚠️ **깬 그 자리에서 B 를 연다**(2026-10-13 · #84). 다음 실행까지 기다리면
                 //    S4 를 깬 직후의 화면에서는 아직 잠겨 있다 — 깨자마자 열려야 말이 된다.
                 //    ⚠️ `MarkCleared` 가 거짓(이미 깬 판)이어도 다시 읽는다 — 저장이 참이면 참이다.
@@ -198,6 +207,16 @@ namespace MBI.Idle
             Data.enhMaterial = Wallet.EnhMaterial;
             Data.gold = Wallet.Gold;   // ⚠️ `killsTowardGold` 는 CreditSignals 가 이미 Data 에 직접 쓴다
             Data.lastSeenUtcTicks = _clock.UtcNow.Ticks; // 꺼둔 시간 계산의 기준점
+
+            // ⚠️⚠️ **끈 시점의 상주 파밍 판**(2026-10-13 · 순서 6). 이 한 줄이 없어서
+            //    오프라인 정산이 **기록을 한 번도 쓰지 못하고** 기본 시급으로만 떨어졌다 —
+            //    저장 칸은 처음부터 있었고 쓰는 쪽이 없었다.
+            //
+            // ⚠️ **빈 글자로는 덮지 않는다.** 전투 씬에 들어가기 전에 도는 자동저장이
+            //    저장된 판 이름을 지우면, 다음에 켤 때 정산할 판이 사라진다
+            //    (보드 저장과 같은 까닭이다 · 아래 주석).
+            if (!string.IsNullOrEmpty(StageLayerSignals.FarmStageId))
+                Data.lastFarmStageId = StageLayerSignals.FarmStageId;
 
             // 보드 한 판. ⚠️ 물류가 아직 안 섬으면 `null` 이고, 그때는
             //    **새로 쓰지 않고 불러온 것을 그대로 다시 싣는다** — 그러지 않으면

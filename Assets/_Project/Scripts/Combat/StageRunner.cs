@@ -2082,6 +2082,147 @@ namespace MBI.Combat
             if (UiSkin.Button(r, label, st)) EnterChallenge();
         }
 
+        // ───────────────────── 스테이지 목록 (순서 5) ─────────────────────
+
+        /// <summary>목록이 펼쳐져 있는가. 저장하지 않는다 — 화면 상태일 뿐이다.</summary>
+        private bool _stageListOpen;
+
+        /// <summary>목록 한 벌. **매 프레임 새로 만들지 않는다** — 재사용한다.</summary>
+        private readonly List<StageListEntry> _stageList = new List<StageListEntry>();
+
+        /// <summary>자산 식별자 한 벌 — 규칙에 넘길 입력. 역시 재사용한다.</summary>
+        private readonly List<string> _stageIds = new List<string>();
+
+        /// <summary>
+        /// 목록을 **규칙에게서** 다시 받는다 — 해금 판단을 화면이 하지 않는다(지침 §7).
+        /// </summary>
+        private void RebuildStageList()
+        {
+            _stageIds.Clear();
+            if (stageCatalog != null)
+                foreach (StageDefinition d in stageCatalog)
+                    if (d != null && !string.IsNullOrEmpty(d.stageId)) _stageIds.Add(d.stageId);
+
+            StageUnlockRule.Build(_stageIds, IdleSignals.ClearedStageIds, _stageList);
+        }
+
+        /// <summary>
+        /// **「스테이지」 단추** — 목록을 펼친다 (2026-10-13 · 순서 5).
+        ///
+        /// ⚠️ 자리는 <see cref="UiLayout.StageListButtonRect"/> 가 낸다 —
+        /// 창이 좁으면 빈 칸을 주고, 그때는 안 그린다.
+        /// </summary>
+        private void DrawStageListButton()
+        {
+            Rect r = UiLayout.StageListButtonRect(Screen.width, Screen.height);
+            if (r.width <= 1f || r.height <= 1f) return;
+            UiBlockers.Add(r);
+
+            var st = new GUIStyle(GUI.skin.button) { wordWrap = false };
+            const string label = "스테이지";
+            if (st.CalcSize(new GUIContent(label)).x > r.width)
+                UiText.FitOneLine(st, label, r.width);
+
+            if (UiSkin.Button(r, label, st))
+            {
+                RebuildStageList();
+                _stageListOpen = true;
+            }
+        }
+
+        /// <summary>
+        /// **스테이지 목록** — S1~S6 중 **열린 판**을 고른다 (2026-10-13 · 순서 5).
+        ///
+        /// 📌 **고르면 그 판의 파밍부터 선다.** 목록에서 바로 도전으로 들어가지 않는다 —
+        /// 들어간 판이 처음이면 보드도 모듈도 그 판 것이 아니라서 곧바로 진다.
+        ///
+        /// ⚠️⚠️ **해금은 여기서 판단하지 않는다.** <see cref="StageUnlockRule"/> 가
+        /// 저장의 통과 기록에서 계산한 것을 그대로 옮긴다 — 화면이 또 세면 두 답이 생긴다.
+        ///
+        /// ⚠️ 잠긴 줄도 **적는다**(눌리지만 않는다) — 안 보여 주면 「다음에 무엇이 오는가」를
+        /// 알 수 없고, 목록이 갑자기 길어지는 것처럼 보인다.
+        /// ⚠️ 문구·색·크기는 가정이다(UI 문서 역기입 자리).
+        /// </summary>
+        private void DrawStageListPanel()
+        {
+            int rows = _stageList.Count;
+            Rect panel = UiLayout.StageListPanelRect(Screen.width, Screen.height, rows);
+            UiBlockers.Add(panel);
+            UiPlate.Draw(panel);
+
+            float sc = UiLayout.Scale(Screen.height);
+            int px = KoreanFont.Snap(Mathf.Max(14, Mathf.RoundToInt(40f * sc)));
+            var head = new GUIStyle(GUI.skin.label)
+            {
+                fontSize = px,
+                wordWrap = false,
+                clipping = TextClipping.Overflow,
+                alignment = TextAnchor.MiddleCenter,
+            };
+            head.normal.textColor = Color.white;
+
+            string headText = "스테이지  ·  열린 판 "
+                              + StageUnlockRule.UnlockedCount(_stageList) + "/" + rows;
+            Rect headRect = UiLayout.StageListSlotRect(Screen.width, Screen.height, rows, 0);
+            UiText.FitOneLine(head, headText, headRect.width);
+            GUI.Label(headRect, headText, head);
+
+            int here = StageMapName.NumberOf(stage != null ? stage.stageId : string.Empty);
+
+            for (int i = 0; i < rows; i++)
+            {
+                StageListEntry e = _stageList[i];
+                Rect r = UiLayout.StageListSlotRect(Screen.width, Screen.height, rows, i + 1);
+
+                // 「S3 — 물류 다시 짜기」. 맵 이름이 비면 **번호만** 적는다(지어내지 않는다).
+                string name = StageMapName.Of(e.number);
+                string label = "S" + e.number + (name.Length > 0 ? "  —  " + name : string.Empty);
+                if (e.number == here) label += "  (지금)";
+                else if (e.cleared) label += "  ✓";
+                if (!e.unlocked) label = "🔒  " + label + "  (앞 판 도전 통과 필요)";
+
+                var bs = new GUIStyle(GUI.skin.button)
+                {
+                    fontSize = px,
+                    wordWrap = false,
+                    clipping = TextClipping.Overflow,
+                };
+                if (bs.CalcSize(new GUIContent(label)).x > r.width)
+                    UiText.FitOneLine(bs, label, r.width);
+
+                // ⚠️ **잠긴 줄은 눌리지 않는다** — IMGUI 의 `enabled` 를 쓴다.
+                bool was = GUI.enabled;
+                GUI.enabled = was && e.unlocked && e.number != here;
+                bool hit = UiSkin.Button(r, label, bs);
+                GUI.enabled = was;
+
+                if (!hit) continue;
+
+                StageDefinition target = StageOfNumber(e.number);
+                if (target != null)
+                {
+                    Debug.Log($"[MBI] 스테이지 목록 — S{e.number} 파밍으로 간다.");
+                    _challengeNext = false;        // 고른 판은 **파밍부터** 선다
+                    _stageListOpen = false;
+                    LoadStage(target);
+                }
+                break;
+            }
+
+            Rect close = UiLayout.StageListSlotRect(Screen.width, Screen.height, rows, rows + 1);
+            var cs = new GUIStyle(GUI.skin.button) { fontSize = px, wordWrap = false };
+            if (UiSkin.Button(close, "닫기", cs)) _stageListOpen = false;
+        }
+
+        /// <summary>번호로 판 자산을 찾는다 — 없으면 null. ⚠️ 차례에 기대지 않는다.</summary>
+        private StageDefinition StageOfNumber(int number)
+        {
+            if (number <= 0 || stageCatalog == null) return null;
+            foreach (StageDefinition d in stageCatalog)
+                if (d != null && StageMapName.NumberOf(d.stageId) == number) return d;
+            return null;
+        }
+
         /// <summary>
         /// 다음 판 — 없으면 null(마지막 판이다). 목록이 비어도 null 이다.
         /// ⚠️ 번호로 찾는다. 자산 차례에 기대면 목록을 섞었을 때 조용히 틀린 판으로 간다.
@@ -2186,6 +2327,10 @@ namespace MBI.Combat
             }
 
             _farm = new FarmSession(cap, stage.spawnInterval);
+
+            // ⚠️ **여기서 상주 판을 적는다**(순서 6) — 바퀴가 **실제로 선 뒤**다.
+            //    위쪽 이른 반환(표가 비었다)으로 빠진 판은 적히지 않는다.
+            StageLayerSignals.FarmStageId = stage.stageId;
 
             // 첫 바퀴를 **바로** 채운다 — 기다리게 하면 들어선 화면이 텅 비어 있다.
             RefillFarm();
@@ -2491,7 +2636,14 @@ namespace MBI.Combat
                 // ✅ **파밍 화면의 「도전」**(사용자 확정 #111 · 항상 활성).
                 //    여기 없으면 파밍 층에서 나갈 길이 없다 — 들어는 가지는데 못 나온다.
                 if (StageLayerSignals.IsFarming && !IsTutorialStage) DrawChallengeButton();
+
+                // ✅ **스테이지 목록**(순서 5) — 도전 단추와 같은 조건에서 뜬다.
+                //    튜토리얼 판에는 안 띄운다 — 그 판은 목록 밖이고, 목록에서 고를 수도 없다.
+                if (StageLayerSignals.IsFarming && !IsTutorialStage) DrawStageListButton();
             }
+
+            // 목록은 **맨 위에** 그린다 — 고르는 동안은 다른 것을 덮는 쪽이 맞다.
+            if (_stageListOpen) DrawStageListPanel();
 
             // IMGUI는 나중에 그린 것이 위에 온다 — 연출은 결과 화면 위에도 덮여야 한다.
             DrawMergeCutscene();

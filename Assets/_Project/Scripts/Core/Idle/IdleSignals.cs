@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 namespace MBI.Core
 {
     /// <summary>스테이지 최초 클리어 보고 1건.</summary>
@@ -37,6 +38,42 @@ namespace MBI.Core
         /// 튜토리얼이 정상으로 열린다.
         /// </summary>
         public static bool TutorialCleared;
+
+        /// <summary>
+        /// **도전을 통과한 판들** — 방치 런타임이 저장에서 읽어 게시하고 전투가 읽는다
+        /// (2026-10-13 · 순서 5 스테이지 목록).
+        ///
+        /// ⚠️⚠️ **새 장부가 아니다.** 원천은 저장의 `clearedStageIds` 하나이고 이 칸은
+        /// 그 사본일 뿐이다 — 여기에 직접 판을 넣어 두면 저장과 어긋난다(지침 §7).
+        /// 해금은 저장하지 않고 이 기록에서 매번 계산한다
+        /// (<see cref="StageUnlockRule"/>).
+        ///
+        /// ⚠️ 저장 계층이 없는 씬(격리 전투 씬)에서는 비어 있고, 그때 목록에는
+        /// **첫 판만** 열린다 — 앞 판 통과 기록이 없으므로 맞는 거동이다.
+        /// </summary>
+        public static readonly HashSet<string> ClearedStageIds = new HashSet<string>();
+
+        /// <summary>
+        /// 저장의 통과 기록을 **통째로 갈아끼운다** — 켤 때 한 번(방치 런타임이 부른다).
+        ///
+        /// ⚠️ 더하기만 하면 저장을 지운 뒤에도 옛 기록이 남아 **지웠는데 열린 판**이 보인다.
+        /// </summary>
+        public static void PublishClearedStages(IEnumerable<string> ids)
+        {
+            ClearedStageIds.Clear();
+            if (ids == null) return;
+            foreach (string id in ids)
+                if (!string.IsNullOrEmpty(id)) ClearedStageIds.Add(id);
+        }
+
+        /// <summary>
+        /// 한 판을 통과 기록에 더한다 — 저장에 쓴 **뒤** 같은 값을 여기에도 둔다.
+        /// ⚠️ 여기만 쓰면 다음에 켤 때 사라진다. 저장이 원천이다.
+        /// </summary>
+        public static void NoteClearedStage(string id)
+        {
+            if (!string.IsNullOrEmpty(id)) ClearedStageIds.Add(id);
+        }
 
         /// <summary>
         /// 보드 한 판 — 물류가 쓰고 방치 런타임이 저장에 싣는다 (2026-09-16).
@@ -254,6 +291,7 @@ namespace MBI.Core
             _hasClear = false;
             _resetSave = false;
             TutorialCleared = false;
+            ClearedStageIds.Clear();
             for (int i = 0; i < _boardStates.Length; i++) _boardStates[i] = null;
             WalletScrap = 0d;
             WalletEnhMaterial = 0d;
