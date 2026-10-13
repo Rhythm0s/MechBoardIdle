@@ -261,6 +261,11 @@ namespace MBI.Logistics
 
         private static readonly Color SelectedColor = new Color(0.98f, 0.85f, 0.30f, 1f);
         private static readonly Color BeltColor = new Color(0.5f, 0.5f, 0.5f, 1f);
+        /// <summary>
+        /// 🗑️ **폐기 표기 — 미연결 노랑**(2026-10-13 · 사용자 확정 #96).
+        /// 미연결 방향 표시는 이제 `MBI.Core.PortDirectionColor` 한 벌을 따른다
+        /// (입력 파랑 · 출력 주황). **읽는 곳이 없다** — 값이 무엇이었는지만 남긴다.
+        /// </summary>
         private static readonly Color BeltArrowColor = new Color(0.95f, 0.85f, 0.3f, 1f);       // 미연결(dangling)
         private static readonly Color BeltConnectedColor = new Color(0.35f, 0.9f, 0.4f, 1f);    // 자동연결됨
         private static readonly Color BeltWarningColor = new Color(0.98f, 0.45f, 0.25f, 1f);   // 끝단 미연결 경고
@@ -5092,7 +5097,8 @@ namespace MBI.Logistics
                 arrow.transform.localScale = new Vector3(0.34f, 0.34f, 1f);
                 asr = arrow.AddComponent<SpriteRenderer>();
                 asr.sprite = UnitSprite();
-                asr.color = BeltArrowColor;
+                // 벨트 화살표는 **내보내는 면**에 선다 — 그래서 출력 색이다 (2026-10-13 · #96).
+                asr.color = PortDirectionColor.Output;
                 // ⚠️ 보드는 **자기 지역 순서대로 그린다**(격자 배경 -3 · 셀선 -2 · 마커 0).
                 // 여기에 SortingLayers.Tile(-20)을 쓰면 화살표가 벨트 몸통(0) 뒤로 들어가 안 보인다 —
                 // 실제로 그래서 방향 표시가 화면에 없었다.
@@ -5162,7 +5168,10 @@ namespace MBI.Logistics
 
             foreach (KeyValuePair<Vector2Int, SpriteRenderer> kv in _beltArrows)
                 if (kv.Value != null)
-                    kv.Value.color = connected.Contains(kv.Key) ? BeltConnectedColor : BeltArrowColor;
+                    // 이어졌으면 초록(종전 그대로), 아직이면 출력 주황 (2026-10-13 · #96).
+                    kv.Value.color = connected.Contains(kv.Key)
+                        ? BeltConnectedColor
+                        : PortDirectionColor.Output;
 
             ReportNewConnections(connected);
 
@@ -5256,7 +5265,8 @@ namespace MBI.Logistics
 
                 var sr = go.AddComponent<SpriteRenderer>();
                 sr.sprite = arrowArt;
-                sr.color = WiringArrowColor;
+                // 입력은 파랑, 출력은 주황 (2026-10-13 · #96). 한 벌이 모든 방향 표시를 든다.
+                sr.color = PortDirectionColor.Of(h.outward);
                 // 노드 그림 **위**다 — 밑에 깔면 타일에 묻힌다.
                 sr.sortingOrder = MarkerOrder + 2;
                 // 층은 <c>KeepBoardOnItsLayer</c> 가 계층이 바뀐 것을 보고 통째로 입힌다.
@@ -5273,7 +5283,14 @@ namespace MBI.Logistics
         /// <summary>칸 가운데에서 면 쪽으로 얼마나 미는가(칸 기준). ⚠️ 가정 — 면에 붙되 안 넘는다.</summary>
         private const float WiringArrowInset = 0.33f;
 
-        /// <summary>화살표 색 — ⚠️ **가정 미색**(UI 문서에 절이 없다).</summary>
+        /// <summary>
+        /// 🗑️ **폐기 표기 — 미색 한 가지**(2026-10-13 · 사용자 확정 #96).
+        ///
+        /// 면 화살표는 **입력과 출력을 갈라야** 뜻이 선다. 한 색으로 칠하던 동안에는
+        /// 「방향은 저쪽」까지만 말하고 **들어오는 면인지 나가는 면인지**는 화살표 머리를
+        /// 눈으로 좇아야 알았다. 이제 `MBI.Core.PortDirectionColor` 가 색으로 말한다.
+        /// **읽는 곳이 없다** — 값이 무엇이었는지만 남긴다.
+        /// </summary>
         private static readonly Color WiringArrowColor = new Color(0.97f, 0.95f, 0.86f, 0.92f);
 
         /// <summary>
