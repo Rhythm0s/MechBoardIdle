@@ -535,7 +535,7 @@ namespace MBI.Combat
         private string ChallengeClock()
         {
             float limit = stage != null ? stage.challengeTime : 0f;
-            if (limit <= 0f || _sim == null) return "남은 시간 —";
+            if (!StageBadgeRule.ClockIsMeaningful(limit) || _sim == null) return "남은 시간 —";
 
             float left = Mathf.Max(0f, limit - _sim.Elapsed);
             return "남은 시간 " + WaveSpawnRule.Clock(left);
@@ -594,7 +594,11 @@ namespace MBI.Combat
             // ⚠️⚠️ **층마다 다른 말을 한다**(2026-10-13 사용자 확정 #111).
             //    파밍 층에 「출력 18 넘기기」를 적으면 **넘겨도 아무 일이 안 일어난다** —
             //    요구치는 도전 층의 조건이고, 파밍에는 끝이 없다.
-            bool farming = StageLayerSignals.IsFarming && !IsTutorialStage;
+            // 셋째 줄의 성격을 **규칙이 정한다** — 셋째 경우(튜토리얼)를 화면 쪽에서
+            // 또 빠뜨리지 않게 한 자리에 모았다(2026-10-13 · StageBadgeRule).
+            StageBadgeRule.StatusKind status = StageBadgeRule.StatusOf(
+                StageMapName.NumberOf(stage.stageId), StageLayerSignals.IsFarming);
+            bool farming = status == StageBadgeRule.StatusKind.Farm;
             string goal = farming
                 ? "파밍: " + stage.topic + "  ·  모아서 보드를 키운다"
                 : HasRequirement
@@ -602,13 +606,21 @@ namespace MBI.Combat
                     : "목표: " + stage.topic;
             GUI.Label(new Rect(r.x + pad, r.y + rowH, r.width - pad * 2f, rowH), goal, line);
 
-            // 남은 몬스터 · 리젠.
+            // 셋째 줄 — 파밍이면 「리젠 · 맵」, 도전이면 「남은 몬스터 · 남은 시간」.
+            //
+            // ⚠️⚠️ **말할 것이 없는 판에는 안 그린다** — 튜토리얼 전용 판이 그 경우다.
+            //    전투가 없으니 「남은 몬스터 0」이고, 제한시간도 없으니 시계가 거짓말을 한다
+            //    (2026-10-13 실측: 그 자리에 **「남은 시간 166:39」**가 떴다 — 9999 초다).
+            //    스테이지 기획서 3장 — 튜토리얼 전용은 **요구치·보상·파밍·오프라인 넷 다 없다.**
+            if (status == StageBadgeRule.StatusKind.None) return;
+
             // ⚠️ **「남은」은 살아 있는 것 + 아직 안 나온 것이다** — 화면에 보이는 수만 적으면
             //    묶음 사이에 0 이 떠서 「다 잡았다」로 읽힌다.
             int alive = _sim.Remaining;
             int unspawned = Mathf.Max(0, _sim.TotalEnemies - _sim.TotalKills - alive);
-            float next = _sim.SecondsToNextWave;
-            string regen = next < 0f ? "리젠 없음(마지막 묶음)" : "리젠 " + WaveSpawnRule.Clock(next);
+            // 🗑️ **「리젠 없음(마지막 묶음)」 폐기** — 묶음으로 부르던 날의 백이다.
+            //    도전 줄이 묻는 것은 「언제 또 나오나」가 아니라 **「얼마 남았나」**다
+            //    (사용자 확정 #111 · <see cref="ChallengeClock"/>).
             GUI.Label(new Rect(r.x + pad, r.y + rowH * 2f, r.width - pad * 2f, rowH),
                       farming ? FarmStatusLine(alive)
                               : "남은 몬스터 " + (alive + unspawned) + "  ·  " + ChallengeClock(),
