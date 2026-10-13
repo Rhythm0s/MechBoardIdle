@@ -491,6 +491,38 @@ namespace MBI.Combat
                                    BadgeTint);
         }
 
+        /// <summary>
+        /// **배지가 층을 말한다** — 「S1 파밍」·「S1 도전」 (2026-10-13 사용자 확정 #111).
+        ///
+        /// ⚠️ 튜토리얼 판에는 층이 없으므로 종전 글자 그대로다.
+        /// ⚠️ 문구는 가정이다(UI 문서 역기입 자리).
+        /// </summary>
+        private string LayeredStageTitle()
+        {
+            if (IsTutorialStage) return StageTitle();
+            int k = StageMapName.NumberOf(stage.stageId);
+            return "S" + k + (StageLayerSignals.IsFarming ? " 파밍" : " 도전");
+        }
+
+        /// <summary>
+        /// 파밍 층의 아래 줄 — 「리젠 mm:ss · 맵 n/정원」 (사용자 확정 #111 · 기획서 2장).
+        ///
+        /// 📌 **「남은 몬스터」를 안 적는다.** 파밍에는 다 잡아야 할 수가 없다 —
+        /// 알고 싶은 것은 「지금 몇이 서 있고 언제 다시 차는가」다.
+        /// 📌 **「리젠」 낱말은 파밍 층에만 쓴다**(확정) — 도전 층은 「남은 시간」이다.
+        /// </summary>
+        private string FarmStatusLine(int alive)
+        {
+            int cap = stage != null && stage.farmComposition != null
+                ? FarmRefillRule.CapacityOf(stage.farmComposition) : 0;
+
+            if (cap <= 0) return "파밍 표가 비었다 — 정원 0";
+
+            float next = FarmSecondsToRefill;
+            string regen = next >= 0f ? "리젠 " + WaveSpawnRule.Clock(next) : "리젠 —";
+            return regen + "  ·  맵 " + alive + "/" + cap;
+        }
+
         private void DrawStageBadge()
         {
             if (_sim == null || stage == null) return;
@@ -534,13 +566,22 @@ namespace MBI.Combat
             // 알약 높이는 한 줄치라 **둘째 줄이 판 밖으로 흘렀다.** 글자를 줄이는 대신
             // **드는 크기로 내린다** — 무엇인지(「스테이지」)를 지우지 않는 쪽이다.
             // 사다리 위의 값 하나로만 내려간다(아틀라스 예산 · `KoreanFont.Ladder`).
-            UiText.FitOneLine(pillText, StageTitle(), pill.width - 12f * sc);
-            GUI.Label(pill, StageTitle(), pillText);
+            // 층을 배지가 말한다 — 「S1 파밍」·「S1 도전」(사용자 확정 #111).
+            string title = LayeredStageTitle();
+            UiText.FitOneLine(pillText, title, pill.width - 12f * sc);
+            GUI.Label(pill, title, pillText);
 
-            // 목표 한 줄 — 값은 `balance_v4.json` 의 topic·req 다(지어내지 않는다).
-            string goal = HasRequirement
-                ? "목표: " + stage.topic + "  ·  출력 " + stage.req.ToString("F0") + " 넘기기"
-                : "목표: " + stage.topic;
+            // 목표 한 줄 — 값은 표의 topic·req 다(지어내지 않는다).
+            //
+            // ⚠️⚠️ **층마다 다른 말을 한다**(2026-10-13 사용자 확정 #111).
+            //    파밍 층에 「출력 18 넘기기」를 적으면 **넘겨도 아무 일이 안 일어난다** —
+            //    요구치는 도전 층의 조건이고, 파밍에는 끝이 없다.
+            bool farming = StageLayerSignals.IsFarming && !IsTutorialStage;
+            string goal = farming
+                ? "파밍: " + stage.topic + "  ·  모아서 보드를 키운다"
+                : HasRequirement
+                    ? "목표: " + stage.topic + "  ·  출력 " + stage.req.ToString("F0") + " 넘기기"
+                    : "목표: " + stage.topic;
             GUI.Label(new Rect(r.x + pad, r.y + rowH, r.width - pad * 2f, rowH), goal, line);
 
             // 남은 몬스터 · 리젠.
@@ -551,7 +592,9 @@ namespace MBI.Combat
             float next = _sim.SecondsToNextWave;
             string regen = next < 0f ? "리젠 없음(마지막 묶음)" : "리젠 " + WaveSpawnRule.Clock(next);
             GUI.Label(new Rect(r.x + pad, r.y + rowH * 2f, r.width - pad * 2f, rowH),
-                      "남은 몬스터 " + (alive + unspawned) + "  ·  " + regen, line);
+                      farming ? FarmStatusLine(alive)
+                              : "남은 몬스터 " + (alive + unspawned) + "  ·  " + regen,
+                      line);
         }
 
         // ──────────────────────── 로봇 몸 밑 계기 ──────────────────────────

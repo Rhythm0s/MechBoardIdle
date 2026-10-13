@@ -22,6 +22,15 @@ namespace MBI.Core
             _ticker = new ResourceTicker(intervalSeconds);
         }
 
+        /// <summary>
+        /// 다음 보충까지 남은 초 — 화면이 「리젠 mm:ss」로 읽는다 (2026-10-13).
+        ///
+        /// ⚠️ **화면이 따로 세지 않는다.** 세는 시계는 여기 하나이고, 화면이 제 타이머를
+        /// 돌리면 둘이 조금씩 어긋나 「0 인데 안 나온다」가 된다(지침 §7).
+        /// </summary>
+        public float SecondsToRefill =>
+            IsConfigured ? UnityEngine.Mathf.Max(0f, Interval - _ticker.Elapsed) : -1f;
+
         public int Cap { get; }
         public float Interval { get; }
 

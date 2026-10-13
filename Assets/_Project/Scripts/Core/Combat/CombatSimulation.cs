@@ -1685,8 +1685,23 @@ namespace MBI.Core
         // 스폰 시각은 `WaveSpawnRule` 이 낸다(2026-09-18). 간격이 0 이하면 전원 t=0.
         private readonly List<EnemyProjectile> _enemyProjectiles = new List<EnemyProjectile>();
 
+        /// <summary>
+        /// **줄 선 적을 안 내보낸다** (2026-10-13 · 파밍 층 #111).
+        ///
+        /// ⚠️⚠️ **`Endless` 로는 안 멈춘다.** 그 깃발은 **승패 판정**만 멈추고 스폰은 그대로
+        /// 돈다 — 파밍 층을 켜 보니 **도전 큐 100 기가 함께 쏟아졌다**(화면에 「남은 몬스터
+        /// 100 · 리젠 00:04」이 떴다). 파밍은 제 정원을 제 주기로 채우므로 **줄 선 적이
+        /// 끼어들면 정원이 뜻을 잃는다.**
+        ///
+        /// 📌 **깃발을 따로 둔 까닭** — 「판정을 멈춘다」와 「스폰을 멈춘다」는 다른 일이다.
+        /// 한 깃발에 둘을 매달면 튜토리얼(판정만 멈추고 싶다)이 함께 막힌다.
+        /// </summary>
+        public bool SuspendQueuedSpawns { get; set; }
+
         private void SpawnDue()
         {
+            if (SuspendQueuedSpawns) return;
+
             while (_spawnedCount < _spawnQueue.Count)
             {
                 // ⚠️ **웨이브다**(2026-09-18) — 묶음 1 이면 종전 식과 같은 수가 나온다.

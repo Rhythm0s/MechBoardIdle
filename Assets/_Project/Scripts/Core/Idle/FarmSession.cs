@@ -57,6 +57,9 @@ namespace MBI.Core
 
         public float LapSeconds => _spawner.Interval;
 
+        /// <summary>다음 보충까지 남은 초 — 화면이 읽는다. 안 돌면 -1.</summary>
+        public float SecondsToRefill => _spawner.SecondsToRefill;
+
         /// <summary>
         /// 한 프레임 진행. killsSinceLastTick은 <see cref="CombatSimulation.ConsumeKills"/>로 가져온 값을 넣는다
         /// (그 API가 가져가며 비우므로 같은 처치를 두 번 세지 않는다).

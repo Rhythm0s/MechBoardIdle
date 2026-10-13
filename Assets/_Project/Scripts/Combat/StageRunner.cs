@@ -564,6 +564,7 @@ namespace MBI.Combat
                 StageLayerSignals.Current = StageLayer.Challenge;
                 _farm = null;
                 _farmRespawnLeft = 0f;
+                if (_sim != null) _sim.SuspendQueuedSpawns = false;   // 도전은 줄 선 적으로 돈다
             }
             else
             {
@@ -2124,6 +2125,9 @@ namespace MBI.Combat
             Restart();      // 몬스터는 그 판 정원부터 새로 · HP 만탱
         }
 
+        /// <summary>다음 보충까지 남은 초 — 화면이 「리젠 mm:ss」로 읽는다. 바퀴가 없으면 -1.</summary>
+        public float FarmSecondsToRefill => _farm != null ? _farm.SecondsToRefill : -1f;
+
         /// <summary>그 판의 파밍 바퀴. 층이 파밍일 때만 돈다. 표가 비면 null 이다.</summary>
         private FarmSession _farm;
 
@@ -2172,7 +2176,13 @@ namespace MBI.Combat
             }
 
             // ⚠️ **승패를 멈춘다** — 파밍 층에는 이기고 지는 것이 없다(로봇 파괴만 있다).
-            if (_sim != null) _sim.Endless = true;
+            // ⚠️⚠️ **줄 선 적도 멈춘다.** `Endless` 는 판정만 멈추므로, 안 막으면
+            //    도전 큐가 함께 쏟아져 정원이 뜻을 잃는다(실제로 100 기가 따라 나왔다).
+            if (_sim != null)
+            {
+                _sim.Endless = true;
+                _sim.SuspendQueuedSpawns = true;
+            }
 
             _farm = new FarmSession(cap, stage.spawnInterval);
 
