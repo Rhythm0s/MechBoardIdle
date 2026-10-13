@@ -2365,6 +2365,16 @@ namespace MBI.Logistics
             if (!GameLayerController.BoardViewActive) return;
             if (PointerOverUi()) return;
 
+            // ⚠️⚠️ **방향을 묻는 중이면 그 물음이 먼저다**(2026-10-01 사용자 확정 · #93).
+            //    누름 하나가 「출력은 이쪽」·「이대로 확정」·「설치 취소」 셋 중 하나이고,
+            //    그동안 벨트 깔기·제거·고르기는 **안 든다** — 물음에 답하기 전에 다른 일이
+            //    일어나면 무엇에 답한 것인지가 흐려진다.
+            if (_askingCell.HasValue)
+            {
+                if (TryPointerWorld(out Vector2 askWorld)) AnswerDirectionAsk(askWorld);
+                return;
+            }
+
             // 이동 모드: 같은 드래그가 스크롤이 된다(UI 문서 9-1 제스처 충돌 해소).
             if (Mode == BoardMode.Pan)
             {
@@ -2492,6 +2502,8 @@ namespace MBI.Logistics
 
         private void OnPressEnd(InputAction.CallbackContext ctx)
         {
+            // 방향을 묻는 중이면 누름은 이미 `OnPressStart` 가 먹었다 — 떼는 손은 아무 일도 안 한다.
+            if (_askingCell.HasValue) { _dragging = false; _dragCells.Clear(); return; }
             if (_panning) { _panning = false; return; }
             if (!_dragging) return;
             _dragging = false;
@@ -2961,6 +2973,17 @@ namespace MBI.Logistics
             AudioSignals.Play(SoundIds.NodeSnap, SoundIds.KindOf(SoundIds.NodeSnap));
             RefreshConnections(); // 노드 추가로 인접 벨트 연결 상태 변화 반영.
             Debug.Log($"[MBI] 배치: {node.displayName} @ 셀({cell.x},{cell.y}) → 월드 {_grid.CellToWorld(cell)}.");
+
+            // ⚠️⚠️ **여기서 끝나지 않는다 — 방향을 묻는다**(2026-10-01 사용자 확정 · #93).
+            //
+            // 노드는 보드에 **올라가 있지만 아직 확정이 아니다.** 올려 두는 까닭은
+            // 입력·출력 화살표를 **그 자리에서** 보여 주기 위해서다 — 손가락 밑에 없는
+            // 노드의 방향을 묻는 것은 묻는 것이 아니다.
+            //
+            // ⚠️ **돌릴 수 없는 노드는 안 묻는다**(코어). 물어 봐야 답이 하나뿐이고,
+            //    그 사이 「취소」가 눌리면 **놓을 수 없는 노드가 지워진다.**
+            if (CoreNodeRule.CanRotate(placedNode) && AskableOutputFaceOf(placedNode).HasValue)
+                _askingCell = cell;
         }
 
         /// <summary>
@@ -3754,6 +3777,11 @@ namespace MBI.Logistics
             DrawFaceMismatchLabels(cam, style, fontScale);
 
             DrawGhostHint(cam, style, fontScale);
+
+            // ⚠️ **방향 묻기는 이 무리의 맨 끝이다** — 묻는 동안에는 그 판이 화면에서
+            //    가장 위여야 한다(IMGUI 는 나중에 그린 것이 위로 온다). 밑에 깔면
+            //    이름표·아이콘이 누를 자리를 덮어 **보이는 곳과 눌리는 곳이 어긋난다.**
+            DrawDirectionAsk(cam);
 
             // ══════════ 구역 이름 = 파츠 **한가운데 큰 워터마크** ══════════
             //
@@ -5306,6 +5334,197 @@ namespace MBI.Logistics
 
         /// <summary>출력 커넥터 그림 — 없으면 null.</summary>
         private Sprite PortOutArt() => art != null ? art.portOutSmall : null;
+
+        // ───────────────────── 노드 방향 묻기 (#93 · 2026-10-01 사용자 확정) ─────────────────────
+
+        /// <summary>
+        /// **방향을 묻는 판을 그린다** — 3 × 3 누를 자리와 글자 (2026-10-01 사용자 확정 #93).
+        ///
+        /// 원문이 눈으로 보라고 한 것 넷을 그린다 —
+        /// ① 입력·출력 화살표와 **글자** ② 대각선 X 자로 **넷으로 나뉜** 누를 자리
+        /// ③ 노드 칸 = **확정** ④ 3 × 3 밖 = **취소**.
+        ///
+        /// ⚠️ **화살표 자체는 여기서 안 그린다** — 갓 놓은 노드는 아직 안 이어졌으므로
+        /// <see cref="RebuildWiringArrows"/> 가 이미 입력 파랑 · 출력 주황으로 세워 두었다.
+        /// 여기서 또 그리면 **노드 하나에 화살표가 두 벌**이 된다(WBS 확인 ① 이 금한 것).
+        /// 여기가 더하는 것은 그 화살표 옆의 **글자**다.
+        /// </summary>
+        private void DrawDirectionAsk(Camera cam)
+        {
+            if (!_askingCell.HasValue || _grid == null || cam == null) return;
+            Vector2Int cell = _askingCell.Value;
+
+            NodeInstance inst = _grid.GetAt(cell);
+            if (inst == null) { _askingCell = null; return; }
+
+            Vector3 c = CellWorld(cell);
+            Vector3 sp = cam.WorldToScreenPoint(c);
+            if (sp.z <= 0f) return;
+
+            Vector3 edge = cam.WorldToScreenPoint(c + new Vector3(config.cellSize, 0f, 0f));
+            float cellPx = Mathf.Abs(edge.x - sp.x);
+            if (cellPx < 18f) return;                 // 너무 작으면 글자가 뭉갠다
+
+            float cx = sp.x, cy = Screen.height - sp.y;
+            float half = cellPx * NodeDirectionPad.HalfSpan;
+
+            // ── 3 × 3 누를 자리 ──
+            var pad = new Rect(cx - half, cy - half, half * 2f, half * 2f);
+            UiBlockers.Add(pad);
+            UiPlate.DrawTinted(pad, new Color(0.10f, 0.14f, 0.20f, 0.55f));
+
+            // ── 대각선 X 자 — 넷으로 나뉜 것이 눈에 보여야 한다 ──
+            DrawDiagonal(pad, 45f);
+            DrawDiagonal(pad, -45f);
+
+            int px = KoreanFont.Snap(Mathf.Max(9, Mathf.RoundToInt(cellPx * 0.26f)));
+            var label = new GUIStyle(GUI.skin.label)
+            {
+                fontSize = px,
+                alignment = TextAnchor.MiddleCenter,
+                clipping = TextClipping.Overflow,
+                fontStyle = FontStyle.Bold,
+            };
+
+            // ── 넷 — 누른 쪽이 출력이 갈 쪽이다 ──
+            label.normal.textColor = PortDirectionColor.Output;
+            DrawPadWord(cx, cy - cellPx, cellPx, px, "출력 ↑", label);
+            DrawPadWord(cx, cy + cellPx, cellPx, px, "출력 ↓", label);
+            DrawPadWord(cx - cellPx, cy, cellPx, px, "← 출력", label);
+            DrawPadWord(cx + cellPx, cy, cellPx, px, "출력 →", label);
+
+            // ── 가운데 — 이대로 확정 ──
+            label.normal.textColor = Color.white;
+            DrawPadWord(cx, cy, cellPx, px, "이대로", label);
+
+            // ── 밖 — 취소. 판 아래에 한 줄로 알린다 ──
+            label.normal.textColor = new Color(0.85f, 0.85f, 0.88f, 0.95f);
+            DrawPadWord(cx, cy + half + px, cellPx * 3f, px, "바깥을 누르면 설치 취소", label);
+
+            // ── 화살표 옆 글자 — 「입력」 · 「출력」 ──
+            foreach (NodePort port in inst.Ports())
+            {
+                Vector2 off = FaceOffset(port.face);
+                bool outward = port.io == PortIO.Output;
+                label.normal.textColor = PortDirectionColor.Of(outward);
+                DrawPadWord(cx + off.x * cellPx * 0.42f, cy - off.y * cellPx * 0.42f,
+                            cellPx, px, outward ? "출력" : "입력", label);
+            }
+        }
+
+        /// <summary>판 가운데를 지나는 대각선 한 줄. 넷으로 나뉜 것을 눈에 보이게 한다.</summary>
+        private static void DrawDiagonal(Rect pad, float degrees)
+        {
+            Vector2 pivot = pad.center;
+            Matrix4x4 prev = GUI.matrix;
+            GUIUtility.RotateAroundPivot(degrees, pivot);
+
+            float len = Mathf.Sqrt(pad.width * pad.width + pad.height * pad.height);
+            var line = new Rect(pivot.x - len * 0.5f, pivot.y - 1f, len, 2f);
+
+            Color pc = GUI.color;
+            GUI.color = new Color(1f, 1f, 1f, 0.28f);
+            GUI.DrawTexture(line, Texture2D.whiteTexture);
+            GUI.color = pc;
+
+            GUI.matrix = prev;
+        }
+
+        /// <summary>글자 한 마디를 그 자리에 가운데로 놓는다.</summary>
+        private static void DrawPadWord(float cx, float cy, float w, float px, string word, GUIStyle st)
+        {
+            float h = px * 1.5f;
+            GUI.Label(new Rect(cx - w * 0.5f, cy - h * 0.5f, w, h), word, st);
+        }
+
+
+        /// <summary>
+        /// 방향을 묻는 중인 칸. 값이 있으면 **그 노드는 아직 확정이 아니다.**
+        /// </summary>
+        private Vector2Int? _askingCell;
+
+        /// <summary>
+        /// 그 노드의 지금 **출력 면**. 출력이 없으면 null — **물을 것이 없다는 뜻**이다.
+        ///
+        /// ⚠️ 이름이 비슷한 <c>OutputFaceOf</c> 가 따로 있는데 그쪽은 출력이 없으면
+        /// **동쪽을 돌려준다.** 여기서는 그 기본값을 쓸 수 없다 — 「출력이 없다」와
+        /// 「출력이 동쪽이다」가 갈려야 묻지 말아야 할 노드에 묻지 않는다.
+        /// </summary>
+        private static PortFace? AskableOutputFaceOf(NodeInstance inst)
+        {
+            if (inst == null) return null;
+            foreach (NodePort p in inst.Ports())
+                if (p.io == PortIO.Output) return p.face;
+            return null;
+        }
+
+        /// <summary>
+        /// 누름 하나에 답한다 — **출력이 갈 쪽 · 이대로 확정 · 설치 취소** 셋 중 하나.
+        /// 판정은 <see cref="NodeDirectionPad"/> 가 하고 여기서는 **옮기기만** 한다(지침 §3).
+        /// </summary>
+        private void AnswerDirectionAsk(Vector2 world)
+        {
+            if (!_askingCell.HasValue || _grid == null) return;
+            Vector2Int cell = _askingCell.Value;
+
+            Vector3 c = CellWorld(cell);
+            float size = _grid.CellSize;
+            if (size <= 0.0001f) { _askingCell = null; return; }
+
+            DirectionPadZone zone = NodeDirectionPad.Resolve(
+                (world.x - c.x) / size, (world.y - c.y) / size, out PortFace face);
+
+            switch (zone)
+            {
+                case DirectionPadZone.Confirm:
+                    ConfirmAskedNode();
+                    break;
+
+                case DirectionPadZone.Outside:
+                    CancelAskedNode();
+                    break;
+
+                default:
+                    AimAskedOutput(cell, face);
+                    break;
+            }
+        }
+
+        /// <summary>**누른 쪽이 출력이 갈 쪽이다** — 노드가 통째로 돌고 입력도 따라 돈다.</summary>
+        private void AimAskedOutput(Vector2Int cell, PortFace desired)
+        {
+            NodeInstance inst = _grid.GetAt(cell);
+            PortFace? now = AskableOutputFaceOf(inst);
+            if (inst == null || !now.HasValue) return;
+
+            int turns = NodeDirectionPad.QuarterTurns(now.Value, desired);
+            if (turns == 0) return;                      // 이미 그쪽이다 — 다시 짓지 않는다
+
+            inst.Rotation += turns;
+            RebuildMarker(cell);                         // 면이 돌았으니 탭도 다시 세운다
+            RefreshConnections();
+            AudioSignals.Play(SoundIds.NodeSnap, SoundIds.KindOf(SoundIds.NodeSnap));
+        }
+
+        /// <summary>**노드 칸을 누르면 지금 방향 그대로 확정**된다.</summary>
+        private void ConfirmAskedNode()
+        {
+            _askingCell = null;
+            RefreshConnections();
+        }
+
+        /// <summary>
+        /// **3 × 3 밖을 누르면 설치가 취소된다 — 노드는 보드에 남지 않는다.**
+        ///
+        /// ⚠️ 지우는 길은 <see cref="RemoveAt"/> 하나를 쓴다 — 여기서 따로 지우면
+        /// 마커·색·고르기 중 하나를 빠뜨리는 날이 온다(지침 §7).
+        /// </summary>
+        private void CancelAskedNode()
+        {
+            Vector2Int cell = _askingCell.Value;
+            _askingCell = null;
+            RemoveAt(cell);
+        }
 
         private static Vector2 FaceOffset(PortFace face)
         {
