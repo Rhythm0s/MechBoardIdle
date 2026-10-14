@@ -73,6 +73,14 @@ namespace MBI.EditorTools
             sb.AppendLine("⚠️ 로봇 화력과 무관하다 — 소비처는 마운트뿐이고 전투는 안 돈다");
             sb.AppendLine();
 
+            // ⚠️⚠️ **이 넷을 빠뜨리면 줄이 안 돈다**(2026-10-14 · 첫 판에서 전부 0 이 나왔다).
+            //    `TutorialMountProbe` 가 루프 앞에서 하는 일이고, 보드·틱이 같아도
+            //    이것이 없으면 **다른 판을 재게 된다** — 마운트가 소비처로 안 서기 때문이다.
+            SupplySignals.Reset();
+            SupplySignals.HasCombat = true;
+            SupplySignals.ActiveOwner = MountOwner.RobotA;
+            LogisticsOutputBridge.Reset();
+
             BoardGrid grid = BeltItemKindProbe.Board();
             var flow = new BeltItemFlow();
             flow.Rebuild(grid);
@@ -103,7 +111,15 @@ namespace MBI.EditorTools
                         consumed[a.cell] = m = new Dictionary<FlowKind, int>();
                     m[a.kind] = (m.TryGetValue(a.kind, out int n) ? n : 0) + 1;
                 }
-                flow.ClearPendingArrivals();
+                // ⚠️⚠️ **`ClearPendingArrivals()` 를 부르면 안 된다**(2026-10-14 · 이 프로브의 첫 판).
+                //
+                // 처음에는 「읽었으니 비운다」로 매 틱 불렀다. 그랬더니 **모든 칸이 0** 이 되고
+                // 마운트 도착도 0 이었다 — 보드·틱·초기화가 다른 프로브와 **글자까지 같은데도**
+                // 그랬다. 그 목록은 **출력이 아니라 다음 틱의 입력**이다:
+                // `BoardItemTick.Step` 이 그것을 읽어 노드 생산을 돌린다. 비우면 노드가 굶는다.
+                //
+                // 📌 **「안 나온다」가 내 계측 탓이었다.** 사용자 육안과 내 표가 같은 말을 해서
+                //    더 그럴듯해 보였다 — 육안과 맞는다는 것이 맞다는 뜻이 아니다.
 
                 foreach (MountArrival ma in flow.PendingMountArrivals)
                     mount[ma.kind] = (mount.TryGetValue(ma.kind, out int n) ? n : 0) + 1;
