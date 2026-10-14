@@ -32,6 +32,14 @@ namespace MBI.Core
             /// **폐기 표기로 남긴다.**
             /// </summary>
             PlaceNode,
+
+            /// <summary>
+            /// **T3 — 도전에 들어가야 한다**(튜토리얼 기획서 4장 · 2026-10-14 확정 #115).
+            ///
+            /// 앞 국면 셋은 **조립 화면**의 일이고 이것만 **전투 화면**의 일이다 —
+            /// 가리키는 버튼이 「도전」이고, 잠그는 것은 「조립」·「스테이지」다.
+            /// </summary>
+            Challenge,
         }
 
         /// <summary>막을 수 있는 조작들.</summary>
@@ -40,6 +48,9 @@ namespace MBI.Core
             EnterBoard, ExitBoard, ModeToggle,
             PaletteMunitions, PaletteOther, BeltElement, Module, Remove,
             Zoom, MiniMap,
+
+            // ⚠️ **전투 화면의 조작 둘**(2026-10-14 · T3). 위의 것들은 조립 화면 것이다.
+            EnterChallenge, StageList,
         }
 
         /// <summary>
@@ -61,7 +72,8 @@ namespace MBI.Core
             // (2026-09-15 · 「이동 모드 버튼이 안 먹는다」).
             // 신호를 켜는 곳만 있고 끄는 곳이 없어 **들어간 뒤에도 그 국면에 머물렀고**,
             // 그 국면은 조립 버튼 하나만 허락하므로 **보드가 통째로 잠겼다.**
-            Resolve(TutorialSignals.HighlightBoardButton && !TutorialSignals.BoardViewOpen,
+            Resolve(TutorialSignals.HighlightChallengeButton,
+                    TutorialSignals.HighlightBoardButton && !TutorialSignals.BoardViewOpen,
                     TutorialSignals.HighlightBuildMode,
                     // ⚠️ **제 판에서만 기다린다**(2026-10-06 육안 결함) — 고스트 좌표에는
                     //    주인이 없어서, B 탭을 열면 A 의 고스트가 B 판을 덮고 잠갔다.
@@ -72,9 +84,23 @@ namespace MBI.Core
         /// <summary>
         /// 국면을 입력에서 직접 따라 낸다(시험·진단용). **모드가 네 번째 입력이다.**
         /// </summary>
+        /// <summary>
+        /// **조립 화면 국면 셋만** 묻는다(시험·진단). T3 는 안 묻는다 —
+        /// 그쪽은 전투 화면의 일이라 이 넷과 겹치지 않는다.
+        ///
+        /// ⚠️ **화면은 이쪽을 쓰지 않는다** — <see cref="Current"/> 가 다섯 인자 쪽을 쓴다.
+        /// </summary>
         public static Phase Resolve(bool urgeEnterBoard, bool urgeBuildMode,
             bool ghostWaiting, bool inBuildMode)
+            => Resolve(false, urgeEnterBoard, urgeBuildMode, ghostWaiting, inBuildMode);
+
+        public static Phase Resolve(bool urgeChallenge, bool urgeEnterBoard, bool urgeBuildMode,
+            bool ghostWaiting, bool inBuildMode)
         {
+            // ⚠️ **T3 를 먼저 묻는다.** 그 국면은 앞 셋이 전부 끝난 **뒤**에만 서고
+            //    (튜토리얼 전용 스테이지를 마쳐야 켜진다), 전투 화면의 일이라 겹치지 않는다.
+            if (urgeChallenge) return Phase.Challenge;
+
             if (urgeEnterBoard) return Phase.EnterBoard;
 
             // ⚠️ **모드가 먼저다.** 이동 모드면 보드를 눌러도 안 놓이므로, 고스트가 떠 있어도
@@ -145,6 +171,18 @@ namespace MBI.Core
                     //    화면이 되고, 그것이 09-15·09-16 에 두 번 보고된 모양이다.
                     return control == Control.MiniMap || control == Control.Zoom
                            || control == Control.ExitBoard;
+
+                case Phase.Challenge:
+                    // ⚠️⚠️ **기획서 2장 그대로 잠근다**(2026-10-14 사용자 확정 #115 · 후보 ⓒ).
+                    //
+                    // 「지금 눌러야 할 버튼만 빛나게 하고 다른 입력은 잠근다」 —
+                    // 그래서 **「도전」 하나만** 열고 「조립」·「스테이지」는 닫는다.
+                    //
+                    // ⚠️ **「▲ 전투로」는 예외다**(2026-09-16 사용자 지시 · 2장에 명시).
+                    //    T3 중에 조립 화면에 **들어갈** 길은 막히지만, 이미 들어가 있다면
+                    //    **나올** 길은 있어야 한다 — 09-15·09-16 에 두 번 보고된 「갇힘」이
+                    //    그 자리다. 들어갈 수도 나올 수도 없으면 멈춘 화면이 된다.
+                    return control == Control.EnterChallenge || control == Control.ExitBoard;
 
                 default:
                     return true;

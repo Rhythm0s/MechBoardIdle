@@ -1,0 +1,44 @@
+namespace MBI.Core
+{
+    /// <summary>
+    /// **T3 — S1 돌파 도전 튜토리얼** (튜토리얼 기획서 4장 · 사용자 확정 #115 · 2026-10-14).
+    ///
+    /// 📌 **새 설계가 아니다.** 기획서 4장 대본의 T3 가 그대로 적고 있고
+    /// (무대 「S1 돌파 도전」 · 하는 일 「도전에 들어가 방치형 전투를 구경」 ·
+    /// 안내 수단 **「강제 버튼 (도전 들어가기)」** · 끝나는 조건 **「S1 통과」**),
+    /// 2026-07-08 에 T-3 로 확정된 뒤 **구현만 없었다.** 여기서 지어낸 규칙은 없다.
+    ///
+    /// ⚠️⚠️ **새 장부를 만들지 않는다**(지침 §7). 「T3 를 마쳤는가」는 저장에 따로 안 적는다 —
+    /// **S1 이 통과 기록에 있는가**가 곧 그 답이다(<c>clearedStageIds</c> ·
+    /// <see cref="StageUnlockRule"/> 과 같은 장부다). 따로 적으면 둘이 어긋나는 날,
+    /// **깼는데도 튜토리얼이 다시 뜨는** 화면이 된다.
+    ///
+    /// ⚠️ **강제 버튼은 대신 눌러 주지 않는다.** 기획서 2장의 「강제 버튼」은
+    /// 「지금 눌러야 할 버튼만 빛나게 하고 다른 입력은 잠그는」 장치다 —
+    /// 자동으로 넘기는 것이 아니다(2026-10-14 사용자 확정 「자동 전환은 빼고 튜토리얼만」).
+    /// 그래서 #114(「도전은 사람이 눌러 들어간다」)와 **부딪치지 않는다.**
+    /// </summary>
+    public static class ChallengeTutorialRule
+    {
+        /// <summary>T3 가 붙잡는 판 — S1 이다(기획서 4장 「무대 = S1 돌파 도전」).</summary>
+        public const int StageNumber = 1;
+
+        /// <summary>
+        /// 지금 T3 가 돌고 있는가.
+        ///
+        /// 넷이 다 참이라야 한다 —
+        ///   ① 튜토리얼 전용 스테이지를 마쳤다(그 앞 수업이 끝나야 이 수업이 뜬다)
+        ///   ② **S1 을 아직 못 깼다**(끝나는 조건이 S1 통과다)
+        ///   ③ 지금 판이 **S1** 이다(다른 판에서 도전을 가리키면 엉뚱한 곳을 가리킨다)
+        ///   ④ 지금 **파밍 층**이다 — 도전 안에서는 「도전에 들어가라」가 뜻이 없다
+        /// </summary>
+        public static bool IsActive(bool tutorialCleared, bool stage1Cleared,
+                                    int stageNumber, bool isFarming)
+        {
+            if (!tutorialCleared) return false;
+            if (stage1Cleared) return false;
+            if (stageNumber != StageNumber) return false;
+            return isFarming;
+        }
+    }
+}

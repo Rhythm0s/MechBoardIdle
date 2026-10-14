@@ -1582,6 +1582,15 @@ namespace MBI.Combat
             // 도전 통과를 **러너가 보고한다**(2026-10-13 · 순서 5·#111).
             ReportChallengeClearOnce();
 
+            // **T3 — S1 돌파 도전 튜토리얼**(기획서 4장 · 확정 #115 · 2026-10-14).
+            // ⚠️ 켜고 **끄는** 것을 매 프레임 다시 판단한다 — 앞 신호 둘이 「켜는 곳만
+            //    있고 끄는 곳이 없어」 막다른 국면을 두 번 만들었다.
+            TutorialSignals.HighlightChallengeButton = ChallengeTutorialRule.IsActive(
+                IdleSignals.TutorialCleared,
+                IdleSignals.ClearedStageIds.Contains("S" + ChallengeTutorialRule.StageNumber),
+                StageMapName.NumberOf(stage != null ? stage.stageId : string.Empty),
+                StageLayerSignals.IsFarming);
+
             // 이번 틱 사격 연출(탄선 + 피격). 실제 틱이 돈 경우만(종료 후 스테일 재생성 방지).
             if (running)
                 foreach (ShotEvent s in _sim.ShotsThisTick)
@@ -2117,7 +2126,17 @@ namespace MBI.Combat
             if (st.CalcSize(new GUIContent(label)).x > r.width)
                 UiText.FitOneLine(st, label, r.width);
 
-            if (UiSkin.Button(r, label, st)) EnterChallenge();
+            // **강제 버튼**(기획서 2장) — T3 동안 이 단추만 빛난다.
+            // ⚠️ 빛내는 법은 조립 단추와 **같은 문**이다(`GameLayerController`) —
+            //    두 곳이 다르게 깜빡이면 같은 장치로 안 읽힌다.
+            Color prevColor = GUI.color;
+            if (TutorialSignals.HighlightChallengeButton)
+                GUI.color = new Color(1f, 0.92f, 0.45f,
+                    0.75f + 0.25f * Mathf.Abs(Mathf.Sin(Time.unscaledTime * 2.2f)));
+
+            bool hit = UiSkin.Button(r, label, st);
+            GUI.color = prevColor;
+            if (hit) EnterChallenge();
         }
 
         // ───────────────────── 스테이지 목록 (순서 5) ─────────────────────
@@ -2161,7 +2180,13 @@ namespace MBI.Combat
             if (st.CalcSize(new GUIContent(label)).x > r.width)
                 UiText.FitOneLine(st, label, r.width);
 
-            if (UiSkin.Button(r, label, st))
+            // ⚠️ **T3 동안 잠긴다**(기획서 2장 · 확정 #115 ⓒ) — 지금 할 일은 「도전」 하나다.
+            bool was = GUI.enabled;
+            GUI.enabled = was && TutorialGate.Allows(TutorialGate.Control.StageList);
+            bool pressed = UiSkin.Button(r, label, st);
+            GUI.enabled = was;
+
+            if (pressed)
             {
                 RebuildStageList();
                 _stageListOpen = true;

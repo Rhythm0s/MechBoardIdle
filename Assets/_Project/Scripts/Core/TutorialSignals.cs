@@ -63,6 +63,15 @@ namespace MBI.Core
         public static bool HighlightBuildMode;
 
         /// <summary>
+        /// **T3 — 「도전」을 빛낸다**(튜토리얼 기획서 4장 · 2026-10-14 확정 #115).
+        ///
+        /// ⚠️ 켜고 끄는 것을 **매 프레임 다시 판단한다**(<see cref="ChallengeTutorialRule"/>) —
+        /// 앞의 `HighlightBoardButton`·`HighlightBuildMode` 가 **켜는 곳만 있고 끄는 곳이
+        /// 없어** 두 번(09-15 · 09-16) 막다른 국면을 만들었다. 같은 병을 안 되풀이한다.
+        /// </summary>
+        public static bool HighlightChallengeButton;
+
+        /// <summary>
         /// 비워 둔 칸을 **다시 비워 달라** — 촬영 복귀 전용(260902_W09 §1-2).
         ///
         /// 병합기가 놓인 채로 튜토리얼에 돌아가면 조립 화면에 들어가는 순간 통과해 버린다
@@ -168,6 +177,7 @@ namespace MBI.Core
             GhostCellFilled = false;
             HighlightMerger = false;
             HighlightBuildMode = false;
+            HighlightChallengeButton = false;
             ClearEmptySlotRequested = false;
             FillEmptySlotRequested = false;
             BoardInBuildMode = false;
