@@ -2787,8 +2787,13 @@ namespace MBI.Logistics
                     if (HideStandardAmmoItemArt && items[i].kind == FlowKind.StandardAmmo) continue;
 
                     // 코너에서 꺾이는 경로는 `BeltItemPose`가 안다 — 여기서 다시 풀지 않는다.
+                    // ⚠️ **아이템이 들고 온 면으로 그린다**(2026-10-14 사용자 육안 · 확정 #116).
+                    //    병합기는 받는 면이 셋인데 `belt.InFace` 는 하나뿐이라, 그것으로 그리면
+                    //    **서쪽에서 온 것도 북쪽에서 나타난다**(「12시 → 6시로만 흐른다」).
+                    //    모르는 것(노드가 밀어 넣은 것)은 종전대로 칸의 입력면으로 떨어진다.
+                    PortFace itemIn = items[i].hasEntryFace ? items[i].entryFace : belt.InFace;
                     Vector2 off = BeltItemPose.LocalOffset(
-                        belt.InFace, belt.OutFace, items[i].progress);
+                        itemIn, belt.OutFace, items[i].progress);
 
                     SpriteRenderer sr = RentItemSprite(used++, out SpriteRenderer body);
 

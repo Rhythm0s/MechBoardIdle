@@ -38,6 +38,23 @@ namespace MBI.Core
 
         /// <summary>칸 안 위치. 0 = 입력면에 막 들어옴 · 1 = 출력면에 닿음.</summary>
         public float progress;
+
+        /// <summary>
+        /// **어느 면으로 들어왔는가** (2026-10-14 사용자 육안 · 확정 #116).
+        ///
+        /// ⚠️⚠️ **받는 면이 하나가 아닌 칸이 있다.** 병합기는 셋으로 받는데, 아이템이
+        /// 이것을 안 들고 다니면 그리는 쪽이 **칸의 `InFace` 하나**로만 그린다 —
+        /// 서쪽에서 들어온 것도 **북쪽에서 나타난다**. 사용자가 8125 에서
+        /// 「병합기 안의 탄이 12시 → 6시로만 흐른다」고 본 것이 그 그림이다.
+        /// 흐름은 정상이었다(1.92/초) — **그리기만 틀렸다.**
+        ///
+        /// ⚠️ <see cref="hasEntryFace"/> 가 거짓이면 모르는 것이다(노드가 밀어 넣은 것 등).
+        /// 그때는 그리는 쪽이 칸의 `InFace` 로 떨어진다 — 종전 거동 그대로다.
+        /// </summary>
+        public PortFace entryFace;
+
+        /// <summary><see cref="entryFace"/> 를 아는가. 모르면 칸의 입력면으로 그린다.</summary>
+        public bool hasEntryFace;
     }
 
     /// <summary>
@@ -465,7 +482,16 @@ namespace MBI.Core
 
                 if (!HasRoomAtEntry(LaneOf(to))) continue;
 
-                LaneOf(to).Add(new BeltItem { kind = item.kind, progress = 0f });
+                // ⚠️ **들어온 면을 같이 적는다**(2026-10-14) — `to` 에서 보면 `cell` 쪽이 입구다.
+                //    병합기처럼 받는 면이 여럿인 칸에서 그림이 제 면에서 나타나게 하는 값이다.
+                bool knowFace = BeltItemPose.TryFaceOfDelta(cell - to, out PortFace entry);
+                LaneOf(to).Add(new BeltItem
+                {
+                    kind = item.kind,
+                    progress = 0f,
+                    entryFace = entry,
+                    hasEntryFace = knowFace,
+                });
                 _cursor[cell] = (idx + 1) % outs.Count;
                 return true;
             }

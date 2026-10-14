@@ -41,6 +41,24 @@ namespace MBI.Core
                 : Vector2.Lerp(Vector2.zero, exit, (t - 0.5f) * 2f);
         }
 
+        /// <summary>
+        /// 그 어긋남(이웃 칸 − 이 칸)이 가리키는 면. 맞닿은 이웃이 아니면 거짓이다.
+        ///
+        /// 아이템이 **어느 면으로 들어왔는지**를 적을 때 쓴다(2026-10-14 · 확정 #116) —
+        /// 받는 면이 여럿인 칸(병합기)에서 그림이 제 면에서 나타나게 하는 값이다.
+        /// </summary>
+        public static bool TryFaceOfDelta(Vector2Int delta, out PortFace face)
+        {
+            foreach (PortFace f in System.Enum.GetValues(typeof(PortFace)))
+            {
+                if (BeltRouting.Delta(f) != delta) continue;
+                face = f;
+                return true;
+            }
+            face = default;
+            return false;
+        }
+
         /// <summary>그 면의 한가운데 점. 면의 방향으로 반 칸 나간 자리다.</summary>
         private static Vector2 Edge(PortFace face)
         {
