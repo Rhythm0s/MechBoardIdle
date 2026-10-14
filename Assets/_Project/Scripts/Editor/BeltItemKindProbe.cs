@@ -112,7 +112,13 @@ namespace MBI.EditorTools
                    + (sp != null ? sp.name : "**없음**");
         }
 
-        private static BoardGrid Board()
+        /// <summary>
+        /// 시작 보드(튜토리얼을 마친 판)를 세운다.
+        ///
+        /// ⚠️ **공개해 둔다** — 다른 프로브가 같은 판을 세워야 하는데, 각자 세우면
+        /// 한쪽만 고쳐지는 날이 온다(지침 §7). 2026-10-14 에 <c>MergeProbe</c> 가 이것을 쓴다.
+        /// </summary>
+        public static BoardGrid Board()
         {
             var g = new BoardGrid(PartLayout.Columns, PartLayout.Rows, 1f,
                 Vector2.zero, PartLayout.BuildMask());
