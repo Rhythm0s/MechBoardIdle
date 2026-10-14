@@ -1622,6 +1622,10 @@ never_full_overwrite: 파일 전체 덮어쓰기 금지. 부분 편집만.
 never_change_wbs_status: WBS 상태 필드는 구현이 못 건드린다.
 scope_discipline: "최대 구현 볼륨" 금지. 지시된 것만.
 completion_gate: 배치모드 GREEN + 커밋 푸시. 둘 다여야 완료.
+build_report: 빌드를 낼 때마다 **시험 수 + QA 열 이름**을 함께 적는다.
+  # QA 열 = Docs/QA/MechBoardIdle_QA_261014.xlsx 의 리비전 열 머리(= 그 빌드의 ?v= 해시)
+  # 빌드마다 열을 하나씩 늘린다 (2026-10-14 사용자 규칙 #116)
+  # 촬영본 태그는 그 열의 Fail·Broken 이 0 일 때만 단다
 ```
 
 ### 문서 쓰기 규칙 (W02/W03이 명문화)
