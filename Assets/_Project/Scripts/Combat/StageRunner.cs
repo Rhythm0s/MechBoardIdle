@@ -1591,6 +1591,10 @@ namespace MBI.Combat
                 StageMapName.NumberOf(stage != null ? stage.stageId : string.Empty),
                 StageLayerSignals.IsFarming);
 
+            // ✅ **보드 잠금이 읽을 값**(2026-10-14 사용자 확정 ④) — 층이 없는 판을
+            //    「도전」으로 읽으면 튜토리얼에서 벨트를 못 깐다.
+            StageLayerSignals.IsTutorialStage = IsTutorialStage;
+
             // 이번 틱 사격 연출(탄선 + 피격). 실제 틱이 돈 경우만(종료 후 스테일 재생성 방지).
             if (running)
                 foreach (ShotEvent s in _sim.ShotsThisTick)
@@ -2723,38 +2727,18 @@ namespace MBI.Combat
                 // 📌 **자리를 `UiLayout` 이 낸다** — 글자 한 줄 높이를 넘겨주면 상자가
                 //    그만큼 커지고, 글자와 단추 사이에 `PlateGap` 이 선다(지침 §7 ·
                 //    틈을 여기서 또 지어내지 않는다). 시험이 창 일곱에서 그것을 본다.
-                // ⚠️⚠️ **글자를 폭에 맞춰 줄인다**(2026-10-13 · 아주 작은 창에서 가로로 잘렸다).
+                // ⚠️⚠️ **상자를 글자에서 낸다**(2026-10-14 사용자 육안 ③ · 「승리 후 패널
+                //    크기 좀 키우자 텍스트가 너무 작다」). 그 창에서 「다음 스테이지로」가
+                //    **「음 스테이지」로 잘려** 있었다.
                 //
-                // `big` 의 크기는 `Max(16, …)` 로 **아래가 막혀** 있다. 창이 아주 작아지면
-                // 상자만 줄고 글자는 16 밑으로 안 내려가 **「승리 — 적 전」** 처럼 잘렸다
-                // (판 여백·안내 줄·배너 높이와 **같은 병**이고, 이번은 가로다).
+                // 📌 **글자 크기는 이미 12 pt 아래로 안 내려간다** — 사다리 바닥이 16 px 이고
+                //    16 px 가 곧 12 pt 다(`KoreanFont.Ladder`). 그러니 더 줄일 데가 없는데
+                //    칸만 설계값(`ResultButtonWidth`·`Height` × 배율)으로 줄어서 잘렸다.
+                //    **고칠 곳은 글자가 아니라 칸이다.**
                 //
-                // 📌 **아래 한계를 없애지 않는다** — 16 은 읽히는 최소다. 대신 그보다 작아져야
-                //    하는 창에서는 **사다리를 타고 내려간다**(`UiText.FitOneLine`).
-                //    ⚠️ 차례가 중요하다: 폭에 맞춰 줄인 **뒤**라야 한 줄 높이가 정해진다.
-                float innerW = UiLayout.ResultBannerInnerWidth(Screen.width, Screen.height);
-                string resultText = ResultText();
-                if (big.CalcSize(new GUIContent(resultText)).x > innerW)
-                    UiText.FitOneLine(big, resultText, innerW);
-
-                float line = big.lineHeight;
-                Rect box = UiLayout.ResultBannerRect(Screen.width, Screen.height, line);
-                UiPlate.Draw(box);
-                UiBlockers.Add(box);
-
-                GUI.Label(UiLayout.ResultBannerTextRect(Screen.width, Screen.height, line),
-                          resultText, big);
-
-                // ✅ **결과 화면 셋**(2026-10-13 사용자 확정 #111 · 기획서 7장).
-                //
-                // 통과 — [다시 도전] [스테이지로] [다음 스테이지로]
-                // 실패 — [다시 도전] [스테이지로]
-                //
-                // 🗑️ 구 「다시 (Restart)」 한 단추 폐기. 그 단추는 **같은 판을 또 돈다**는 뜻
-                //    하나뿐이라, 「파밍으로 돌아가 보드를 고친다」는 길이 화면에 없었다 —
-                //    이 게임에서 지고 나서 할 일은 **고치는 것**인데 그 길이 안 보였다.
-                //
-                // ⚠️ 튜토리얼 판에는 층이 없다 — 거기서는 종전처럼 한 단추다.
+                // ⚠️ 그래서 **단추 글자를 먼저 정하고**, 그것이 바닥 크기에서 요구하는 폭·높이를
+                //    재어 상자에 바닥으로 깐다. 지어낸 값은 없다 — `GUIStyle.CalcSize` 가
+                //    여백까지 품은 실제 치수를 준다.
                 bool won = _sim.Result == CombatResult.Win;
                 bool layered = !IsTutorialStage;
                 var labels = new List<string>();
@@ -2774,13 +2758,60 @@ namespace MBI.Combat
                     labels.Add("다시 하기");
                 }
 
+                // 바닥 크기(= 12 pt)에서 단추 줄이 요구하는 치수.
+                var probe = new GUIStyle(GUI.skin.button)
+                {
+                    wordWrap = false,
+                    fontSize = KoreanFont.Ladder[0],
+                };
+                float sc = UiLayout.Scale(Screen.height);
+                float btnGap = UiLayout.PlateGap * sc * 0.5f;
+                float needW = btnGap * Mathf.Max(0, labels.Count - 1);
+                float needBtnH = 0f;
+                for (int i = 0; i < labels.Count; i++)
+                {
+                    Vector2 sz = probe.CalcSize(new GUIContent(labels[i]));
+                    needW += sz.x;
+                    if (sz.y > needBtnH) needBtnH = sz.y;
+                }
+
+                // 제목도 같은 바닥에서 안 잘려야 한다(사용자 ⑥ 「텍스트는 다 보여야지」).
+                string resultText = ResultText();
+                var titleProbe = new GUIStyle(big) { wordWrap = false, fontSize = KoreanFont.Ladder[0] };
+                float needTitle = titleProbe.CalcSize(new GUIContent(resultText)).x;
+                if (needTitle > needW) needW = needTitle;
+
+                // ⚠️ 차례가 중요하다: 폭이 정해진 **뒤**라야 제목 크기를, 그 뒤라야 한 줄 높이를 잰다.
+                float innerW = UiLayout.ResultBannerInnerWidth(Screen.width, Screen.height, needW);
+                if (big.CalcSize(new GUIContent(resultText)).x > innerW)
+                    UiText.FitOneLine(big, resultText, innerW);
+
+                float line = big.lineHeight;
+                Rect box = UiLayout.ResultBannerRect(Screen.width, Screen.height, line, needW, needBtnH);
+                UiPlate.Draw(box);
+                UiBlockers.Add(box);
+
+                GUI.Label(UiLayout.ResultBannerTextRect(Screen.width, Screen.height, line, needW, needBtnH),
+                          resultText, big);
+
+                // ✅ **결과 화면 셋**(2026-10-13 사용자 확정 #111 · 기획서 7장).
+                //
+                // 통과 — [다시 도전] [스테이지로] [다음 스테이지로]
+                // 실패 — [다시 도전] [스테이지로]
+                //
+                // 🗑️ 구 「다시 (Restart)」 한 단추 폐기. 그 단추는 **같은 판을 또 돈다**는 뜻
+                //    하나뿐이라, 「파밍으로 돌아가 보드를 고친다」는 길이 화면에 없었다 —
+                //    이 게임에서 지고 나서 할 일은 **고치는 것**인데 그 길이 안 보였다.
+                //
+                // ⚠️ 튜토리얼 판에는 층이 없다 — 거기서는 종전처럼 한 단추다.
+
                 for (int i = 0; i < labels.Count; i++)
                 {
                     Rect r = UiLayout.ResultBannerButtonRect(
-                        Screen.width, Screen.height, line, i, labels.Count);
+                        Screen.width, Screen.height, line, i, labels.Count, needW, needBtnH);
 
-                    // 단추 글자도 같은 병을 앓는다 — 칸이 줄어도 기본 글자는 안 줄어
-                    // 「다시 (Rest」 처럼 잘린다. 같은 사다리로 맞춘다.
+                    // 칸이 글자에서 나왔으므로 바닥 크기면 들어간다. 그래도 한 번 더 맞춘다 —
+                    // 창이 너무 좁아 상자가 화면 폭에 깎이면 그때는 줄이는 수밖에 없다.
                     var bs = new GUIStyle(GUI.skin.button) { wordWrap = false };
                     if (bs.CalcSize(new GUIContent(labels[i])).x > r.width)
                         UiText.FitOneLine(bs, labels[i], r.width);

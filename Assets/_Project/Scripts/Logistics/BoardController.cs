@@ -2363,17 +2363,30 @@ namespace MBI.Logistics
             if (_grid == null) return;
             // 레이어/팔레트 버튼 위 클릭, 또는 조립 뷰가 아닐 때는 보드 무시(오배치 방지).
             if (!GameLayerController.BoardViewActive) return;
-            if (PointerOverUi()) return;
 
             // ⚠️⚠️ **방향을 묻는 중이면 그 물음이 먼저다**(2026-10-01 사용자 확정 · #93).
             //    누름 하나가 「출력은 이쪽」·「이대로 확정」·「설치 취소」 셋 중 하나이고,
             //    그동안 벨트 깔기·제거·고르기는 **안 든다** — 물음에 답하기 전에 다른 일이
             //    일어나면 무엇에 답한 것인지가 흐려진다.
-            if (_askingCell.HasValue)
+            //
+            // ⚠️⚠️ **그런데 패드 자리는 UI 가림막보다 앞이다**(2026-10-14 사용자 육안).
+            //    패드는 자기 사각형을 `UiBlockers` 에 등록한다 — 그 아래 칸에 노드가 놓이는
+            //    것을 막으려고. 그래서 `PointerOverUi()` 를 이 물음보다 **먼저** 보면
+            //    **패드 안을 누른 것이 전부 버려진다.** 실제로 그러했고, 패드 **밖**을 누른
+            //    것만 물음에 닿아 「취소」가 되어 콘솔에 「배치 → 제거」가 짝으로 찍혔다.
+            //    화면에서는 「눌러도 아무 일이 없고, 엉뚱한 데를 누르면 노드가 사라진다」였다.
+            //    가리는 셋은 `DirectionAskInput` 에 있다(시험 `DirectionAskInputTests`).
+            switch (DirectionAskInput.Route(
+                        _askingCell.HasValue, PointerOverAskPad(), PointerOverUi()))
             {
-                if (TryPointerWorld(out Vector2 askWorld)) AnswerDirectionAsk(askWorld);
-                return;
+                case DirectionAskPress.OtherUi:
+                    return;                              // 팔레트·나가기 — 물음은 그대로 둔다
+                case DirectionAskPress.Answer:
+                    if (TryPointerWorld(out Vector2 askWorld)) AnswerDirectionAsk(askWorld);
+                    return;
             }
+
+            if (PointerOverUi()) return;
 
             // 이동 모드: 같은 드래그가 스크롤이 된다(UI 문서 9-1 제스처 충돌 해소).
             if (Mode == BoardMode.Pan)
@@ -2450,7 +2463,7 @@ namespace MBI.Logistics
             UpdateMountPortBlink();
 
             TickZoomGesture(); // 핀치·휠 (2026-09-15 · 개편 ⑦ — 배율 버튼을 대신한다)
-            ApplyZoom(); // 보드를 볼 때만 확대한다 — 나가면 원래 시야로 돌아간다
+            // 🗑️ `ApplyZoom()` 폐기 — 카메라를 여기서 안 건드린다(아래 폐기 표기).
 
             // 촬영 복귀 요청 — 가져가며 내린다.
             if (TutorialSignals.ClearEmptySlotRequested)
@@ -2516,7 +2529,18 @@ namespace MBI.Logistics
             //
             // ⚠️ **튜토리얼 동안에는 안 지운다** — 놓으라고 해 놓고 지울 수 있으면
             // 「지금 할 일」이 둘이 된다(구 「제거」 버튼이 걸고 있던 것과 같은 문).
-            if (TutorialGate.Allows(TutorialGate.Control.Remove)
+            // ⚠️⚠️ **도전 층에서는 보드를 못 고친다**(2026-10-14 사용자 확정 ④
+            //    「도전 스테이지에서 보드 안 잠기는데?」 · 「들어가되 못 고친다」).
+            //
+            //    ⚠️ **누름 자체는 안 막는다** — 막으면 노드를 탭해 들여다보는 것까지 막힌다.
+            //    막는 것은 **바꾸는 가지**뿐이다: 지우기 · 놓기 · 벨트 깔기 · 모듈 붙이기.
+            //    고르기(`Select`)와 닫기(`Deselect`)는 보는 일이라 그대로 둔다.
+            //    📌 규칙은 `BoardEditRule` 한 곳이 든다(지침 §7).
+            bool canEdit = BoardEditRule.CanEdit(StageLayerSignals.IsFarming,
+                                                 StageLayerSignals.IsTutorialStage);
+
+            if (canEdit
+                && TutorialGate.Allows(TutorialGate.Control.Remove)
                 && RemovalRules.IsRemovalDrag(_dragCells[0], _dragCells.Count,
                     _grid.IsOccupied, _grid.HasBelt, IsCore))
             {
@@ -2530,9 +2554,9 @@ namespace MBI.Logistics
                 Vector2Int cell = _dragCells[0];
                 // 모듈을 고른 채 놓인 노드를 탭하면 **붙인다.** 못 붙이면(칸이 다 찼다)
                 // 고르기로 떨어진다 — 탭이 아무 일도 안 하면 조작이 먹지 않은 것으로 읽힌다.
-                if (_grid.IsOccupied(cell) && TryAttachSelectedModule(cell)) { }
+                if (canEdit && _grid.IsOccupied(cell) && TryAttachSelectedModule(cell)) { }
                 else if (_grid.IsOccupied(cell)) Select(cell);   // 다른 노드면 그 노드로 갈아탄다
-                else if (_elementMode.HasValue) PlaceElement(cell, _elementMode.Value);
+                else if (canEdit && _elementMode.HasValue) PlaceElement(cell, _elementMode.Value);
                 // ⚠️ **벨트 탭은 아무 일도 안 한다**(2026-09-15 사용자 확정 · 개편 ①).
                 // 지우려면 끌어야 한다 — 한 번 눌러 지워지면 실수가 곧 손실이다.
                 else if (_grid.HasBelt(cell)) { if (_selected.HasValue) Deselect(); }
@@ -2545,12 +2569,13 @@ namespace MBI.Logistics
                     // **열려 있는 동안에는 닫기가 먼저다** — 팝오버가 덮은 자리를 잘못 눌러
                     // 엉뚱한 칸에 노드가 놓이는 것을 막는다.
                     if (_selected.HasValue) Deselect();
-                    else Place(cell);
+                    else if (canEdit) Place(cell);
                 }
             }
             else if (_dragCells.Count > 1)
             {
-                LayBelts(_dragCells);
+                // 벨트 깔기도 바꾸는 일이다 — 도전 층에서는 안 깔린다(사용자 확정 ④).
+                if (canEdit) LayBelts(_dragCells);
             }
             _dragCells.Clear();
         }
@@ -2609,7 +2634,52 @@ namespace MBI.Logistics
             if (_pendingRemoval == null) return;
 
             float sc = UiLayout.Scale(Screen.height);
-            float w = 560f * sc, h = 300f * sc;
+            float pad = 24f * sc;
+
+            // ⚠️⚠️ **상자를 글자에서 낸다**(2026-10-14 사용자 확정 ⑥ 「텍스트는 다 보여야지」).
+            //    종전에는 560 × 300 × 배율로 **박아** 두었다. 작은 창에서 그것이 125 px 로
+            //    줄어드는데 글자는 사다리 바닥 16(= 12 pt)에서 멈추므로, **제목도 단추도
+            //    잘렸다**(빌드 실측 — 「정말 삭제?」가 「정말 삭제」 꼴로 깎였다).
+            //    결과 배너에서 한 것과 같은 수다: **재서 깔고, 모자라면 상자를 키운다.**
+            int floorPx = KoreanFont.Ladder[0];
+            var head = new GUIStyle(GUI.skin.label)
+            {
+                fontSize = KoreanFont.Snap(Mathf.Max(floorPx, Mathf.RoundToInt(34f * sc))),
+                fontStyle = FontStyle.Bold,
+                alignment = TextAnchor.MiddleCenter,
+            };
+            var body = new GUIStyle(GUI.skin.label)
+            {
+                fontSize = KoreanFont.Snap(Mathf.Max(floorPx, Mathf.RoundToInt(24f * sc))),
+                alignment = TextAnchor.MiddleCenter,
+                wordWrap = true,
+            };
+            var btn = new GUIStyle(GUI.skin.button)
+            {
+                fontSize = KoreanFont.Snap(Mathf.Max(floorPx, Mathf.RoundToInt(26f * sc))),
+                wordWrap = false,
+            };
+
+            int nodes = RemovalRules.NodeCount(_pendingRemoval, _grid.IsOccupied);
+            const string title = "정말 삭제?";
+            string note = "노드 " + nodes + "대를 포함해 " + _pendingRemoval.Count
+                          + "칸을 지운다. 노드에 붙인 조합표·모듈·방향은 돌아오지 않는다.";
+
+            // 단추 둘이 나란히 — 둘 다 제 글자가 들어야 한다.
+            Vector2 cancelSize = btn.CalcSize(new GUIContent("취소"));
+            Vector2 deleteSize = btn.CalcSize(new GUIContent("삭제"));
+            float btnW = Mathf.Max(cancelSize.x, deleteSize.x);
+            float btnH = Mathf.Max(72f * sc, Mathf.Max(cancelSize.y, deleteSize.y));
+
+            // 가로 — 제목 한 줄과 단추 줄 중 넓은 쪽. 안내는 줄이 바뀌므로 폭을 안 요구한다.
+            float needW = Mathf.Max(head.CalcSize(new GUIContent(title)).x, btnW * 2f + pad);
+            float w = Mathf.Min(Screen.width - 24f, Mathf.Max(560f * sc, needW + pad * 2f));
+
+            // 세로 — 안내가 그 폭에서 **실제로 몇 줄이 되는지** 재어 더한다.
+            float headH = head.lineHeight;
+            float noteH = body.CalcHeight(new GUIContent(note), w - pad * 2f);
+            float h = pad + headH + 8f * sc + noteH + pad + btnH + pad;
+
             var box = new Rect((Screen.width - w) * 0.5f, (Screen.height - h) * 0.5f, w, h);
 
             // ⚠️ **뒤는 반투명 DIM 이다**(2026-09-15 육안 ② · 결함 수정).
@@ -2626,36 +2696,17 @@ namespace MBI.Logistics
             UiBlockers.Add(full);
             UiSkin.DrawPlate(box);   // 9-슬라이스(육안 4차 ④)
 
-            float pad = 24f * sc;
-            var head = new GUIStyle(GUI.skin.label)
-            {
-                fontSize = KoreanFont.Snap(Mathf.Max(9, Mathf.RoundToInt(34f * sc))),
-                fontStyle = FontStyle.Bold,
-                alignment = TextAnchor.MiddleCenter,
-            };
-            var body = new GUIStyle(GUI.skin.label)
-            {
-                fontSize = KoreanFont.Snap(Mathf.Max(9, Mathf.RoundToInt(24f * sc))),
-                alignment = TextAnchor.MiddleCenter,
-                wordWrap = true,
-            };
+            float y = box.y + pad;
+            GUI.Label(new Rect(box.x, y, box.width, headH), title, head);
+            y += headH + 8f * sc;
 
-            int nodes = RemovalRules.NodeCount(_pendingRemoval, _grid.IsOccupied);
+            GUI.Label(new Rect(box.x + pad, y, box.width - pad * 2f, noteH), note, body);
 
-            GUI.Label(new Rect(box.x, box.y + pad, box.width, 48f * sc), "정말 삭제?", head);
-            GUI.Label(new Rect(box.x + pad, box.y + pad + 56f * sc, box.width - pad * 2f, 90f * sc),
-                "노드 " + nodes + "대를 포함해 " + _pendingRemoval.Count
-                + "칸을 지운다. 노드에 붙인 조합표·모듈·방향은 돌아오지 않는다.", body);
+            float by = box.yMax - pad - btnH;
+            float half = (box.width - pad * 3f) * 0.5f;
 
-            var btn = new GUIStyle(GUI.skin.button)
-            {
-                fontSize = KoreanFont.Snap(Mathf.Max(9, Mathf.RoundToInt(26f * sc))),
-            };
-            float bw = (box.width - pad * 3f) * 0.5f, bh = 72f * sc;
-            float by = box.yMax - pad - bh;
-
-            if (UiSkin.Button(new Rect(box.x + pad, by, bw, bh), "취소", btn)) _pendingRemoval = null;
-            if (UiSkin.Button(new Rect(box.x + pad * 2f + bw, by, bw, bh), "삭제", btn))
+            if (UiSkin.Button(new Rect(box.x + pad, by, half, btnH), "취소", btn)) _pendingRemoval = null;
+            if (UiSkin.Button(new Rect(box.x + pad * 2f + half, by, half, btnH), "삭제", btn))
                 ApplyPendingRemoval();
         }
 
@@ -2967,7 +3018,7 @@ namespace MBI.Logistics
                 Debug.LogWarning("[MBI] BoardController: 배치할 노드 없음(팔레트/placeTarget 미할당).");
                 return;
             }
-            if (!_grid.TryPlace(cell, node, out NodeInstance placedNode)) return;
+            if (!_grid.TryPlace(cell, node, out _)) return;
 
             // 🗑️ **미리 돌려 두는 길 폐기**(2026-09-18 ⑩) — 팔레트 버튼이 없어졌다.
             //    놓은 뒤 팝오버의 「90도 돌리기」가 그 일을 한다.
@@ -2979,16 +3030,18 @@ namespace MBI.Logistics
             RefreshConnections(); // 노드 추가로 인접 벨트 연결 상태 변화 반영.
             Debug.Log($"[MBI] 배치: {node.displayName} @ 셀({cell.x},{cell.y}) → 월드 {_grid.CellToWorld(cell)}.");
 
-            // ⚠️⚠️ **여기서 끝나지 않는다 — 방향을 묻는다**(2026-10-01 사용자 확정 · #93).
+            // ⚠️⚠️ **방향 묻는 판(3 × 3 패드)은 폐기한다**(2026-10-14 사용자 확정 ①
+            //    「패드 제거, 그냥 설치 후 변경할 수 있도록 하자」). #93 의 자리다.
             //
-            // 노드는 보드에 **올라가 있지만 아직 확정이 아니다.** 올려 두는 까닭은
-            // 입력·출력 화살표를 **그 자리에서** 보여 주기 위해서다 — 손가락 밑에 없는
-            // 노드의 방향을 묻는 것은 묻는 것이 아니다.
+            // 📌 **설치 뒤 바꾸는 자리가 이미 있다** — 노드를 탭하면 뜨는 패널의
+            //    **「90도 돌리기」**(`DrawRecipePanel`). 그래서 놓는 순간 묻지 않아도
+            //    방향을 잃지 않는다. 묻는 판은 **놓자마자 답을 요구**해서, 답하기 전에는
+            //    벨트·제거·고르기가 전부 멈춰 있었다.
             //
-            // ⚠️ **돌릴 수 없는 노드는 안 묻는다**(코어). 물어 봐야 답이 하나뿐이고,
-            //    그 사이 「취소」가 눌리면 **놓을 수 없는 노드가 지워진다.**
-            if (CoreNodeRule.CanRotate(placedNode) && AskableOutputFaceOf(placedNode).HasValue)
-                _askingCell = cell;
+            // ⚠️ 남아 있는 것 — `NodeDirectionPad`·`DirectionAskInput`·`AnswerDirectionAsk`·
+            //    `DrawDirectionAsk` 는 **지우지 않았다**(폐기 표기). `_askingCell` 에 값을
+            //    넣는 곳이 여기 하나뿐이었으므로, 그 값이 안 들어가면 판은 안 뜬다.
+            //    되살리려면 이 자리에서 다시 넣으면 된다.
         }
 
         /// <summary>
@@ -3233,6 +3286,23 @@ namespace MBI.Logistics
             if (MainMenuGate.IsOpen) return;
             if (!GameLayerController.BoardViewActive) return;
             UiSkin.Apply(); // 껍데기 + 한글 폰트 — WebGL엔 시스템 폰트 폴백이 없다
+
+            // ⚠️⚠️ **「정말 삭제?」가 떠 있으면 그 아래 것들을 잠근다**
+            //    (2026-10-14 사용자 육안 ② ③ — 「삭제가 작동하지 않음 · 창이 사라지지 않음」).
+            //
+            // 📌 **까닭이 IMGUI 의 두 차례가 서로 반대라서다.**
+            //    · **그리기**는 **나중**에 그린 쪽이 위다 — 그래서 창이 조합표 패널 위에 보인다.
+            //    · **누름**은 **먼저** 그린 쪽이 가져간다 — `GUI.Button` 은 마우스 다운을 보고
+            //      제가 품으면 그 자리에서 **집어삼킨다**(`Event.Use`). 그래서 창 밑에 깔린
+            //      조합표 패널의 단추가 눌림을 먼저 먹고, **창의 「취소」·「삭제」에는 아무것도
+            //      안 닿았다.** 눌러도 안 되고 닫히지도 않던 것이 이것이다.
+            //
+            // 📌 **잠그면 안 삼킨다** — `GUI.enabled` 가 거짓인 컨트롤은 눌림을 가져가지 않는다.
+            //    창을 그리기 직전에 되돌린다. 뒤는 어차피 창이 깔아 둔 어둠이 덮으므로
+            //    잠겨서 흐려지는 것은 눈에 안 띈다.
+            bool removalModal = _pendingRemoval != null;
+            bool guiWasEnabled = GUI.enabled;
+            GUI.enabled = guiWasEnabled && !removalModal;
 
             DrawSupplyWarningBand(); // 0차 — 다른 표시보다 먼저 그린다(UI 문서 12-4)
             // ⚠️ **차례를 뒤집었다**(2026-09-15 · 육안 ③ 겹침).
@@ -3558,7 +3628,13 @@ namespace MBI.Logistics
                 _selectedModule >= 0 ? "모듈 — 놓인 노드를 탭하면 붙는다"
                 // ⚠️ **벨트는 끌어야 깔린다**(2026-10-07 사용자 지시) — 빈 칸 탭은
                 //    팔레트에 골라진 것을 놓는다. 위 고스트 안내와 같은 말을 쓴다.
-                : "빈 칸 드래그 = 벨트 · 노드 탭 = 조합표 · 놓인 것 위에서 끌면 제거",
+                // ⚠️ 도전 층에서는 **왜 안 되는지**를 적는다(2026-10-14 사용자 확정 ④).
+                //    잠근 채로 종전 안내를 그대로 두면 「끌라고 해 놓고 안 깔린다」가 되어
+                //    고장으로 읽힌다.
+                : !BoardEditRule.CanEdit(StageLayerSignals.IsFarming,
+                                         StageLayerSignals.IsTutorialStage)
+                    ? "도전 중 — 보드는 보기만 된다 · 고치려면 파밍으로"
+                    : "빈 칸 드래그 = 벨트 · 노드 탭 = 조합표 · 놓인 것 위에서 끌면 제거",
                 new GUIStyle(GUI.skin.label)
                 {
                     // ⚠️ **스냅을 여기서 다시 하지 않는다** — 상자 높이가 이 크기를 보고
@@ -3575,6 +3651,8 @@ namespace MBI.Logistics
 
             // ⚠️ **삭제 컨펌은 그보다 더 뒤다**(2026-09-15 · 육안 ⑧) — 물어보는 동안에는
             // 그 물음이 화면에서 가장 위여야 한다. 모드 막대까지 덮는다.
+            // 창은 **잠금 밖**에서 그린다 — 안 그러면 창의 단추까지 같이 잠긴다.
+            GUI.enabled = guiWasEnabled;
             DrawRemovalConfirm();
         }
 
@@ -4189,7 +4267,11 @@ namespace MBI.Logistics
             //    버튼을 그려 두고 눌러도 아무 일이 없게 하면 「고장」으로 읽힌다 —
             //    **아예 안 그린다.** 이름과 각도 줄은 남는다(무엇을 고른지는 알아야 한다).
             //    📌 규칙은 `CoreNodeRule` 한 곳이 든다 — 화면에서 다시 묻지 않는다(지침 §7).
-            bool canRotate = CoreNodeRule.CanRotate(inst);
+            // ⚠️ 도전 층에서는 돌리는 것도 막는다(2026-10-14 사용자 확정 ④) —
+            //    보드를 못 고치게 해 놓고 방향만 돌릴 수 있으면 잠근 뜻이 없다.
+            bool canRotate = CoreNodeRule.CanRotate(inst)
+                             && BoardEditRule.CanEdit(StageLayerSignals.IsFarming,
+                                                      StageLayerSignals.IsTutorialStage);
 
             var rotRect = new Rect(x, y, w * 0.32f, h);
             // ⚠️ **화살표 기호를 걷었다**(2026-09-15 육안 · 글리프). 「↻」(U+21BB)가
@@ -4774,6 +4856,8 @@ namespace MBI.Logistics
         private float _zoom = 1f;
 
         /// <summary>씬이 준 원래 시야. 처음 볼 때 한 번 기억한다.</summary>
+        /// <summary>🗑️ **폐기** — 카메라를 안 건드리므로 기준값을 들고 있을 까닭이 없다
+        /// (2026-10-14 · 위 `ApplyZoom` 폐기 표기 참고).</summary>
         private float _baseOrtho = -1f;
 
         private const float ZoomMin = 1f, ZoomMax = 2.5f, ZoomStep = 0.25f;
@@ -4792,7 +4876,15 @@ namespace MBI.Logistics
         {
         }
 
-        private void SetZoom(float z) => _zoom = Mathf.Clamp(z, ZoomMin, ZoomMax);
+        private void SetZoom(float z)
+        {
+            _zoom = Mathf.Clamp(z, ZoomMin, ZoomMax);
+
+            // 📌 **카메라를 직접 안 건드린다**(2026-10-14) — 값을 올려 두면
+            //    `GameLayerController` 하나가 그것을 보고 시야를 정한다. 둘이 쓰면
+            //    프레임마다 이긴 쪽이 바뀌어 **줌인·줌아웃이 번갈아 뛴다.**
+            BoardZoomSignals.Factor = _zoom;
+        }
 
         /// <summary>핀치 직전 두 손가락 거리. 0 이면 핀치 중이 아니다.</summary>
         private float _pinchStartDistance;
@@ -4857,19 +4949,19 @@ namespace MBI.Logistics
         }
 
         /// <summary>
-        /// 배율을 카메라에 먹인다. **보드를 볼 때만** — 전투 화면으로 나가면 원래 시야로 돌린다.
-        /// 안 돌리면 조립을 확대해 둔 채 나갔을 때 전투가 통째로 확대된 채 찍힌다.
+        /// ⚠️⚠️ **폐기 — 카메라 시야의 임자는 `GameLayerController` 하나다**
+        /// (2026-10-14 사용자 육안 「물류 보드가 계속 줌인·줌아웃된다」).
+        ///
+        /// 종전에는 여기서 매 프레임 `cam.orthographicSize = _baseOrtho / _zoom` 을 썼다.
+        /// 그런데 같은 프레임에 `GameLayerController` 도 그 값을 `boardSize` 쪽으로
+        /// **Lerp** 하고 있었다 — `Update` 순서가 정해져 있지 않아 프레임마다 이긴 쪽이
+        /// 바뀌었고, 그것이 **줌인·줌아웃이 번갈아 뛰는** 그림이 됐다.
+        /// 게다가 `_baseOrtho` 는 그 싸움 **중간값**을 집어 와서 기준조차 틀어져 있었다.
+        ///
+        /// 📌 이제 배율은 <see cref="BoardZoomSignals"/> 에 올리고, 시야는
+        /// <see cref="BoardZoomRule.TargetOrtho"/> 가 낸다. **쓰는 곳은 한 군데다**(지침 §7).
+        /// 되살리려면 저쪽에서 손을 떼야 한다 — 둘이 같이 쓰면 같은 병이 돌아온다.
         /// </summary>
-        private void ApplyZoom()
-        {
-            Camera cam = boardCamera != null ? boardCamera : Camera.main;
-            if (cam == null || !cam.orthographic) return;
-
-            if (_baseOrtho < 0f) _baseOrtho = cam.orthographicSize;
-            cam.orthographicSize = GameLayerController.BoardViewActive
-                ? _baseOrtho / Mathf.Max(0.01f, _zoom)
-                : _baseOrtho;
-        }
 
         private void DrawMiniMap()
         {
@@ -5376,6 +5468,7 @@ namespace MBI.Logistics
             // ── 3 × 3 누를 자리 ──
             var pad = new Rect(cx - half, cy - half, half * 2f, half * 2f);
             UiBlockers.Add(pad);
+            _askPadRect = pad;          // 누를 때 이 자리를 다시 읽는다
             UiPlate.DrawTinted(pad, new Color(0.10f, 0.14f, 0.20f, 0.55f));
 
             // ── 대각선 X 자 — 넷으로 나뉜 것이 눈에 보여야 한다 ──
@@ -5406,15 +5499,22 @@ namespace MBI.Logistics
             label.normal.textColor = new Color(0.85f, 0.85f, 0.88f, 0.95f);
             DrawPadWord(cx, cy + half + px, cellPx * 3f, px, "바깥을 누르면 설치 취소", label);
 
-            // ── 화살표 옆 글자 — 「입력」 · 「출력」 ──
-            foreach (NodePort port in inst.Ports())
-            {
-                Vector2 off = FaceOffset(port.face);
-                bool outward = port.io == PortIO.Output;
-                label.normal.textColor = PortDirectionColor.Of(outward);
-                DrawPadWord(cx + off.x * cellPx * 0.42f, cy - off.y * cellPx * 0.42f,
-                            cellPx, px, outward ? "출력" : "입력", label);
-            }
+            // ── 화살표 옆 글자 「입력」·「출력」 — ⚠️ **폐기**(2026-10-14 사용자 육안) ──
+            //
+            // 사용자가 8125 에서 본 글자가 **「대출력」**이었다. 포트마다 낱말을 **노드 칸
+            // 안**(0.42 칸)에 그렸는데 그 자리가 가운데 「이대로」와 같은 자리다 — 「이대로」
+            // 위에 「출력」이 겹쳐 찍힌 것이다. 한 팔에 두 낱말이 들어갈 자리가 없다.
+            //
+            // 📌 **뜻은 안 잃는다.** 팔의 「출력 ↑」이 **누르면 출력이 갈 쪽**을 말하고,
+            //    지금 어느 면이 입력·출력인지는 `RebuildWiringArrows` 가 세운 **파랑(입력)·
+            //    주황(출력) 화살표**가 이미 말한다 — 이 메서드 머리 주석이 적은 그대로다.
+            //    겹쳐서 못 읽히던 낱말만 사라진다.
+            //
+            // ⚠️ 되살리려면 **자리를 먼저 만들어야 한다.** 팔 안쪽(0.5~1.0 칸)은 「출력 ↑」이,
+            //    3 × 3 밖 남쪽은 「바깥을 누르면 설치 취소」가 쓰고 있다. 자리 없이 되살리면
+            //    같은 겹침이 돌아온다.
+            //
+            // ⚠️ 기획서 문장(「화살표 옆의 글자」)에서 벗어난 자리다 — 사용자 판정 대기.
         }
 
         /// <summary>판 가운데를 지나는 대각선 한 줄. 넷으로 나뉜 것을 눈에 보이게 한다.</summary>
@@ -5447,6 +5547,24 @@ namespace MBI.Logistics
         /// 방향을 묻는 중인 칸. 값이 있으면 **그 노드는 아직 확정이 아니다.**
         /// </summary>
         private Vector2Int? _askingCell;
+
+        /// <summary>
+        /// **직전 프레임에 그린 3 × 3 패드 자리**(IMGUI 좌표 · 위에서 아래로 잰다).
+        ///
+        /// ⚠️ 왜 들고 있는가 — 패드는 자기 자리를 `UiBlockers` 에 등록한다. 그래서 「UI 위인가」만
+        /// 보면 **패드 안이 UI 로 걸려 누름이 버려진다**(2026-10-14 · #93). 패드 안인지를
+        /// 따로 알아야 하므로 그 자리를 그릴 때 적어 둔다. `UiBlockers` 와 같은 사정으로
+        /// **한 프레임 전 자리**이지만 자리는 포인터와 무관하게 정해지므로 그대로 쓴다.
+        /// </summary>
+        private Rect _askPadRect;
+
+        /// <summary>포인터가 **그 패드 안**에 있는가. 묻는 중이 아니면 언제나 거짓이다.</summary>
+        private bool PointerOverAskPad()
+        {
+            if (!_askingCell.HasValue || Pointer.current == null) return false;
+            Vector2 p = Pointer.current.position.ReadValue();
+            return _askPadRect.Contains(new Vector2(p.x, Screen.height - p.y));
+        }
 
         /// <summary>
         /// 그 노드의 지금 **출력 면**. 출력이 없으면 null — **물을 것이 없다는 뜻**이다.

@@ -84,5 +84,54 @@ namespace MBI.Tests
             var item = new BeltItem { kind = FlowKind.StandardAmmo, progress = 0f };
             Assert.IsFalse(item.hasEntryFace);
         }
+
+        /// <summary>
+        /// ⚠️⚠️ **두 번째 신고의 시험**(2026-10-14 사용자 육안 「병합기 서면에서 진입 품목이
+        /// 등장하지 않음」). 첫 고침은 벨트→벨트(<c>TryHandOff</c>)만 면을 달았고,
+        /// **노드가 미는 길**(<c>TryPushFrom</c> → <c>TryInsert</c>)은 빠져 있었다.
+        /// 병합기에 넣는 쪽이 바로 노드라, 서면 품목이 그대로 12시에서 나왔다.
+        /// </summary>
+        [Test]
+        public void 미는_쪽도_들어온_면을_들고_간다()
+        {
+            var grid = new BoardGrid(5, 5, 1f, Vector2.zero);
+
+            // 병합기 (2,2) — 서·남에서 받아 동으로 낸다.
+            grid.TryPlaceBeltElement(new Vector2Int(2, 2), BeltElementKind.Merger,
+                new[] { PortFace.West, PortFace.South }, new[] { PortFace.East },
+                FlowKind.Ammo, out _);
+
+            // 그 서쪽 칸에서 동으로 민다.
+            var from = new Vector2Int(1, 2);
+            grid.TryPlaceBelt(from, PortFace.West, PortFace.East, FlowKind.Ammo, out _);
+
+            var flow = new BeltItemFlow();
+            flow.Rebuild(grid);
+
+            Assert.IsTrue(flow.TryPushFrom(from, FlowKind.Ammo), "서쪽 칸에서 병합기로 밀린다");
+
+            var merger = new Vector2Int(2, 2);
+            Assert.AreEqual(1, flow.ItemsAt(merger).Count);
+
+            BeltItem item = flow.ItemsAt(merger)[0];
+            Assert.IsTrue(item.hasEntryFace, "민 쪽이 면을 안 달면 칸의 입력면으로 떨어진다");
+            Assert.AreEqual(PortFace.West, item.entryFace,
+                "서쪽 칸에서 왔으면 서면이다 — 아니면 12시에서 나타난다");
+        }
+
+        [Test]
+        public void 어디서_왔는지_모르면_면을_안_지어낸다()
+        {
+            var grid = new BoardGrid(3, 3, 1f, Vector2.zero);
+            var cell = new Vector2Int(1, 1);
+            grid.TryPlaceBelt(cell, PortFace.West, PortFace.East, FlowKind.Ammo, out _);
+
+            var flow = new BeltItemFlow();
+            flow.Rebuild(grid);
+            Assert.IsTrue(flow.TryInsert(cell, FlowKind.Ammo));
+
+            Assert.IsFalse(flow.ItemsAt(cell)[0].hasEntryFace,
+                "모르는 것을 안다고 하면 엉뚱한 면에서 나타난다");
+        }
     }
 }

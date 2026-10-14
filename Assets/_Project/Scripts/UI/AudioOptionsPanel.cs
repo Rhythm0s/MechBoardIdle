@@ -142,116 +142,49 @@ namespace MBI.UI
             AudioChannels.Load();
         }
 
+        /// <summary>
+        /// ⚠️⚠️ **제 버튼과 제 판을 폐기한다**(2026-10-14 사용자 확정 ⑤
+        /// 「열림, 소리 버튼 제거하구 설정 패널 안에 포함시키도록 하자」).
+        ///
+        /// 종전에는 칩 줄에 「소리」/「닫기」 단추를 그리고, 누르면 **떠 있는 판**을 폈다.
+        /// 그 판이 진행 띠·스테이지 단추 위에 겹쳐 앉는 것이 사용자 스크린샷에 잡혔다
+        /// (슬라이더 셋이 「스테이지」·「도전」 단추를 가로질렀다).
+        ///
+        /// 📌 이제 **설정 패널이 그 자리를 가진다** — 그리는 것은
+        /// <see cref="DrawChannels"/> 하나이고 부르는 쪽은 `ReviewerShortcuts` 다.
+        /// 값·저장·미리듣기는 그대로 여기 있다(채널 상태의 임자는 바뀌지 않았다).
+        ///
+        /// ⚠️ 남은 것 — <c>UiLayout.SoundPanelRect</c>·<c>ChipSoundRect</c> 는 지우지 않았다
+        /// (폐기 표기). 되살리려면 이 `OnGUI` 가 다시 그리면 된다.
+        /// </summary>
         private void OnGUI()
         {
-            // ⚠️ **메뉴보다 앞에 그린다**(2026-09-10 · 플랜 §66-35 ①).
-            // `GUI.depth` 는 **낮을수록 앞**이다. 이 패널은 메뉴의 「볼륨」이 여는 것이라
-            // 메뉴 뒤로 들어가면 **열려도 못 읽고 못 만진다** — 실제로 그랬다.
-            //
-            // ⚠️ 메뉴가 억제하는 `OnGUI` 일곱에 **이 패널은 들어 있지 않다.** 넣으면
-            // 메뉴의 「볼륨」이 아무것도 안 여는 버튼이 된다.
-            // ⚠️ **`GUI.depth` 를 안 건드린다**(2026-09-15 · 「안 보인다」 실측 뒤).
-            //
-            // 진단 로그가 **OnGUI 는 돌고 자리도 화면 안**임을 보였다(2412,48 · 420×300 /
-            // 화면 2880×5120). 그런데 화면에 없었다 — 남은 것은 **층**뿐이다.
-            //
-            // 종전에는 `GUI.depth = MenuDepth − 1` 로 「메뉴보다 앞」을 노렸다. 그런데
-            // `GUI.depth` 를 건드리는 순간 이 OnGUI 는 **다른 층으로 빠지고**, 기본 층(0)에서
-            // 화면을 덮는 것들과의 앞뒤가 뜻대로 안 선다. 09-10 에 이 줄을 넣은 까닭은
-            // 「메뉴가 이 패널을 덮는다」였는데, **메뉴의 「볼륨」 버튼이 오늘 걷혔으므로**
-            // (개편 ⑨) 메뉴와 겹칠 일 자체가 없어졌다 — **이유가 사라진 줄이다.**
+            // 아무것도 안 그린다 — 소리 줄은 설정 패널이 그린다.
+        }
 
-            // ⚠️ **진단 한 줄**(2026-09-15 · 「소리 버튼이 안 보인다」 원인 미확정).
-            //
-            // 셋 중 어느 것인지 코드만 봐서는 못 갈랐다 — ① 이 OnGUI 가 아예 안 도는가
-            // ② 도는데 자리가 화면 밖인가 ③ 그려지는데 무언가 덮는가.
-            // **한 번만** 찍어 콘솔로 답을 받는다. 답이 나오면 이 블록을 걷는다.
-            if (!_loggedOnce)
-            {
-                _loggedOnce = true;
-                Debug.Log($"[MBI] 소리 패널 OnGUI 돈다 — 화면 {Screen.width}×{Screen.height}");
-            }
+        /// <summary>채널 한 줄이 쓰는 높이(이름표 + 슬라이더 + 틈).</summary>
+        public static float ChannelRowHeight(float scale) =>
+            30f * scale + 26f * scale + 14f * scale;
 
-            UiSkin.Apply(); // 껍데기 + 한글 폰트 — WebGL엔 시스템 폰트 폴백이 없다
+        /// <summary>채널 셋이 쓰는 높이 — 부르는 쪽이 판 높이에 더한다.</summary>
+        public static float ChannelsHeight(float scale) => ChannelRowHeight(scale) * 3f;
 
-            // ⚠️ **화면 우상단으로 옮겼다**(2026-09-15 사용자 확정 · 하단 개편 ⑧).
-            //
-            // 조립·전투·메인 메뉴 **세 화면에서 같은 자리**다. 종전 왼쪽 아래는 화면마다
-            // 무엇이 지나가느냐가 달라 세 번 옮겨 다녔고(위 주석의 ①②), 그때마다
-            // 「무엇 옆에 있는가」로 자리를 정한 탓에 **다른 것이 움직이면 또 걸렸다.**
-            // 구석은 **아무것도 자라 들어오지 않는 유일한 자리**다.
-            //
-            // ⚠️ **변수 패널이 걷혔기에 쓸 수 있는 자리다**(개편 ①) — 09-10 에 이 구석을
-            // 포기한 까닭이 그 패널이었다.
-            // ⚠️ **크기는 규격을 따른다**(2026-09-15 · 육안 재확인).
-            //
-            // 구 96×32 는 **날 픽셀**이었다. 우상단으로 옮기면서 배율을 곱했더니
-            // 720×1280 창에서 **48×16** 이 되어 「안 보인다」가 됐다 — 배율을 곱하려면
-            // 값도 **기준 캔버스 값**이어야 한다. 96 은 그 값이 아니었다.
-            //
-            // 한 변을 `MinButton`(150)으로 잡는다 — UI 6-2 규격이고, 눌리는 크기다.
-            // ⚠️⚠️ **자리는 이제 상단 칩 줄이 정한다**(2026-09-18 · 시안 3).
-            //
-            // 칩 줄 오른쪽에 「소리 아이콘」 자리가 났고, 그 자리를 **이 버튼이 채운다** —
-            // 칩 줄이 제 소리 버튼을 따로 그리면 **같은 일을 하는 자리가 둘**이 되고,
-            // 한쪽만 고쳐지는 날이 온다(이 리포에서 되풀이된 결함 종류다).
-            // 그래서 자리는 `UiLayout.ChipSoundRect` 한 곳이 내고 그리는 것은 여기 하나다.
-            //
-            // 🗑️ 구 자리(우상단 여백 24 · MinButton×1.4)는 폐기 — 칩 줄이 그 자리를 덮는다.
-            float scale = UiLayout.Scale(Screen.height);
-            var button = UiLayout.ChipSoundRect(Screen.width, Screen.height);
-            float bh = button.height;
-            UiBlockers.Add(button);
-            // ⚠️ **글자가 칸을 넘었다**(2026-09-18 사용자 육안 — 「소리 닫기」가 「리 닫」으로).
-            //    칩 줄 자리는 한 변이 최소 버튼(150)이라 **네 글자가 안 들어간다.**
-            //    크기를 **두 변에서** 잡고 문구도 **두 글자**로 줄인다(09-15 부터 네 번째 같은 병).
-            var btnStyle = new GUIStyle(GUI.skin.button)
-            {
-                fontSize = KoreanFont.Snap(Mathf.Max(10, Mathf.Min(
-                    Mathf.RoundToInt(bh * 0.28f),
-                    Mathf.RoundToInt(button.width / 3.2f)))),
-                clipping = TextClipping.Overflow,
-            };
-            if (!_loggedRect)
-            {
-                _loggedRect = true;
-                Debug.Log($"[MBI] 소리 버튼 자리 {button.x:F0},{button.y:F0} {button.width:F0}×{button.height:F0}");
-            }
-
-            // 🗑️ **자홍 사각 진단 폐기**(2026-09-18 리허설 ⑧) — 「자리는 맞는데 아무것도
-            //    없다」의 답이 나왔고(버튼이 화면에 뜬다), 진단물은 답이 나오면 걷는 것이
-            //    규칙이다. 09-15 주석에 「답이 나오면 이 블록을 걷는다」고 적어 두었다.
-            if (UiSkin.Button(button, _open ? "닫기" : "소리", btnStyle)) _open = !_open;
-
-            if (!_open) return;
-
-            // ⚠️ **슬라이더는 버튼 아래로 편다** — 우상단이라 위로 펴면 화면 밖이다.
-            // 패널도 기준 캔버스 값으로 — 구 240×172 는 날 픽셀이라 작은 창에서 못 읽었다.
-            // ⚠️ **높이를 줄에서 낸다**(2026-09-18). 구 `PanelH`(16 + 52×3)는 **날 픽셀 줄**을
-            //    전제한 수라, 줄을 배율에 태우자 패널이 내용보다 작아진다 —
-            //    그러면 마지막 슬라이더가 상자 밖으로 밀린다(09-06·09-15 와 같은 병).
-            //
-            // ⚠️⚠️ **자리를 여기서 안 낸다**(2026-10-13 · 사용자 스크린샷 ①).
-            //
-            // 구 셈은 「소리 버튼 아랫변 + 4」였다. 버튼은 칩 줄에 있고 칩 줄 바로 아래는
-            // **진행 띠**(화면 가로 전체)라, 버튼 아래로 펴면 **반드시 띠를 지난다** —
-            // 띠가 패널을 반쯤 가린 것이 그 결함이다. 자리는 `UiLayout.SoundPanelRect`
-            // 한 곳이 내고 여기는 **그리기만** 한다(지침 §7 · 칩 줄 자리와 같은 꼴).
-            var panel = UiLayout.SoundPanelRect(Screen.width, Screen.height);
-            UiBlockers.Add(panel);
-            GUI.Box(panel, GUIContent.none);
-
-            // 채널 셋 — 사운드 문서 7장. **하나로 묶지 않는다**: 셋은 사람이 서로 다른
-            // 이유로 줄이는 것이라, 묶으면 하나가 거슬려도 나머지 둘까지 함께 잃는다.
-            // ⚠️⚠️ **날 픽셀 줄을 걷는다**(2026-09-18 사용자 육안 · 「효과음」이 「호과음」으로).
-            //
-            // 패널은 `2.4 × 배율` 로 커지는데 **줄 높이만 22 · 26 · 52 날 픽셀**이었다.
-            // 큰 창에서는 글자가 줄보다 커져 **위가 잘렸다** — 잘린 자리가 받침처럼 보여
-            // 다른 글자로 읽힌다. 이름표·슬라이더·줄 간격을 **전부 배율에 태운다.**
-            float rowLabel = 30f * scale;    // 이름표 한 줄
-            float rowSlider = 26f * scale;   // 슬라이더
-            float rowGap = 14f * scale;      // 줄 사이
-            float padX = 14f * scale;
+        /// <summary>
+        /// **채널 셋을 그린다** — 배경 음악 · 효과음 · 조작음.
+        ///
+        /// 채널 셋 — 사운드 문서 7장. **하나로 묶지 않는다**: 셋은 사람이 서로 다른
+        /// 이유로 줄이는 것이라, 묶으면 하나가 거슬려도 나머지 둘까지 함께 잃는다.
+        ///
+        /// ⚠️⚠️ **날 픽셀 줄을 안 쓴다**(2026-09-18 사용자 육안 · 「효과음」이 「호과음」으로).
+        /// 이름표·슬라이더·줄 간격을 **전부 배율에 태운다** — 큰 창에서 글자가 줄보다 커져
+        /// 위가 잘리면, 잘린 자리가 받침처럼 보여 다른 글자로 읽힌다.
+        /// </summary>
+        /// <returns>쓴 높이.</returns>
+        public static float DrawChannels(float x, float y, float width, float scale)
+        {
+            float rowLabel = 30f * scale;
+            float rowSlider = 26f * scale;
+            float rowGap = 14f * scale;
 
             var labelStyle = new GUIStyle(GUI.skin.label)
             {
@@ -260,7 +193,7 @@ namespace MBI.UI
                 clipping = TextClipping.Overflow,   // 재기 전에 잘리는 함정을 피한다
             };
 
-            float y = panel.y + 10f * scale;
+            float top = y;
             foreach (AudioChannels.Channel ch in new[]
             {
                 AudioChannels.Channel.Music,
@@ -269,12 +202,11 @@ namespace MBI.UI
             })
             {
                 float now = AudioChannels.Value(ch);
-                GUI.Label(new Rect(panel.x + padX, y, panel.width - padX * 2f, rowLabel),
+                GUI.Label(new Rect(x, y, width, rowLabel),
                     $"{AudioChannels.Label(ch)}  {MusicVolume.Label(now)}", labelStyle);
 
                 float next = GUI.HorizontalSlider(
-                    new Rect(panel.x + padX, y + rowLabel, panel.width - padX * 2f, rowSlider),
-                    now, 0f, 1f);
+                    new Rect(x, y + rowLabel, width, rowSlider), now, 0f, 1f);
 
                 // ⚠️ **바뀐 프레임에만 남긴다.** 매 프레임 `PlayerPrefs` 를 쓰면 디스크를 계속 두드린다.
                 if (!Mathf.Approximately(next, now))
@@ -290,6 +222,8 @@ namespace MBI.UI
 
                 y += rowLabel + rowSlider + rowGap;
             }
+
+            return y - top;
         }
     }
 }

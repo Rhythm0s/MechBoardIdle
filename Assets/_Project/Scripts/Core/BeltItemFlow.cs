@@ -264,8 +264,15 @@ namespace MBI.Core
         ///
         /// **목적지가 노드면 얹지 않고 도착으로 센다.** 노드끼리 맞붙은 배치에서
         /// <see cref="BoardItemTick"/>이 이 함수로 바로 넘기기 때문이다.
+        ///
+        /// ⚠️⚠️ <paramref name="from"/> 은 **어느 칸에서 왔는가**다. 이것이 없으면
+        /// 그리는 쪽이 칸의 입력면 하나로 그려서 **받는 면이 셋인 병합기에서 어느 면으로
+        /// 들어왔든 같은 자리(12시)에서 나타난다** — 2026-10-14 사용자 육안 두 번째 신고다.
+        /// (첫 신고 때는 벨트→벨트(<see cref="TryHandOff"/>)만 고쳤고 **노드가 미는 이 길을
+        /// 빠뜨렸다.** 병합기에 넣는 쪽이 바로 노드라 서면 품목이 그대로 12시에서 나왔다.)
+        /// 모르면 <c>null</c> 로 둔다 — 지어내면 엉뚱한 면에서 나타난다.
         /// </summary>
-        public bool TryInsert(Vector2Int cell, FlowKind kind)
+        public bool TryInsert(Vector2Int cell, FlowKind kind, Vector2Int? from)
         {
             if (_consumers.Contains(cell))
             {
@@ -278,9 +285,23 @@ namespace MBI.Core
             List<BeltItem> lane = LaneOf(cell);
             if (!HasRoomAtEntry(lane)) return false;
 
-            lane.Add(new BeltItem { kind = kind, progress = 0f });
+            PortFace entry = default;
+            bool knowFace = false;
+            if (from.HasValue)
+                knowFace = BeltItemPose.TryFaceOfDelta(from.Value - cell, out entry);
+
+            lane.Add(new BeltItem
+            {
+                kind = kind,
+                progress = 0f,
+                entryFace = entry,
+                hasEntryFace = knowFace,
+            });
             return true;
         }
+
+        /// <summary>어디서 왔는지 모르는 투입(시험·진단이 쓴다).</summary>
+        public bool TryInsert(Vector2Int cell, FlowKind kind) => TryInsert(cell, kind, null);
 
         // 소비처가 받았다. 총계·품목별을 올리고, 어느 노드가 받았는지 남긴다.
         private void Arrive(Vector2Int cell, FlowKind kind)
@@ -371,7 +392,7 @@ namespace MBI.Core
             for (int i = 0; i < outs.Count; i++)
             {
                 int idx = (start + i) % outs.Count;
-                if (!TryInsert(outs[idx], kind)) continue;
+                if (!TryInsert(outs[idx], kind, from)) continue;   // 어느 칸에서 왔는지 들고 간다
                 _rotor[from] = (idx + 1) % outs.Count;
                 return true;
             }

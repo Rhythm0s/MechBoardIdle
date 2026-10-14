@@ -49,6 +49,9 @@ namespace MBI.Combat
         /// ⚠️ 사용자가 다르게 말하면 이 한 줄을 `Debug.isDebugBuild` 로 되돌리면 된다.
         private static bool ShowTutorial => true;
 
+        /// <summary>설정 판이 화면보다 길 때의 굴림 자리(2026-10-14).</summary>
+        private Vector2 _settingsScroll;
+
         private void OnGUI()
         {
             // 메인 메뉴가 덮고 있으면 그리지 않는다 — IMGUI 는 뒤에 그리는 쪽이 위로 온다
@@ -146,13 +149,38 @@ namespace MBI.Combat
             // 스테이지 · 게이지 · 전멸 · [도전 즉시 종료] · 초기화 · 덤프 · 메인 메뉴 · 닫기
             int buttonRows = showFinish ? 8 : 7;
             float noteH = 44f * scale;  // 안내 두 줄
-            float plateH = 8f * scale + (h + pad) + noteH + (h + pad) * buttonRows + 8f * scale;
-            // 세로도 가운데 — 다만 화면보다 길면 위에서 8 을 띄우고 시작한다
-            // (09-19 에 아래로 흘러 「메인 메뉴로」가 화면 밖에 있던 자리).
-            float y = Mathf.Max(8f, (Screen.height - plateH) * 0.5f);
+
+            // ✅ **소리 줄이 이 판 안으로 들어왔다**(2026-10-14 사용자 확정 ⑤).
+            //    ⚠️ 높이를 **반드시** 더한다 — 안 더하면 아래 단추들이 판 밖으로 밀린다
+            //    (09-19 에 「메인 메뉴로」가 그렇게 사라졌다 · 위 주석의 그 병이다).
+            float soundH = MBI.UI.AudioOptionsPanel.ChannelsHeight(scale);
+            float plateH = 8f * scale + (h + pad) + noteH + soundH
+                           + (h + pad) * buttonRows + 8f * scale;
+            // ⚠️⚠️ **화면보다 길면 굴린다**(2026-10-14 · 소리 줄이 들어온 날 바로 걸렸다).
+            //
+            // 종전에는 「위에서 8 을 띄우고 시작」하는 것이 전부라, 판이 화면보다 길면
+            // **아래가 그냥 잘렸다** — 소리 줄 셋(210 × 배율)이 들어오자 그날로
+            // **「닫기」가 화면 밖**으로 밀렸다(09-19 에 「메인 메뉴로」가 사라진 그 병이
+            // 같은 꼴로 돌아온 것이다). 줄이 또 늘어도 안 잘리게 **굴림틀**을 둔다.
+            //
+            // 📌 안쪽 좌표를 그대로 쓴다 — 보임틀의 `viewRect` 를 **판 자리 그대로** 주면
+            //    아래 그리는 코드(전부 절대 좌표다)를 한 줄도 안 고쳐도 된다.
+            float avail = Screen.height - 16f;
+            bool scroll = plateH > avail;
+            float plateDrawH = scroll ? avail : plateH;
+
+            // ⚠️⚠️ **세로 막대가 먹는 폭만큼 내용을 좁힌다**(2026-10-14 · 빌드 실측).
+            //    안 좁히면 내용이 보임틀보다 넓어 **가로 막대까지 생기고**, 그 막대가
+            //    맨 아랫줄을 먹어 **「닫기」가 또 잘렸다.** 막대 폭은 껍데기에서 받는다 —
+            //    배율로 지어내면(18 × 0.3 = 5 px) 실제 막대(15 px)보다 좁아 또 넘친다.
+            float barW = scroll
+                ? GUI.skin.verticalScrollbar.fixedWidth + GUI.skin.verticalScrollbar.margin.left
+                : 0f;
+
+            float y = Mathf.Max(8f, (Screen.height - plateDrawH) * 0.5f);
 
             var plate = new Rect(x - 8f * scale, y - 8f * scale,
-                                 w + 16f * scale, plateH);
+                                 w + 16f * scale, plateDrawH);
 
             // ✅ **판 빼고 화면을 어둡게**(2026-09-21 사용자 확정 ⑤).
             //    판보다 **먼저** 깐다 — 나중에 깔면 판까지 덮는다(IMGUI 는 뒤가 위다).
@@ -163,6 +191,19 @@ namespace MBI.Combat
 
             UiPlate.Draw(plate);
             UiBlockers.Add(plate);
+
+            if (scroll)
+            {
+                // 굴림 막대가 오른쪽을 먹으므로 내용 폭을 그만큼 줄여 준다.
+                _settingsScroll = GUI.BeginScrollView(
+                    plate, _settingsScroll,
+                    new Rect(plate.x, plate.y, plate.width - barW, plateH));
+
+                // ⚠️ **판을 세운 뒤에** 좁힌다 — 판까지 좁히면 보임틀과 내용이 같이 줄어
+                //    가로 막대가 끝내 안 사라진다(셈을 해 보면 8 × 배율 ≥ 막대 폭이라야 하는데
+                //    작은 창에서는 그 조건이 안 선다).
+                w -= barW;
+            }
 
             var title = new GUIStyle(GUI.skin.label)
             { fontSize = Mathf.Max(14, Mathf.RoundToInt(17f * scale)), fontStyle = FontStyle.Bold };
@@ -179,6 +220,14 @@ namespace MBI.Combat
             GUI.Label(new Rect(x, y, w, noteH),
                 "포트폴리오용 바로가기입니다.\n원래 진행은 튜토리얼부터 순서대로입니다", note);
             y += noteH;
+
+            // ── 소리 (2026-10-14 사용자 확정 ⑤) ──────────────────────────
+            //
+            // 📌 **그리는 것은 `AudioOptionsPanel` 하나다**(지침 §7) — 값·저장·미리듣기가
+            //    거기 살고, 여기서 또 슬라이더를 만들면 같은 값이 두 곳에 사는 꼴이 된다.
+            //    종전에는 그 패널이 **떠 있는 판**으로 혼자 폈고, 그것이 진행 띠와
+            //    스테이지·도전 단추 위에 겹쳐 앉았다(사용자 스크린샷).
+            y += MBI.UI.AudioOptionsPanel.DrawChannels(x, y, w, scale);
 
             DrawStageButtons(y, x, w, h, pad, button);
             y += h + pad;
@@ -217,6 +266,8 @@ namespace MBI.Combat
             //    닿는 자리**는 판 안이다.
             if (UiSkin.Button(new Rect(x, y, w, h), "닫기", button))
                 SettingsGate.Close();
+
+            if (scroll) GUI.EndScrollView();
 
             // ✅ **판 바깥 아래에 「- 일시 정지 -」**(2026-09-21 사용자 확정 ⑥).
             //    판이 열려 있는 동안 게임이 서므로, **왜 멈춰 있는지**를 화면이 말해야 한다.

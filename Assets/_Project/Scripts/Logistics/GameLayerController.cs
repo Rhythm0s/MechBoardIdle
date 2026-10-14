@@ -168,7 +168,11 @@ namespace MBI.Logistics
 
             if (cam == null) return;
             Vector2 tc = _boardView ? boardCenter : focus;
-            float ts = _boardView ? boardSize : combatSize;
+
+            // 📌 **보드 배율이 여기로 들어온다**(2026-10-14) — 보드 쪽은 값을 올려 두기만 하고
+            //    `orthographicSize` 를 쓰는 곳은 이 파일 하나다(지침 §7).
+            float ts = BoardZoomRule.TargetOrtho(
+                _boardView, boardSize, combatSize, BoardZoomSignals.Factor);
 
             Vector3 p = cam.transform.position;
             float k = Mathf.Clamp01(slideSpeed * Time.deltaTime);
@@ -182,7 +186,8 @@ namespace MBI.Logistics
             if (cam == null) return;
             Vector2 c = board ? boardCenter : combatCenter;
             cam.transform.position = new Vector3(c.x, c.y, cam.transform.position.z);
-            cam.orthographicSize = board ? boardSize : combatSize;
+            cam.orthographicSize = BoardZoomRule.TargetOrtho(
+                board, boardSize, combatSize, BoardZoomSignals.Factor);
         }
 
         // 진입/복귀 버튼(하단 중앙, UI 문서 "조립 진입 버튼" 항상 노출). 전투 HUD는 StageRunner가 그림.

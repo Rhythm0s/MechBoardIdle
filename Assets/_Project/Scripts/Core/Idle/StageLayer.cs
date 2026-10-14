@@ -35,6 +35,15 @@ namespace MBI.Core
         public static bool IsFarming => Current == StageLayer.Farm;
 
         /// <summary>
+        /// 지금 판이 **튜토리얼 전용 판**인가 (2026-10-14 · 사용자 확정 ④).
+        ///
+        /// ⚠️ 그 판에는 층이 없다 — 파밍·도전이 안 갈린다. 그래서 「파밍이 아니다」만 보고
+        /// 보드를 잠그면 **벨트 한 칸을 까는 수업에서 잠긴다**(튜토리얼이 멈춘다).
+        /// 러너가 매 프레임 적고, 보드는 <see cref="BoardEditRule"/> 를 통해 읽는다.
+        /// </summary>
+        public static bool IsTutorialStage;
+
+        /// <summary>
         /// 파밍 장부에 쌓인 고철 — **도전 고철과 섞지 않는다**(사용자 확정 #111).
         /// 섞으면 「파밍으로 얼마를 버나」를 영영 못 재고, 오프라인 시급 기록이 거짓이 된다.
         /// </summary>

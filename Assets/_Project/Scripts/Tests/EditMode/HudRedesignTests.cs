@@ -193,14 +193,18 @@ namespace MBI.Tests
             const float W = 1440f, H = 2560f;
             Rect left = UiLayout.ChipLeftRect(W, H);
             Rect gold = UiLayout.ChipGoldRect(W, H);
-            Rect sound = UiLayout.ChipSoundRect(W, H);
             Rect settings = UiLayout.ChipSettingsRect(W, H);
 
             Assert.IsFalse(left.Overlaps(gold), "왼쪽 무리와 골드 칩");
-            Assert.IsFalse(gold.Overlaps(sound), "골드 칩과 소리");
-            Assert.IsFalse(sound.Overlaps(settings), "소리와 설정");
+            Assert.IsFalse(gold.Overlaps(settings), "골드 칩과 설정");
 
-            // 📌 **소리 버튼은 이 자리 하나에만 산다** — 칩 줄이 따로 그리면 자리가 둘이 된다.
+            // 🗑️ **구 검사 「골드 — 소리 — 설정」 폐기**(2026-10-14 사용자 확정 ⑤).
+            //    소리 단추를 걷고 설정 패널 안으로 넣었다. 그 자리를 비워 두면 골드와
+            //    설정 사이에 **구멍**이 남으므로, 골드가 설정에 붙는다.
+            Assert.Less(settings.x - gold.xMax, UiLayout.ChipIconSide,
+                "걷은 소리 단추만 한 구멍이 남으면 안 된다");
+
+            // 📌 **설정 아이콘은 이 자리 하나에만 산다** — 칩 줄이 따로 그리면 자리가 둘이 된다.
             Assert.IsTrue(UiLayout.MeetsMinButton(UiLayout.ChipIconSide),
                 "아이콘 한 변은 눌리는 최소를 넘는다");
         }

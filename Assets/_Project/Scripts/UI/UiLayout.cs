@@ -296,14 +296,20 @@ namespace MBI.UI
             return new Rect(bar.xMax - side, bar.y, side, bar.height);
         }
 
-        /// <summary>칩 줄 **골드 칩** — 소리 아이콘 왼쪽.</summary>
+        /// <summary>
+        /// 칩 줄 **골드 칩** — **설정 아이콘 왼쪽**.
+        ///
+        /// 🗑️ 구 기준 「소리 아이콘 왼쪽」 폐기(2026-10-14 사용자 확정 ⑤ · 소리 단추를
+        /// 걷고 설정 패널로 넣었다). 걷은 단추 자리를 그대로 두면 골드 칩과 설정 사이에
+        /// **빈 구멍**이 남는다 — 기준을 옆 칸으로 옮겨 그 구멍을 닫는다.
+        /// </summary>
         public static Rect ChipGoldRect(float screenWidth, float screenHeight)
         {
             Rect bar = ChipBarRect(screenWidth, screenHeight);
-            Rect sound = ChipSoundRect(screenWidth, screenHeight);
+            Rect settings = ChipSettingsRect(screenWidth, screenHeight);
             float sc = Scale(screenHeight);
             float w = Mathf.Min(360f * sc, bar.width * 0.28f);
-            return new Rect(sound.x - 12f * sc - w, bar.y, w, bar.height);
+            return new Rect(settings.x - 12f * sc - w, bar.y, w, bar.height);
         }
 
         /// <summary>
@@ -375,13 +381,19 @@ namespace MBI.UI
         /// 📌 **차례 때문이다.** 글자를 이 폭에 맞춰 줄인 **뒤**라야 한 줄 높이가 정해지고,
         /// 그 높이로 상자가 선다. 폭이 높이를 기다리면 셈이 제자리를 돈다.
         /// </summary>
-        public static float ResultBannerBoxWidth(float screenWidth, float screenHeight) =>
-            Mathf.Min(ResultBannerWidth * Scale(screenHeight), screenWidth - 24f);
+        public static float ResultBannerBoxWidth(float screenWidth, float screenHeight,
+                                                 float minInnerWidth = 0f)
+        {
+            float sc = Scale(screenHeight);
+            float need = minInnerWidth + ResultBannerPad * sc * 2f;
+            return Mathf.Min(Mathf.Max(ResultBannerWidth * sc, need), screenWidth - 24f);
+        }
 
         /// <summary>글자가 실제로 쓸 수 있는 가로 — 상자에서 양쪽 여백을 뺀 것.</summary>
-        public static float ResultBannerInnerWidth(float screenWidth, float screenHeight) =>
-            Mathf.Max(0f,
-                ResultBannerBoxWidth(screenWidth, screenHeight) - ResultBannerPad * Scale(screenHeight) * 2f);
+        public static float ResultBannerInnerWidth(float screenWidth, float screenHeight,
+                                                   float minInnerWidth = 0f) =>
+            Mathf.Max(0f, ResultBannerBoxWidth(screenWidth, screenHeight, minInnerWidth)
+                          - ResultBannerPad * Scale(screenHeight) * 2f);
 
         /// <summary>
         /// **파밍 파괴 안내 띠** — 결과 배너와 **같은 폭·같은 자리**, 단추 줄만 없다
@@ -413,19 +425,32 @@ namespace MBI.UI
                             Mathf.Max(0f, box.width - pad * 2f), textLinePx);
         }
 
-        public static Rect ResultBannerRect(float screenWidth, float screenHeight, float textLinePx)
+        public static Rect ResultBannerRect(float screenWidth, float screenHeight, float textLinePx,
+                                            float minInnerWidth = 0f, float minButtonPx = 0f)
         {
             float sc = Scale(screenHeight);
-            float w = ResultBannerBoxWidth(screenWidth, screenHeight);
+            float w = ResultBannerBoxWidth(screenWidth, screenHeight, minInnerWidth);
             float pad = ResultBannerPad * sc;
-            float h = pad + textLinePx + PlateGap * sc + ResultButtonHeight * sc + pad;
+            float h = pad + textLinePx + PlateGap * sc
+                      + ResultBannerButtonHeight(screenHeight, minButtonPx) + pad;
             return new Rect((screenWidth - w) * 0.5f, screenHeight * 0.42f, w, h);
         }
 
+        /// <summary>
+        /// 단추 줄 높이 — 설계값과 **글자가 요구하는 높이** 중 큰 쪽.
+        ///
+        /// ⚠️⚠️ 설계값 하나만 쓰면 작은 창에서 칸이 글자보다 낮아진다. 글자는 사다리 바닥
+        /// 16(= 12 pt)에서 멈추므로 더 줄 수가 없고, 그래서 **글자가 칸을 넘었다**
+        /// (2026-10-14 사용자 육안 ③ · 「다음 스테이지로」가 「음 스테이지」로 잘렸다).
+        /// </summary>
+        public static float ResultBannerButtonHeight(float screenHeight, float minButtonPx = 0f) =>
+            Mathf.Max(ResultButtonHeight * Scale(screenHeight), minButtonPx);
+
         /// <summary>결과 글자 한 줄 — 배너 위쪽.</summary>
-        public static Rect ResultBannerTextRect(float screenWidth, float screenHeight, float textLinePx)
+        public static Rect ResultBannerTextRect(float screenWidth, float screenHeight, float textLinePx,
+                                                float minInnerWidth = 0f, float minButtonPx = 0f)
         {
-            Rect box = ResultBannerRect(screenWidth, screenHeight, textLinePx);
+            Rect box = ResultBannerRect(screenWidth, screenHeight, textLinePx, minInnerWidth, minButtonPx);
             float pad = ResultBannerPad * Scale(screenHeight);
             return new Rect(box.x + pad, box.y + pad, box.width - pad * 2f, textLinePx);
         }
@@ -438,12 +463,15 @@ namespace MBI.UI
         /// 무엇을 권할지는 내가 정할 일이 아니다(설계 역기입 자리).
         /// </summary>
         public static Rect ResultBannerButtonRect(float screenWidth, float screenHeight,
-            float textLinePx, int index, int count)
+            float textLinePx, int index, int count,
+            float minInnerWidth = 0f, float minButtonPx = 0f)
         {
-            Rect one = ResultBannerButtonRect(screenWidth, screenHeight, textLinePx);
+            Rect one = ResultBannerButtonRect(screenWidth, screenHeight, textLinePx,
+                                              minInnerWidth, minButtonPx);
             if (count <= 1) return one;
 
-            Rect text = ResultBannerTextRect(screenWidth, screenHeight, textLinePx);
+            Rect text = ResultBannerTextRect(screenWidth, screenHeight, textLinePx,
+                                             minInnerWidth, minButtonPx);
             float gap = PlateGap * Scale(screenHeight) * 0.5f;
             float w = (text.width - gap * (count - 1)) / count;
             if (w <= 0f) return one;
@@ -452,13 +480,15 @@ namespace MBI.UI
         }
 
         /// <summary>결과 화면 단추 — 글자 아래, 틈은 <see cref="PlateGap"/>. 여럿이면 나눠 쓴다.</summary>
-        public static Rect ResultBannerButtonRect(float screenWidth, float screenHeight, float textLinePx)
+        public static Rect ResultBannerButtonRect(float screenWidth, float screenHeight, float textLinePx,
+                                                  float minInnerWidth = 0f, float minButtonPx = 0f)
         {
-            Rect text = ResultBannerTextRect(screenWidth, screenHeight, textLinePx);
+            Rect text = ResultBannerTextRect(screenWidth, screenHeight, textLinePx,
+                                             minInnerWidth, minButtonPx);
             float sc = Scale(screenHeight);
             return new Rect(text.x, text.yMax + PlateGap * sc,
                             Mathf.Min(ResultButtonWidth * sc, text.width),
-                            ResultButtonHeight * sc);
+                            ResultBannerButtonHeight(screenHeight, minButtonPx));
         }
 
         /// <summary>펼친 소리 패널의 가로·세로 (기준 캔버스 · ⚠️ 가정).</summary>
