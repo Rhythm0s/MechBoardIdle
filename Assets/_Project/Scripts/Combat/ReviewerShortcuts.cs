@@ -195,9 +195,12 @@ namespace MBI.Combat
             //    <see cref="DrawSettingsDim"/> 로 깐다. **판과 단추는 여기 그대로 둔다** —
             //    판째로 뒤로 옮기면 그 아래 HUD 단추가 눌림을 먼저 가져간다
             //    (IMGUI 는 그리기는 나중이 위 · 누름은 먼저가 이긴다 · 삭제 창 #126 의 그 병).
-            //    구멍은 판 + 그 아래 「- 일시 정지 -」 줄까지다 — 그 글자는 어둠 위에 밝게 앉아야 한다.
-            s_dimHole = new Rect(plate.x, plate.y, plate.width,
-                                 plate.height + 8f * scale + 36f * scale);
+            //    구멍은 **판만**이다. 「- 일시 정지 -」는 어둠을 깐 **뒤에** 그 위에 다시 쓴다
+            //    (아래 `DrawSettingsDim`) — 구멍에 줄까지 넣었더니 판 아래에 **안 어두운 띠**가
+            //    생겼다(10-15 8127 실측). 원래 설계는 「어둠 위에 밝은 글자」다.
+            s_dimHole = plate;
+            s_pausedRect = new Rect(plate.x, plate.yMax + 8f * scale, plate.width, 36f * scale);
+            s_pausedPx = Mathf.Max(14, Mathf.RoundToInt(16f * scale));
 
             UiPlate.Draw(plate);
             UiBlockers.Add(plate);
@@ -282,15 +285,9 @@ namespace MBI.Combat
             // ✅ **판 바깥 아래에 「- 일시 정지 -」**(2026-09-21 사용자 확정 ⑥).
             //    판이 열려 있는 동안 게임이 서므로, **왜 멈춰 있는지**를 화면이 말해야 한다.
             //    ⚠️ 판 **밖**이라 어둠 위에 앉는다 — 그래서 밝은 글자다.
-            var pausedStyle = new GUIStyle(GUI.skin.label)
-            {
-                fontSize = Mathf.Max(14, Mathf.RoundToInt(16f * scale)),
-                alignment = TextAnchor.MiddleCenter,
-                fontStyle = FontStyle.Bold,
-            };
-            pausedStyle.normal.textColor = new Color(0.95f, 0.92f, 0.75f, 0.95f);
-            GUI.Label(new Rect(plate.x, plate.yMax + 8f * scale, plate.width, 36f * scale),
-                      "- 일시 정지 -", pausedStyle);
+            //    🗑️ 여기서 그리던 것 폐기(10-15 · #133) — 이 OnGUI 뒤에 `StageRunner` 가 그리는 것
+            //       (마일스톤 카드 · 어둠막)이 이 글자를 덮었다. 이제 `DrawSettingsDim` 이
+            //       어둠을 깐 **뒤에** 쓴다. 글자는 단추가 아니라 옮겨도 눌림과 무관하다.
         }
 
         /// <summary>
@@ -305,6 +302,10 @@ namespace MBI.Combat
         /// </summary>
         private static Rect s_dimHole;
 
+        /// <summary>판 아래 「- 일시 정지 -」 자리와 글자 크기 — 이 패널이 그릴 때마다 적는다.</summary>
+        private static Rect s_pausedRect;
+        private static int s_pausedPx = 14;
+
         /// <summary>
         /// **설정 판 어둠막을 깐다 — `StageRunner.OnGUI` 의 끝에서만 부른다**(2026-10-15 · #133).
         ///
@@ -318,6 +319,18 @@ namespace MBI.Combat
             if (GameViewSignals.BoardViewActive) return;   // 판이 안 그려지는 화면 — 구멍도 없다
             if (s_dimHole.width <= 1f || s_dimHole.height <= 1f) return;
             DrawDimAround(s_dimHole);
+
+            // ✅ **판 바깥 아래에 「- 일시 정지 -」**(2026-09-21 사용자 확정 ⑥).
+            //    판이 열려 있는 동안 게임이 서므로, **왜 멈춰 있는지**를 화면이 말해야 한다.
+            //    ⚠️ 판 **밖**이라 어둠 위에 앉는다 — 그래서 밝은 글자다. 어둠 **뒤에** 쓴다.
+            var pausedStyle = new GUIStyle(GUI.skin.label)
+            {
+                fontSize = s_pausedPx,
+                alignment = TextAnchor.MiddleCenter,
+                fontStyle = FontStyle.Bold,
+            };
+            pausedStyle.normal.textColor = new Color(0.95f, 0.92f, 0.75f, 0.95f);
+            GUI.Label(s_pausedRect, "- 일시 정지 -", pausedStyle);
         }
 
         private static void DrawDimAround(Rect plate)
