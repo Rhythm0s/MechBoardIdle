@@ -29,6 +29,21 @@ namespace MBI.UI
         /// 사다리 맨 아래도 안 들면 **맨 아래를 쓴다** — 자르는 것보다 삐져나오는 편이
         /// 「무엇인지」를 남긴다(넘침 여부는 부르는 쪽이 판을 넓혀 고칠 일이다).
         /// </summary>
+        /// <summary>
+        /// **재기 전에 그 크기로 글자를 굽는다** (2026-10-15 · 8127 재확인 #136).
+        ///
+        /// ⚠️⚠️ 동적 폰트는 **그 크기로 한 번도 안 그린 글자의 폭을 덜 잰다.** 결과 단추 셋 중
+        ///    「다음 스테이지로」만 칸보다 넓게 그려져 바닥 크기로 줄었는데 — 그 줄인 탓에 「음」이
+        ///    그 크기로 영영 안 그려져 다음 프레임에도 덜 쟀다(고리). 재기 전에 굽으면 끊긴다.
+        /// </summary>
+        public static void Prebake(GUIStyle style, string text)
+        {
+            if (style == null || string.IsNullOrEmpty(text)) return;
+            Font f = style.font != null ? style.font : (GUI.skin != null ? GUI.skin.font : null);
+            if (f == null || !f.dynamic) return;
+            f.RequestCharactersInTexture(text, style.fontSize, style.fontStyle);
+        }
+
         public static int FitOneLine(GUIStyle style, string text, float maxWidth)
         {
             if (style == null || string.IsNullOrEmpty(text) || maxWidth <= 0f)

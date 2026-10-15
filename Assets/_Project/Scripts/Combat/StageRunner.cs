@@ -2825,6 +2825,7 @@ namespace MBI.Combat
                 float needBtnH = UiLayout.EnterBoardRect(Screen.width, Screen.height).height;
                 for (int i = 0; i < labels.Count; i++)
                 {
+                    UiText.Prebake(probe, labels[i]);   // 안 구운 글자를 덜 재는 고리를 끊는다(UiText 주석)
                     Vector2 sz = probe.CalcSize(new GUIContent(labels[i]));
                     btnWidths[i] = sz.x;
                     if (sz.y > needBtnH) needBtnH = sz.y;
