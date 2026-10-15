@@ -37,6 +37,8 @@ namespace MBI.Tests
             StringAssert.Contains("GUI.enabled = r.IsRunnable && editOk;", src, "조합표 후보가 도전 층에서 안 흐리다");
             StringAssert.Contains("GUI.enabled = wasDel && editOk;", src, "「떼기」가 도전 층에서 안 흐리다");
             StringAssert.Contains("GUI.enabled = wasEdit && editOk;", src, "「90도 돌리기」가 도전 층에서 안 흐리다");
+            StringAssert.Contains("// #148 덧 — 도전 중 「보기」로 열어 둔 팝오버는 도전과 함께 닫는다", src,
+                                  "도전 층을 나올 때 팝오버를 안 닫는다(T4 안내 줄을 가렸다)");
         }
 
         [Test]

@@ -2645,6 +2645,9 @@ namespace MBI.Logistics
             {
                 _challengePanForced = false;
                 Mode = _modeBeforeChallenge;
+                // #148 덧 — 도전 중 「보기」로 열어 둔 팝오버는 도전과 함께 닫는다. 남겨 두면 파밍(S2)의
+                //    T4 안내 줄을 가렸다(8123 실측 dfbf6c8).
+                if (_selected.HasValue) Deselect();
             }
 
             bool boardOpen = GameLayerController.BoardViewActive;
