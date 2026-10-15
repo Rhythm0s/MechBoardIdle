@@ -549,7 +549,7 @@ namespace MBI.Combat
             Rect r = UiLayout.StageBadgeRect(Screen.width, Screen.height);
             UiPlate.Draw(r);
 
-            int px = KoreanFont.Snap(Mathf.Max(11, Mathf.RoundToInt(32f * sc)));
+            int px = UiLayout.StageBadgeLineFontSize(Screen.height);   // T3 안내 문구와 같은 셈
             var badge = new GUIStyle(GUI.skin.label)
             {
                 fontSize = KoreanFont.Snap(Mathf.Max(13, Mathf.RoundToInt(42f * sc))),

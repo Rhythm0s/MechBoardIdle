@@ -171,6 +171,11 @@ namespace MBI.Combat
                 enabled = false;
                 return;
             }
+            // ✅ **T3 어둠막·문구**(2026-10-14 사용자 확정 #130) — 씬을 다시 굽지 않고 여기서 붙인다.
+            //    켜고 끄는 판단은 그쪽 규칙이 한다 — 붙여 두기만 하면 된다.
+            if (GetComponent<ChallengeTutorialOverlay>() == null)
+                gameObject.AddComponent<ChallengeTutorialOverlay>();
+
             BuildBackground(); // 바닥 그림 — 원반보다 아래(-40). 스테이지가 바뀌면 다시 깐다.
 
             // ⚠️ **메인 메뉴가 떠 있으면 여기서 시작하지 않는다**(2026-09-10 · 플랜 §66-10).

@@ -570,6 +570,15 @@ namespace MBI.UI
         ///
         /// ⚠️ 크기는 가정이다(최소 버튼 한 변 · UI 문서 역기입 자리).
         /// </summary>
+        /// <summary>
+        /// **배지 안내 줄의 글자 크기** — 「파밍: …」·「목표: …」 줄 (2026-10-14 · #130 로 꺼냈다).
+        ///
+        /// T3 안내 문구가 **같은 꼴**이어야 해서(사용자 확정 「튜토리얼 안내 줄 꼴」) 셈을
+        /// 여기 하나로 모았다. 32·11 은 배지가 쓰던 그대로다(가정 · 새로 안 지었다).
+        /// </summary>
+        public static int StageBadgeLineFontSize(float screenHeight) =>
+            KoreanFont.Snap(Mathf.Max(11, Mathf.RoundToInt(32f * Scale(screenHeight))));
+
         public static Rect ChallengeButtonRect(float screenWidth, float screenHeight)
         {
             float sc = Scale(screenHeight);

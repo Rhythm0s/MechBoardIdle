@@ -293,7 +293,9 @@ namespace MBI.Logistics
         /// ⚠️ **바탕 판·이동 흐림과 곱해지는 자리가 있다** — 셋이 겹치면 두 번 세 번 어두워진다.
         /// 겹치는 범위는 설계가 UI 문서에 함께 적는다(`260911_W01` 3장).
         /// </summary>
-        private static readonly Color TutorialDimColor = new Color(0.03f, 0.05f, 0.08f, 0.55f);
+        /// 📌 **값은 이제 `TutorialDim.Color` 한 곳에 산다**(2026-10-14 · #130 — T3 가 같은 막을
+        ///    쓰게 되면서 꺼냈다). 여기는 그것을 가리키기만 한다.
+        private static readonly Color TutorialDimColor = TutorialDim.Color;
 
         /// <summary>고스트 칸 밖을 덮는 조각들. 한 칸에 하나다 — 구멍을 내려면 조각이어야 한다.</summary>
         private GameObject _tutorialDim;
