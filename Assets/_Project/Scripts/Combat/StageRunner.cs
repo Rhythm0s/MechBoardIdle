@@ -171,10 +171,9 @@ namespace MBI.Combat
                 enabled = false;
                 return;
             }
-            // ✅ **T3 어둠막·문구**(2026-10-14 사용자 확정 #130) — 씬을 다시 굽지 않고 여기서 붙인다.
-            //    켜고 끄는 판단은 그쪽 규칙이 한다 — 붙여 두기만 하면 된다.
-            if (GetComponent<ChallengeTutorialOverlay>() == null)
-                gameObject.AddComponent<ChallengeTutorialOverlay>();
+            // 🗑️ **T3 어둠막 컴포넌트를 붙이던 자리 폐기**(2026-10-15 · #133). 따로 붙인 컴포넌트는
+            //    이 OnGUI 보다 **먼저** 그려져 HUD 가 막 위에 남았다 — 이제 `OnGUI` 끝에서
+            //    `ChallengeTutorialOverlay.Draw()` 를 직접 부른다.
 
             BuildBackground(); // 바닥 그림 — 원반보다 아래(-40). 스테이지가 바뀌면 다시 깐다.
 
@@ -2847,6 +2846,13 @@ namespace MBI.Combat
 
             // 목록은 **맨 위에** 그린다 — 고르는 동안은 다른 것을 덮는 쪽이 맞다.
             if (_stageListOpen) DrawStageListPanel();
+
+            // ✅ **T3 어둠막·문구 — 이 OnGUI 의 끝에서 그린다**(2026-10-15 사용자 확정 #133 · QA CID_032).
+            //    HUD(칩·Stage 띠·배지)·원형 셋(로봇 B·Auto·합체)·「도전」이 **전부 이 OnGUI 에서**
+            //    그려진다. 같은 OnGUI 의 끝이면 그것들 **위**에 앉는 것이 보장된다 —
+            //    「도전」은 먼저 그려졌고 막이 그 자리만 비워 두므로 그대로 밝다.
+            //    보드 화면은 위에서 이미 돌아갔다(`BoardViewActive` → return) — 막을 안 깐다.
+            ChallengeTutorialOverlay.Draw();
 
             // IMGUI는 나중에 그린 것이 위에 온다 — 연출은 결과 화면 위에도 덮여야 한다.
             DrawMergeCutscene();

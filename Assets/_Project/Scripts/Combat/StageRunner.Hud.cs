@@ -768,6 +768,12 @@ namespace MBI.Combat
         {
             if (!TutorialSignals.GoalActive) return;
 
+            // ⚠️ **설정 판이 열려 있으면 안 그린다**(2026-10-15 사용자 확정 #133 · QA CID_014).
+            //    이 카드는 `StageRunner.OnGUI` 가 그리고, 그 OnGUI 는 설정 판(`ReviewerShortcuts`)
+            //    보다 **뒤에** 돈다 — 그래서 판 아래의 「- 일시 정지 -」 오른끝을 **카드가 덮었다**
+            //    (576×1024 실측). 판이 열리면 게임이 서 있으므로 진행 카드를 보여 줄 까닭도 없다.
+            if (SettingsGate.IsOpen) return;
+
             float sc = UiLayout.Scale(Screen.height);
             Rect r = UiLayout.MilestoneCardRect(Screen.width, Screen.height);
             if (r.height <= 20f || r.width <= 20f) return;

@@ -10,21 +10,29 @@ namespace MBI.Combat
     /// 켜고 끄는 판단은 <see cref="ChallengeTutorialOverlayRule"/> 하나가 한다 — 막과 문구가
     /// 한 몸으로 움직여야 하기 때문이다. 여기는 **그리기만** 한다.
     ///
-    /// ⚠️⚠️ **맨 뒤에 그린다 — `GUI.depth` 가 아니라 실행 순서로.** 막이 다른 화면 **위**에
-    /// 앉아야 하는데, IMGUI 의 depth 는 이 리포에서 기대대로 안 섰다(09-10 시도 · 09-15 실측으로
-    /// 걷었다 · `AudioOptionsPanel` 주석). 같은 문제를 그쪽이 `[DefaultExecutionOrder(1000)]` 로
-    /// 풀었고, 이 막은 **그보다도 뒤**라야 하므로 1001 이다(가정 · 값 자체는 「맨 뒤」라는 뜻뿐).
+    /// ✅ **`StageRunner.OnGUI` 의 끝에서 부른다**(2026-10-15 사용자 확정 #133 · QA CID_032).
+    /// 막이 덮어야 할 HUD(칩·Stage 띠·배지)·원형 셋(로봇 B·Auto·합체)·「도전」이 **전부 그
+    /// OnGUI 에서** 그려진다. 같은 OnGUI 의 끝이면 그것들 위에 앉는 것이 **보장된다.**
+    ///
+    /// 🗑️ **구 길 「별도 컴포넌트 + `[DefaultExecutionOrder(1001)]` 로 맨 뒤」 폐기.**
+    ///    실행 순서는 **OnGUI 차례를 세우지 못했다** — 이 막이 `StageRunner` 보다 **먼저**
+    ///    그려져 HUD·원형 셋이 막 **위**에 밝게 남았다(10-15 8126 실플레이 · 576×1024).
+    ///    내가 10-14 에 8123 에서 「화면 전체 어둠」이라 보고한 것도 틀렸다 — 그 스크린샷에도
+    ///    HUD 는 밝았다. `AudioOptionsPanel` 의 1000 이 먹은 듯 보인 것은 그쪽이 **같은 오브젝트의
+    ///    메뉴**와만 다퉜기 때문이지, 다른 컴포넌트와의 차례를 세운 것이 아니었다.
     ///
     /// ⚠️ **눌림은 안 바꾼다.** 막은 그림이고 단추가 아니다 — 무엇이 눌리는가는 여전히
     /// `TutorialGate` 가 정한다(#115 ⓒ 범위 불변). 막은 **눈을 「도전」으로 모으는** 일만 한다.
     ///
-    /// ⚠️ **붙이는 곳은 `StageRunner.Start` 다** — 씬 생성기를 다시 돌리지 않으려고.
-    /// 씬을 다시 구우면 다른 배선까지 함께 흔들린다(09-17 씬이 묵어 목록이 0/0 이던 사고).
+    /// 🗑️ 구 「붙이는 곳은 `StageRunner.Start`」 폐기 — 컴포넌트가 아니라 정적 함수가 됐다.
     /// </summary>
-    [DefaultExecutionOrder(1001)]
-    public sealed class ChallengeTutorialOverlay : MonoBehaviour
+    public static class ChallengeTutorialOverlay
     {
-        private void OnGUI()
+        /// <summary>
+        /// 막과 문구를 그린다. **`StageRunner.OnGUI` 맨 끝(합체 연출 바로 앞)에서만** 부른다 —
+        /// 다른 자리에서 부르면 그 뒤에 그려지는 것이 막 위로 올라온다.
+        /// </summary>
+        public static void Draw()
         {
             if (!ChallengeTutorialOverlayRule.ShouldShow(
                     TutorialSignals.HighlightChallengeButton,
