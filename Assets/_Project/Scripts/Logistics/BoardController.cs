@@ -178,6 +178,12 @@ namespace MBI.Logistics
         private BoardMode _modeBeforeChallenge = BoardMode.Pan;
         private BoardPan _pan;
         private bool _panning;
+
+        /// <summary>이동 모드 누름 자리(월드 · 보드 밀기 전) — #148 탭 가르기.</summary>
+        private Vector2 _panPressWorld;
+
+        /// <summary>이동 모드 누름 칸 — #148 탭 가르기.</summary>
+        private Vector2Int _panPressCell;
         private Vector2 _panLastWorld;
         private Vector3 _baseWorldPosition;
         private GameObject _dimOverlay;
@@ -2560,6 +2566,9 @@ namespace MBI.Logistics
                 if (!TryPointerWorld(out Vector2 world)) return;
                 _panning = true;
                 _panLastWorld = world;
+                // #148 — 도전 층 이동 모드에서 「탭 = 고르기」를 가르려고 누른 자리를 적어 둔다.
+                _panPressWorld = world;
+                _panPressCell = _grid != null ? _grid.WorldToCell(world - PanOffset) : default;
                 return;
             }
 
@@ -2714,7 +2723,21 @@ namespace MBI.Logistics
         {
             // 방향을 묻는 중이면 누름은 이미 `OnPressStart` 가 먹었다 — 떼는 손은 아무 일도 안 한다.
             if (_askingCell.HasValue) { _dragging = false; _dragCells.Clear(); return; }
-            if (_panning) { _panning = false; return; }
+            if (_panning)
+            {
+                _panning = false;
+                // ✅ **도전 층 이동 모드: 끌면 이동 · 탭하면 팝오버(보기)**(2026-10-15 사용자 확정 #148).
+                //    탭 = 누른 자리가 떼는 순간에도 **같은 칸**(보드가 칸 경계를 넘을 만큼 안 밀렸다).
+                //    숫자 문턱을 새로 짓지 않는다 — 칸 하나가 기준이다. 파밍 층 이동 모드는 종전 그대로(끌기만).
+                if (_challengePanForced && _grid != null
+                    && _grid.WorldToCell(_panPressWorld - PanOffset) == _panPressCell
+                    && _grid.IsInside(_panPressCell))
+                {
+                    if (_grid.IsOccupied(_panPressCell)) Select(_panPressCell);
+                    else if (_selected.HasValue) Deselect();
+                }
+                return;
+            }
             if (!_dragging) return;
             _dragging = false;
 
@@ -4482,9 +4505,13 @@ namespace MBI.Logistics
             float mh = Mathf.Max(h * 0.8f, style.CalcSize(new GUIContent(delLabel)).y);
 
             // 코어는 못 돌린다 · 도전 층에서도 못 돌린다 — 까닭은 아래 회전 절.
-            bool canRotate = CoreNodeRule.CanRotate(inst)
-                             && BoardEditRule.CanEdit(StageLayerSignals.IsFarming,
-                                                      StageLayerSignals.IsTutorialStage);
+            // ✅ **편집 행은 보이되 흐림**(2026-10-15 사용자 확정 #148) — 도전 층에서 팝오버를 볼 수 있게 됐다.
+            //    🗑️ 구 「도전 층이면 회전 단추를 안 그림」 폐기 — 떼기·조합표·탄종은 그때 **막혀 있지도 않았다**
+            //    (도전 중 팝오버에 닿는 길이 조립 모드 탭뿐이었고 #146 전엔 그 길이 열려 있었다).
+            //    코어는 여전히 회전 단추를 아예 안 그린다(사용자 확정 09-30 ②).
+            bool canRotate = CoreNodeRule.CanRotate(inst);
+            bool editOk = BoardEditRule.CanEdit(StageLayerSignals.IsFarming,
+                                                StageLayerSignals.IsTutorialStage);
 
             // 적을 글자를 **먼저** 다 만든다 — 잴 것과 그릴 것이 같아야 한다.
             string title = $"{inst.Definition.displayName} · {inst.Rotation * 90}°";
@@ -4604,7 +4631,11 @@ namespace MBI.Logistics
             // ⚠️ **화살표 기호를 걷었다**(2026-09-15 육안 · 글리프). 「↻」(U+21BB)가
             // 폰트에 없어 **두부(□)로 찍혔다** — 한글 폰트에 없는 기호는 안 쓴다
             // (09-02 에 「⚡」·「🔥」가 같은 이유로 걷혔다 · `VariablePanel` 주석).
-            if (canRotate && UiSkin.Button(new Rect(x, y, rotBtnW, titleH), rotLabel, oneLine))
+            bool wasEdit = GUI.enabled;
+            GUI.enabled = wasEdit && editOk;
+            bool rotHit = canRotate && UiSkin.Button(new Rect(x, y, rotBtnW, titleH), rotLabel, oneLine);
+            GUI.enabled = wasEdit;
+            if (rotHit && editOk)
             {
                 inst.Rotation = inst.Rotation + 1;
                 RebuildMarker(_selected.Value);
@@ -4662,12 +4693,15 @@ namespace MBI.Logistics
                     float lh = moduleH[i];
                     GUI.Label(new Rect(x, y, modLabelW, lh), moduleTexts[i], body);
 
-                    if (UiSkin.Button(new Rect(x + w - delW, y, delW, lh), "떼기", oneLine)
+                    bool wasDel = GUI.enabled;
+                    GUI.enabled = wasDel && editOk;   // #148 · 도전 층 흐림
+                    if (UiSkin.Button(new Rect(x + w - delW, y, delW, lh), "떼기", oneLine) && editOk
                         && inst.DetachModuleAt(moduleSlots[i]))
                     {
                         RebuildMarker(_selected.Value);   // 기호 스프라이트가 노드에 얹혀 있다
                         RefreshConnections();             // 배수가 빠지면 하류 산출이 바뀐다
                     }
+                    GUI.enabled = wasDel;
                     y += lh;
                 }
             }
@@ -4685,8 +4719,8 @@ namespace MBI.Logistics
 
                 // 돌릴 수 없는 후보도 **자리는 보여 준다** — 감추면 「왜 못 만드나」가 아니라
                 // 「그런 게 있었나」가 된다. 착수 금지가 화면에서도 자리로 표현된다.
-                GUI.enabled = r.IsRunnable;
-                if (UiSkin.Button(rect, (r.kind == current ? "● " : "") + r.displayName, style)
+                GUI.enabled = r.IsRunnable && editOk;   // #148 · 도전 층 흐림
+                if (UiSkin.Button(rect, (r.kind == current ? "● " : "") + r.displayName, style) && editOk
                     && inst.SelectRecipe(r.kind))
                     RefreshConnections(); // 산출이 바뀌면 하류 벨트가 나르는 것도 바뀐다
 
@@ -4706,8 +4740,10 @@ namespace MBI.Logistics
                 var kind = (AmmoKind)k;
                 var rect = new Rect(x + k * (bw + pad), y, bw, ammoH);
 
-                if (UiSkin.Button(rect, (inst.AmmoKind == kind ? "● " : "") + AmmoLabel(kind), style))
+                GUI.enabled = editOk;   // #148 · 도전 층 흐림
+                if (UiSkin.Button(rect, (inst.AmmoKind == kind ? "● " : "") + AmmoLabel(kind), style) && editOk)
                     inst.AmmoKind = kind; // 탄종은 흐르는 품목(탄약)을 바꾸지 않는다 — 라벨만 갈린다
+                GUI.enabled = true;
             }
         }
 

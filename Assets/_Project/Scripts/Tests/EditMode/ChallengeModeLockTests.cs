@@ -29,6 +29,17 @@ namespace MBI.Tests
         }
 
         [Test]
+        public void 도전_층_이동_모드_탭은_고르기이고_팝오버_편집_행은_흐리다()
+        {
+            // #148 — 화면 배선을 코드가 스스로 말하게 한다(ModuleDetachWiredTests 와 같은 꼴).
+            string src = System.IO.File.ReadAllText("Assets/_Project/Scripts/Logistics/BoardController.cs");
+            StringAssert.Contains("if (_challengePanForced && _grid != null", src, "도전 층 이동 모드 탭 → 고르기 갈래가 없다");
+            StringAssert.Contains("GUI.enabled = r.IsRunnable && editOk;", src, "조합표 후보가 도전 층에서 안 흐리다");
+            StringAssert.Contains("GUI.enabled = wasDel && editOk;", src, "「떼기」가 도전 층에서 안 흐리다");
+            StringAssert.Contains("GUI.enabled = wasEdit && editOk;", src, "「90도 돌리기」가 도전 층에서 안 흐리다");
+        }
+
+        [Test]
         public void 태그_원형은_S4_통과_전_S4_이하에서는_안_보인다()
         {
             // 원형 셋을 그리는 문은 RobotBGate.IsUnlocked 하나다(#144 · #103).
