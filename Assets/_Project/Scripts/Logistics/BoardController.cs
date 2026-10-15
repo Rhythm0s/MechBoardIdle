@@ -170,6 +170,12 @@ namespace MBI.Logistics
         ///    이 검사보다 **먼저** 갱신해서, 같은 밭을 쓰면 「막 열림」을 영영 못 본다.
         /// </summary>
         private bool _wasBoardOpenForMode;
+
+        /// <summary>도전 층이라 이동 모드로 세워 둔 중인가(#146).</summary>
+        private bool _challengePanForced;
+
+        /// <summary>도전 층에 들어가기 전 모드 — 나오면 되돌린다(#146).</summary>
+        private BoardMode _modeBeforeChallenge = BoardMode.Pan;
         private BoardPan _pan;
         private bool _panning;
         private Vector2 _panLastWorld;
@@ -1835,6 +1841,7 @@ namespace MBI.Logistics
                 }
             }
             TutorialSignals.ModuleTargetFilled = filled;
+            TutorialSignals.ModuleTargetKnown = true;
         }
 
         private void UpdateTutorialDim()
@@ -2614,6 +2621,23 @@ namespace MBI.Logistics
             //    첫 화면은 그대로 전투 화면이고, 「▼ 조립」으로 보드가 **열리는 순간**에만 세운다 —
             //    열려 있는 동안 사용자가 이동 모드로 바꾸면 그대로 둔다(매 프레임 덮지 않는다).
             //    튜토리얼 밖은 09-28 확정 「기본 이동」 그대로다. 규칙은 `BoardOpenModeRule`.
+            // ✅ **도전 층 = 이동 모드 고정**(2026-10-15 사용자 확정 #146 · #143 덧).
+            //    종전엔 파밍에서 쓰던 조립 모드를 그대로 들고 들어가 **보드를 끌어도 안 움직였다**
+            //    (조립 모드의 끌기는 벨트 깔기인데 도전 층은 못 고친다). 들어갈 때 모드를 맡겨 두고
+            //    이동으로 세우고, 고칠 수 있는 층으로 돌아오면 맡긴 모드를 되돌린다.
+            bool editLocked = !BoardEditRule.CanToggleMode(StageLayerSignals.IsFarming,
+                                                           StageLayerSignals.IsTutorialStage);
+            if (editLocked)
+            {
+                if (!_challengePanForced) { _modeBeforeChallenge = _mode; _challengePanForced = true; }
+                if (_mode != BoardMode.Pan) Mode = BoardMode.Pan;
+            }
+            else if (_challengePanForced)
+            {
+                _challengePanForced = false;
+                Mode = _modeBeforeChallenge;
+            }
+
             bool boardOpen = GameLayerController.BoardViewActive;
             if (boardOpen && !_wasBoardOpenForMode
                 && BoardOpenModeRule.OpensInBuildMode(StageLayerSignals.IsTutorialStage,
@@ -3787,7 +3811,12 @@ namespace MBI.Logistics
                     if (!on && _selectedModule < 0 && TutorialGate.Current == TutorialGate.Phase.PlaceModule)
                         GUI.color = new Color(1f, 0.92f, 0.45f,
                             0.75f + 0.25f * Mathf.Abs(Mathf.Sin(Time.unscaledTime * 2.2f)));
-                    bool mHit = UiSkin.Button(mRect, (on ? "●" : "") + modulePalette[m].displayName, style);
+                    // ✅ 이름 = 「생산량 모듈」·「생산속도 모듈」(#147). 안 들면 사다리를 내린다(칸은 다른 팔레트 단추와 같다).
+                    string mLabel = (on ? "●" : "") + ModuleTutorialRule.DisplayName(modulePalette[m].displayName);
+                    var mStyle = new GUIStyle(style);
+                    if (mStyle.CalcSize(new GUIContent(mLabel)).x > mRect.width + 0.5f)
+                        UiText.FitOneLine(mStyle, mLabel, mRect.width);
+                    bool mHit = UiSkin.Button(mRect, mLabel, mStyle);
                     GUI.color = prevM;
                     if (mHit)
                     {
@@ -4473,7 +4502,8 @@ namespace MBI.Logistics
                 ModuleDefinition mod = inst.ModuleAt(slot);
                 if (mod == null) continue;
                 moduleSlots.Add(slot);
-                moduleTexts.Add($"{mod.symbol} {mod.displayName}  ×{mod.outputMultiplier:F2}"
+                // ✅ 「생산량 모듈 ×1.50 부하 ×2.0」(#147) · 🗑️ 구 글자 기호 M/R 앞머리 폐기.
+                moduleTexts.Add($"{ModuleTutorialRule.DisplayName(mod.displayName)}  ×{mod.outputMultiplier:F2}"
                                 + $"  부하 ×{mod.powerLoadMultiplier:F1}");
             }
             RecipeKind current = cur.kind;

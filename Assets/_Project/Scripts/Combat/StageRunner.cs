@@ -1607,7 +1607,9 @@ namespace MBI.Combat
                 StageLayerSignals.IsFarming,
                 TutorialSignals.ModuleTargetFilled);
             // 지급 알림 — 「S2 파밍 첫 진입 때 한 번만 · 복원으로 들어오면 안 뜸」(#138).
-            _moduleGrantNotice.Observe(stageNo, TutorialSignals.ModuleTutorialActive, Time.unscaledTime);
+            if (IsTutorialStage) _moduleGrantNotice.Rearm();   // 「처음부터」 뒤 다음 T4 에서 다시 뜬다
+            _moduleGrantNotice.Observe(TutorialSignals.ModuleTutorialActive,
+                                       TutorialSignals.ModuleTargetKnown, Time.unscaledTime);
 
             // ✅ **보드 잠금이 읽을 값**(2026-10-14 사용자 확정 ④) — 층이 없는 판을
             //    「도전」으로 읽으면 튜토리얼에서 벨트를 못 깐다.
@@ -2998,7 +3000,7 @@ namespace MBI.Combat
             //    알림이 서 있는 동안은 막을 안 깐다 — 둘이 겹치면 알림이 어둠에 묻힌다.
             bool noticeUp = _moduleGrantNotice.IsVisible(Time.unscaledTime);
             ChallengeTutorialOverlay.DrawModule(TutorialSignals.ModuleTutorialActive && !noticeUp);
-            ChallengeTutorialOverlay.DrawGrantNotice(noticeUp);
+            if (ChallengeTutorialOverlay.DrawGrantNotice(noticeUp)) _moduleGrantNotice.Dismiss();
 
             // ✅ **오프라인 보상 판 = HUD 맨 위**(#142 b · CID_102) — 배지 카드·막 위에 앉는다.
             HudTopLayer.DrawAll();

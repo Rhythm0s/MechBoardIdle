@@ -134,6 +134,9 @@ namespace MBI.Combat
             TutorialSignals.GoalActive = true;
             TutorialSignals.GoalSlotFilled = _goal.SlotFilled;
             TutorialSignals.GoalMountFilled = _goal.MountFilled;
+            // #145 · 목표 ② 옆 「(지금/가득)」 — 판정과 같은 마운트에서 옮긴다(TutorialMountProbe 가 재는 그 수).
+            TutorialSignals.GoalMountNow = sim.ActiveMount != null ? sim.ActiveMount.Total : 0f;
+            TutorialSignals.GoalMountCap = sim.ActiveMount != null ? sim.ActiveMount.Capacity : 0f;
 
             if (_goal.IsComplete) Finish();
         }

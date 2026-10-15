@@ -21,19 +21,31 @@ namespace MBI.Core
         public const int StageNumber = 2;
 
         /// <summary>지급 알림 — **사용자 확정 #138 · 구현 가정 아님.** 고치지 않는다.</summary>
-        public const string GrantNotice = "모듈 M·R을 받았습니다";
+        public const string GrantNotice = "생산량·생산속도 모듈을 받았습니다";
+        // 🗑️ 구 「모듈 M·R을 받았습니다」 폐기(2026-10-15 사용자 확정 #147 「생산량, 생산속도 모듈이라고 바꾸자」).
 
         /// <summary>전투 화면 안내 — **사용자 확정 #138 · 구현 가정 아님.** 고치지 않는다.</summary>
         public const string CombatPrompt = "조립 버튼을 눌러 모듈을 붙여보세요";
 
         /// <summary>고스트 위 안내 — **사용자 확정 #138 · 구현 가정 아님.** 고치지 않는다.</summary>
-        public const string GhostHint = "모듈 탭에서 M 또는 R을 고른 뒤 이 노드를 탭하세요";
+        public const string GhostHint = "모듈 탭에서 생산량 또는 생산속도 모듈을 고른 뒤 이 노드를 탭하세요";
+        // 🗑️ 구 「모듈 탭에서 M 또는 R을 고른 뒤 이 노드를 탭하세요」 폐기(#147).
+
+        /// <summary>
+        /// **모듈의 화면 이름** — 「생산량 모듈」·「생산속도 모듈」(2026-10-15 사용자 확정 #147).
+        /// 자산 이름(`MODULE_DATA` TID_Name 「생산량」·「생산속도」)은 안 바꾸고 뒤에 「모듈」을 붙인다.
+        /// 🗑️ 글자 기호 M/R 은 화면에서 폐기 — 코드 안에서만 쓴다.
+        /// </summary>
+        public static string DisplayName(string assetName) =>
+            string.IsNullOrEmpty(assetName) ? "모듈" : assetName + " 모듈";
 
         /// <summary>
         /// 지급 알림이 서 있는 시간(초). ⚠️ **가정 4초** — 사용자 확정이 「표시 시간은 구현 가정」이다
         /// (설계 역기입 자리). 막은 알림이 걷힌 뒤에 깔린다 — 둘이 겹치면 알림이 어둠에 묻힌다.
         /// </summary>
-        public const float NoticeSeconds = 4f;
+        public const float NoticeSeconds = 6f;
+        // 🗑️ 구 4초 폐기(2026-10-15 사용자 결함 「S2 지급 알림이 안 떴다」 — 짧아 놓쳤을 수 있다 · 6초도 가정 ·
+        //    T1 손짓 안내 BeltGestureHintSeconds 와 같은 값). 탭하면 바로 닫힌다.
 
         /// <summary>
         /// **대상 노드 자리 — 앞에서부터 고른다** (⚠️ 가정 · 설계 역기입 자리).
@@ -82,31 +94,38 @@ namespace MBI.Core
     }
 
     /// <summary>
-    /// **지급 알림을 언제 한 장 띄우는가** (2026-10-15 사용자 확정 #138 · 기획서 4-7 준용).
+    /// **지급 알림을 언제 한 장 띄우는가** (2026-10-15 사용자 확정 #138 → 결함 고침).
     ///
-    /// 「S2 파밍 **첫 진입** 때 한 번만 · 저장 복원으로 다시 들어오면 안 뜸」 —
-    /// 4-7 의 「**상태가 바뀌는 순간에만**」이다. T4 가 서 있는 **상태**만 보면 저장에서 돌아온 판도
-    /// 처음부터 참이라 들어오자마자 뜬다(09-16 고스트 안내가 같은 병이었다 · `DrawGhostHint`).
-    ///
-    /// 📌 그래서 **이 세션에서 다른 판(1 이상 · 2 아님)을 본 뒤** T4 가 서는 것을 볼 때만 띄운다.
-    ///    켜자마자 S2 면 다른 판을 본 적이 없으므로 안 뜬다. 판 번호 0(아직 안 실림·튜토리얼 판)은
-    ///    「다른 판」으로 안 센다 — 켜는 중 한두 프레임이 0 이라 그것을 세면 복원 판에서도 뜬다.
+    /// ✅ **T4 가 서는 순간 한 번**(진입 경로 무관 — 「다음 스테이지로」든 바로가기든 복원이든).
+    /// ⚠️⚠️ 🗑️ 구 규칙 「이 세션에서 다른 판을 본 뒤 · 세션에 한 번」 폐기 — 사용자가 S1 통과 뒤 S2 에서
+    ///    알림을 못 봤다. 세션에 한 번이라 **같은 창에서 「처음부터」로 다시 돌면** 둘째 T4 에서 안 떴다.
+    ///    이제 **튜토리얼 판에 서면 다시 무장**한다(<see cref="Rearm"/>) — 「처음부터」는 늘 튜토리얼 판으로 간다.
+    /// ⚠️ 끝 조건 신호(대상 노드에 모듈)가 보드에서 한 번이라도 온 뒤에만 센다 — 켜는 첫 프레임에
+    ///    「아직 모름」을 「모듈 없음」으로 읽어 붙인 판에서 알림이 뜨면 안 된다.
     /// </summary>
     public sealed class ModuleGrantNotice
     {
-        private bool _sawOtherStage;
         private bool _shown;
         private float _shownAt = -1f;
 
         /// <summary>한 프레임을 본다. 이번 프레임에 알림을 **띄웠으면** 참.</summary>
-        public bool Observe(int stageNumber, bool t4Active, float now)
+        public bool Observe(bool t4Active, bool targetKnown, float now)
         {
-            if (stageNumber >= 1 && stageNumber != ModuleTutorialRule.StageNumber) _sawOtherStage = true;
-            if (_shown || !t4Active || !_sawOtherStage) return false;
+            if (_shown || !t4Active || !targetKnown) return false;
             _shown = true;
             _shownAt = now;
             return true;
         }
+
+        /// <summary>다음 T4 에서 다시 띄우게 한다 — 튜토리얼 판에 서 있는 동안 부른다.</summary>
+        public void Rearm()
+        {
+            _shown = false;
+            _shownAt = -1f;
+        }
+
+        /// <summary>탭으로 닫는다.</summary>
+        public void Dismiss() => _shownAt = -1f;
 
         /// <summary>알림이 지금 서 있는가.</summary>
         public bool IsVisible(float now) =>

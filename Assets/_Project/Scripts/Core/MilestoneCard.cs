@@ -19,6 +19,18 @@ namespace MBI.Core
         /// <summary>⚠️ 가정 — 달성 보상 고철.</summary>
         public const int DefaultScrapReward = 50;
 
+        /// <summary>
+        /// 목표 ② 옆 「 (지금/가득)」 (2026-10-15 사용자 확정 #145 · 꼴은 구현 가정).
+        /// 걸쇠가 걸리면 가득 수로 멈춘다. 용량이 0 이면 빈 글.
+        /// </summary>
+        public static string MountProgressText(float now, float cap, bool filled)
+        {
+            if (cap <= 0f) return string.Empty;
+            int c = UnityEngine.Mathf.RoundToInt(cap);
+            int n = filled ? c : UnityEngine.Mathf.Clamp(UnityEngine.Mathf.FloorToInt(now), 0, c);
+            return " (" + n + "/" + c + ")";
+        }
+
         /// <summary>보상을 이미 받았는가.</summary>
         public bool Claimed { get; private set; }
 

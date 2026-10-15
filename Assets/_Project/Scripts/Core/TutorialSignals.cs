@@ -89,6 +89,9 @@ namespace MBI.Core
         /// </summary>
         public static bool ModuleTargetFilled;
 
+        /// <summary>보드가 대상·끝 조건을 **한 번이라도 게시했는가** — 알림이 「아직 모름」을 「없음」으로 안 읽게.</summary>
+        public static bool ModuleTargetKnown;
+
         /// <summary>
         /// 비워 둔 칸을 **다시 비워 달라** — 촬영 복귀 전용(260902_W09 §1-2).
         ///
@@ -170,6 +173,15 @@ namespace MBI.Core
         public static bool GoalMountFilled;
 
         /// <summary>
+        /// 목표 ② 옆 수치 — 마운트 **지금 보유량 / 목표(가득) 보유량** (2026-10-15 사용자 확정 #145).
+        /// 튜토리얼 세션이 활성 마운트에서 그대로 옮긴다(`MountLoad.Total` · `Capacity`) — 짓지 않는다.
+        /// </summary>
+        public static float GoalMountNow;
+
+        /// <summary>목표 ② 의 목표 보유량(활성 마운트 용량). 0 이면 수치를 안 적는다.</summary>
+        public static float GoalMountCap;
+
+        /// <summary>
         /// **지금 열린 판이 튜토리얼이 가르치는 그 판인가** (2026-10-06 사용자 육안 결함).
         ///
         /// ⚠️⚠️ **고스트 칸에는 주인이 없다.** <see cref="GhostCell"/> 은 좌표 하나뿐인데
@@ -199,6 +211,7 @@ namespace MBI.Core
             ModuleTutorialActive = false;
             ModuleTargetCell = null;
             ModuleTargetFilled = false;
+            ModuleTargetKnown = false;
             ClearEmptySlotRequested = false;
             FillEmptySlotRequested = false;
             BoardInBuildMode = false;
@@ -207,6 +220,8 @@ namespace MBI.Core
             GoalActive = false;
             GoalSlotFilled = false;
             GoalMountFilled = false;
+            GoalMountNow = 0f;
+            GoalMountCap = 0f;
         }
     }
 }

@@ -803,8 +803,13 @@ namespace MBI.Combat
             GUI.Label(new Rect(r.x + pad, y, r.width - pad * 2f, rowH),
                       Mark(TutorialSignals.GoalSlotFilled) + " 끊긴 자리를 잇는다", line);
             y += rowH;
+            // ✅ **옆에 (지금 / 목표) 보유량**(2026-10-15 사용자 확정 #145 · 꼴 「(12/40)」은 구현 가정).
+            //    걸쇠가 걸리면(목표 달성) 목표 수로 멈춘다 — 그 뒤 쏘아서 줄어든 수가 「덜 찼다」로 안 읽히게.
             GUI.Label(new Rect(r.x + pad, y, r.width - pad * 2f, rowH),
-                      Mark(TutorialSignals.GoalMountFilled) + " 마운트가 가득 찬다", line);
+                      Mark(TutorialSignals.GoalMountFilled) + " 마운트가 가득 찬다"
+                      + MilestoneCard.MountProgressText(TutorialSignals.GoalMountNow,
+                                                        TutorialSignals.GoalMountCap,
+                                                        TutorialSignals.GoalMountFilled), line);
             y += rowH + 4f * sc;
 
             var btn = new Rect(r.x + pad, y, r.width - pad * 2f,

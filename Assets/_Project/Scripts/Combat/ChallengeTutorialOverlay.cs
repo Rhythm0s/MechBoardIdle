@@ -70,10 +70,11 @@ namespace MBI.Combat
         /// **T4 지급 알림 한 장** — 「모듈 M·R을 받았습니다」(사용자 확정 #138).
         /// 화면 가운데에 판 하나. 막은 안 깐다(알림이지 강제가 아니다). 설정·메뉴·조립 화면에서는 안 띄운다.
         /// </summary>
-        public static void DrawGrantNotice(bool visible)
+        /// <returns>판을 탭했으면 참(부르는 쪽이 닫는다 · 「탭하거나 n초」).</returns>
+        public static bool DrawGrantNotice(bool visible)
         {
             if (!visible || TutorialSignals.BoardViewOpen || SettingsGate.IsOpen || MainMenuGate.IsOpen)
-                return;
+                return false;
 
             UiSkin.Apply();
             float sc = UiLayout.Scale(Screen.height);
@@ -85,6 +86,14 @@ namespace MBI.Combat
                                  size.x, size.y);
             UiPlate.Draw(plate);
             GUI.Label(new Rect(plate.x + pad, plate.y + pad, plate.width - pad * 2f, textH), text, style);
+
+            Event e = Event.current;
+            if (e != null && e.type == EventType.MouseDown && plate.Contains(e.mousePosition))
+            {
+                e.Use();
+                return true;
+            }
+            return false;
         }
 
         private static void DrawFor(Rect button, string text, bool promptAbove)

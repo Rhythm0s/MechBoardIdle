@@ -46,9 +46,17 @@ namespace MBI.Tests
         [Test]
         public void 문안은_사용자_확정_글자_그대로다()
         {
-            Assert.AreEqual("모듈 M·R을 받았습니다", ModuleTutorialRule.GrantNotice);
+            // #147 — 글자 기호 M/R 대신 「생산량·생산속도 모듈」.
+            Assert.AreEqual("생산량·생산속도 모듈을 받았습니다", ModuleTutorialRule.GrantNotice);
             Assert.AreEqual("조립 버튼을 눌러 모듈을 붙여보세요", ModuleTutorialRule.CombatPrompt);
-            Assert.AreEqual("모듈 탭에서 M 또는 R을 고른 뒤 이 노드를 탭하세요", ModuleTutorialRule.GhostHint);
+            Assert.AreEqual("모듈 탭에서 생산량 또는 생산속도 모듈을 고른 뒤 이 노드를 탭하세요", ModuleTutorialRule.GhostHint);
+        }
+
+        [Test]
+        public void 모듈_화면_이름은_자산_이름_뒤에_모듈을_붙인다()
+        {
+            Assert.AreEqual("생산량 모듈", ModuleTutorialRule.DisplayName("생산량"));
+            Assert.AreEqual("생산속도 모듈", ModuleTutorialRule.DisplayName("생산속도"));
         }
 
         // ── 대상 노드 ──
@@ -76,24 +84,48 @@ namespace MBI.Tests
         // ── 지급 알림 ──
 
         [Test]
-        public void S1_에서_S2_로_넘어오면_알림이_한_번_뜬다()
+        public void T4_가_서는_순간_한_번_뜬다_진입_경로와_무관()
         {
             var n = new ModuleGrantNotice();
-            Assert.IsFalse(n.Observe(1, false, 0f));
-            Assert.IsTrue(n.Observe(2, true, 1f));
+            Assert.IsTrue(n.Observe(true, true, 1f));
             Assert.IsTrue(n.IsVisible(1f + ModuleTutorialRule.NoticeSeconds - 0.01f));
             Assert.IsFalse(n.IsVisible(1f + ModuleTutorialRule.NoticeSeconds + 0.01f));
-            Assert.IsFalse(n.Observe(2, true, 2f), "한 번만");
+            Assert.IsFalse(n.Observe(true, true, 2f), "한 번만");
         }
 
         [Test]
-        public void 저장에서_곧장_S2_로_돌아오면_알림이_안_뜬다()
+        public void 처음부터_로_튜토리얼_판에_서면_다음_T4_에서_다시_뜬다()
         {
-            // 켜는 중 판 번호 0(아직 안 실림)은 「다른 판」으로 안 센다.
+            // 사용자 결함(10-15) — 세션에 한 번이라 같은 창에서 다시 돌면 둘째 T4 에서 안 떴다.
             var n = new ModuleGrantNotice();
-            Assert.IsFalse(n.Observe(0, false, 0f));
-            Assert.IsFalse(n.Observe(2, true, 0.1f));
-            Assert.IsFalse(n.IsVisible(0.1f));
+            Assert.IsTrue(n.Observe(true, true, 1f));
+            n.Rearm();
+            Assert.IsTrue(n.Observe(true, true, 50f));
+        }
+
+        [Test]
+        public void 보드가_끝_조건을_아직_안_알렸으면_안_센다()
+        {
+            var n = new ModuleGrantNotice();
+            Assert.IsFalse(n.Observe(true, targetKnown: false, 0f));
+            Assert.IsTrue(n.Observe(true, targetKnown: true, 0.1f));
+        }
+
+        [Test]
+        public void 탭하면_바로_닫힌다()
+        {
+            var n = new ModuleGrantNotice();
+            n.Observe(true, true, 1f);
+            n.Dismiss();
+            Assert.IsFalse(n.IsVisible(1.1f));
+        }
+
+        [Test]
+        public void 목표_줄_수치는_지금과_가득이고_걸리면_가득으로_멈춘다()
+        {
+            Assert.AreEqual(" (12/40)", MilestoneCard.MountProgressText(12.7f, 40f, false));
+            Assert.AreEqual(" (40/40)", MilestoneCard.MountProgressText(5f, 40f, true));
+            Assert.AreEqual(string.Empty, MilestoneCard.MountProgressText(5f, 0f, false));
         }
 
         // ── 게이트 ──
