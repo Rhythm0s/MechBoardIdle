@@ -3076,6 +3076,11 @@ namespace MBI.Combat
         {
             if (_sim.Tag == null) return;
 
+            // ✅ **로봇 B 해금 뒤에만 그린다**(2026-10-15 사용자 확정 #144) — 「로봇 B」·「Auto」·「합체」
+            //    원형 셋과 링 전부. 해금(S4 통과 또는 지금 판 > S4 · #103)되는 순간부터 그린다.
+            //    🗑️ 구 「로봇 B 미해금」 표시 폐기 — 눌리지 않는 원형 셋이 화면 오른쪽을 차지했다.
+            if (!RobotBGate.IsUnlocked) return;
+
             // ⚠️ **날 픽셀 자리를 걷었다**(2026-09-11 · 플랜 §68-4 (A)).
             // 문서는 이 둘을 **원형 200**(기준 캔버스)으로 정했고 자리는 **부유 띠 오른쪽**이다.
             // 종전 `(12, 300, 560, 120)` 은 좌상단 HUD 바로 아래라 배율 라벨과 겹쳤고
@@ -3164,6 +3169,7 @@ namespace MBI.Combat
 
             bool tagHit = UiSkin.Button(
                 tagRect,
+                // 🗑️ 구 「로봇 B · 미해금」 갈래는 위 #144 로 닿지 않는다(남겨 둔다 — 해금 규칙이 바뀌면 다시 산다).
                 robotBReady ? TagButtonLabel() : "로봇 B" + System.Environment.NewLine + "미해금",
                 round);
             GUI.color = tagPrev;

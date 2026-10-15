@@ -5095,13 +5095,21 @@ namespace MBI.Logistics
                 fontSize = KoreanFont.Snap(Mathf.Max(10, Mathf.RoundToInt(rect.height * 0.30f))),
             };
 
-            bool allowed = TutorialGate.Allows(TutorialGate.Control.ModeToggle);
+            // ✅ **도전 층에서는 「도전 중 변경 불가」 · 흐림 · 누름 없음**(2026-10-15 사용자 확정 #143).
+            //    #123 「들어가되 못 고친다」의 화면 표현이다. 파밍 층·튜토리얼 판은 그대로다.
+            bool modeOpen = BoardEditRule.CanToggleMode(StageLayerSignals.IsFarming,
+                                                        StageLayerSignals.IsTutorialStage);
+            bool allowed = TutorialGate.Allows(TutorialGate.Control.ModeToggle) && modeOpen;
             bool was = GUI.enabled;
             GUI.enabled = was && allowed;
 
             bool build = _mode == BoardMode.Build;
             // ⚠️ 「⇄」(U+21C4) 도 폰트에 없다 — 글자로 적는다(육안 · 글리프).
-            string label = (build ? "조립 모드" : "이동 모드") + " (바꾸기)";
+            string label = modeOpen
+                ? (build ? "조립 모드" : "이동 모드") + " (바꾸기)"
+                : BoardEditRule.ChallengeModeLockedLabel;
+            if (style.CalcSize(new GUIContent(label)).x > rect.width + 0.5f)
+                UiText.FitOneLine(style, label, rect.width);
 
             // 강제 버튼(T-7) — 이동 모드일 때만 빛난다. 바꾸고 나면 할 일이 끝났다.
             bool urge = TutorialSignals.HighlightBuildMode && !build;

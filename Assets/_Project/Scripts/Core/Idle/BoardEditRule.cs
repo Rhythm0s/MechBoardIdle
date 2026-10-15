@@ -23,5 +23,19 @@ namespace MBI.Core
             if (isTutorialStage) return true;
             return isFarming;
         }
+
+        /// <summary>
+        /// 도전 층에서 모드 단추가 대신 적는 글 — **사용자 확정 원문 그대로**(2026-10-15 #143). 고치지 않는다.
+        /// </summary>
+        public const string ChallengeModeLockedLabel = "도전 중 변경 불가";
+
+        /// <summary>
+        /// **모드 단추(조립 ↔ 이동)를 누를 수 있는가** (2026-10-15 사용자 확정 #143).
+        ///
+        /// 📌 위 <see cref="CanEdit"/> 의 화면 표현이다 — 도전 층에서는 바꾸는 손이 다 막혀 있는데
+        ///    모드 단추만 살아 「조립 모드」로 바꿔도 아무것도 안 놓였다. 답은 같은 규칙이 낸다.
+        /// </summary>
+        public static bool CanToggleMode(bool isFarming, bool isTutorialStage) =>
+            CanEdit(isFarming, isTutorialStage);
     }
 }
