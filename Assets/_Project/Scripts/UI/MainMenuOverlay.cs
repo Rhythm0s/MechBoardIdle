@@ -37,7 +37,20 @@ namespace MBI.UI
         private const float ButtonGap = 28f;
         private const float ButtonsTop = 1180f;
 
-        private bool _open = true;
+        /// <summary>
+        /// **메뉴가 떠 있는가 — 빗장 한 곳이 답한다**(2026-10-15 사용자 확정 #134).
+        ///
+        /// 🗑️ **구 제 깃발 `_open` 폐기.** 메뉴는 `MainMenuGate.IsOpen` 과 별개로 `_open` 을
+        /// 들고 있었고, 「게임 시작」 때 꺼진 뒤 **다시 켜지는 길이 없었다.** 09-18(`b0bf9db`)에
+        /// 설정의 「메인 메뉴로」가 붙으면서 그 단추는 **빗장만** 열었다(`SettingsGate.ReturnToMainMenu`)
+        /// — 그러자 모든 화면 OnGUI 는 「메뉴가 열렸다」며 그리기를 멈추고, 메뉴는 「나는 닫혔다」며
+        /// 안 그려져 **로봇·HP 바만 남고 단추 0 · 입력 0** 인 화면이 됐다(10-15 사용자 육안 · 8127).
+        /// 빗장 둘 중 하나만 열린 것이다 — 한 값이 두 곳에 살면 답이 둘이 된다(지침 §7).
+        ///
+        /// 📌 이제 깃발을 따로 안 든다. 메뉴가 뜬 뒤 「게임 시작」은 빗장을 닫아 **하던 판으로**
+        ///    돌아간다(저장·판 그대로 · `TryStart` 는 안 거친다 — 처음 한 번만 그 문을 쓴다).
+        /// </summary>
+        public static bool Visible => MainMenuGate.IsOpen;
 
         /// <summary>
         /// ⚠️ **Awake 에서 잡는다.** 유니티는 모든 <c>Awake</c> 를 모든 <c>Start</c> 보다 먼저
@@ -59,7 +72,7 @@ namespace MBI.UI
 
         private void OnGUI()
         {
-            if (!_open) return;
+            if (!Visible) return;
 
             // 볼륨 패널이 이 위에 선다(`AudioOptionsPanel.MenuDepth`) — 메뉴가 여는 것이
             // 메뉴 뒤로 들어가면 안 된다.
@@ -163,8 +176,7 @@ namespace MBI.UI
 
         private void StartGame()
         {
-            _open = false;
-            MainMenuGate.Close();
+            MainMenuGate.Close();   // 이것 하나로 메뉴가 내려간다 — 따로 끌 깃발이 없다
         }
     }
 }
