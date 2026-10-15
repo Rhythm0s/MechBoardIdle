@@ -1595,6 +1595,20 @@ namespace MBI.Combat
                 StageMapName.NumberOf(stage != null ? stage.stageId : string.Empty),
                 StageLayerSignals.IsFarming);
 
+            // **T4 — S2 모듈 배치 튜토리얼**(기획서 4장 T4 · 사용자 확정 #138 · 2026-10-15).
+            // T3 와 같은 꼴이다 — 켜고 **끄는** 것을 매 프레임 다시 판단한다. 끝 조건(대상 노드에
+            // 모듈)은 보드가 쓴 신호를 읽는다 — 그 칸의 사실을 아는 것은 보드뿐이다.
+            int stageNo = StageMapName.NumberOf(stage != null ? stage.stageId : string.Empty);
+            TutorialSignals.ModuleTutorialActive = ModuleTutorialRule.IsActive(
+                IdleSignals.TutorialCleared,
+                IdleSignals.ClearedStageIds.Contains("S" + ChallengeTutorialRule.StageNumber),
+                IdleSignals.ClearedStageIds.Contains("S" + ModuleTutorialRule.StageNumber),
+                stageNo,
+                StageLayerSignals.IsFarming,
+                TutorialSignals.ModuleTargetFilled);
+            // 지급 알림 — 「S2 파밍 첫 진입 때 한 번만 · 복원으로 들어오면 안 뜸」(#138).
+            _moduleGrantNotice.Observe(stageNo, TutorialSignals.ModuleTutorialActive, Time.unscaledTime);
+
             // ✅ **보드 잠금이 읽을 값**(2026-10-14 사용자 확정 ④) — 층이 없는 판을
             //    「도전」으로 읽으면 튜토리얼에서 벨트를 못 깐다.
             StageLayerSignals.IsTutorialStage = IsTutorialStage;
@@ -2129,10 +2143,14 @@ namespace MBI.Combat
             if (r.width <= 1f || r.height <= 1f) return;
             UiBlockers.Add(r);
 
-            var st = new GUIStyle(GUI.skin.button) { wordWrap = false };
             const string label = "도전";
-            if (st.CalcSize(new GUIContent(label)).x > r.width)
-                UiText.FitOneLine(st, label, r.width);
+            GUIStyle st = HudButtonStyle();
+
+            // ✅ **T4 동안에는 잠근다**(2026-10-15 사용자 확정 #138 「잠금 = T3 와 같게」).
+            //    T3 는 이 단추가 가리키는 단추라 늘 열려 있었다 — 그래서 이 문이 지금까지 없었다.
+            bool allowed = TutorialGate.Allows(TutorialGate.Control.EnterChallenge);
+            bool wasEnabled = GUI.enabled;
+            GUI.enabled = wasEnabled && allowed;
 
             // **강제 버튼**(기획서 2장) — T3 동안 이 단추만 빛난다.
             // ⚠️ 빛내는 법은 조립 단추와 **같은 문**이다(`GameLayerController`) —
@@ -2144,7 +2162,28 @@ namespace MBI.Combat
 
             bool hit = UiSkin.Button(r, label, st);
             GUI.color = prevColor;
-            if (hit) EnterChallenge();
+            if (!allowed) UiSkin.DrawLockVeil(r);
+            GUI.enabled = wasEnabled;
+            if (hit && allowed) EnterChallenge();
+        }
+
+        /// <summary>T4 지급 알림 — 세션 안 「상태가 바뀌는 순간」만 센다(#138 · 저장 안 함).</summary>
+        private readonly ModuleGrantNotice _moduleGrantNotice = new ModuleGrantNotice();
+
+        /// <summary>
+        /// **HUD 단추 규격**(「도전」·「조립」) — 글자 크기를 지금 창에서 이 단추가 실제로 쓰는 값으로 준다
+        /// (2026-10-15 · #136 사용자 확정 「결과 단추 크기 = HUD 단추와 같은 규격」).
+        ///
+        /// 📌 결과 단추가 이것을 그대로 받는다 — 둘이 따로 셈하면 한쪽만 바뀌어 다시 어긋난다.
+        /// </summary>
+        private static GUIStyle HudButtonStyle()
+        {
+            Rect r = UiLayout.ChallengeButtonRect(Screen.width, Screen.height);
+            var st = new GUIStyle(GUI.skin.button) { wordWrap = false };
+            const string label = "도전";
+            if (r.width > 1f && st.CalcSize(new GUIContent(label)).x > r.width)
+                UiText.FitOneLine(st, label, r.width);
+            return st;
         }
 
         // ───────────────────── 스테이지 목록 (순서 5) ─────────────────────
@@ -2762,15 +2801,14 @@ namespace MBI.Combat
                     labels.Add("다시 하기");
                 }
 
-                // 바닥 크기(= 12 pt)에서 단추 줄이 요구하는 치수.
-                var probe = new GUIStyle(GUI.skin.button)
-                {
-                    wordWrap = false,
-                    fontSize = KoreanFont.Ladder[0],
-                };
+                // ⚠️⚠️ **단추 크기 = HUD 단추(도전·조립)와 같은 규격**(2026-10-15 사용자 확정 #136).
+                //    글자는 「도전」이 지금 쓰는 크기, 높이는 「도전」 칸 높이 — 상자는 거기에 맞춰 커진다.
+                //    🗑️ 구 「바닥 크기(12 pt)로 재기」 폐기 — 재는 글자와 그리는 글자가 달라서
+                //    잰 칸보다 큰 글자가 들어가 다시 잘렸다.
+                GUIStyle probe = HudButtonStyle();
                 float btnGap = UiLayout.ResultBannerButtonGap(Screen.height);
                 var btnWidths = new float[labels.Count];
-                float needBtnH = 0f;
+                float needBtnH = UiLayout.ChallengeButtonRect(Screen.width, Screen.height).height;
                 for (int i = 0; i < labels.Count; i++)
                 {
                     Vector2 sz = probe.CalcSize(new GUIContent(labels[i]));
@@ -2838,7 +2876,7 @@ namespace MBI.Combat
 
                     // 칸이 글자에서 나왔으므로 바닥 크기면 들어간다. 그래도 한 번 더 맞춘다 —
                     // 창이 너무 좁아 상자가 화면 폭에 깎이면 그때는 줄이는 수밖에 없다.
-                    var bs = new GUIStyle(GUI.skin.button) { wordWrap = false };
+                    var bs = new GUIStyle(probe);
                     if (bs.CalcSize(new GUIContent(labels[i])).x > r.width)
                         UiText.FitOneLine(bs, labels[i], r.width);
 
@@ -2875,6 +2913,12 @@ namespace MBI.Combat
             //    「도전」은 먼저 그려졌고 막이 그 자리만 비워 두므로 그대로 밝다.
             //    보드 화면은 위에서 이미 돌아갔다(`BoardViewActive` → return) — 막을 안 깐다.
             ChallengeTutorialOverlay.Draw();
+
+            // **T4 막·문구·지급 알림**(#138) — T3 막과 같은 자리(OnGUI 끝)·같은 까닭이다.
+            //    알림이 서 있는 동안은 막을 안 깐다 — 둘이 겹치면 알림이 어둠에 묻힌다.
+            bool noticeUp = _moduleGrantNotice.IsVisible(Time.unscaledTime);
+            ChallengeTutorialOverlay.DrawModule(TutorialSignals.ModuleTutorialActive && !noticeUp);
+            ChallengeTutorialOverlay.DrawGrantNotice(noticeUp);
 
             // IMGUI는 나중에 그린 것이 위에 온다 — 연출은 결과 화면 위에도 덮여야 한다.
             DrawMergeCutscene();

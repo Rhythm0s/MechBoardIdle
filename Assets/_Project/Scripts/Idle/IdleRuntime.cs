@@ -86,7 +86,8 @@ namespace MBI.Idle
             if (IdleSignals.DrainSaveReset())
             {
                 ResetSave();
-                IdleSignals.TutorialCleared = false;
+                // #141 · 저장은 비웠는데 메모리 장부가 남아 T3 안 뜸·S2 열림 — 새 저장으로 갈아끼운다
+                IdleSignals.RepublishAfterReset(Data);
                 RobotBGate.Reset();   // 처음부터면 B 도 다시 잠긴다
             }
 

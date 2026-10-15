@@ -41,25 +41,89 @@ namespace MBI.Combat
                     MainMenuGate.IsOpen))
                 return;
 
+            Rect button = UiLayout.ChallengeButtonRect(Screen.width, Screen.height);
+            DrawFor(button, ChallengeTutorialOverlayRule.Prompt, promptAbove: false);
+        }
+
+        /// <summary>
+        /// **T4 ① — 「▼ 조립」 하나만 남기고 덮는 막 + 안내 문구** (2026-10-15 사용자 확정 #138).
+        ///
+        /// T3 막 그대로다(같은 색·같은 판·같은 글자 크기) — 구멍만 「▼ 조립」이고, 문구는 단추가
+        /// 화면 아래에 있어 **단추 위**에 앉는다. 켜고 끄는 판단은 T3 와 같은 규칙이 한다
+        /// (조립 화면·설정·메뉴에서는 안 깐다).
+        /// </summary>
+        public static void DrawModule(bool t4Active)
+        {
+            if (!ChallengeTutorialOverlayRule.ShouldShow(
+                    t4Active,
+                    TutorialSignals.BoardViewOpen,
+                    SettingsGate.IsOpen,
+                    MainMenuGate.IsOpen))
+                return;
+
+            Rect button = UiLayout.EnterBoardRect(Screen.width, Screen.height);
+            DrawFor(button, ModuleTutorialRule.CombatPrompt, promptAbove: true);
+        }
+
+        /// <summary>
+        /// **T4 지급 알림 한 장** — 「모듈 M·R을 받았습니다」(사용자 확정 #138).
+        /// 화면 가운데에 판 하나. 막은 안 깐다(알림이지 강제가 아니다). 설정·메뉴·조립 화면에서는 안 띄운다.
+        /// </summary>
+        public static void DrawGrantNotice(bool visible)
+        {
+            if (!visible || TutorialSignals.BoardViewOpen || SettingsGate.IsOpen || MainMenuGate.IsOpen)
+                return;
+
+            UiSkin.Apply();
+            float sc = UiLayout.Scale(Screen.height);
+            GUIStyle style = PromptStyle();
+            string text = ModuleTutorialRule.GrantNotice;
+            float pad = UiPlate.Pad + 8f * sc;
+            Vector2 size = FitText(style, text, pad, out float textH);
+            var plate = new Rect((Screen.width - size.x) * 0.5f, (Screen.height - size.y) * 0.5f,
+                                 size.x, size.y);
+            UiPlate.Draw(plate);
+            GUI.Label(new Rect(plate.x + pad, plate.y + pad, plate.width - pad * 2f, textH), text, style);
+        }
+
+        private static void DrawFor(Rect button, string text, bool promptAbove)
+        {
             UiSkin.Apply(); // 껍데기 + 한글 폰트 — WebGL엔 시스템 폰트 폴백이 없다
 
             float sc = UiLayout.Scale(Screen.height);
 
-            // ── 막 — 「도전」 단추 자리만 남긴다 ──
+            // ── 막 — 가리키는 단추 자리만 남긴다 ──
             // 자리는 단추가 쓰는 그 함수에서 받는다(지침 §7) — 따로 재면 구멍과 단추가 어긋난다.
             // 판 테두리(`UiPlate.Pad`)만큼 넓혀 단추 테두리가 반쯤 어둠에 걸리지 않게 한다.
-            Rect button = UiLayout.ChallengeButtonRect(Screen.width, Screen.height);
             if (button.width <= 1f || button.height <= 1f) return;   // 단추가 없는 창이면 막도 없다
             Rect hole = new Rect(button.x - UiPlate.Pad, button.y - UiPlate.Pad,
                                  button.width + UiPlate.Pad * 2f, button.height + UiPlate.Pad * 2f);
             TutorialDim.DrawAround(hole);
 
-            // ── 문구 — 단추 **바로 아래**, 오른쪽 끝을 단추에 맞춘다(자리·크기 가정) ──
+            // ── 문구 — 단추 **바로 아래**(T3) 또는 **바로 위**(T4 · 단추가 화면 아래), 오른쪽 끝을
+            //    단추에 맞춘다(자리·크기 가정) ──
             //
             // 📌 크기는 배지 안내 줄과 **같은 셈**이다(`StageBadgeLineFontSize` · 사용자 확정
             //    「튜토리얼 안내 줄 꼴」). 판은 다른 패널과 같은 `UiPlate`.
             // ⚠️ **글자는 다 보여야 한다**(#125). 한 줄이 화면 폭을 넘으면 자르지 않고
             //    **줄을 바꾼다** — 높이는 바뀐 줄 수에서 잰다.
+            GUIStyle style = PromptStyle();
+            float pad = UiPlate.Pad + 8f * sc;
+            Vector2 size = FitText(style, text, pad, out float textH);
+            float w = size.x, h = size.y;
+
+            float x = Mathf.Clamp(button.xMax - w, 12f, Screen.width - 12f - w);
+            float y = promptAbove
+                ? button.y - UiLayout.PlateGap * sc - h
+                : button.yMax + UiLayout.PlateGap * sc;
+            var plate = new Rect(x, y, w, h);
+
+            UiPlate.Draw(plate);
+            GUI.Label(new Rect(plate.x + pad, plate.y + pad, plate.width - pad * 2f, textH), text, style);
+        }
+
+        private static GUIStyle PromptStyle()
+        {
             var style = new GUIStyle(GUI.skin.label)
             {
                 fontSize = UiLayout.StageBadgeLineFontSize(Screen.height),
@@ -68,14 +132,16 @@ namespace MBI.Combat
                 clipping = TextClipping.Overflow,
             };
             style.normal.textColor = Color.white;
+            return style;
+        }
 
-            string text = ChallengeTutorialOverlayRule.Prompt;
-            float pad = UiPlate.Pad + 8f * sc;
+        /// <summary>판 크기 — 글자에서 잰다. 화면 폭을 넘으면 줄을 바꾼다(#125).</summary>
+        private static Vector2 FitText(GUIStyle style, string text, float pad, out float textH)
+        {
             float maxW = Screen.width - 24f;
             float textW = style.CalcSize(new GUIContent(text)).x;
             float w = Mathf.Min(textW + pad * 2f, maxW);
 
-            float textH;
             if (textW + pad * 2f > maxW)
             {
                 style.wordWrap = true;
@@ -85,14 +151,7 @@ namespace MBI.Combat
             {
                 textH = style.lineHeight;
             }
-            float h = textH + pad * 2f;
-
-            float x = Mathf.Clamp(button.xMax - w, 12f, Screen.width - 12f - w);
-            float y = button.yMax + UiLayout.PlateGap * sc;
-            var plate = new Rect(x, y, w, h);
-
-            UiPlate.Draw(plate);
-            GUI.Label(new Rect(plate.x + pad, plate.y + pad, plate.width - pad * 2f, textH), text, style);
+            return new Vector2(w, textH + pad * 2f);
         }
     }
 }

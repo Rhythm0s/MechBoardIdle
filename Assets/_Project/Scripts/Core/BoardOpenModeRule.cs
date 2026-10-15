@@ -19,5 +19,15 @@ namespace MBI.Core
     {
         /// <summary>보드가 **막 열렸을 때** 조립(설치) 모드로 세울 것인가.</summary>
         public static bool OpensInBuildMode(bool isTutorialStage) => isTutorialStage;
+
+        /// <summary>
+        /// T4(모듈 배치 튜토리얼)도 조립 모드로 연다 (2026-10-15 · #138 · ⚠️ 구현 판단).
+        ///
+        /// 모듈은 **조립 모드에서 노드를 탭해야** 붙는다 — 이동 모드에서는 누름이 화면 이동이 된다.
+        /// #135 와 같은 까닭이다: 이동 모드로 열면 「바꿔라」 한 계단이 더 생기고 안내한 대로 해도
+        /// 안 먹는 것처럼 보인다. 사용자 확정 #135 의 뜻(튜토리얼 보드 = 설치 모드)을 T4 에도 건다.
+        /// </summary>
+        public static bool OpensInBuildMode(bool isTutorialStage, bool moduleTutorialActive) =>
+            isTutorialStage || moduleTutorialActive;
     }
 }

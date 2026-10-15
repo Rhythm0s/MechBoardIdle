@@ -1769,9 +1769,43 @@ namespace MBI.Logistics
         /// ⚠️ `GhostCellFilled` 도 여기서 쓴다 — 그것을 정하는 것과 막을 걷는 것이
         /// **같은 판단**이라 떨어져 있으면 또 어긋난다.
         /// </summary>
+        /// <summary>
+        /// **T4 대상 노드와 끝 조건을 게시한다** (2026-10-15 사용자 확정 #138).
+        ///
+        /// 대상은 <see cref="ModuleTutorialRule.PickTarget"/> 이 고른다(⚠️ 가정 · 하네스 실측).
+        /// 그 노드를 지웠으면 다음 자리, 둘 다 없으면 null — 그때는 **판의 아무 노드에나 모듈이
+        /// 붙으면 끝**이다(막다른 국면을 안 만든다).
+        /// </summary>
+        private void PublishModuleTarget()
+        {
+            Vector2Int? t = ModuleTutorialRule.PickTarget(c => _grid.IsInside(c) && _grid.GetAt(c) != null);
+            TutorialSignals.ModuleTargetCell = t;
+
+            bool filled = false;
+            if (t.HasValue)
+            {
+                NodeInstance n = _grid.GetAt(t.Value);
+                filled = n != null && n.ModuleCount > 0;
+            }
+            else
+            {
+                for (int x = 0; x < _grid.Columns && !filled; x++)
+                for (int y = 0; y < _grid.Rows && !filled; y++)
+                {
+                    NodeInstance n = _grid.GetAt(new Vector2Int(x, y));
+                    if (n != null && n.ModuleCount > 0) filled = true;
+                }
+            }
+            TutorialSignals.ModuleTargetFilled = filled;
+        }
+
         private void UpdateTutorialDim()
         {
             if (_grid == null) return;
+
+            // T4 대상 노드와 끝 조건을 게시한다 — 그 칸의 사실을 아는 것은 보드뿐이다(#138).
+            // ⚠️ 제 판(A)을 볼 때만 쓴다 — B 판을 보는 동안은 마지막 값을 그대로 둔다.
+            if (_editing == TutorialBoardOwner) PublishModuleTarget();
 
             // ⚠️ **제 판에만 건다**(2026-10-06 육안 결함) — 고스트 좌표에는 주인이 없다.
             //    B 탭에서는 막도 고스트도 **걷은 채로 둔다**(채울 이유가 없는 칸이다).
@@ -1780,8 +1814,14 @@ namespace MBI.Logistics
                 : null;
             if (!target.HasValue)
             {
-                RefreshTutorialDim(null); // 튜토리얼이 끝났거나 꺼졌다 — 막을 걷는다
-                RefreshTutorialGhost(null);
+                // ✅ **T4 ② — 대상 노드 칸만 남기고 덮는다**(2026-10-15 사용자 확정 #138 「T1 막 재사용」).
+                //    고스트도 그 칸에 뜬다. 붙이면(끝 조건) 국면이 사라지고 둘이 함께 걷힌다.
+                Vector2Int? moduleCell = _editing == TutorialBoardOwner
+                                         && TutorialGate.Current == TutorialGate.Phase.PlaceModule
+                    ? TutorialSignals.ModuleTargetCell
+                    : null;
+                RefreshTutorialDim(moduleCell); // 튜토리얼이 끝났거나 꺼졌으면 null — 막을 걷는다
+                RefreshTutorialGhost(moduleCell);
                 return;
             }
 
@@ -1986,6 +2026,15 @@ namespace MBI.Logistics
         /// </summary>
         private void DrawGhostHint(Camera cam, GUIStyle style, float fontScale)
         {
+            // ✅ **T4 ② — 대상 노드 위 안내**(2026-10-15 사용자 확정 #138 · 문안 확정).
+            if (_editing == TutorialBoardOwner
+                && TutorialGate.Current == TutorialGate.Phase.PlaceModule
+                && TutorialSignals.ModuleTargetCell.HasValue)
+            {
+                DrawModuleGhostHint(cam, style, fontScale, TutorialSignals.ModuleTargetCell.Value);
+                return;
+            }
+
             Vector2Int? cell = TutorialSignals.GhostCell;
             if (!cell.HasValue) return;
 
@@ -2078,6 +2127,58 @@ namespace MBI.Logistics
 
             GUI.Label(new Rect(x, y, w, lineH), what, st);
             GUI.Label(new Rect(x, y + lineH, w, lineH), how, st);
+        }
+
+        /// <summary>
+        /// **T4 고스트 위 안내** — 대상 노드 칸 위에 확정 문안 한 줄(넘치면 줄을 바꾼다 · #125).
+        ///
+        /// 자리·글자 크기는 T1 안내(<see cref="DrawGhostHint"/>)와 같은 셈이다. 다른 것은 판 폭 —
+        /// 문안이 길어 칸 배수(2.4 칸)로는 안 든다. **판을 글자에서 재고**, 화면 폭을 넘으면 줄을 바꾸고,
+        /// 화면 밖으로 안 나가게 민다.
+        /// </summary>
+        private void DrawModuleGhostHint(Camera cam, GUIStyle style, float fontScale, Vector2Int cell)
+        {
+            Vector3 c = CellWorld(cell);
+            Vector3 top = new Vector3(c.x, c.y + config.cellSize * 0.5f, 0f);
+            Vector3 sp = cam.WorldToScreenPoint(top);
+            if (sp.z <= 0f) return;
+
+            Vector3 edge = cam.WorldToScreenPoint(top + new Vector3(config.cellSize, 0f, 0f));
+            float cellPx = Mathf.Abs(edge.x - sp.x);
+            if (cellPx < 24f) return;   // 너무 작으면 글자가 뭉갠다 — 안 그린다(T1 과 같다)
+
+            var st = new GUIStyle(style)
+            {
+                alignment = TextAnchor.MiddleCenter,
+                clipping = TextClipping.Overflow,
+                fontStyle = FontStyle.Bold,
+                wordWrap = false,
+            };
+            int byCell = Mathf.RoundToInt(cellPx * 0.26f);
+            st.fontSize = KoreanFont.Snap(Mathf.Max(10, Mathf.Min(byCell, Mathf.RoundToInt(28f * fontScale))));
+            st.normal.textColor = Color.white;
+
+            string text = ModuleTutorialRule.GhostHint;
+            float pad = UiPlate.Pad;
+            float maxW = Screen.width - 24f;
+            float textW = st.CalcSize(new GUIContent(text)).x;
+            float w = Mathf.Min(textW + pad * 2f, maxW);
+            float textH;
+            if (textW + pad * 2f > maxW)
+            {
+                st.wordWrap = true;
+                textH = st.CalcHeight(new GUIContent(text), w - pad * 2f);
+            }
+            else textH = st.lineHeight;
+            float h = textH + pad * 2f;
+
+            float x = Mathf.Clamp(sp.x - w * 0.5f, 12f, Mathf.Max(12f, Screen.width - 12f - w));
+            float y = Mathf.Max(8f, Screen.height - sp.y - h - cellPx * 0.12f);
+
+            var plate = new Rect(x, y, w, h);
+            UiPlate.Draw(plate);
+            UiBlockers.Add(plate);   // 판 밑의 칸이 눌리지 않게
+            GUI.Label(new Rect(x + pad, y + pad, w - pad * 2f, textH), text, st);
         }
 
         /// <summary>
@@ -2463,7 +2564,8 @@ namespace MBI.Logistics
             //    튜토리얼 밖은 09-28 확정 「기본 이동」 그대로다. 규칙은 `BoardOpenModeRule`.
             bool boardOpen = GameLayerController.BoardViewActive;
             if (boardOpen && !_wasBoardOpenForMode
-                && BoardOpenModeRule.OpensInBuildMode(StageLayerSignals.IsTutorialStage))
+                && BoardOpenModeRule.OpensInBuildMode(StageLayerSignals.IsTutorialStage,
+                                                      TutorialSignals.ModuleTutorialActive))
                 Mode = BoardMode.Build;
             _wasBoardOpenForMode = boardOpen;
 
@@ -2557,6 +2659,25 @@ namespace MBI.Logistics
             //    📌 규칙은 `BoardEditRule` 한 곳이 든다(지침 §7).
             bool canEdit = BoardEditRule.CanEdit(StageLayerSignals.IsFarming,
                                                  StageLayerSignals.IsTutorialStage);
+
+            // ✅ **T4 ② — 모듈을 붙이는 손만 받는다**(2026-10-15 사용자 확정 #138).
+            //    대상 노드 탭 = 붙이기 · 다른 노드 탭 = 들여다보기(고르기) · 그 밖(빈 칸 탭·끌기·지우기)은
+            //    아무 일 없음. 붙이라고 해 놓고 노드·벨트를 놓을 수 있으면 「지금 할 일」이 둘이 된다.
+            //    대상이 없으면(지웠다) 아무 노드에나 붙는다 — 끝 조건이 그렇게 받는다.
+            if (TutorialGate.Current == TutorialGate.Phase.PlaceModule)
+            {
+                if (_dragCells.Count == 1)
+                {
+                    Vector2Int tap = _dragCells[0];
+                    Vector2Int? want = TutorialSignals.ModuleTargetCell;
+                    bool isTarget = !want.HasValue || want.Value == tap;
+                    if (canEdit && isTarget && _grid.IsOccupied(tap) && TryAttachSelectedModule(tap)) { }
+                    else if (_grid.IsOccupied(tap)) Select(tap);
+                    else if (_selected.HasValue) Deselect();
+                }
+                _dragCells.Clear();
+                return;
+            }
 
             if (canEdit
                 && TutorialGate.Allows(TutorialGate.Control.Remove)
@@ -3609,11 +3730,19 @@ namespace MBI.Logistics
                     bool on = _selectedModule == m;
                     bool wasM = GUI.enabled;
                     GUI.enabled = wasM && moduleAllowed;
-                    if (UiSkin.Button(mRect, (on ? "●" : "") + modulePalette[m].displayName, style))
+                    // 강제 버튼 — T4 ② 에서 아직 안 골랐으면 M/R 을 빛낸다(#138).
+                    Color prevM = GUI.color;
+                    if (!on && _selectedModule < 0 && TutorialGate.Current == TutorialGate.Phase.PlaceModule)
+                        GUI.color = new Color(1f, 0.92f, 0.45f,
+                            0.75f + 0.25f * Mathf.Abs(Mathf.Sin(Time.unscaledTime * 2.2f)));
+                    bool mHit = UiSkin.Button(mRect, (on ? "●" : "") + modulePalette[m].displayName, style);
+                    GUI.color = prevM;
+                    if (mHit)
                     {
                         _selectedModule = on ? -1 : m;
                         _elementMode = null;
                     }
+                    DrawPaletteModuleThumb(mRect, modulePalette[m]);
                     if (!moduleAllowed) UiSkin.DrawLockVeil(mRect);
                     GUI.enabled = wasM;
                     bx += step;
@@ -4230,49 +4359,145 @@ namespace MBI.Logistics
                 cam.WorldToScreenPoint(cw + new Vector3(_grid.CellSize, 0f, 0f)).x - sp.x);
 
             float uiS = UiLayout.Scale(Screen.height);
-            float w = UiLayout.RecipePopoverWidth * uiS;
-            float h = UiLayout.RecipePopoverRow * uiS;
+            float hDesign = UiLayout.RecipePopoverRow * uiS;
             float pad = UiLayout.RecipePopoverGap * uiS * 0.25f;
-            float inner = UiLayout.RecipePopoverGap * uiS * 0.5f;
+            // ⚠️ 안쪽 여백이 판 테두리보다 좁으면 글자가 테두리에 붙어 잘려 보인다(#139).
+            float inner = Mathf.Max(UiLayout.RecipePopoverGap * uiS * 0.5f, UiPlate.Pad);
 
+            // 📌 **글자는 넘치면 줄을 바꾼다**(2026-10-15 · #139) — 폭이 넉넉하면 한 줄 그대로다.
+            //    말줄임은 안 한다(#125 「글자는 전부 보인다 · 말줄임은 숫자만」).
             var style = new GUIStyle(GUI.skin.button)
             {
-                fontSize = KoreanFont.Snap(Mathf.Max(10, Mathf.RoundToInt(h * 0.34f))),
+                fontSize = KoreanFont.Snap(Mathf.Max(10, Mathf.RoundToInt(hDesign * 0.34f))),
+                wordWrap = true,
             };
             var head = new GUIStyle(GUI.skin.label)
             {
-                fontSize = KoreanFont.Snap(Mathf.Max(10, Mathf.RoundToInt(h * 0.30f))),
+                fontSize = KoreanFont.Snap(Mathf.Max(10, Mathf.RoundToInt(hDesign * 0.30f))),
                 fontStyle = FontStyle.Bold,
+                wordWrap = true,
             };
 
             var body = new GUIStyle(GUI.skin.label)
             {
-                fontSize = KoreanFont.Snap(Mathf.Max(10, Mathf.RoundToInt(h * 0.26f))),
-                wordWrap = false,
+                fontSize = KoreanFont.Snap(Mathf.Max(10, Mathf.RoundToInt(hDesign * 0.26f))),
+                wordWrap = true,
             };
+            var flowBody = new GUIStyle(body) { wordWrap = false };   // 그림 줄은 접지 않는다
+
+            // ⚠️⚠️ **칸을 글자에서 잰다**(2026-10-15 사용자 육안 #139 · 8127).
+            //    폭 560·줄 76 을 배율로만 줄였더니 작은 창에서 글자는 바닥 16 px 에서 멈추고
+            //    칸만 줄어 「90도 돌리기」→「00도 돌리기」·「조합표」→「합표」로 잘렸다.
+            //    #122·#136 과 같은 결이다 — **고칠 곳은 글자가 아니라 칸이다.**
+            const string rotLabel = "90도 돌리기";
+            const string delLabel = "떼기";
+            float h = Mathf.Max(hDesign, style.CalcSize(new GUIContent(rotLabel)).y);
+            float row = Mathf.Max(hDesign * 0.62f,
+                Mathf.Max(head.CalcSize(new GUIContent("상태")).y, body.CalcSize(new GUIContent("상태")).y));
+            float mh = Mathf.Max(h * 0.8f, style.CalcSize(new GUIContent(delLabel)).y);
+
+            // 코어는 못 돌린다 · 도전 층에서도 못 돌린다 — 까닭은 아래 회전 절.
+            bool canRotate = CoreNodeRule.CanRotate(inst)
+                             && BoardEditRule.CanEdit(StageLayerSignals.IsFarming,
+                                                      StageLayerSignals.IsTutorialStage);
+
+            // 적을 글자를 **먼저** 다 만든다 — 잴 것과 그릴 것이 같아야 한다.
+            string title = $"{inst.Definition.displayName} · {inst.Rotation * 90}°";
+            float workload = LogisticsOutputBridge.Workload.Of(_selected.Value);
+            string stateLine = $"{NodeStateText(_selected.Value)}  ·  가동률 {Mathf.Clamp01(workload) * 100f:F0}%";
+            NodeRecipe cur = inst.CurrentRecipe;
+            float powerEach = inst.Definition.resources.powerDraw * inst.ModulePowerLoadMultiplier;
+            string powerLine = $"전력 {powerEach * Mathf.Clamp01(workload):F1} (대당 {powerEach:F1})"
+                               + "  ·  " + ProductionTimeText(inst, cur);
+            int moduleRows = inst.ModuleCount;
+            var moduleSlots = new List<int>();
+            var moduleTexts = new List<string>();
+            for (int slot = 0; slot < NodeInstance.ModuleSlots; slot++)
+            {
+                ModuleDefinition mod = inst.ModuleAt(slot);
+                if (mod == null) continue;
+                moduleSlots.Add(slot);
+                moduleTexts.Add($"{mod.symbol} {mod.displayName}  ×{mod.outputMultiplier:F2}"
+                                + $"  부하 ×{mod.powerLoadMultiplier:F1}");
+            }
+            RecipeKind current = cur.kind;
+            bool showAmmo = candidateCount > 0 && current == RecipeKind.Ammo;   // 그리는 길과 같다
+
+            // ── 폭: 가장 긴 줄 ──
+            float Need(GUIStyle st, string t) => st.CalcSize(new GUIContent(t)).x;
+            float rotW = canRotate ? Need(style, rotLabel) : 0f;
+            float delW = Need(style, delLabel);
+            float needW = (canRotate ? rotW + inner : 0f) + Need(head, title);
+            foreach (string t in new[] { "상태", "물품", "전력 · 시간", "붙은 모듈", "조합표", "탄종" })
+                needW = Mathf.Max(needW, Need(head, t));
+            needW = Mathf.Max(needW, Need(body, stateLine));
+            needW = Mathf.Max(needW, Need(body, powerLine));
+            needW = Mathf.Max(needW,
+                LayoutRecipeFlow(new Rect(0f, 0f, 0f, row), inst, cur, flowBody, draw: false));
+            foreach (string t in moduleTexts) needW = Mathf.Max(needW, Need(body, t) + inner + delW);
+            if (candidates != null)
+                foreach (NodeRecipe r in candidates)
+                    needW = Mathf.Max(needW, Need(style, "● " + r.displayName));
+            float ammoBtnW = 0f;
+            if (showAmmo)
+                for (int k = 0; k < 3; k++)
+                    ammoBtnW = Mathf.Max(ammoBtnW, Need(style, "● " + AmmoLabel((AmmoKind)k)));
+            needW = Mathf.Max(needW, ammoBtnW * 3f + pad * 2f);
+
+            float boxW = Mathf.Max(UiLayout.RecipePopoverWidth * uiS, needW + inner * 2f);
+            float margin = UiLayout.RecipePopoverGap * uiS;
+            // 화면보다 넓으면 화면 폭(양옆 여백)까지만 — 그 안에서 줄을 바꾼다.
+            float w = UiLayout.RecipePopoverFitWidth(boxW, Screen.width, margin) - inner * 2f;
+
+            // ── 높이: 줄마다 실제 높이(줄바꿈 포함) ──
+            float Tall(GUIStyle st, string t, float width, float min) =>
+                Mathf.Max(min, st.CalcHeight(new GUIContent(t), Mathf.Max(1f, width)));
+            float rotBtnW = Mathf.Min(rotW, w);
+            float titleX = canRotate ? rotBtnW + inner : 0f;
+            float titleH = Tall(head, title, w - titleX,
+                canRotate ? Tall(style, rotLabel, rotBtnW, h) : h);
+            float stateH = Tall(body, stateLine, w, row);
+            float powerH = Tall(body, powerLine, w, row);
+            float modLabelW = Mathf.Max(1f, w - delW - inner);
+            var moduleH = new List<float>();
+            foreach (string t in moduleTexts) moduleH.Add(Tall(body, t, modLabelW, mh));
+            var candH = new List<float>();
+            if (candidates != null)
+                foreach (NodeRecipe r in candidates)
+                    candH.Add(Tall(style, (r.kind == current ? "● " : "") + r.displayName, w, h));
+            float bw = (w - pad * 2f) / 3f;
+            float ammoH = h;
+            if (showAmmo)
+                for (int k = 0; k < 3; k++)
+                    ammoH = Mathf.Max(ammoH, Tall(style, "● " + AmmoLabel((AmmoKind)k), bw, h));
 
             // ⚠️ **높이를 줄 수에서 잰다** — 고정값을 박으면 조합표가 넷인 노드에서 잘린다
             // (오늘 HUD 280 이 그 자리였다).
-            bool hasAmmo = inst.CurrentRecipe.kind == RecipeKind.Ammo;
-            float row = h * 0.62f;                       // 읽기 전용 한 줄
-            int moduleRows = inst.ModuleCount;
-            float total = h                              // 회전 + 이름
-                          + row * 2f                     // ① 상태 · 가동률
-                          + row * 2f                     // ② 입력 → 출력
-                          + row * 2f                     // ③ 전력 · 생산 시간
-                          + (moduleRows > 0 ? row + (h * 0.8f) * moduleRows : 0f)   // 모듈 행
-                          + (candidateCount > 0 ? row + (h + pad) * candidateCount : 0f)
-                          + inner * 2f
-                          + (hasAmmo ? h * 0.8f + h : 0f);
+            float total = inner * 2f
+                          + titleH + pad
+                          + row + stateH
+                          + row + row
+                          + row + powerH;
+            if (moduleRows > 0)
+            {
+                total += row;
+                foreach (float lh in moduleH) total += lh;
+            }
+            if (candidateCount > 0)
+            {
+                total += row;
+                foreach (float ch in candH) total += ch + pad;
+            }
+            if (showAmmo) total += h * 0.8f + ammoH;
 
-            Rect box = UiLayout.RecipePopoverRect(nodePos, cellPx, total,
-                Screen.width, Screen.height);
+            Rect box = UiLayout.RecipePopoverRect(nodePos, cellPx, w + inner * 2f, total,
+                Screen.width, Screen.height, margin);
             UiBlockers.Add(box);
             UiPlate.Draw(box);
 
             float x = box.x + inner;
             float y = box.y + inner;
-            w -= inner * 2f;
+            w = box.width - inner * 2f;
 
             // ── 회전 (2026-09-15 사용자 확정 · §72-42) ──────────────────────────
             //
@@ -4288,24 +4513,21 @@ namespace MBI.Logistics
             //    📌 규칙은 `CoreNodeRule` 한 곳이 든다 — 화면에서 다시 묻지 않는다(지침 §7).
             // ⚠️ 도전 층에서는 돌리는 것도 막는다(2026-10-14 사용자 확정 ④) —
             //    보드를 못 고치게 해 놓고 방향만 돌릴 수 있으면 잠근 뜻이 없다.
-            bool canRotate = CoreNodeRule.CanRotate(inst)
-                             && BoardEditRule.CanEdit(StageLayerSignals.IsFarming,
-                                                      StageLayerSignals.IsTutorialStage);
-
-            var rotRect = new Rect(x, y, w * 0.32f, h);
+            // 🗑️ 구 자리 「단추 = 폭 × 0.32 · 이름 = 폭 × 0.36 부터」 폐기(#139) — 단추가 글자보다
+            //    좁아져 「00도 돌리기」로 잘렸다. 단추는 글자 폭, 이름은 그 뒤에서 시작한다.
+            //
             // ⚠️ **화살표 기호를 걷었다**(2026-09-15 육안 · 글리프). 「↻」(U+21BB)가
             // 폰트에 없어 **두부(□)로 찍혔다** — 한글 폰트에 없는 기호는 안 쓴다
             // (09-02 에 「⚡」·「🔥」가 같은 이유로 걷혔다 · `VariablePanel` 주석).
-            if (canRotate && UiSkin.Button(rotRect, "90도 돌리기", style))
+            if (canRotate && UiSkin.Button(new Rect(x, y, rotBtnW, titleH), rotLabel, style))
             {
                 inst.Rotation = inst.Rotation + 1;
                 RebuildMarker(_selected.Value);
                 RefreshConnections();
             }
 
-            GUI.Label(new Rect(x + w * 0.36f, y, w * 0.64f, h),
-                $"{inst.Definition.displayName} · {inst.Rotation * 90}°", head);
-            y += h + pad;
+            GUI.Label(new Rect(x + titleX, y, Mathf.Max(1f, w - titleX), titleH), title, head);
+            y += titleH + pad;
 
             // ══════════ ① 상태 · 가동률 (2026-09-15 사용자 확정 · 육안 ②) ══════════
             //
@@ -4315,21 +4537,18 @@ namespace MBI.Logistics
             //
             // ⚠️ **값을 여기서 만들지 않는다** — 진단은 물류가 이미 냈다(`_lastDiagnostics`),
             // 가동률은 `WorkloadRate` 가 냈다. 여기는 옮겨 적기만 한다(§3).
-            float workload = LogisticsOutputBridge.Workload.Of(_selected.Value);
             GUI.Label(new Rect(x, y, w, row), "상태", head);
             y += row;
-            GUI.Label(new Rect(x, y, w, row),
-                $"{NodeStateText(_selected.Value)}  ·  가동률 {Mathf.Clamp01(workload) * 100f:F0}%", body);
-            y += row;
+            GUI.Label(new Rect(x, y, w, stateH), stateLine, body);
+            y += stateH;
 
             // ══════════ ② 입력 → 출력 ══════════
             //
             // ⚠️ **개/초까지 적는다.** 품목만 적으면 「무엇이 드나드는가」는 알아도
             // 「얼마나」를 모른다 — 줄을 설계할 때 필요한 것은 그 수다.
-            NodeRecipe cur = inst.CurrentRecipe;
             GUI.Label(new Rect(x, y, w, row), "물품", head);
             y += row;
-            DrawRecipeFlow(new Rect(x, y, w, row), inst, cur, body);
+            DrawRecipeFlow(new Rect(x, y, w, row), inst, cur, flowBody);
             y += row;
 
             // ══════════ ③ 전력 · 생산 시간 ══════════
@@ -4339,13 +4558,10 @@ namespace MBI.Logistics
             //
             // ⚠️ **생산 시간 = 필요 생산치 ÷ 생산력.** 생산력은 밸런스 SO 값(10)이고
             // 여기서 짓지 않는다. 필요 생산치가 0 이면 **미확정**이라 시간도 안 적는다.
-            float powerEach = inst.Definition.resources.powerDraw * inst.ModulePowerLoadMultiplier;
             GUI.Label(new Rect(x, y, w, row), "전력 · 시간", head);
             y += row;
-            GUI.Label(new Rect(x, y, w, row),
-                $"전력 {powerEach * Mathf.Clamp01(workload):F1} (대당 {powerEach:F1})"
-                + "  ·  " + ProductionTimeText(inst, cur), body);
-            y += row;
+            GUI.Label(new Rect(x, y, w, powerH), powerLine, body);
+            y += powerH;
 
             // ══════════ 붙은 모듈 ══════════
             //
@@ -4356,23 +4572,18 @@ namespace MBI.Logistics
                 GUI.Label(new Rect(x, y, w, row), "붙은 모듈", head);
                 y += row;
 
-                float mh = h * 0.8f;
-                for (int slot = 0; slot < NodeInstance.ModuleSlots; slot++)
+                for (int i = 0; i < moduleSlots.Count; i++)
                 {
-                    ModuleDefinition mod = inst.ModuleAt(slot);
-                    if (mod == null) continue;
+                    float lh = moduleH[i];
+                    GUI.Label(new Rect(x, y, modLabelW, lh), moduleTexts[i], body);
 
-                    GUI.Label(new Rect(x, y, w * 0.74f, mh),
-                        $"{mod.symbol} {mod.displayName}  ×{mod.outputMultiplier:F2}"
-                        + $"  부하 ×{mod.powerLoadMultiplier:F1}", body);
-
-                    if (UiSkin.Button(new Rect(x + w * 0.76f, y, w * 0.24f, mh), "떼기", style)
-                        && inst.DetachModuleAt(slot))
+                    if (UiSkin.Button(new Rect(x + w - delW, y, delW, lh), "떼기", style)
+                        && inst.DetachModuleAt(moduleSlots[i]))
                     {
                         RebuildMarker(_selected.Value);   // 기호 스프라이트가 노드에 얹혀 있다
                         RefreshConnections();             // 배수가 빠지면 하류 산출이 바뀐다
                     }
-                    y += mh;
+                    y += lh;
                 }
             }
 
@@ -4382,10 +4593,10 @@ namespace MBI.Logistics
             GUI.Label(new Rect(x, y, w, row), "조합표", head);
             y += row;
 
-            RecipeKind current = cur.kind;
-            foreach (NodeRecipe r in candidates)
+            for (int ci = 0; ci < candidates.Count; ci++)
             {
-                var rect = new Rect(x, y, w, h);
+                NodeRecipe r = candidates[ci];
+                var rect = new Rect(x, y, w, candH[ci]);
 
                 // 돌릴 수 없는 후보도 **자리는 보여 준다** — 감추면 「왜 못 만드나」가 아니라
                 // 「그런 게 있었나」가 된다. 착수 금지가 화면에서도 자리로 표현된다.
@@ -4394,22 +4605,21 @@ namespace MBI.Logistics
                     && inst.SelectRecipe(r.kind))
                     RefreshConnections(); // 산출이 바뀌면 하류 벨트가 나르는 것도 바뀐다
 
-                y += h + pad;
+                y += candH[ci] + pad;
             }
             GUI.enabled = true;
 
-            if (current != RecipeKind.Ammo) return;
+            if (!showAmmo) return;
 
             // 탄종 — 조합표만으로는 부족하다. 라인 생산량이 min(스펙, 탄종별 노드 수)이라
             // 「무엇을 몇 대 놓았는가」가 그대로 출력이 된다.
             GUI.Label(new Rect(x, y, w, h * 0.8f), "탄종", head);
             y += h * 0.8f;
 
-            float bw = (w - pad * 2f) / 3f;
             for (int k = 0; k < 3; k++)
             {
                 var kind = (AmmoKind)k;
-                var rect = new Rect(x + k * (bw + pad), y, bw, h);
+                var rect = new Rect(x + k * (bw + pad), y, bw, ammoH);
 
                 if (UiSkin.Button(rect, (inst.AmmoKind == kind ? "● " : "") + AmmoLabel(kind), style))
                     inst.AmmoKind = kind; // 탄종은 흐르는 품목(탄약)을 바꾸지 않는다 — 라벨만 갈린다
@@ -4453,47 +4663,59 @@ namespace MBI.Logistics
         ///
         /// ⚠️ **그림이 없으면 그 자리를 비운다** — 자리표시 글자로 메우지 않는다(§10).
         /// </summary>
-        private void DrawRecipeFlow(Rect rect, NodeInstance inst, NodeRecipe r, GUIStyle body)
+        private void DrawRecipeFlow(Rect rect, NodeInstance inst, NodeRecipe r, GUIStyle body) =>
+            LayoutRecipeFlow(rect, inst, r, body, draw: true);
+
+        /// <summary>
+        /// 흐름 한 줄을 그리거나(<paramref name="draw"/>) **폭만 잰다** — 돌려주는 값은 쓴 폭이다
+        /// (2026-10-15 · #139). 팝오버 폭을 글자에서 재려면 그리는 길과 **같은 셈**이어야 한다 —
+        /// 따로 셈하면 한쪽만 바뀌어 다시 잘린다.
+        ///
+        /// ⚠️ 「원천」·「산출 없음」·「+」·「→」 칸은 **글자보다 좁아지지 않는다** — 칸을 그림 배수로만
+        ///    잡아서 바닥 글자(16 px)일 때 「산출 없」으로 잘렸다(#125 「글자는 전부 보인다」).
+        /// </summary>
+        private float LayoutRecipeFlow(Rect rect, NodeInstance inst, NodeRecipe r, GUIStyle body, bool draw)
         {
             float outRate = r.outputPerSec * inst.ModuleOutputMultiplier;
             float icon = rect.height;
             float cx = rect.x;
 
             if (r.inputs == null || r.inputs.Count == 0)
-            {
-                GUI.Label(new Rect(cx, rect.y, icon * 2.4f, rect.height), "원천", body);
-                cx += icon * 2.4f;
-            }
+                cx = FlowWord(cx, rect, icon * 2.4f, "원천", body, draw);
             else
             {
                 for (int i = 0; i < r.inputs.Count; i++)
                 {
                     RecipeInput inp = r.inputs[i];
-                    if (i > 0)
-                    {
-                        GUI.Label(new Rect(cx, rect.y, icon * 0.7f, rect.height), "+", body);
-                        cx += icon * 0.7f;
-                    }
+                    if (i > 0) cx = FlowWord(cx, rect, icon * 0.7f, "+", body, draw);
                     cx = DrawItemChip(cx, rect.y, icon, inp.kind,
-                        inp.perOutput * outRate * inst.ModuleInputMultiplier, body);
+                        inp.perOutput * outRate * inst.ModuleInputMultiplier, body, draw);
                 }
             }
 
-            GUI.Label(new Rect(cx, rect.y, icon * 1.2f, rect.height), "→", body);
-            cx += icon * 1.2f;
+            cx = FlowWord(cx, rect, icon * 1.2f, "→", body, draw);
 
             if (r.output == FlowKind.None || outRate <= 0f)
-                GUI.Label(new Rect(cx, rect.y, icon * 3f, rect.height), "산출 없음", body);
+                cx = FlowWord(cx, rect, icon * 3f, "산출 없음", body, draw);
             else
-                DrawItemChip(cx, rect.y, icon, r.output, outRate, body);
+                cx = DrawItemChip(cx, rect.y, icon, r.output, outRate, body, draw);
+            return cx - rect.x;
+        }
+
+        /// <summary>흐름 줄의 낱말 칸 하나 — 설계 폭과 글자 폭 중 큰 쪽(#139). 다음 x 를 돌려준다.</summary>
+        private static float FlowWord(float x, Rect rect, float designW, string text, GUIStyle body, bool draw)
+        {
+            float w = Mathf.Max(designW, body.CalcSize(new GUIContent(text)).x);
+            if (draw) GUI.Label(new Rect(x, rect.y, w, rect.height), text, body);
+            return x + w;
         }
 
         /// <summary>품목 그림 한 장 + 개/초. 다음 칸의 x 를 돌려준다.</summary>
         private float DrawItemChip(float x, float y, float icon, FlowKind kind, float rate,
-            GUIStyle body)
+            GUIStyle body, bool draw = true)
         {
             Sprite sp = art != null ? art.ItemSprite(kind) : null;
-            if (sp != null && sp.texture != null)
+            if (draw && sp != null && sp.texture != null)
             {
                 // 위 `DrawOutputItemIcon` 과 **같은 이유로** 그려진 네모만 잘라 쓴다 —
                 // 조합표 칩도 캔버스를 통째로 늘이고 있었다(육안 5차 ③).
@@ -4508,7 +4730,7 @@ namespace MBI.Logistics
 
             var label = new GUIContent($"{rate:F2}/초");
             float lw = body.CalcSize(label).x;
-            GUI.Label(new Rect(x, y, lw, icon), label, body);
+            if (draw) GUI.Label(new Rect(x, y, lw, icon), label, body);
             return x + lw + 6f;
         }
 
@@ -4597,6 +4819,25 @@ namespace MBI.Logistics
             // ⚠️ **정사각 버튼에서는 위쪽 절반을 쓴다**(2026-09-11 · 팔레트 가로 개편).
             // 종전처럼 왼쪽을 통째로 채우면 그림이 버튼을 다 덮어 **글자가 그림 뒤로 간다** —
             // 세로 줄 시절에는 버튼이 납작해서(130×36) 왼쪽 정사각이 자연히 아이콘 칸이었다.
+            float side = button.height * 0.52f;
+            var box = new Rect(button.x + (button.width - side) * 0.5f,
+                button.y + PaletteThumbPad, side, side);
+            GUI.DrawTextureWithTexCoords(box, icon.texture, SpriteUv(icon), true);
+        }
+
+        /// <summary>
+        /// **팔레트 모듈 단추에도 그림을 얹는다** (2026-10-15 · #140).
+        ///
+        /// 노드에 붙은 모듈은 이미 그림(`art.ModuleSprite`)으로 보이는데 팔레트 단추만 글자뿐이라,
+        /// **고르는 것과 붙은 것이 같은 물건으로 안 읽혔다.** 노드 단추(<see cref="DrawPaletteThumb"/>)와
+        /// 같은 자리·같은 크기다. 그림이 없으면 글자만 남는다(폴백 · 색 사각으로 대신하지 않는다).
+        /// </summary>
+        private void DrawPaletteModuleThumb(Rect button, ModuleDefinition def)
+        {
+            if (art == null || def == null) return;
+            Sprite icon = art.ModuleSprite(def.kind);
+            if (icon == null) return;
+
             float side = button.height * 0.52f;
             var box = new Rect(button.x + (button.width - side) * 0.5f,
                 button.y + PaletteThumbPad, side, side);
@@ -4739,12 +4980,16 @@ namespace MBI.Logistics
             // 「눌러도 아무 일 없는 줄」이 하나 생긴다.
             bool allowed = TutorialGate.Allows(TutorialGate.Control.PaletteOther);
             bool was = GUI.enabled;
-            GUI.enabled = was && allowed;
 
             for (int i = 0; i < order.Length; i++)
             {
                 var rect = new Rect(row.x + i * (w + pad), row.y, w, row.height);
                 bool on = _tab == order[i];
+                // ✅ **T4 ② 에서는 「모듈」 탭 하나만 연다**(2026-10-15 사용자 확정 #138 · 구멍 = 모듈 탭).
+                bool isModuleTab = order[i] == PaletteCategory.Module;
+                bool tabAllowed = allowed
+                                  || (isModuleTab && TutorialGate.Allows(TutorialGate.Control.ModuleTab));
+                GUI.enabled = was && tabAllowed;
                 // ⚠️ **고른 표시를 글자로 붙이지 않는다**(육안 6차 ⑥).
                 // 「● 」는 **두 글자만큼 폭을 먹어** 고른 탭이 유독 더 잘렸다.
                 // 표시는 아래 밑줄이 맡는다 — 폭을 안 먹는다.
@@ -4758,12 +5003,18 @@ namespace MBI.Logistics
                     GUI.color = prevC;
                 }
 
+                // 강제 버튼(기획서 2장) — T4 ② 에서 아직 모듈 탭이 아니면 그 탭을 빛낸다.
+                Color prevTab = GUI.color;
+                if (isModuleTab && !on && TutorialGate.Current == TutorialGate.Phase.PlaceModule)
+                    GUI.color = new Color(1f, 0.92f, 0.45f,
+                        0.75f + 0.25f * Mathf.Abs(Mathf.Sin(Time.unscaledTime * 2.2f)));
                 if (UiSkin.Button(rect, PaletteCategories.LabelOf(order[i]), style))
                 {
                     _tab = order[i];
                     _paletteScroll = Vector2.zero;   // 탭을 바꾸면 줄이 달라진다 — 앞에서 본다
                 }
-                if (!allowed) UiSkin.DrawLockVeil(rect);
+                GUI.color = prevTab;
+                if (!tabAllowed) UiSkin.DrawLockVeil(rect);
             }
 
             GUI.enabled = was;

@@ -67,6 +67,18 @@ namespace MBI.Core
         }
 
         /// <summary>
+        /// **저장을 지운 뒤** 메모리 장부를 새 저장에 맞춘다 (2026-10-15 · #141).
+        ///
+        /// ⚠️ 저장은 비웠는데 메모리 장부가 남아 「처음부터」 뒤에도 S1 통과가 살아 있었다 —
+        ///    T3 가 안 뜨고 목록이 2/6 으로 열렸다. 켤 때 한 번만 갈아끼우던 것이 원인이다.
+        /// </summary>
+        public static void RepublishAfterReset(SaveDataV1 fresh)
+        {
+            PublishClearedStages(fresh != null ? fresh.clearedStageIds : null);
+            TutorialCleared = false;
+        }
+
+        /// <summary>
         /// 한 판을 통과 기록에 더한다 — 저장에 쓴 **뒤** 같은 값을 여기에도 둔다.
         /// ⚠️ 여기만 쓰면 다음에 켤 때 사라진다. 저장이 원천이다.
         /// </summary>

@@ -72,6 +72,24 @@ namespace MBI.Core
         public static bool HighlightChallengeButton;
 
         /// <summary>
+        /// **T4 — S2 모듈 배치 튜토리얼이 서 있다**(2026-10-15 사용자 확정 #138).
+        /// T3 처럼 매 프레임 다시 판단한다(<see cref="ModuleTutorialRule"/> · 전투 러너가 쓴다).
+        /// </summary>
+        public static bool ModuleTutorialActive;
+
+        /// <summary>
+        /// T4 대상 노드 칸 — **보드가 고르고 쓴다**(그 칸의 사실을 아는 것은 보드뿐이다).
+        /// null 이면 고를 노드가 없다(그때 끝 조건은 「판의 아무 노드에나 모듈」).
+        /// </summary>
+        public static Vector2Int? ModuleTargetCell;
+
+        /// <summary>
+        /// T4 끝 조건 — 대상 노드(없으면 판의 아무 노드)에 모듈이 붙어 있다. 보드가 쓴다.
+        /// ⚠️ 보드 저장이 모듈을 들고 있으므로 **복원한 판에서도 참으로 선다** — 새 장부가 없다.
+        /// </summary>
+        public static bool ModuleTargetFilled;
+
+        /// <summary>
         /// 비워 둔 칸을 **다시 비워 달라** — 촬영 복귀 전용(260902_W09 §1-2).
         ///
         /// 병합기가 놓인 채로 튜토리얼에 돌아가면 조립 화면에 들어가는 순간 통과해 버린다
@@ -178,6 +196,9 @@ namespace MBI.Core
             HighlightMerger = false;
             HighlightBuildMode = false;
             HighlightChallengeButton = false;
+            ModuleTutorialActive = false;
+            ModuleTargetCell = null;
+            ModuleTargetFilled = false;
             ClearEmptySlotRequested = false;
             FillEmptySlotRequested = false;
             BoardInBuildMode = false;

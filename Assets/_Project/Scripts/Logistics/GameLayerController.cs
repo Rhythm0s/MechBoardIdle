@@ -252,7 +252,9 @@ namespace MBI.Logistics
                 // 강제 버튼(튜토리얼 기획서 2장) — 지금 눌러야 할 버튼을 빛나게 한다.
                 // 기본 모드가 이동이라 모드를 모르면 화면만 움직이고 벨트가 안 깔린다(T-7).
                 Color prev = GUI.color;
-                if (TutorialSignals.HighlightBoardButton)
+                // ✅ T4 ①(「▼ 조립」을 눌러 모듈을 붙여라 · #138)에서도 같은 빛을 낸다.
+                if (TutorialSignals.HighlightBoardButton
+                    || TutorialGate.Current == TutorialGate.Phase.ModuleEnterBoard)
                     GUI.color = new Color(1f, 0.92f, 0.45f,
                         0.75f + 0.25f * Mathf.Abs(Mathf.Sin(Time.unscaledTime * 2.2f)));
 

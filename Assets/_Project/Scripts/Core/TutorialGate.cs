@@ -40,6 +40,18 @@ namespace MBI.Core
             /// 가리키는 버튼이 「도전」이고, 잠그는 것은 「조립」·「스테이지」다.
             /// </summary>
             Challenge,
+
+            /// <summary>
+            /// **T4 ① — 조립 화면으로 들어가야 한다**(2026-10-15 사용자 확정 #138 · 전투 화면).
+            /// 가리키는 버튼은 「▼ 조립」이고, 잠그는 것은 T3 와 같다(「도전」·「스테이지」).
+            /// </summary>
+            ModuleEnterBoard,
+
+            /// <summary>
+            /// **T4 ② — 대상 노드에 모듈을 붙여야 한다**(조립 화면). 팔레트 「모듈」 탭·M/R 단추와
+            /// 대상 노드만 열린다.
+            /// </summary>
+            PlaceModule,
         }
 
         /// <summary>막을 수 있는 조작들.</summary>
@@ -51,6 +63,10 @@ namespace MBI.Core
 
             // ⚠️ **전투 화면의 조작 둘**(2026-10-14 · T3). 위의 것들은 조립 화면 것이다.
             EnterChallenge, StageList,
+
+            // ⚠️ **팔레트 「모듈」 탭 하나**(2026-10-15 · T4). 다른 탭은 `PaletteOther` 가 든다 —
+            //    T4 는 모듈 탭만 열어야 해서 따로 묻는다. 다른 국면에서는 `PaletteOther` 와 같은 답이다.
+            ModuleTab,
         }
 
         /// <summary>
@@ -73,6 +89,8 @@ namespace MBI.Core
             // 신호를 켜는 곳만 있고 끄는 곳이 없어 **들어간 뒤에도 그 국면에 머물렀고**,
             // 그 국면은 조립 버튼 하나만 허락하므로 **보드가 통째로 잠겼다.**
             Resolve(TutorialSignals.HighlightChallengeButton,
+                    TutorialSignals.ModuleTutorialActive,
+                    TutorialSignals.BoardViewOpen,
                     TutorialSignals.HighlightBoardButton && !TutorialSignals.BoardViewOpen,
                     TutorialSignals.HighlightBuildMode,
                     // ⚠️ **제 판에서만 기다린다**(2026-10-06 육안 결함) — 고스트 좌표에는
@@ -96,10 +114,21 @@ namespace MBI.Core
 
         public static Phase Resolve(bool urgeChallenge, bool urgeEnterBoard, bool urgeBuildMode,
             bool ghostWaiting, bool inBuildMode)
+            => Resolve(urgeChallenge, false, false, urgeEnterBoard, urgeBuildMode, ghostWaiting, inBuildMode);
+
+        /// <summary>
+        /// T4 까지 묻는 갈래 (2026-10-15 · #138). <paramref name="urgeModule"/> 이 서면
+        /// 조립 화면이 닫혔으면 「들어가라」, 열렸으면 「붙여라」다.
+        /// </summary>
+        public static Phase Resolve(bool urgeChallenge, bool urgeModule, bool boardViewOpen,
+            bool urgeEnterBoard, bool urgeBuildMode, bool ghostWaiting, bool inBuildMode)
         {
             // ⚠️ **T3 를 먼저 묻는다.** 그 국면은 앞 셋이 전부 끝난 **뒤**에만 서고
             //    (튜토리얼 전용 스테이지를 마쳐야 켜진다), 전투 화면의 일이라 겹치지 않는다.
             if (urgeChallenge) return Phase.Challenge;
+
+            // T4 는 S1 을 깬 **뒤**(T3 가 끝난 뒤)에만 선다 — T3 와 겹치지 않는다.
+            if (urgeModule) return boardViewOpen ? Phase.PlaceModule : Phase.ModuleEnterBoard;
 
             if (urgeEnterBoard) return Phase.EnterBoard;
 
@@ -184,6 +213,20 @@ namespace MBI.Core
                     //    그 자리다. 들어갈 수도 나올 수도 없으면 멈춘 화면이 된다.
                     return control == Control.EnterChallenge || control == Control.ExitBoard;
 
+                case Phase.ModuleEnterBoard:
+                    // ✅ **T3 와 같게 잠근다**(2026-10-15 사용자 확정 #138) — 「도전」·「스테이지」를
+                    //    닫고 가리키는 단추(「▼ 조립」) 하나만 연다. 「▲ 전투로」는 예외(2장).
+                    return control == Control.EnterBoard || control == Control.ExitBoard;
+
+                case Phase.PlaceModule:
+                    // 「모듈」 탭 · M/R 단추 · 대상 노드(보드 탭)만 연다. 노드·벨트 팔레트와 지우기는 닫는다 —
+                    // 붙이라고 해 놓고 다른 것을 놓을 수 있으면 「지금 할 일」이 둘이 된다.
+                    // ⚠️ 모드 단추는 연다 — 이동 모드로 바꿔 버렸으면 돌아올 길이 있어야 한다(09-11 막다른 국면).
+                    // ⚠️ 「▲ 전투로」는 연다(09-16 사용자 지시 · 나갈 길).
+                    return control == Control.ModuleTab || control == Control.Module
+                           || control == Control.ModeToggle || control == Control.ExitBoard
+                           || control == Control.Zoom || control == Control.MiniMap;
+
                 default:
                     return true;
             }
@@ -195,6 +238,7 @@ namespace MBI.Core
         /// 국면 <see cref="Phase.PlaceNode"/> 에서만 참이다 — 그 앞 두 국면에서는
         /// 보드를 눌러도 아무 일이 없어야 「지금 할 일은 저것 하나」가 선다.
         /// </summary>
-        public static bool AllowsBoardTap => Current == Phase.None || Current == Phase.PlaceNode;
+        public static bool AllowsBoardTap =>
+            Current == Phase.None || Current == Phase.PlaceNode || Current == Phase.PlaceModule;
     }
 }

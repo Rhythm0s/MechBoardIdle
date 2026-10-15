@@ -13,6 +13,9 @@ namespace MBI.UI
     /// 📌 **차례를 지킨다** — 앞에서부터 들어가는 만큼 한 줄에 놓고, 넘치면 다음 줄로 내린다.
     ///    통과 셋이면 [다시 도전][스테이지로] / [다음 스테이지로] 가 된다(기획서 7장 「하단
     ///    [다음 스테이지로]」와 맞는다). 그래도 둘이 안 들면 한 줄에 하나씩 쌓인다.
+    /// ⚠️ **한 줄의 단추는 폭이 같다**(그릴 때 줄 폭을 똑같이 나눈다) — 그러니 한 줄이 요구하는
+    ///    폭은 **「그 줄에서 가장 긴 단추 × 개수 + 틈」**이다(2026-10-15 #136 재수정). 처음엔 폭의
+    ///    **합**으로 셌다가, 긴 단추가 똑같이 나눈 칸에 못 들어 586×410 에서 또 잘렸다.
     /// ⚠️ 한 단추가 혼자서도 폭을 넘으면 그 단추는 **혼자 한 줄**을 쓴다 — 더 줄일 방법이 없다
     ///    (그때는 상자가 화면 폭까지 커지는 것으로 끝이다).
     /// </summary>
@@ -28,31 +31,31 @@ namespace MBI.UI
             if (widths == null || widths.Count == 0) return rows;
 
             var row = new List<int>();
-            float used = 0f;
+            float rowMax = 0f;
             for (int i = 0; i < widths.Count; i++)
             {
                 float w = widths[i];
-                float add = row.Count == 0 ? w : gap + w;
-                if (row.Count > 0 && used + add > available)
+                float max = w > rowMax ? w : rowMax;
+                float need = max * (row.Count + 1) + gap * row.Count;   // 가장 긴 폭 × 개수 + 틈
+                if (row.Count > 0 && need > available)
                 {
                     rows.Add(row);
                     row = new List<int>();
-                    used = 0f;
-                    add = w;
+                    max = w;
                 }
                 row.Add(i);
-                used += add;
+                rowMax = max;
             }
             rows.Add(row);
             return rows;
         }
 
-        /// <summary>한 줄이 요구하는 폭 — 단추 폭 합 + 사이 틈.</summary>
+        /// <summary>한 줄이 요구하는 폭 — **가장 긴 단추 × 개수** + 사이 틈(단추 폭이 같으므로).</summary>
         public static float RowWidth(IReadOnlyList<float> widths, IReadOnlyList<int> row, float gap)
         {
-            float sum = 0f;
-            for (int k = 0; k < row.Count; k++) sum += widths[row[k]];
-            return sum + gap * (row.Count > 0 ? row.Count - 1 : 0);
+            float max = 0f;
+            for (int k = 0; k < row.Count; k++) if (widths[row[k]] > max) max = widths[row[k]];
+            return max * row.Count + gap * (row.Count > 0 ? row.Count - 1 : 0);
         }
     }
 }

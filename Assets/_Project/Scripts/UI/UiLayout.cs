@@ -1209,6 +1209,47 @@ namespace MBI.UI
         }
 
         /// <summary>
+        /// 팝오버 폭을 화면 안에 들인다 — 양옆에 <paramref name="margin"/> 을 남긴다 (2026-10-15 · #139).
+        /// 글자가 이보다 길면 그리는 쪽이 줄을 바꾼다.
+        /// </summary>
+        public static float RecipePopoverFitWidth(float wantWidth, float screenWidth, float margin) =>
+            Mathf.Max(1f, Mathf.Min(wantWidth, screenWidth - margin * 2f));
+
+        /// <summary>
+        /// 조합표 팝오버 자리 — **폭을 글자에서 잰** 갈래 (2026-10-15 사용자 육안 #139).
+        ///
+        /// ⚠️ 종전 갈래는 폭이 고정(560 × 배율)이고 화면 끝에 **여백 없이** 붙었다 — 왼쪽 가장자리
+        ///    노드에서 판이 화면 끝에 닿아 「상태」→「태」처럼 보였다. 네 변에 여백을 남기고
+        ///    화면 안으로 민다. 위·아래는 종전대로 띠 사이(보드 띠 ~ 부유 띠)지만, 그보다 키가
+        ///    크면 화면 안(여백)까지 쓴다 — 안 보이는 것보다 띠를 덮는 편이 낫다.
+        /// </summary>
+        public static Rect RecipePopoverRect(Vector2 nodeScreenPos, float cellPixels,
+            float width, float height, float screenWidth, float screenHeight, float margin)
+        {
+            float s = Scale(screenHeight);
+            float w = RecipePopoverFitWidth(width, screenWidth, margin);
+            float gap = RecipePopoverGap * s;
+            float half = cellPixels * 0.5f;
+
+            float x = nodeScreenPos.x + half + gap;                          // 오른쪽이 먼저
+            if (x + w > screenWidth - margin) x = nodeScreenPos.x - half - gap - w;   // 안 되면 왼쪽
+            x = Mathf.Clamp(x, margin, Mathf.Max(margin, screenWidth - margin - w));
+
+            float top = BandRect(Band.Board, screenWidth, screenHeight).y;
+            float bottom = BandRect(Band.FloatBand, screenWidth, screenHeight).y;
+            if (bottom - top < height)
+            {
+                top = margin;
+                bottom = screenHeight - margin;
+            }
+
+            float y = nodeScreenPos.y - height * 0.5f;                       // 칸 가운데에 맞춘다
+            y = Mathf.Clamp(y, top, Mathf.Max(top, bottom - height));
+
+            return new Rect(x, y, w, height);
+        }
+
+        /// <summary>
         /// 배율 막대가 잡아 두는 폭 (기준 캔버스). ⚠️ **가정이다** — 문서에 배율 자리 절이 없다.
         ///
         /// 버튼 둘(각 <see cref="MinButton"/>)과 「보드 배율 ×1.00」 한 줄이 들어가는 크기다.

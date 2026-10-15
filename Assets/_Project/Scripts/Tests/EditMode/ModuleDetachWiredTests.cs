@@ -25,7 +25,10 @@ namespace MBI.Tests
         {
             string src = File.ReadAllText(Board);
 
-            int button = src.IndexOf("\"떼기\"", System.StringComparison.Ordinal);
+            // ⚠️ **단추 꼴로 찾는다**(2026-10-15 · #139) — 팝오버가 칸을 글자에서 재면서
+            //    「떼기」 글자를 **먼저 잰다**(`const string delLabel = "떼기"`). 글자만 찾으면 그 잼을
+            //    단추로 잘못 짚는다. 단추는 `"떼기", style)` 꼴이다.
+            int button = src.IndexOf("\"떼기\", style)", System.StringComparison.Ordinal);
             Assert.Greater(button, 0, "노드 팝오버에서 「떼기」 버튼을 못 찾았다");
 
             int call = src.IndexOf("DetachModuleAt", button, System.StringComparison.Ordinal);
