@@ -29,6 +29,16 @@ namespace MBI.Tests
         }
 
         [Test]
+        public void 처음부터_뒤_보드를_다시_세워_달라고_한_번_알린다()
+        {
+            // 떠 있는 판이 저장을 다시 올려 옛 판(모듈 붙은 T4 대상)이 되살아나던 자리(10-15 8127).
+            IdleSignals.DrainBoardRebuild();
+            IdleSignals.RepublishAfterReset(new SaveDataV1());
+            Assert.IsTrue(IdleSignals.DrainBoardRebuild());
+            Assert.IsFalse(IdleSignals.DrainBoardRebuild(), "가져가면 비는가");
+        }
+
+        [Test]
         public void 저장이_없어도_장부는_빈다()
         {
             IdleSignals.PublishClearedStages(new[] { "S1", "S2" });

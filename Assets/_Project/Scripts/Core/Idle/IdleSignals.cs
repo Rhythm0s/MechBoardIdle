@@ -76,6 +76,20 @@ namespace MBI.Core
         {
             PublishClearedStages(fresh != null ? fresh.clearedStageIds : null);
             TutorialCleared = false;
+            // ⚠️ **떠 있는 보드도 시작 배치로**(2026-10-15 · 8127 재확인 — 처음부터 뒤 T4 대상 노드에
+            //    모듈이 남아 T4 가 안 뜬다). 보드는 저장을 지워도 **떠 있는 판을 다시 올려** 옛 판이
+            //    되살아난다(`RefreshConnections` → `BoardState`). 보드가 가져가며 다시 세운다.
+            _rebuildBoards = true;
+        }
+
+        private static bool _rebuildBoards;
+
+        /// <summary>「처음부터」 뒤 보드를 시작 배치로 다시 세워 달라는 요청을 가져가며 비운다. 보드만 부른다.</summary>
+        public static bool DrainBoardRebuild()
+        {
+            bool had = _rebuildBoards;
+            _rebuildBoards = false;
+            return had;
         }
 
         /// <summary>

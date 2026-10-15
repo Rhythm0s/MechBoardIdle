@@ -814,6 +814,44 @@ namespace MBI.Logistics
             RespawnMarkersFromGrid();
         }
 
+        /// <summary>
+        /// **「처음부터」 뒤 판 둘을 시작 배치로 다시 세운다** (2026-10-15 · 8127 재확인 · #141 덧).
+        ///
+        /// ⚠️⚠️ 종전 「처음부터」는 보드를 안 되돌렸다 — 되돌리는 것이 넷(저장·창고와 마운트·비워 둔 칸·
+        ///    튜토리얼 진행)이었고, 보드는 **비워 둔 칸 하나**만 비웠다. 저장을 지워도 떠 있는 판이
+        ///    `RefreshConnections` 로 다시 올라가 옛 판이 되살아났다. T4 가 들어오며 그것이 결함이 됐다 —
+        ///    T4 대상 노드에 모듈이 남아 **끝 조건이 처음부터 참**이라 T4 가 안 뜬다.
+        ///
+        /// 📌 **세우는 길은 켤 때와 같다**(`ApplyInitialLayout` — 저장이 비었으니 시작 배치) — 따로 짓지 않는다.
+        /// </summary>
+        private void ResetBoardsToStart()
+        {
+            if (_selected.HasValue) Deselect();
+            _selectedModule = -1;
+            _elementMode = null;
+
+            foreach (MountOwner owner in new[] { MountOwner.RobotA, MountOwner.RobotB })
+            {
+                BoardGrid g = _boards[Index(owner)];
+                if (g == null) continue;
+                for (int x = 0; x < g.Columns; x++)
+                for (int y = 0; y < g.Rows; y++)
+                {
+                    var cell = new Vector2Int(x, y);
+                    if (g.GetAt(cell) != null) g.TryRemove(cell);
+                    if (g.GetBeltAt(cell) != null) g.TryRemoveBelt(cell);
+                }
+                // ⚠️ 저장을 지운 뒤 이 판이 한 번이라도 `RefreshConnections` 를 지났으면 **옛 판이 신호에
+                //    다시 올라가 있다** — 그대로 세우면 그것을 「복원」한다. 비우고 세운다.
+                IdleSignals.SetBoardState(owner, null);
+                ApplyInitialLayout(g);
+                ResolveFlow(g, _flows[Index(owner)]);
+            }
+
+            RespawnMarkersFromGrid();
+            Debug.Log("[MBI] 처음부터 — 판 둘을 시작 배치로 다시 세웠다.");
+        }
+
         // 시작 배치를 깐다. 배치 경로는 플레이어 조작과 동일(TryPlace + 마커) — 별도 경로를 만들지 않는다.
         /// <summary>
         /// 비워 둔 칸을 채우는 **운반로 벨트 한 칸**을 놓는다
@@ -2566,6 +2604,9 @@ namespace MBI.Logistics
         private void Update()
         {
             if (BoardDumpSignals.Requested) FulfilBoardDump();
+
+            // 「처음부터」 — 판 둘을 시작 배치로 다시 세운다(2026-10-15 · #141 덧).
+            if (IdleSignals.DrainBoardRebuild()) ResetBoardsToStart();
 
             FollowActiveRobotTab();
 
