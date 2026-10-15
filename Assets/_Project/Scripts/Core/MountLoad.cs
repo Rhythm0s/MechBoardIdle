@@ -222,6 +222,26 @@ namespace MBI.Core
         }
 
         /// <summary>
+        /// **전 슬롯이 다 찼을 때의 상한** (2026-10-15 · #145 튜토리얼 목표 줄 「(지금/가득)」).
+        ///
+        /// ⚠️ <see cref="Capacity"/> 는 **임자가 정해진 슬롯만** 더한다 — 막 채우기 시작한 판에서는
+        ///    한 슬롯(10)이라 「(0/10)」으로 찍혔다(8123 실측). 만충(<see cref="IsFull"/>)은 **모든 슬롯**
+        ///    기준이므로 목표 수도 그래야 한다. 임자 없는 슬롯은 **가장 큰 스택 상한**으로 센다(값은 자산 그대로).
+        /// </summary>
+        public float FullCapacity
+        {
+            get
+            {
+                float max = 0f;
+                foreach (var kv in _stackLimits) max = Mathf.Max(max, kv.Value);
+                float sum = 0f;
+                for (int i = 0; i < SlotCount; i++)
+                    sum += _slotItem[i] != MountItem.None ? StackLimitOf(_slotItem[i]) : max;
+                return sum;
+            }
+        }
+
+        /// <summary>
         /// 벨트가 실어 온 것을 적재한다. **먼저 도착한 것이 슬롯을 차지한다.**
         /// 같은 품목의 기존 슬롯을 먼저 채우고, 모자라면 빈 슬롯을 새로 연다.
         /// 들어간 양을 돌려준다 — 자리가 없으면 0이고, 남은 분은 호출자가 창고에 둔다.

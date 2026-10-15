@@ -174,7 +174,7 @@ namespace MBI.Core
 
         /// <summary>
         /// 목표 ② 옆 수치 — 마운트 **지금 보유량 / 목표(가득) 보유량** (2026-10-15 사용자 확정 #145).
-        /// 튜토리얼 세션이 활성 마운트에서 그대로 옮긴다(`MountLoad.Total` · `Capacity`) — 짓지 않는다.
+        /// 튜토리얼 세션이 활성 마운트에서 그대로 옮긴다(`MountLoad.Total` · `FullCapacity`) — 짓지 않는다.
         /// </summary>
         public static float GoalMountNow;
 

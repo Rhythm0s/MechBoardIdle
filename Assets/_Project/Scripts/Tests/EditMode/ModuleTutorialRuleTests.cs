@@ -1,3 +1,4 @@
+using MBI.Data;
 using System.Collections.Generic;
 using MBI.Core;
 using NUnit.Framework;
@@ -126,6 +127,16 @@ namespace MBI.Tests
             Assert.AreEqual(" (12/40)", MilestoneCard.MountProgressText(12.7f, 40f, false));
             Assert.AreEqual(" (40/40)", MilestoneCard.MountProgressText(5f, 40f, true));
             Assert.AreEqual(string.Empty, MilestoneCard.MountProgressText(5f, 0f, false));
+        }
+
+        [Test]
+        public void 마운트_목표_수는_전_슬롯_기준이다()
+        {
+            // 「(0/10)」 — 임자 있는 슬롯만 세는 Capacity 를 쓴 탓(10-15 8123 실측).
+            var m = new MountLoad(MountLoad.SlotsRobotA, MountLoad.StandardStacks(10f));
+            Assert.AreEqual(40f, m.FullCapacity, 0.001f);
+            m.Load(MountItem.Standard, 3f);
+            Assert.AreEqual(40f, m.FullCapacity, 0.001f);
         }
 
         // ── 게이트 ──
