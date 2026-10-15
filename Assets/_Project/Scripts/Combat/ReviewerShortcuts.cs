@@ -187,7 +187,17 @@ namespace MBI.Combat
             //    ⚠️ 사각 넷으로 두른다: 통째로 덮고 판을 다시 그리면 판 **그림자**가
             //       어둠 위에 떠서 테두리가 두 겹으로 보인다.
             //    ⚠️ 알파 0.62 는 가정이다.
-            DrawDimAround(plate);
+            //
+            // 🗑️ **여기서 어둠을 깔던 것 폐기**(2026-10-15 사용자 확정 · #133).
+            //    이 OnGUI 는 `StageRunner.OnGUI` 보다 **먼저** 돈다 — 그래서 HUD 칩·원형 셋이
+            //    이 어둠 **위**에 밝게 남았다(10-15 8126 실측 · T3 막과 같은 병).
+            //    이제 **구멍 자리만 적어 두고**, 어둠은 `StageRunner.OnGUI` 끝이
+            //    <see cref="DrawSettingsDim"/> 로 깐다. **판과 단추는 여기 그대로 둔다** —
+            //    판째로 뒤로 옮기면 그 아래 HUD 단추가 눌림을 먼저 가져간다
+            //    (IMGUI 는 그리기는 나중이 위 · 누름은 먼저가 이긴다 · 삭제 창 #126 의 그 병).
+            //    구멍은 판 + 그 아래 「- 일시 정지 -」 줄까지다 — 그 글자는 어둠 위에 밝게 앉아야 한다.
+            s_dimHole = new Rect(plate.x, plate.y, plate.width,
+                                 plate.height + 8f * scale + 36f * scale);
 
             UiPlate.Draw(plate);
             UiBlockers.Add(plate);
@@ -290,6 +300,26 @@ namespace MBI.Combat
         /// 그러면 판 그림자가 어둠 위에 떠서 **테두리가 두 겹**으로 보인다.
         /// ⚠️ 알파는 가정이다.
         /// </summary>
+        /// <summary>
+        /// 설정 판 어둠막의 **구멍** — 이 패널이 그릴 때마다 적는다(판 + 「- 일시 정지 -」 줄).
+        /// </summary>
+        private static Rect s_dimHole;
+
+        /// <summary>
+        /// **설정 판 어둠막을 깐다 — `StageRunner.OnGUI` 의 끝에서만 부른다**(2026-10-15 · #133).
+        ///
+        /// HUD 칩·Stage 띠·배지·원형 셋이 전부 그 OnGUI 에서 그려지므로, 그 끝에서 깔아야
+        /// HUD 가 어둠 **아래**로 간다. 판·단추는 이 패널의 OnGUI 가 이미 그렸고 구멍이 그 자리를 비운다.
+        /// 어둠은 그림뿐이라 눌림을 안 가져간다 — 판의 단추는 그대로 눌린다.
+        /// </summary>
+        public static void DrawSettingsDim()
+        {
+            if (!SettingsGate.IsOpen || MainMenuGate.IsOpen) return;
+            if (GameViewSignals.BoardViewActive) return;   // 판이 안 그려지는 화면 — 구멍도 없다
+            if (s_dimHole.width <= 1f || s_dimHole.height <= 1f) return;
+            DrawDimAround(s_dimHole);
+        }
+
         private static void DrawDimAround(Rect plate)
         {
             var dim = new Color(0f, 0f, 0f, 0.62f);

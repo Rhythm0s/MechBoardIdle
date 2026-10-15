@@ -2856,6 +2856,10 @@ namespace MBI.Combat
 
             // IMGUI는 나중에 그린 것이 위에 온다 — 연출은 결과 화면 위에도 덮여야 한다.
             DrawMergeCutscene();
+
+            // ✅ **설정 판 어둠막 — 맨 끝**(2026-10-15 사용자 확정 · #133). 판·단추는
+            //    `ReviewerShortcuts` 가 먼저 그렸다. 여기서 깔아야 HUD 가 어둠 아래로 간다.
+            ReviewerShortcuts.DrawSettingsDim();
         }
 
         /// <summary>
