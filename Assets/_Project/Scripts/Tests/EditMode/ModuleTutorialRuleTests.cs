@@ -113,6 +113,15 @@ namespace MBI.Tests
         }
 
         [Test]
+        public void 가려진_동안은_시계가_멈춘다()
+        {
+            var n = new ModuleGrantNotice();
+            n.Observe(true, true, 0f);
+            n.Hold(10f);   // 설정 판이 10초 덮었다
+            Assert.IsTrue(n.IsVisible(10f + ModuleTutorialRule.NoticeSeconds - 0.01f));
+        }
+
+        [Test]
         public void 탭하면_바로_닫힌다()
         {
             var n = new ModuleGrantNotice();

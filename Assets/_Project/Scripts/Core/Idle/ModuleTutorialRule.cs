@@ -124,6 +124,15 @@ namespace MBI.Core
             _shownAt = -1f;
         }
 
+        /// <summary>
+        /// **가려진 동안은 시계를 멈춘다** (2026-10-15 · 8123 재확인). 설정 판·조립 화면·메뉴가 덮고 있으면
+        /// 알림은 안 그려지는데 6초는 흘렀다 — 설정에서 바로가기 S2 를 누르고 몇 초 뒤 닫으면 **못 본 채 끝났다.**
+        /// </summary>
+        public void Hold(float dt)
+        {
+            if (_shownAt >= 0f && dt > 0f) _shownAt += dt;
+        }
+
         /// <summary>탭으로 닫는다.</summary>
         public void Dismiss() => _shownAt = -1f;
 

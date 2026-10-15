@@ -1610,6 +1610,9 @@ namespace MBI.Combat
             if (IsTutorialStage) _moduleGrantNotice.Rearm();   // 「처음부터」 뒤 다음 T4 에서 다시 뜬다
             _moduleGrantNotice.Observe(TutorialSignals.ModuleTutorialActive,
                                        TutorialSignals.ModuleTargetKnown, Time.unscaledTime);
+            // 가려진 동안(설정·조립 화면·메뉴)은 알림 시계를 멈춘다 — 못 본 채 끝나지 않게.
+            if (SettingsGate.IsOpen || TutorialSignals.BoardViewOpen || MainMenuGate.IsOpen)
+                _moduleGrantNotice.Hold(Time.unscaledDeltaTime);
 
             // ✅ **보드 잠금이 읽을 값**(2026-10-14 사용자 확정 ④) — 층이 없는 판을
             //    「도전」으로 읽으면 튜토리얼에서 벨트를 못 깐다.
