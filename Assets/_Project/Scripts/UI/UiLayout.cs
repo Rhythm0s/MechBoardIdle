@@ -426,14 +426,52 @@ namespace MBI.UI
         }
 
         public static Rect ResultBannerRect(float screenWidth, float screenHeight, float textLinePx,
-                                            float minInnerWidth = 0f, float minButtonPx = 0f)
+                                            float minInnerWidth = 0f, float minButtonPx = 0f) =>
+            ResultBannerRect(screenWidth, screenHeight, textLinePx, minInnerWidth, minButtonPx, 1);
+
+        /// <summary>
+        /// 결과 배너 상자 — **단추 줄이 여럿일 수 있다**(2026-10-15 사용자 확정 #136).
+        ///
+        /// 한 줄이 화면 폭에 안 들면 단추를 줄 바꿈한다(<see cref="ResultButtonRows"/>).
+        /// 높이는 줄 수만큼 단추 높이를 쌓고, 줄 사이 틈은 한 줄 안 단추 사이 틈과 같다.
+        /// ⚠️ 상자가 아래로 길어져 로봇을 가려도 된다 — 결과 화면이다(플랜 #136).
+        /// </summary>
+        public static Rect ResultBannerRect(float screenWidth, float screenHeight, float textLinePx,
+                                            float minInnerWidth, float minButtonPx, int buttonRows)
         {
             float sc = Scale(screenHeight);
             float w = ResultBannerBoxWidth(screenWidth, screenHeight, minInnerWidth);
             float pad = ResultBannerPad * sc;
+            int rows = buttonRows < 1 ? 1 : buttonRows;
+            float btnH = ResultBannerButtonHeight(screenHeight, minButtonPx);
             float h = pad + textLinePx + PlateGap * sc
-                      + ResultBannerButtonHeight(screenHeight, minButtonPx) + pad;
-            return new Rect((screenWidth - w) * 0.5f, screenHeight * 0.42f, w, h);
+                      + btnH * rows + ResultBannerButtonGap(screenHeight) * (rows - 1) + pad;
+            // ⚠️ 줄이 늘어 상자가 화면 아래로 넘치면 위로 올린다 — 단추가 화면 밖이면 못 누른다.
+            float y = Mathf.Min(screenHeight * 0.42f, Mathf.Max(8f, screenHeight - 8f - h));
+            return new Rect((screenWidth - w) * 0.5f, y, w, h);
+        }
+
+        /// <summary>결과 단추 사이 틈(가로·세로 같다) — 종전 한 줄 배치가 쓰던 값 그대로.</summary>
+        public static float ResultBannerButtonGap(float screenHeight) => PlateGap * Scale(screenHeight) * 0.5f;
+
+        /// <summary>
+        /// 결과 단추 하나 — **줄·칸**으로 고른다(2026-10-15 #136). 한 줄 안에서는 칸을
+        /// **고르게** 나눈다(종전 규칙 그대로 — 어느 하나를 크게 하면 권하는 길처럼 읽힌다).
+        /// </summary>
+        public static Rect ResultBannerButtonRect(float screenWidth, float screenHeight, float textLinePx,
+            int row, int col, int colsInRow, int buttonRows, float minInnerWidth, float minButtonPx)
+        {
+            Rect box = ResultBannerRect(screenWidth, screenHeight, textLinePx,
+                                        minInnerWidth, minButtonPx, buttonRows);
+            float sc = Scale(screenHeight);
+            float pad = ResultBannerPad * sc;
+            float inner = box.width - pad * 2f;
+            float gap = ResultBannerButtonGap(screenHeight);
+            float btnH = ResultBannerButtonHeight(screenHeight, minButtonPx);
+            int n = colsInRow < 1 ? 1 : colsInRow;
+            float w = Mathf.Max(0f, (inner - gap * (n - 1)) / n);
+            float y0 = box.y + pad + textLinePx + PlateGap * sc;
+            return new Rect(box.x + pad + (w + gap) * col, y0 + (btnH + gap) * row, w, btnH);
         }
 
         /// <summary>
@@ -448,9 +486,15 @@ namespace MBI.UI
 
         /// <summary>결과 글자 한 줄 — 배너 위쪽.</summary>
         public static Rect ResultBannerTextRect(float screenWidth, float screenHeight, float textLinePx,
-                                                float minInnerWidth = 0f, float minButtonPx = 0f)
+                                                float minInnerWidth = 0f, float minButtonPx = 0f) =>
+            ResultBannerTextRect(screenWidth, screenHeight, textLinePx, minInnerWidth, minButtonPx, 1);
+
+        /// <summary>결과 글자 한 줄 — 단추 줄 수를 아는 갈래(상자 자리와 어긋나지 않게 · #136).</summary>
+        public static Rect ResultBannerTextRect(float screenWidth, float screenHeight, float textLinePx,
+                                                float minInnerWidth, float minButtonPx, int buttonRows)
         {
-            Rect box = ResultBannerRect(screenWidth, screenHeight, textLinePx, minInnerWidth, minButtonPx);
+            Rect box = ResultBannerRect(screenWidth, screenHeight, textLinePx, minInnerWidth, minButtonPx,
+                                        buttonRows);
             float pad = ResultBannerPad * Scale(screenHeight);
             return new Rect(box.x + pad, box.y + pad, box.width - pad * 2f, textLinePx);
         }

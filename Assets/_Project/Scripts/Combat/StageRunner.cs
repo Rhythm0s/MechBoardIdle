@@ -2768,16 +2768,27 @@ namespace MBI.Combat
                     wordWrap = false,
                     fontSize = KoreanFont.Ladder[0],
                 };
-                float sc = UiLayout.Scale(Screen.height);
-                float btnGap = UiLayout.PlateGap * sc * 0.5f;
-                float needW = btnGap * Mathf.Max(0, labels.Count - 1);
+                float btnGap = UiLayout.ResultBannerButtonGap(Screen.height);
+                var btnWidths = new float[labels.Count];
                 float needBtnH = 0f;
                 for (int i = 0; i < labels.Count; i++)
                 {
                     Vector2 sz = probe.CalcSize(new GUIContent(labels[i]));
-                    needW += sz.x;
+                    btnWidths[i] = sz.x;
                     if (sz.y > needBtnH) needBtnH = sz.y;
                 }
+
+                // ⚠️⚠️ **한 줄이 안 들면 줄을 바꾼다**(2026-10-15 사용자 확정 #136 · QA CID_055).
+                //    아주 작은 창(≈586×410 가로)에서 셋을 한 줄에 눌러 셋째가 「음 스테이지」로
+                //    잘렸다 — 글자는 바닥(12 pt) 밑으로 안 내려가고 상자는 화면 폭에서 깎인다.
+                //    상자가 쓸 수 있는 **가장 넓은 안쪽 폭**을 먼저 재고, 그 폭에 차례대로 담는다.
+                float oneRow = ResultButtonRows.RowWidth(btnWidths,
+                    new List<int>(System.Linq.Enumerable.Range(0, labels.Count)), btnGap);
+                float maxInner = UiLayout.ResultBannerInnerWidth(Screen.width, Screen.height, oneRow);
+                List<List<int>> btnRows = ResultButtonRows.Pack(btnWidths, btnGap, maxInner);
+                float needW = 0f;
+                foreach (List<int> row in btnRows)
+                    needW = Mathf.Max(needW, ResultButtonRows.RowWidth(btnWidths, row, btnGap));
 
                 // 제목도 같은 바닥에서 안 잘려야 한다(사용자 ⑥ 「텍스트는 다 보여야지」).
                 string resultText = ResultText();
@@ -2791,11 +2802,13 @@ namespace MBI.Combat
                     UiText.FitOneLine(big, resultText, innerW);
 
                 float line = big.lineHeight;
-                Rect box = UiLayout.ResultBannerRect(Screen.width, Screen.height, line, needW, needBtnH);
+                Rect box = UiLayout.ResultBannerRect(Screen.width, Screen.height, line, needW, needBtnH,
+                                                     btnRows.Count);
                 UiPlate.Draw(box);
                 UiBlockers.Add(box);
 
-                GUI.Label(UiLayout.ResultBannerTextRect(Screen.width, Screen.height, line, needW, needBtnH),
+                GUI.Label(UiLayout.ResultBannerTextRect(Screen.width, Screen.height, line, needW, needBtnH,
+                                                        btnRows.Count),
                           resultText, big);
 
                 // ✅ **결과 화면 셋**(2026-10-13 사용자 확정 #111 · 기획서 7장).
@@ -2811,8 +2824,17 @@ namespace MBI.Combat
 
                 for (int i = 0; i < labels.Count; i++)
                 {
-                    Rect r = UiLayout.ResultBannerButtonRect(
-                        Screen.width, Screen.height, line, i, labels.Count, needW, needBtnH);
+                    // 이 단추가 몇째 줄 몇째 칸인가 — 담은 차례 그대로.
+                    int rowIdx = 0, colIdx = 0, cols = 1;
+                    for (int ri = 0; ri < btnRows.Count; ri++)
+                    {
+                        int ci = btnRows[ri].IndexOf(i);
+                        if (ci < 0) continue;
+                        rowIdx = ri; colIdx = ci; cols = btnRows[ri].Count;
+                        break;
+                    }
+                    Rect r = UiLayout.ResultBannerButtonRect(Screen.width, Screen.height, line,
+                        rowIdx, colIdx, cols, btnRows.Count, needW, needBtnH);
 
                     // 칸이 글자에서 나왔으므로 바닥 크기면 들어간다. 그래도 한 번 더 맞춘다 —
                     // 창이 너무 좁아 상자가 화면 폭에 깎이면 그때는 줄이는 수밖에 없다.
