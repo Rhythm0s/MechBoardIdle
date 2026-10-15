@@ -2173,7 +2173,18 @@ namespace MBI.Logistics
             float h = textH + pad * 2f;
 
             float x = Mathf.Clamp(sp.x - w * 0.5f, 12f, Mathf.Max(12f, Screen.width - 12f - w));
-            float y = Mathf.Max(8f, Screen.height - sp.y - h - cellPx * 0.12f);
+            float y = Screen.height - sp.y - h - cellPx * 0.12f;
+
+            // ⚠️⚠️ **칸 위에 자리가 없으면 칸 아래로 내린다**(2026-10-15 · 8127 재확인).
+            //    보드 글자는 보드 띠 그릇(`BeginClip`) 안에서 그려진다 — 대상 (7,8) 은 보드 **맨 윗줄**이라
+            //    칸 위 판이 띠 윗변 밖으로 나가 **통째로 잘려 안 보였다.** T1 고스트는 (6,5) 라 안 겪었다.
+            Rect band = UiLayout.BandRect(UiLayout.Band.Board, Screen.width, Screen.height);
+            if (y < band.y + 4f)
+            {
+                Vector3 bottom = cam.WorldToScreenPoint(new Vector3(c.x, c.y - config.cellSize * 0.5f, 0f));
+                y = Screen.height - bottom.y + cellPx * 0.12f;
+            }
+            y = Mathf.Clamp(y, band.y + 4f, Mathf.Max(band.y + 4f, band.yMax - h - 4f));
 
             var plate = new Rect(x, y, w, h);
             UiPlate.Draw(plate);
@@ -4384,6 +4395,10 @@ namespace MBI.Logistics
                 wordWrap = true,
             };
             var flowBody = new GUIStyle(body) { wordWrap = false };   // 그림 줄은 접지 않는다
+            // ⚠️ **한 낱말 단추(「90도 돌리기」·「떼기」)는 접지 않는다**(2026-10-15 · 8127 재확인).
+            //    글자 폭에 딱 맞춘 칸을 줄바꿈 꼴로 그리니 반올림 한 끗에 「90도 돌리 / 기」로 접혀
+            //    위아래가 잘렸다. 칸은 글자 폭 + 여유 2 px 이고, 이 꼴은 접지 않는다.
+            var oneLine = new GUIStyle(style) { wordWrap = false };
 
             // ⚠️⚠️ **칸을 글자에서 잰다**(2026-10-15 사용자 육안 #139 · 8127).
             //    폭 560·줄 76 을 배율로만 줄였더니 작은 창에서 글자는 바닥 16 px 에서 멈추고
@@ -4425,8 +4440,8 @@ namespace MBI.Logistics
 
             // ── 폭: 가장 긴 줄 ──
             float Need(GUIStyle st, string t) => st.CalcSize(new GUIContent(t)).x;
-            float rotW = canRotate ? Need(style, rotLabel) : 0f;
-            float delW = Need(style, delLabel);
+            float rotW = canRotate ? Mathf.Ceil(Need(oneLine, rotLabel)) + 2f : 0f;
+            float delW = Mathf.Ceil(Need(oneLine, delLabel)) + 2f;
             float needW = (canRotate ? rotW + inner : 0f) + Need(head, title);
             foreach (string t in new[] { "상태", "물품", "전력 · 시간", "붙은 모듈", "조합표", "탄종" })
                 needW = Mathf.Max(needW, Need(head, t));
@@ -4454,8 +4469,7 @@ namespace MBI.Logistics
                 Mathf.Max(min, st.CalcHeight(new GUIContent(t), Mathf.Max(1f, width)));
             float rotBtnW = Mathf.Min(rotW, w);
             float titleX = canRotate ? rotBtnW + inner : 0f;
-            float titleH = Tall(head, title, w - titleX,
-                canRotate ? Tall(style, rotLabel, rotBtnW, h) : h);
+            float titleH = Tall(head, title, w - titleX, h);
             float stateH = Tall(body, stateLine, w, row);
             float powerH = Tall(body, powerLine, w, row);
             float modLabelW = Mathf.Max(1f, w - delW - inner);
@@ -4519,7 +4533,7 @@ namespace MBI.Logistics
             // ⚠️ **화살표 기호를 걷었다**(2026-09-15 육안 · 글리프). 「↻」(U+21BB)가
             // 폰트에 없어 **두부(□)로 찍혔다** — 한글 폰트에 없는 기호는 안 쓴다
             // (09-02 에 「⚡」·「🔥」가 같은 이유로 걷혔다 · `VariablePanel` 주석).
-            if (canRotate && UiSkin.Button(new Rect(x, y, rotBtnW, titleH), rotLabel, style))
+            if (canRotate && UiSkin.Button(new Rect(x, y, rotBtnW, titleH), rotLabel, oneLine))
             {
                 inst.Rotation = inst.Rotation + 1;
                 RebuildMarker(_selected.Value);
@@ -4577,7 +4591,7 @@ namespace MBI.Logistics
                     float lh = moduleH[i];
                     GUI.Label(new Rect(x, y, modLabelW, lh), moduleTexts[i], body);
 
-                    if (UiSkin.Button(new Rect(x + w - delW, y, delW, lh), "떼기", style)
+                    if (UiSkin.Button(new Rect(x + w - delW, y, delW, lh), "떼기", oneLine)
                         && inst.DetachModuleAt(moduleSlots[i]))
                     {
                         RebuildMarker(_selected.Value);   // 기호 스프라이트가 노드에 얹혀 있다

@@ -858,6 +858,15 @@ namespace MBI.UI
             Centered(EnterBoardCenter, BarButtonWidth, BarButtonHeight, screenWidth, screenHeight);
 
         /// <summary>
+        /// **「▼ 조립」 단추의 글자 크기** — 칸 높이 × 0.28 (바닥 12 · 사다리에 스냅).
+        /// `GameLayerController` 가 그 단추에 쓰는 셈 그대로다(값 0 · 새로 안 지었다).
+        ///
+        /// 📌 결과 단추가 이것을 받는다(2026-10-15 사용자 확정 #136 「HUD 단추와 같은 규격」).
+        /// </summary>
+        public static int EnterBoardFontSize(float screenWidth, float screenHeight) =>
+            KoreanFont.Snap(Mathf.Max(12, Mathf.RoundToInt(EnterBoardRect(screenWidth, screenHeight).height * 0.28f)));
+
+        /// <summary>
         /// 조립 화면의 「전투로」 — ⚠️ **가정이다.** 문서가 정한 액션바 내용물은 「적용 320×128」
         /// 하나이고, 돌아가는 버튼의 자리는 적혀 있지 않다.
         ///

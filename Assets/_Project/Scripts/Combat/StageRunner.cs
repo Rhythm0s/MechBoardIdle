@@ -2167,14 +2167,26 @@ namespace MBI.Combat
             if (hit && allowed) EnterChallenge();
         }
 
+        /// <summary>
+        /// **결과 단추 꼴 = 「▼ 조립」 단추 규격**(2026-10-15 사용자 확정 #136 「HUD 단추와 같은 규격」).
+        /// 글자 = 조립 칸 높이 × 0.28(`UiLayout.EnterBoardFontSize`) · 높이 = 조립 칸 높이(그리는 쪽).
+        /// </summary>
+        private static GUIStyle ResultButtonStyle() =>
+            new GUIStyle(GUI.skin.button)
+            {
+                wordWrap = false,
+                fontSize = UiLayout.EnterBoardFontSize(Screen.width, Screen.height),
+            };
+
         /// <summary>T4 지급 알림 — 세션 안 「상태가 바뀌는 순간」만 센다(#138 · 저장 안 함).</summary>
         private readonly ModuleGrantNotice _moduleGrantNotice = new ModuleGrantNotice();
 
         /// <summary>
-        /// **HUD 단추 규격**(「도전」·「조립」) — 글자 크기를 지금 창에서 이 단추가 실제로 쓰는 값으로 준다
-        /// (2026-10-15 · #136 사용자 확정 「결과 단추 크기 = HUD 단추와 같은 규격」).
+        /// 「도전」 단추의 글자 꼴 — 지금 창에서 그 단추가 실제로 쓰는 값.
         ///
-        /// 📌 결과 단추가 이것을 그대로 받는다 — 둘이 따로 셈하면 한쪽만 바뀌어 다시 어긋난다.
+        /// 🗑️ 구 「결과 단추도 이것을 받는다」 폐기(2026-10-15 · 8127 재확인) — 「도전」은 글자 크기를
+        ///    안 정해 **스킨 기본값(작다)**을 쓰고, 「▼ 조립」은 칸 높이 × 0.28 이라 **둘이 다른 규격**이었다.
+        ///    「도전」 쪽을 따라간 결과 단추가 여전히 아주 작았다. 결과 단추는 <see cref="ResultButtonStyle"/>.
         /// </summary>
         private static GUIStyle HudButtonStyle()
         {
@@ -2801,14 +2813,16 @@ namespace MBI.Combat
                     labels.Add("다시 하기");
                 }
 
-                // ⚠️⚠️ **단추 크기 = HUD 단추(도전·조립)와 같은 규격**(2026-10-15 사용자 확정 #136).
-                //    글자는 「도전」이 지금 쓰는 크기, 높이는 「도전」 칸 높이 — 상자는 거기에 맞춰 커진다.
+                // ⚠️⚠️ **단추 크기 = HUD 단추와 같은 규격**(2026-10-15 사용자 확정 #136).
+                //    글자·높이 = 「▼ 조립」 단추 — 상자는 거기에 맞춰 커진다.
                 //    🗑️ 구 「바닥 크기(12 pt)로 재기」 폐기 — 재는 글자와 그리는 글자가 달라서
                 //    잰 칸보다 큰 글자가 들어가 다시 잘렸다.
-                GUIStyle probe = HudButtonStyle();
+                //    🗑️ 구 「「도전」 단추 규격」 폐기(같은 날 8127 재확인) — 「도전」은 스킨 기본 글자(작다)라
+                //    결과 단추가 여전히 아주 작았다. 「도전」과 「조립」은 규격이 달랐다.
+                GUIStyle probe = ResultButtonStyle();
                 float btnGap = UiLayout.ResultBannerButtonGap(Screen.height);
                 var btnWidths = new float[labels.Count];
-                float needBtnH = UiLayout.ChallengeButtonRect(Screen.width, Screen.height).height;
+                float needBtnH = UiLayout.EnterBoardRect(Screen.width, Screen.height).height;
                 for (int i = 0; i < labels.Count; i++)
                 {
                     Vector2 sz = probe.CalcSize(new GUIContent(labels[i]));
