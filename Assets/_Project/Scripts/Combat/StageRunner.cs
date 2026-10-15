@@ -2827,7 +2827,10 @@ namespace MBI.Combat
                 {
                     UiText.Prebake(probe, labels[i]);   // 안 구운 글자를 덜 재는 고리를 끊는다(UiText 주석)
                     Vector2 sz = probe.CalcSize(new GUIContent(labels[i]));
-                    btnWidths[i] = sz.x;
+                    // ⚠️⚠️ **올림 + 1 px**(2026-10-15 · 8127 재확인 cebc551). 한 줄 칸은 똑같이 나누므로
+                    //    **가장 긴 단추의 칸 = 잰 폭 그대로**가 된다 — 부동소수 한 끗(127.99997 < 128)에
+                    //    아래 「안 들면 줄인다」로 빠져 「다음 스테이지로」만 바닥 크기로 줄었다.
+                    btnWidths[i] = Mathf.Ceil(sz.x) + 1f;
                     if (sz.y > needBtnH) needBtnH = sz.y;
                 }
 
@@ -2892,7 +2895,7 @@ namespace MBI.Combat
                     // 칸이 글자에서 나왔으므로 바닥 크기면 들어간다. 그래도 한 번 더 맞춘다 —
                     // 창이 너무 좁아 상자가 화면 폭에 깎이면 그때는 줄이는 수밖에 없다.
                     var bs = new GUIStyle(probe);
-                    if (bs.CalcSize(new GUIContent(labels[i])).x > r.width)
+                    if (bs.CalcSize(new GUIContent(labels[i])).x > r.width + 0.5f)   // 반올림 한 끗은 넘침이 아니다
                         UiText.FitOneLine(bs, labels[i], r.width);
 
                     if (!UiSkin.Button(r, labels[i], bs)) continue;
