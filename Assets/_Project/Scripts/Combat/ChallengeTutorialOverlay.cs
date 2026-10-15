@@ -41,7 +41,8 @@ namespace MBI.Combat
                     MainMenuGate.IsOpen))
                 return;
 
-            Rect button = UiLayout.ChallengeButtonRect(Screen.width, Screen.height);
+            // ⚠️ 구멍 = 그리는 단추와 **같은 칸**(#142 a 로 칸이 글자를 따라가게 됐다).
+            Rect button = StageRunner.ChallengeRect();
             DrawFor(button, ChallengeTutorialOverlayRule.Prompt, promptAbove: false);
         }
 

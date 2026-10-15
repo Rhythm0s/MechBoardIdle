@@ -28,6 +28,11 @@ namespace MBI.Idle
 
         private void Awake() => _idle = GetComponent<IdleRuntime>();
 
+        // ✅ **제 OnGUI 에서 안 그린다**(2026-10-15 사용자 확정 #142 b · QA CID_102) — 배지 카드 밑에
+        //    깔렸다. 전투 화면 OnGUI 끝(`HudTopLayer`)에서 그린다. 🗑️ 구 `OnGUI` 는 `DrawPopup` 이 됐다.
+        private void OnEnable() => HudTopLayer.Add(DrawPopup);
+        private void OnDisable() => HudTopLayer.Remove(DrawPopup);
+
         /// <summary>마지막으로 스타일을 지은 창 높이. 창이 바뀌면 다시 짓는다.</summary>
         private float _styleHeight;
 
@@ -47,7 +52,7 @@ namespace MBI.Idle
             _button = new GUIStyle(GUI.skin.button) { fontSize = body };
         }
 
-        private void OnGUI()
+        private void DrawPopup()
         {
             // 메인 메뉴가 덮고 있으면 그리지 않는다 — IMGUI 는 뒤에 그리는 쪽이 위로 온다
             // (2026-09-10 · 실측: 오프라인 대화상자가 「게임 시작」 버튼을 덮었다).

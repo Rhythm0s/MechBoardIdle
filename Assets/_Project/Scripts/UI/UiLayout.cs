@@ -623,14 +623,23 @@ namespace MBI.UI
         public static int StageBadgeLineFontSize(float screenHeight) =>
             KoreanFont.Snap(Mathf.Max(11, Mathf.RoundToInt(32f * Scale(screenHeight))));
 
-        public static Rect ChallengeButtonRect(float screenWidth, float screenHeight)
+        public static Rect ChallengeButtonRect(float screenWidth, float screenHeight) =>
+            ChallengeButtonRect(screenWidth, screenHeight, 0f, 0f);
+
+        /// <summary>
+        /// 「도전」 단추 — **글자에서 잰 최소 폭·높이**를 받는 갈래 (2026-10-15 사용자 확정 #142 a).
+        /// 글자가 「▼ 조립」 규격으로 커지면서 설계 칸(150 × 1.4 × 배율)이 「스테이지」보다 좁아졌다 —
+        /// 칸이 글자를 따라간다(#125). 오른끝·아랫변 맞춤은 그대로다.
+        /// </summary>
+        public static Rect ChallengeButtonRect(float screenWidth, float screenHeight,
+                                               float minWidth, float minHeight)
         {
             float sc = Scale(screenHeight);
             Rect band = StageProgressRect(screenWidth, screenHeight);
             Rect badge = StageBadgeRect(screenWidth, screenHeight);
 
-            float w = Mathf.Min(MinButton * 1.4f * sc, screenWidth * 0.3f);
-            float h = Mathf.Max(MinButton * 0.62f * sc, 1f);
+            float w = Mathf.Min(Mathf.Max(MinButton * 1.4f * sc, minWidth), screenWidth * 0.3f);
+            float h = Mathf.Max(Mathf.Max(MinButton * 0.62f * sc, 1f), minHeight);
 
             // 카드 아랫변에 **맞춰** 선다 — 카드보다 내려가면 보드 쪽 글자와 다툰다.
             float y = badge.yMax - h;
@@ -648,10 +657,15 @@ namespace MBI.UI
         /// ⚠️ 왼끝이 띠 왼끝보다 왼쪽으로 가면 **빈 칸을 준다**(폭 1 이하 → 안 그린다) —
         /// 창이 아주 좁을 때 배지 카드를 덮는 쪽이 더 나쁘다.
         /// </summary>
-        public static Rect StageListButtonRect(float screenWidth, float screenHeight)
+        public static Rect StageListButtonRect(float screenWidth, float screenHeight) =>
+            StageListButtonRect(screenWidth, screenHeight, 0f, 0f);
+
+        /// <summary>「스테이지」 단추 — 「도전」과 **같은 최소 크기**를 받는 갈래(#142 a).</summary>
+        public static Rect StageListButtonRect(float screenWidth, float screenHeight,
+                                               float minWidth, float minHeight)
         {
             float sc = Scale(screenHeight);
-            Rect chal = ChallengeButtonRect(screenWidth, screenHeight);
+            Rect chal = ChallengeButtonRect(screenWidth, screenHeight, minWidth, minHeight);
             Rect band = StageProgressRect(screenWidth, screenHeight);
 
             float x = chal.x - PlateGap * sc - chal.width;
@@ -673,14 +687,22 @@ namespace MBI.UI
         ///
         /// <paramref name="rows"/> 는 적을 줄 수다(열린 판만이 아니라 **목록 전체**).
         /// </summary>
-        public static Rect StageListPanelRect(float screenWidth, float screenHeight, int rows)
+        public static Rect StageListPanelRect(float screenWidth, float screenHeight, int rows) =>
+            StageListPanelRect(screenWidth, screenHeight, rows, 0f);
+
+        /// <summary>
+        /// 목록 패널 — **줄 높이를 글자에서 받는** 갈래 (2026-10-15 사용자 확정 #142 c).
+        /// 긴 잠김 줄을 두 줄로 나누면 설계 줄 높이(104 × 배율)보다 키가 클 수 있다 — 칸이 글자를 따라간다.
+        /// </summary>
+        public static Rect StageListPanelRect(float screenWidth, float screenHeight, int rows, float minRowPx)
         {
             float sc = Scale(screenHeight);
             Rect badge = StageBadgeRect(screenWidth, screenHeight);
 
             float w = Mathf.Min(SoundPanelWidth * sc, screenWidth - 24f);
             // 머리 한 줄 + 줄들 + 닫기 한 줄 + 위아래 틈.
-            float h = (StageListRowHeight * (Mathf.Max(0, rows) + 2) + 20f) * sc;
+            float rh = Mathf.Max(StageListRowHeight * sc, minRowPx);
+            float h = rh * (Mathf.Max(0, rows) + 2) + 20f * sc;
 
             float top = badge.yMax + PlateGap * sc;
             float y = Mathf.Max(top, (screenHeight - h) * 0.5f);
@@ -695,11 +717,16 @@ namespace MBI.UI
         /// 1..rows 가 판들, 마지막이 닫기다.
         /// </summary>
         public static Rect StageListSlotRect(float screenWidth, float screenHeight,
-                                             int rows, int index)
+                                             int rows, int index) =>
+            StageListSlotRect(screenWidth, screenHeight, rows, index, 0f);
+
+        /// <summary>목록 칸 — 줄 높이를 글자에서 받는 갈래(#142 c · 패널과 같은 값을 넘길 것).</summary>
+        public static Rect StageListSlotRect(float screenWidth, float screenHeight,
+                                             int rows, int index, float minRowPx)
         {
             float sc = Scale(screenHeight);
-            Rect panel = UiPlate.Padded(StageListPanelRect(screenWidth, screenHeight, rows), sc);
-            float rh = StageListRowHeight * sc;
+            Rect panel = UiPlate.Padded(StageListPanelRect(screenWidth, screenHeight, rows, minRowPx), sc);
+            float rh = Mathf.Max(StageListRowHeight * sc, minRowPx);
             return new Rect(panel.x, panel.y + 10f * sc + rh * index, panel.width, rh);
         }
 

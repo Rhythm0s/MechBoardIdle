@@ -2139,18 +2139,22 @@ namespace MBI.Combat
         /// </summary>
         private void DrawChallengeButton()
         {
-            Rect r = UiLayout.ChallengeButtonRect(Screen.width, Screen.height);
+            Rect r = ChallengeRect();
             if (r.width <= 1f || r.height <= 1f) return;
             UiBlockers.Add(r);
 
             const string label = "도전";
             GUIStyle st = HudButtonStyle();
+            if (st.CalcSize(new GUIContent(label)).x > r.width + 0.5f)
+                UiText.FitOneLine(st, label, r.width);   // 창이 아주 좁아 칸이 깎였을 때만
 
             // ✅ **T4 동안에는 잠근다**(2026-10-15 사용자 확정 #138 「잠금 = T3 와 같게」).
             //    T3 는 이 단추가 가리키는 단추라 늘 열려 있었다 — 그래서 이 문이 지금까지 없었다.
             bool allowed = TutorialGate.Allows(TutorialGate.Control.EnterChallenge);
             bool wasEnabled = GUI.enabled;
-            GUI.enabled = wasEnabled && allowed;
+            // ⚠️ 오프라인 보상 판이 떠 있으면 누름을 넘긴다(#142 b) — 판이 이 단추 **뒤에** 그려지므로
+            //    (IMGUI 는 먼저 그린 쪽이 누름을 가져간다) 켜 두면 판 위를 눌러도 이 단추가 먹는다.
+            GUI.enabled = wasEnabled && allowed && !IdleSignals.OfflinePopupOpen;
 
             // **강제 버튼**(기획서 2장) — T3 동안 이 단추만 빛난다.
             // ⚠️ 빛내는 법은 조립 단추와 **같은 문**이다(`GameLayerController`) —
@@ -2188,14 +2192,40 @@ namespace MBI.Combat
         ///    안 정해 **스킨 기본값(작다)**을 쓰고, 「▼ 조립」은 칸 높이 × 0.28 이라 **둘이 다른 규격**이었다.
         ///    「도전」 쪽을 따라간 결과 단추가 여전히 아주 작았다. 결과 단추는 <see cref="ResultButtonStyle"/>.
         /// </summary>
-        private static GUIStyle HudButtonStyle()
+        /// <remarks>
+        /// ✅ **「▼ 조립」 규격으로 맞췄다**(2026-10-15 사용자 확정 #142 a · 결과 단추와 같은 셈).
+        /// 🗑️ 구 「스킨 기본 글자 + 칸에 안 들면 줄임」 폐기 — 그 글자가 아주 작았다.
+        /// 칸은 글자에서 잰다(<see cref="ChallengeRect"/>).
+        /// </remarks>
+        private static GUIStyle HudButtonStyle() => ResultButtonStyle();
+
+        /// <summary>「도전」·「스테이지」 두 단추가 바닥으로 깔 크기 — 둘 중 긴 글자(같은 폭으로 선다).</summary>
+        private static Vector2 HudButtonNeed()
         {
-            Rect r = UiLayout.ChallengeButtonRect(Screen.width, Screen.height);
-            var st = new GUIStyle(GUI.skin.button) { wordWrap = false };
-            const string label = "도전";
-            if (r.width > 1f && st.CalcSize(new GUIContent(label)).x > r.width)
-                UiText.FitOneLine(st, label, r.width);
-            return st;
+            GUIStyle st = HudButtonStyle();
+            float w = 0f, h = 0f;
+            foreach (string label in new[] { "도전", "스테이지" })
+            {
+                UiText.Prebake(st, label);
+                Vector2 sz = st.CalcSize(new GUIContent(label));
+                w = Mathf.Max(w, Mathf.Ceil(sz.x) + 1f);
+                h = Mathf.Max(h, Mathf.Ceil(sz.y));
+            }
+            return new Vector2(w, h);
+        }
+
+        /// <summary>「도전」 단추 칸 — **그리는 곳과 T3 막 구멍이 같은 것을 쓴다**(지침 §7).</summary>
+        internal static Rect ChallengeRect()
+        {
+            Vector2 need = HudButtonNeed();
+            return UiLayout.ChallengeButtonRect(Screen.width, Screen.height, need.x, need.y);
+        }
+
+        /// <summary>「스테이지」 단추 칸 — 「도전」과 같은 크기.</summary>
+        internal static Rect StageListRect()
+        {
+            Vector2 need = HudButtonNeed();
+            return UiLayout.StageListButtonRect(Screen.width, Screen.height, need.x, need.y);
         }
 
         // ───────────────────── 스테이지 목록 (순서 5) ─────────────────────
@@ -2230,18 +2260,21 @@ namespace MBI.Combat
         /// </summary>
         private void DrawStageListButton()
         {
-            Rect r = UiLayout.StageListButtonRect(Screen.width, Screen.height);
+            Rect r = StageListRect();
             if (r.width <= 1f || r.height <= 1f) return;
             UiBlockers.Add(r);
 
-            var st = new GUIStyle(GUI.skin.button) { wordWrap = false };
+            // ✅ 글자 = 「▼ 조립」 규격(#142 a · 「도전」과 같은 꼴). 🗑️ 구 스킨 기본 글자 폐기.
+            GUIStyle st = HudButtonStyle();
             const string label = "스테이지";
-            if (st.CalcSize(new GUIContent(label)).x > r.width)
+            if (st.CalcSize(new GUIContent(label)).x > r.width + 0.5f)
                 UiText.FitOneLine(st, label, r.width);
 
             // ⚠️ **T3 동안 잠긴다**(기획서 2장 · 확정 #115 ⓒ) — 지금 할 일은 「도전」 하나다.
+            // ⚠️ 오프라인 보상 판이 떠 있으면 누름을 넘긴다(#142 b · 「도전」과 같은 까닭).
             bool was = GUI.enabled;
-            GUI.enabled = was && TutorialGate.Allows(TutorialGate.Control.StageList);
+            GUI.enabled = was && TutorialGate.Allows(TutorialGate.Control.StageList)
+                          && !IdleSignals.OfflinePopupOpen;
             bool pressed = UiSkin.Button(r, label, st);
             GUI.enabled = was;
 
@@ -2268,12 +2301,35 @@ namespace MBI.Combat
         private void DrawStageListPanel()
         {
             int rows = _stageList.Count;
-            Rect panel = UiLayout.StageListPanelRect(Screen.width, Screen.height, rows);
+            float sc = UiLayout.Scale(Screen.height);
+            int px = KoreanFont.Snap(Mathf.Max(14, Mathf.RoundToInt(40f * sc)));
+            int here = StageMapName.NumberOf(stage != null ? stage.stageId : string.Empty);
+
+            // ⚠️⚠️ **줄 글자를 먼저 짓고 칸을 거기서 잰다**(2026-10-15 사용자 확정 #142 c).
+            //    긴 잠김 줄(S5·S6)이 칸에 안 들어 사다리를 내려가 **다른 줄보다 작게** 찍혔다.
+            //    이제 크기는 그대로 두고 **두 줄로 나눈다** — 「잠김 · S5 — 이름」 / 「(앞 판 도전 통과 필요)」.
+            //    두 줄이 설계 줄 높이를 넘으면 칸(줄 높이)이 글자를 따라 커진다. 문구는 안 바꾼다.
+            var bs = new GUIStyle(GUI.skin.button)
+            {
+                fontSize = px,
+                wordWrap = false,
+                clipping = TextClipping.Overflow,
+            };
+            float slotW = UiLayout.StageListSlotRect(Screen.width, Screen.height, rows, 1).width;
+            var labels = new string[rows];
+            float minRow = 0f;
+            for (int i = 0; i < rows; i++)
+            {
+                StageListEntry e = _stageList[i];
+                labels[i] = StageListLabel(e, here, bs, slotW);
+                UiText.Prebake(bs, labels[i]);
+                minRow = Mathf.Max(minRow, Mathf.Ceil(bs.CalcSize(new GUIContent(labels[i])).y));
+            }
+
+            Rect panel = UiLayout.StageListPanelRect(Screen.width, Screen.height, rows, minRow);
             UiBlockers.Add(panel);
             UiPlate.Draw(panel);
 
-            float sc = UiLayout.Scale(Screen.height);
-            int px = KoreanFont.Snap(Mathf.Max(14, Mathf.RoundToInt(40f * sc)));
             var head = new GUIStyle(GUI.skin.label)
             {
                 fontSize = px,
@@ -2285,41 +2341,24 @@ namespace MBI.Combat
 
             string headText = "스테이지  ·  열린 판 "
                               + StageUnlockRule.UnlockedCount(_stageList) + "/" + rows;
-            Rect headRect = UiLayout.StageListSlotRect(Screen.width, Screen.height, rows, 0);
+            Rect headRect = UiLayout.StageListSlotRect(Screen.width, Screen.height, rows, 0, minRow);
             UiText.FitOneLine(head, headText, headRect.width);
             GUI.Label(headRect, headText, head);
-
-            int here = StageMapName.NumberOf(stage != null ? stage.stageId : string.Empty);
 
             for (int i = 0; i < rows; i++)
             {
                 StageListEntry e = _stageList[i];
-                Rect r = UiLayout.StageListSlotRect(Screen.width, Screen.height, rows, i + 1);
-
-                // 「S3 — 물류 다시 짜기」. 맵 이름이 비면 **번호만** 적는다(지어내지 않는다).
-                string name = StageMapName.Of(e.number);
-                string label = "S" + e.number + (name.Length > 0 ? "  —  " + name : string.Empty);
-                // ⚠️⚠️ **그림 글자를 안 쓴다**(2026-10-13 빌드 실측). 자물쇠(U+1F512)와
-                //    체크(U+2713)는 한글 아틀라스에 없어 화면에 **□ 로 빠졌다** —
-                //    잠긴 네 줄 앞이 전부 네모였다. WebGL 에는 시스템 폰트 폴백이 없다.
-                //    뜻을 글자로 적는다.
-                if (e.number == here) label += "  (지금)";
-                else if (e.cleared) label += "  (통과)";
-                if (!e.unlocked) label = "잠김 · " + label + "  (앞 판 도전 통과 필요)";
-
-                var bs = new GUIStyle(GUI.skin.button)
-                {
-                    fontSize = px,
-                    wordWrap = false,
-                    clipping = TextClipping.Overflow,
-                };
-                if (bs.CalcSize(new GUIContent(label)).x > r.width)
-                    UiText.FitOneLine(bs, label, r.width);
+                Rect r = UiLayout.StageListSlotRect(Screen.width, Screen.height, rows, i + 1, minRow);
+                string label = labels[i];
+                // 두 줄로도 안 들 만큼 좁은 창일 때만 줄인다(그때는 그 줄 하나만).
+                var rowStyle = new GUIStyle(bs);
+                if (!label.Contains("\n") && rowStyle.CalcSize(new GUIContent(label)).x > r.width + 0.5f)
+                    UiText.FitOneLine(rowStyle, label, r.width);
 
                 // ⚠️ **잠긴 줄은 눌리지 않는다** — IMGUI 의 `enabled` 를 쓴다.
                 bool was = GUI.enabled;
                 GUI.enabled = was && e.unlocked && e.number != here;
-                bool hit = UiSkin.Button(r, label, bs);
+                bool hit = UiSkin.Button(r, label, rowStyle);
                 GUI.enabled = was;
 
                 if (!hit) continue;
@@ -2335,9 +2374,32 @@ namespace MBI.Combat
                 break;
             }
 
-            Rect close = UiLayout.StageListSlotRect(Screen.width, Screen.height, rows, rows + 1);
+            Rect close = UiLayout.StageListSlotRect(Screen.width, Screen.height, rows, rows + 1, minRow);
             var cs = new GUIStyle(GUI.skin.button) { fontSize = px, wordWrap = false };
             if (UiSkin.Button(close, "닫기", cs)) _stageListOpen = false;
+        }
+
+        /// <summary>
+        /// 목록 한 줄의 글자 (#142 c 로 꺼냈다). 칸에 한 줄로 안 들면 **잠김 문구를 둘째 줄로** 내린다.
+        /// </summary>
+        private static string StageListLabel(StageListEntry e, int here, GUIStyle style, float width)
+        {
+            // 「S3 — 물류 다시 짜기」. 맵 이름이 비면 **번호만** 적는다(지어내지 않는다).
+            string name = StageMapName.Of(e.number);
+            string label = "S" + e.number + (name.Length > 0 ? "  —  " + name : string.Empty);
+            // ⚠️⚠️ **그림 글자를 안 쓴다**(2026-10-13 빌드 실측). 자물쇠(U+1F512)와
+            //    체크(U+2713)는 한글 아틀라스에 없어 화면에 **□ 로 빠졌다** —
+            //    잠긴 네 줄 앞이 전부 네모였다. WebGL 에는 시스템 폰트 폴백이 없다.
+            //    뜻을 글자로 적는다.
+            if (e.number == here) label += "  (지금)";
+            else if (e.cleared) label += "  (통과)";
+            if (e.unlocked) return label;
+
+            const string need = "(앞 판 도전 통과 필요)";
+            string one = "잠김 · " + label + "  " + need;
+            UiText.Prebake(style, one);
+            if (style.CalcSize(new GUIContent(one)).x <= width + 0.5f) return one;
+            return "잠김 · " + label + "\n" + need;
         }
 
         /// <summary>
@@ -2937,6 +2999,9 @@ namespace MBI.Combat
             bool noticeUp = _moduleGrantNotice.IsVisible(Time.unscaledTime);
             ChallengeTutorialOverlay.DrawModule(TutorialSignals.ModuleTutorialActive && !noticeUp);
             ChallengeTutorialOverlay.DrawGrantNotice(noticeUp);
+
+            // ✅ **오프라인 보상 판 = HUD 맨 위**(#142 b · CID_102) — 배지 카드·막 위에 앉는다.
+            HudTopLayer.DrawAll();
 
             // IMGUI는 나중에 그린 것이 위에 온다 — 연출은 결과 화면 위에도 덮여야 한다.
             DrawMergeCutscene();
