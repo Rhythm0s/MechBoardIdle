@@ -29,8 +29,9 @@ namespace MBI.Tests
         {
             // ⚠️ **가정**이다(설계 역기입 자리). 근거는 문구 「길게 = 자동 켬/끔」 —
             //    길게 눌러 켜는 것이 첫 동작이라면 처음 상태는 꺼짐이어야 말이 된다.
-            Assert.IsFalse(TagAutoMode.DefaultEnabled);
-            Assert.IsFalse(TagAutoMode.Enabled);
+            // 🗑️ 구 「기본값은 꺼짐(가정)」 폐기 — 사용자 확정 #158(2026-10-16) 켜짐. 시험 이름의 「꺼짐」은 낡은 글자다.
+            Assert.IsTrue(TagAutoMode.DefaultEnabled);
+            Assert.IsTrue(TagAutoMode.Enabled);
         }
 
         [Test]
@@ -49,6 +50,7 @@ namespace MBI.Tests
         {
             // 길게 누르기와 토글 버튼이 **같은 값**을 만진다 — 둘이 각자 뒤집으면
             // 한쪽만 고쳐지는 날이 온다(지침 §7).
+            TagAutoMode.Enabled = false;     // #158 — 기본이 켜짐이라 꺼진 데서 시작한다
             TagAutoMode.Toggle();
             Assert.IsTrue(TagAutoMode.Enabled);
 

@@ -49,14 +49,18 @@ namespace MBI.Tests
         [Test]
         public void 초기화는_자동_교대를_되돌린다()
         {
-            TagAutoMode.Enabled = true;
-            Assert.IsTrue(TagAutoMode.Enabled, "켜지지 않았다 — 이 시험이 아무것도 안 잰다");
+            TagAutoMode.Enabled = !TagAutoMode.DefaultEnabled;
+            Assert.AreNotEqual(TagAutoMode.DefaultEnabled, TagAutoMode.Enabled, "안 바뀌었다 — 이 시험이 아무것도 안 잰다");
 
             TagAutoMode.Reset();
 
-            Assert.AreEqual(TagAutoMode.DefaultEnabled, TagAutoMode.Enabled,
-                "초기화 뒤에도 자동 교대가 켜져 있다 — 튜토리얼이 B 로 선다");
-            Assert.IsFalse(TagAutoMode.Enabled, "기본값이 켜짐으로 바뀌었다 — 가정이 바뀐 것이다");
+            Assert.AreEqual(TagAutoMode.DefaultEnabled, TagAutoMode.Enabled, "초기화가 기본값으로 안 돌아간다");
+
+            // 🗑️ 구 단언 「기본값은 꺼짐」 폐기(사용자 확정 #158 · 2026-10-16 · 기본 켜짐).
+            //    이 시험이 지키던 것 — 「처음부터 뒤 튜토리얼이 B 로 서지 않는다」 — 는 이제 **B 해금 문**이 지킨다:
+            //    자동 교대는 `TagAutoMode.Enabled && RobotBGate.IsUnlocked` 일 때만 켜지고, 「처음부터」는 B 를 다시 잠근다.
+            string runner = System.IO.File.ReadAllText("Assets/_Project/Scripts/Combat/StageRunner.cs");
+            StringAssert.Contains("_sim.AutoTagEnabled = TagAutoMode.Enabled && RobotBGate.IsUnlocked;", runner);
         }
 
         /// <summary>

@@ -38,8 +38,12 @@ namespace MBI.Core
     {
         private const string Key = "mbi.tag.auto";
 
-        /// <summary>⚠️ **가정** — 문서에 절이 없다. 꺼짐으로 시작한다.</summary>
-        public const bool DefaultEnabled = false;
+        /// <summary>
+        /// **켜짐으로 시작한다** (사용자 확정 #158 · 2026-10-16) — 새 저장·「처음부터」는 Auto 켬. 길게 누르기·토글로 끌 수 있는
+        /// 길은 그대로이고, 한 번 바꾼 값은 저장된 값을 따른다. 사람이 안 눌러도 만충 순간 태그 스킬이 나가는 판이 기준(S6).
+        /// 🗑️ 구 「⚠️ 가정 — 꺼짐으로 시작」 폐기.
+        /// </summary>
+        public const bool DefaultEnabled = true;
 
         /// <summary>자동 교대가 켜져 있는가.</summary>
         public static bool Enabled
