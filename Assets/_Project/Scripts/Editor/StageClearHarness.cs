@@ -2193,6 +2193,89 @@ namespace MBI.EditorTools
             if (Application.isBatchMode) EditorApplication.Exit(0);
         }
 
+        /// <summary>두 로봇 판 시작 마운트 비율(하네스 · 음수 = 종전: A 가득 · B 는 FillBAtStart).</summary>
+        internal static float AStartRatio = -1f, BStartRatio = -1f;
+        internal static int LastTagStrikes;
+        internal static string LastStrikeLog = "";
+
+        /// <summary>
+        /// **S6 자연 진행 갈림 재기**(2026-10-16 · 사용자 육안 「합체가 거의 마지막에 차서 못 잡음」 · 값 0).
+        /// 시작 마운트(A·B)와 들고 온 게이지를 갈라 S6 을 돌린다 — 강화 뒤 · Auto 켬 · 합체는 차고 적이 사거리에 들면 바로.
+        /// 배치 실행: <c>-executeMethod MBI.EditorTools.StageClearHarness.RunS6NaturalBatch</c>
+        /// </summary>
+        public static void RunS6NaturalBatch()
+        {
+            var sb = new StringBuilder();
+            sb.AppendLine("############ S6 갈림 — 시작 마운트 × 들고 온 게이지 (2026-10-16 · 0749886 자산 · 강화 뒤 · Auto 켬 · 60초) ############");
+            sb.AppendLine("| A 시작 | B 시작 | 게이지 | 결과 | 태그 스킬 수 | 합체 찬/누른 시각 | 보스 남은 HP / 13500 |");
+            sb.AppendLine("|---|---|---|---|---|---|---|");
+            try
+            {
+                foreach (float a in new[] { 1f, 0f })
+                    foreach (float b in new[] { 1f, 0.5f, 0f })
+                        foreach (float g in new[] { 0f, 0.5f, 1f })
+                        {
+                            Enhanced = true; AutoMerge = true; MergeStartRatio = g; AStartRatio = a; BStartRatio = b;
+                            StageVerdict v = RunOne("S6", 0f);
+                            Enhanced = false; AutoMerge = false; MergeStartRatio = -1f; AStartRatio = -1f; BStartRatio = -1f;
+                            sb.AppendLine($"| {a * 40f:F0} | {b * 40f:F0} | {g * 100f:F0}% | {Cell(v)} | {LastTagStrikes} | "
+                                          + (LastMergeReadyAt < 0f ? "안 참" : $"{LastMergeReadyAt:F1}초") + " / "
+                                          + (LastMergeAt < 0f ? "—" : $"{LastMergeAt:F1}초") + $" | {LastEnemyHpLeft:F0} |");
+                        }
+            }
+            finally { SpawnHook = null; HpAll = 0f; PlantScale = 1f; DmgMult = 1f; RateMult = 1f; Enhanced = false; AggroOverride = 0f; AutoMerge = false; MergeStartRatio = -1f; FillBAtStart = false; AStartRatio = -1f; BStartRatio = -1f; }
+
+            sb.AppendLine();
+            sb.AppendLine("############ 늦게 찬 합체 — A 40 · B 40 · 게이지를 갈라 합체가 차는 시각을 늦춘다 ############");
+            sb.AppendLine("| 게이지 | 결과 | 합체 찬/누른 시각 | 태그 스킬(시각·피해) | 보스 남은 HP |");
+            sb.AppendLine("|---|---|---|---|---|");
+            try
+            {
+                foreach (float g in new[] { 0f, 0.9f, 0.7f, 0.5f, 0.45f, 0.4f, 0.36f })
+                {
+                    Enhanced = true; AutoMerge = true; MergeStartRatio = g; AStartRatio = 1f; BStartRatio = 1f;
+                    StageVerdict v = RunOne("S6", 0f);
+                    Enhanced = false; AutoMerge = false; MergeStartRatio = -1f; AStartRatio = -1f; BStartRatio = -1f;
+                    sb.AppendLine($"| {g * 100f:F0}% | {Cell(v)} | " + (LastMergeReadyAt < 0f ? "안 참" : $"{LastMergeReadyAt:F1}초") + " / "
+                                  + (LastMergeAt < 0f ? "—" : $"{LastMergeAt:F1}초") + $" | {LastTagStrikes}회: {LastStrikeLog} | {LastEnemyHpLeft:F0} |");
+                }
+                // 강화 안 한 판(사용자 저장이 강화 전일 수 있다)
+                foreach (float g in new[] { 0f, 0.5f })
+                {
+                    Enhanced = false; AutoMerge = true; MergeStartRatio = g; AStartRatio = 1f; BStartRatio = 1f;
+                    StageVerdict v = RunOne("S6", 0f);
+                    AutoMerge = false; MergeStartRatio = -1f; AStartRatio = -1f; BStartRatio = -1f;
+                    sb.AppendLine($"| 강화 전 · {g * 100f:F0}% | {Cell(v)} | " + (LastMergeReadyAt < 0f ? "안 참" : $"{LastMergeReadyAt:F1}초") + " / "
+                                  + (LastMergeAt < 0f ? "—" : $"{LastMergeAt:F1}초") + $" | {LastTagStrikes}회: {LastStrikeLog} | {LastEnemyHpLeft:F0} |");
+                }
+            }
+            finally { Enhanced = false; AutoMerge = false; MergeStartRatio = -1f; AStartRatio = -1f; BStartRatio = -1f; }
+
+            sb.AppendLine();
+            sb.AppendLine("############ 화면 재현 조건 — A 40 · B 0(파밍 중 Auto 태그가 B 를 씀) · 합체 누름 켬/끔 ############");
+            sb.AppendLine("| 강화 | 게이지 | 합체 | 결과 | 합체 찬/누른 시각 | 태그 스킬(시각·피해) | 보스 남은 HP |");
+            sb.AppendLine("|---|---|---|---|---|---|---|");
+            try
+            {
+                foreach (bool en in new[] { true, false })
+                    foreach (float g in new[] { 0f, 0.3f, 0.4f, 0.5f, 0.6f })
+                        foreach (bool mg in new[] { true, false })
+                        {
+                            if (g == 0f && !mg) continue;
+                            Enhanced = en; AutoMerge = mg; MergeStartRatio = g; AStartRatio = 1f; BStartRatio = 0f;
+                            StageVerdict v = RunOne("S6", 0f);
+                            Enhanced = false; AutoMerge = false; MergeStartRatio = -1f; AStartRatio = -1f; BStartRatio = -1f;
+                            sb.AppendLine($"| {(en ? "뒤" : "전")} | {g * 100f:F0}% | {(mg ? "누름" : "안 누름")} | {Cell(v)} | " + (LastMergeReadyAt < 0f ? "안 참" : $"{LastMergeReadyAt:F1}초") + " / "
+                                          + (LastMergeAt < 0f ? "—" : $"{LastMergeAt:F1}초") + $" | {LastTagStrikes}회: {LastStrikeLog} | {LastEnemyHpLeft:F0} |");
+                        }
+            }
+            finally { Enhanced = false; AutoMerge = false; MergeStartRatio = -1f; AStartRatio = -1f; BStartRatio = -1f; }
+
+            System.IO.File.WriteAllText("Docs/261016_s6_natural.md", sb.ToString());
+            Debug.Log(sb.ToString());
+            if (Application.isBatchMode) EditorApplication.Exit(0);
+        }
+
         /// <summary>판을 세운 직후 손대는 갈고리 — 하네스 전용(2026-10-16 · 사용자 막힘 「S2 도전을 못 넘는다」 실측).</summary>
         internal static System.Action<BoardGrid> BoardHook;
 
@@ -2504,13 +2587,14 @@ namespace MBI.EditorTools
             };
 
             // 튜토리얼 종료 판 — A 마운트만 표준탄으로 채운다(B 는 제 보드가 채운다).
-            mountA.Load(MountItem.Standard, mountA.SlotCount * stack);
-            // #156 — 바로가기 만충 판을 흉내 낼 때 B 드론도 가득(누적형 반 · 광역형 반)
-            if (FillBAtStart)
+            mountA.Load(MountItem.Standard, mountA.SlotCount * stack * (AStartRatio >= 0f ? AStartRatio : 1f));
+            // #156 — 바로가기 만충 판을 흉내 낼 때 B 드론도 가득(누적형 반 · 광역형 반) · BStartRatio 면 그 몫만
+            float bFill = BStartRatio >= 0f ? BStartRatio : (FillBAtStart ? 1f : 0f);
+            if (bFill > 0f)
             {
-                float capB = MountLoad.SlotsRobotB * stack * droneFactor;
+                float capB = MountLoad.SlotsRobotB * stack * droneFactor * bFill;
                 mountB.Load(MountItem.Drone, capB * 0.5f);
-                mountB.Load(MountItem.DroneAoe, capB);
+                mountB.Load(MountItem.DroneAoe, capB * 0.5f);
             }
 
             List<EnemySpawn> spawns = StageSpawnFactory.Build(stage, EnemyCatalog(), tuning);
@@ -2746,6 +2830,8 @@ namespace MBI.EditorTools
 
             // ── 보고 ───────────────────────────────────────────────────────
             LastBurstDamage = sim.LastBurstDamage;
+            LastTagStrikes = sim.TagSkillStrikes;
+            LastStrikeLog = string.Join(" / ", strikeLog).Replace("    ", "");
             LastEnemyHpLeft = 0f;
             foreach (CombatEntity e in sim.Enemies) if (e.IsAlive) LastEnemyHpLeft += e.hp;
             LastVerdict = new StageVerdict
