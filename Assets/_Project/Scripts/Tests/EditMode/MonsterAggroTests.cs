@@ -101,6 +101,21 @@ namespace MBI.Tests
         }
 
         [Test]
+        public void 맞으면_범위_밖이어도_깬다()
+        {
+            // 사용자 확정 #153 — 쏘는 로봇 · 범위 1 · 띠 6 → 거리로는 안 깨지만 맞으면 깬다
+            RobotSetup r = Idle();
+            r.attackRange = 100f;
+            r.lines = new List<AmmoLine> { new AmmoLine(AmmoKind.Standard, 1f, 2f) };
+            r.ammoCapacity = 1000f;
+            r.ammoStore = AmmoFixture.Stocked(1000f, r.lines, 1000f);
+            var sim = new CombatSimulation(r, Walkers(1), 6f, 60f, 0f) { SpawnAllAtOnce = true };
+            sim.SetAggroRange(1f);
+            Run(sim, 2f);
+            Assert.IsTrue(sim.Enemies[0].aggro, "맞았는데 안 깼다");
+        }
+
+        [Test]
         public void 범위_0_이면_종전처럼_처음부터_다가온다()
         {
             var sim = new CombatSimulation(Idle(), Walkers(1), 12f, 60f, 0f) { SpawnAllAtOnce = true };
@@ -115,8 +130,9 @@ namespace MBI.Tests
         {
             string runner = System.IO.File.ReadAllText("Assets/_Project/Scripts/Combat/StageRunner.cs");
             string harness = System.IO.File.ReadAllText("Assets/_Project/Scripts/Editor/StageClearHarness.cs");
-            StringAssert.Contains("_sim.SetAggroRange(tuning.enemyAggroRangeTbd);", runner);
-            StringAssert.Contains("_sim.SpawnAllAtOnce = true;", runner);
+            // #153 — 도전 층만: 층을 정한 뒤 한 갈래로 건다
+            StringAssert.Contains("_sim.SetAggroRange(challengeLayer ? tuning.enemyAggroRangeTbd : 0f);", runner);
+            StringAssert.Contains("_sim.SpawnAllAtOnce = challengeLayer;", runner);
             Assert.AreEqual(2, System.Text.RegularExpressions.Regex.Matches(harness, @"sim\.SetAggroRange\(tuning\.enemyAggroRangeTbd\)").Count);
         }
     }

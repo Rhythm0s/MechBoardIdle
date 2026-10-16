@@ -609,8 +609,7 @@ namespace MBI.Combat
                                        tuning.waveSizeTbd, tuning.spawnCadenceTbd));
             // 사용자 확정 #152(2026-10-16) — 도전 층은 전원 한꺼번에 스폰(🗑️ WaveSpawnRule 도전 층 폐기 ·
             //    위 웨이브는 이제 줄이 쓰지 않는다 · 파밍 정원 보충은 따로다) · 몬스터는 탐색 범위 안에서만 깬다.
-            _sim.SpawnAllAtOnce = true;
-            _sim.SetAggroRange(tuning.enemyAggroRangeTbd);
+            //    ⚠️ 켜고 끄는 것은 아래 층을 정한 뒤다(사용자 확정 #153 — 도전 층만).
 
             // 로봇 뷰(중앙). 아트가 있으면 그것을, 없으면 색 플레이스홀더로 폴백한다(교체 지점 §8).
             _robotView = NewView("Robot");
@@ -638,6 +637,15 @@ namespace MBI.Combat
             else
             {
                 OpenFarmLayer();
+            }
+
+            // **탐색 규칙·전원 스폰은 도전 층만**(사용자 확정 #153 · 2026-10-16) — 파밍 층은 종전처럼
+            //    스폰 즉시 다가온다(범위 0 = 규칙 끔). 층을 정한 **뒤**에 건다 — 갈래는 여기 하나다.
+            bool challengeLayer = !StageLayerSignals.IsFarming;
+            if (_sim != null)
+            {
+                _sim.SpawnAllAtOnce = challengeLayer;
+                _sim.SetAggroRange(challengeLayer ? tuning.enemyAggroRangeTbd : 0f);
             }
 
             _ready = true;

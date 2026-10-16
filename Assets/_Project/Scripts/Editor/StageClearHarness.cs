@@ -1811,7 +1811,7 @@ namespace MBI.EditorTools
         {
             var sb = new StringBuilder();
             string[] ids = { "S1", "S2", "S3", "S4", "S5", "S6" };
-            sb.AppendLine("############ #149~#152 투입 뒤 (2026-10-16 · moduleMult 1.5 · hp 성장 절반 · 계수 = 강화 표식 · 도전 60초·수 절반 · 전원 스폰 · 탐색 범위) ############");
+            sb.AppendLine("############ #149~#153 투입 뒤 (2026-10-16 · moduleMult 1.5 · hp 성장 절반 · 계수 = 강화 표식 · 도전 60초·수 절반 · 전원 스폰 · 탐색 범위) ############");
             sb.AppendLine("판 = 시작 보드 + 튜토리얼 칸 · 마운트 가득 · 자동 조종 · S5·S6 = 두 로봇(태그) 판 · 제한 시간 = 자산(#151 뒤 60초)");
             try
             {
@@ -1865,7 +1865,7 @@ namespace MBI.EditorTools
             }
             finally { SpawnHook = null; HpAll = 0f; PlantScale = 1f; DmgMult = 1f; RateMult = 1f; Enhanced = false; }
 
-            System.IO.File.WriteAllText("Docs/261016_post152_sweep.md", sb.ToString());   // 🗑️ 구 post149·post151 파일명 — 그 표들은 #150·#151 커밋에 남는다
+            System.IO.File.WriteAllText("Docs/261016_post153_sweep.md", sb.ToString());   // 🗑️ 구 post149·151·152 파일명 — 그 표들은 앞 커밋에 남는다
             Debug.Log(sb.ToString());
             if (Application.isBatchMode) EditorApplication.Exit(0);
         }
@@ -1958,6 +1958,114 @@ namespace MBI.EditorTools
             sb.AppendLine();
             sb.AppendLine("S3·S4 둘 다 서는 범위: " + (bothAt.Count > 0 ? string.Join(" · ", bothAt) : "없음(4~9.2 안에서)"));
             System.IO.File.WriteAllText("Docs/261016_aggro_sweep.md", sb.ToString());
+            Debug.Log(sb.ToString());
+            if (Application.isBatchMode) EditorApplication.Exit(0);
+        }
+
+        /// <summary>
+        /// **S3·S4 처치 가능 수 재기**(2026-10-16 · 사용자 확정 #153 ④ · 값 0 · 하네스만).
+        /// S3 = 강화 전 · S4 = 강화 뒤(벽). 지금 수로 60초에 잡은 수 → 그 90% 를 종류 비율대로 내림 →
+        /// 그 수로 솎아(Thin · 차례 유지) 다시 돌려 서는지 본다.
+        /// 배치 실행: <c>-executeMethod MBI.EditorTools.StageClearHarness.RunCountProbeBatch</c>
+        /// </summary>
+        public static void RunCountProbeBatch()
+        {
+            var sb = new StringBuilder();
+            sb.AppendLine("############ S3·S4 처치 가능 수 (2026-10-16 · #153 ①②③ 뒤 · 60초 · 하네스 안에서만 바꿈) ############");
+            try
+            {
+                foreach (var (id, en) in new[] { ("S3", false), ("S4", true) })
+                {
+                    Enhanced = en;
+                    List<EnemySpawn> got = null;
+                    SpawnHook = l => { got = l; return l; };
+                    StageVerdict full = RunOne(id, 0f);
+                    SpawnHook = null;
+                    int kills = full.total - full.remaining - full.unspawned;
+                    int target = Mathf.FloorToInt(kills * 0.9f);
+                    sb.AppendLine();
+                    sb.AppendLine($"## {id} ({(en ? "강화 뒤" : "강화 전")})");
+                    sb.AppendLine($"지금 수 그대로: {Cell(full)} · [깬 최대 {full.peakAggro}] → 60초 처치 {kills} → 90% = {target}");
+
+                    var kinds = new Dictionary<string, int>();
+                    foreach (EnemySpawn e in got) kinds[e.label] = kinds.TryGetValue(e.label, out int n) ? n + 1 : 1;
+                    sb.AppendLine("| 종류 | 지금 | 비율대로 90% 처치 몫(내림) |");
+                    sb.AppendLine("|---|---|---|");
+                    int sum = 0;
+                    foreach (var kv in kinds)
+                    {
+                        int share = Mathf.Max(kv.Value > 0 && target > 0 ? 1 : 0,
+                            Mathf.FloorToInt((float)target * kv.Value / full.total));
+                        sum += share;
+                        sb.AppendLine($"| {kv.Key} | {kv.Value} | {share} |");
+                    }
+                    sb.AppendLine($"| 합 | {full.total} | {sum} |");
+
+                    float k = full.total > 0 ? (float)sum / full.total : 1f;
+                    foreach (bool en2 in new[] { false, true })
+                    {
+                        Enhanced = en2;
+                        SpawnHook = l => Thin(l, k);
+                        StageVerdict v = RunOne(id, 0f);
+                        SpawnHook = null;
+                        sb.AppendLine($"  솎아 다시({(en2 ? "강화 뒤" : "강화 전")} · 약 {sum}기 · 차례 유지 솎음 ⚠️ 종류 수는 솎음 결과라 표와 ±1): {Cell(v)} · [깬 최대 {v.peakAggro}]");
+                    }
+                    Enhanced = false;
+                }
+            }
+            finally { SpawnHook = null; HpAll = 0f; PlantScale = 1f; DmgMult = 1f; RateMult = 1f; Enhanced = false; AggroOverride = 0f; }
+
+            System.IO.File.WriteAllText("Docs/261016_count_probe.md", sb.ToString());
+            Debug.Log(sb.ToString());
+            if (Application.isBatchMode) EditorApplication.Exit(0);
+        }
+
+        /// <summary>
+        /// **S3·S4 서는 최대 수 찾기**(2026-10-16 · #153 ④ · 값 0). 90% 솎음이 안 서서(밀도가 낮아지면 처치 속도도 준다)
+        /// 수를 내려 가며 강화 전·후 둘 다 잰다. 종류 비율은 Thin(차례 유지 솎음)이 지킨다.
+        /// 배치 실행: <c>-executeMethod MBI.EditorTools.StageClearHarness.RunCountSearchBatch</c>
+        /// </summary>
+        public static void RunCountSearchBatch()
+        {
+            var sb = new StringBuilder();
+            sb.AppendLine("############ S3·S4 서는 수 찾기 (2026-10-16 · #153 ①②③ 뒤 · 60초 · 하네스 안에서만 바꿈) ############");
+            sb.AppendLine("칸 = 결과 · 처치 · 시간 · HP · [깬 최대] · 종류(솎음 결과)");
+            try
+            {
+                foreach (string id in new[] { "S3", "S4" })
+                {
+                    sb.AppendLine();
+                    sb.AppendLine($"## {id}");
+                    sb.AppendLine("| 목표 수 | 강화 전 | 강화 뒤 |");
+                    sb.AppendLine("|---|---|---|");
+                    int total = id == "S3" ? 87 : 98;
+                    foreach (int want in new[] { 39, 36, 33, 30, 27, 24, 21, 18, 15 })
+                    {
+                        float k = (float)want / total;
+                        var cells = new List<string>();
+                        string mix = "";
+                        foreach (bool en in new[] { false, true })
+                        {
+                            Enhanced = en;
+                            List<EnemySpawn> got = null;
+                            SpawnHook = l => { got = Thin(l, k); return got; };
+                            StageVerdict v = RunOne(id, 0f);
+                            SpawnHook = null;
+                            cells.Add(Cell(v) + $" · [{v.peakAggro}]");
+                            var kinds = new Dictionary<string, int>();
+                            foreach (EnemySpawn e in got) kinds[e.label] = kinds.TryGetValue(e.label, out int n) ? n + 1 : 1;
+                            var parts = new List<string>();
+                            foreach (var kv in kinds) parts.Add($"{kv.Key} {kv.Value}");
+                            mix = string.Join(" · ", parts);
+                        }
+                        Enhanced = false;
+                        sb.AppendLine($"| {want} ({mix}) | " + string.Join(" | ", cells) + " |");
+                    }
+                }
+            }
+            finally { SpawnHook = null; HpAll = 0f; PlantScale = 1f; DmgMult = 1f; RateMult = 1f; Enhanced = false; AggroOverride = 0f; }
+
+            System.IO.File.WriteAllText("Docs/261016_count_search.md", sb.ToString());
             Debug.Log(sb.ToString());
             if (Application.isBatchMode) EditorApplication.Exit(0);
         }

@@ -80,4 +80,4 @@ ID,FieldName,Value,Confirmed
 79,aoeSplashFactorTbd,0,0
 80,flickMinPixelsTbd,40,0
 81,flickMaxSecondsTbd,0.3,0
-82,enemyAggroRangeTbd,9.2,1
+82,enemyAggroRangeTbd,6,1

@@ -984,6 +984,7 @@ namespace MBI.Core
                 if (damage <= 0f) continue;
 
                 target.hp -= damage;
+                target.aggro = true;   // 사용자 확정 #153 — 맞으면 깸(맞은 적만 · 전파 없음)
                 dealt += damage;
                 anyHit = true;
 
@@ -1075,6 +1076,7 @@ namespace MBI.Core
 
             float damage = MergeSystem.BurstDamage(snapshot);
             target.hp -= damage;
+            target.aggro = true;   // 사용자 확정 #153 — 맞으면 깸(맞은 적만 · 전파 없음)
             LastBurstDamage = damage;
 
             _shots.Add(new ShotEvent
@@ -1852,6 +1854,7 @@ namespace MBI.Core
 
                 // **탐색 범위 밖이면 제자리**(사용자 확정 #152 · 2026-10-16) — 걷지도, 쏘지도 않는다
                 // (원거리형도 · 보스도). 한 번 들어오면 깨어나 계속 쫓는다(되돌아가지 않음).
+                // ✅ **맞아도 깬다**(사용자 확정 #153) — 피해를 주는 자리마다 aggro 를 켠다(맞은 적만 · 무리 전파 없음).
                 if (_aggroRange > 0f && !e.aggro)
                 {
                     if (dist > _aggroRange) continue;
@@ -2104,6 +2107,7 @@ namespace MBI.Core
                 // 판정식을 다시 만들지 않는다 — 본체 사격과 같은 식을 탄다.
                 float applied = DamageFormula.PerHit(dealt, Act.setup.mountCoef, Act.setup.moduleMult, target.def);
                 target.hp -= applied;
+                target.aggro = true;   // 사용자 확정 #153 — 맞으면 깸(맞은 적만 · 전파 없음)
                 DroneDamageDealt += applied;
 
                 // ⚠️ **광역형은 주위 적 전부를 친다**(사용자 확정). 한 대상 피해를
@@ -2145,6 +2149,7 @@ namespace MBI.Core
                         float more = DamageFormula.PerHit(dealt, Act.setup.mountCoef,
                             Act.setup.moduleMult, other.def);
                         other.hp -= more;
+                        other.aggro = true;   // 사용자 확정 #153 — 맞으면 깸(맞은 적만 · 전파 없음)
                         DroneDamageDealt += more;
                         AoeHitTargetsTotal++;   // 곁에 닿은 한 마리마다
                     }
@@ -2453,6 +2458,7 @@ namespace MBI.Core
                 float dmg = DamageFormula.PerHit(shot.damagePerShot * h.damageFactor,
                     side.setup.mountCoef, side.setup.moduleMult, h.entity.def) * damageMultiplier;
                 h.entity.hp -= dmg;
+                h.entity.aggro = true;   // 사용자 확정 #153 — 맞으면 깸(맞은 적만 · 전파 없음)
             }
 
             // 연출: 실제 스플래시가 있는 폭발(드론 광역형)만 착탄점 탄선 1발 + 폭발 광역 원.
