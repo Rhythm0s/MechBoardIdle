@@ -85,6 +85,26 @@ namespace MBI.Combat
         /// 강화 표식이 바뀌었으면 **이 판에 바로 넣는다**(2026-10-16 #150).
         /// 파밍 중에 누르면 다음 도전을 기다리지 않고 지금 판부터 ×1.45 다 — 누른 사람이 바로 본다.
         /// </summary>
+        // ── S6 합체 연출(사용자 확정 #160) ──
+        private bool _mergeRushOn;
+        private float _mergeRushStart, _mergeRushElapsed;
+
+        /// <summary>차오름 — 판 시간으로 센다(설정·메뉴가 판을 세우면 같이 선다).</summary>
+        private void TickMergeRush(float dt)
+        {
+            if (!_mergeRushOn || _sim == null || _sim.Merge == null) return;
+            MergeSystem m = _sim.Merge;
+            if (m.UsedThisStage || m.IsActive) { _mergeRushOn = false; return; }
+            _mergeRushElapsed += dt;
+            m.SetCharge(MergeRushRule.ChargeAt(_mergeRushStart, _mergeRushElapsed, m.ChargeSeconds));
+            if (_mergeRushElapsed >= MergeRushRule.RushSeconds) _mergeRushOn = false;
+        }
+
+        /// <summary>합체 원형 펄스를 거는가 — S6 도전 층 · 만충 · 아직 안 누름.</summary>
+        private bool MergePulseOn =>
+            stage != null && _sim != null && _sim.Merge != null && _sim.Merge.IsReady
+            && !IsTutorialStage && MergeRushRule.AppliesTo(stage.stageId, !StageLayerSignals.IsFarming);
+
         /// <summary>
         /// 합체 게이지를 게시한다(사용자 확정 #155) — 합체가 있는 판에서만. 썼거나 진행 중이면 0(줄어드는 때 = 사용).
         /// 합체가 없는 판(로봇 B 전)에서는 손대지 않는다 — 저장된 값이 그대로 남는다.
@@ -675,6 +695,11 @@ namespace MBI.Combat
             if (_sim != null && _sim.Merge != null) _sim.Merge.SetCharge(IdleSignals.MergeChargeSeconds);
 
             bool challengeLayer = !StageLayerSignals.IsFarming;
+            // **S6 합체 연출**(사용자 확정 #160) — 도전 층이 서면 게이지가 짧게 차오른다.
+            _mergeRushOn = !IsTutorialStage && stage != null && MergeRushRule.AppliesTo(stage.stageId, challengeLayer)
+                           && _sim != null && _sim.Merge != null && !_sim.Merge.UsedThisStage && !_sim.Merge.IsActive;
+            _mergeRushStart = _mergeRushOn ? _sim.Merge.ChargeSeconds : 0f;
+            _mergeRushElapsed = 0f;
             if (challengeLayer && !IsTutorialStage)
                 Debug.Log($"[MBI] 도전 판 섬 — {(stage != null ? stage.stageId : "?")} · 들고 온 {CarryLine()}.");   // 지시 ② 증거
             if (_sim != null)
@@ -1601,6 +1626,7 @@ namespace MBI.Combat
             _sim.AoeDroneShare = LogisticsOutputBridge.AoeDroneShare;
 
             _sim.Tick(Time.deltaTime);
+            TickMergeRush(Time.deltaTime);
 
             // ⚠️ **못 닿는 적을 로봇 쪽 링으로 되돌린다**(§71-28 2). 이동 클램프를 걷어 내면
             // 로봇이 반대로 달릴 때 **영영 못 닿는 적**이 생기고, 그 적은 살아 있어
@@ -3356,6 +3382,8 @@ namespace MBI.Combat
 
             // 합체 — 게이지가 차야 눌린다. 스테이지당 1회라 쓰고 나면 영영 비활성이다.
             GUI.enabled = _sim.Merge != null && _sim.Merge.IsReady;
+            // **합체 원형 펄스**(사용자 확정 #160) — S6 도전 층에서 만충이면 누를 때까지 커졌다 작아졌다 한다.
+            if (MergePulseOn) mergeRect = MergeRushRule.Scaled(mergeRect, MergeRushRule.PulseScale(Time.unscaledTime));
             if (UiSkin.Button(mergeRect, MergeButtonLabel(), round) && _sim.TryMerge())
             {
                 // 발동에 **성공했을 때만** 튼다. 실패한 버튼에 연출이 붙으면 안 된 일이 된 것처럼 보인다.

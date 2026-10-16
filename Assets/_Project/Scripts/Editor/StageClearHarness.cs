@@ -2197,6 +2197,41 @@ namespace MBI.EditorTools
         internal static float AStartRatio = -1f, BStartRatio = -1f;
         internal static int LastTagStrikes;
         internal static string LastStrikeLog = "";
+        /// <summary>#160 — 차오름을 건다 · 합체를 이 시각 전에는 안 누른다(늦게 누른 판).</summary>
+        internal static bool RushMerge;
+        internal static float MergeNotBefore;
+
+        /// <summary>
+        /// **#160 확인** — S6 강화 뒤/전 · A 40 · B 0(파밍 중 Auto 태그로 소진) · 게이지 갈래 · 차오름 3초 ·
+        /// 합체는 적과 붙는 즉시 / 45초에. 배치: <c>-executeMethod MBI.EditorTools.StageClearHarness.RunMergeRushBatch</c>
+        /// </summary>
+        public static void RunMergeRushBatch()
+        {
+            var sb = new StringBuilder();
+            sb.AppendLine("############ #160 S6 — 차오름 3초 · A 40 · B 0 · Auto 켬 · 60초 ############");
+            sb.AppendLine("| 강화 | 들고 온 게이지 | 합체 누름 | 결과 | 합체 찬/누른 시각 | 태그 스킬(시각 피해) | 보스 남은 HP |");
+            sb.AppendLine("|---|---|---|---|---|---|---|");
+            try
+            {
+                foreach (bool en in new[] { true, false })
+                    foreach (float g in new[] { 0f, 0.5f })
+                        foreach (float at in new[] { 0f, 45f })
+                        {
+                            Enhanced = en; AutoMerge = true; RushMerge = true; MergeNotBefore = at; MergeStartRatio = g; AStartRatio = 1f; BStartRatio = 0f;
+                            StageVerdict v = RunOne("S6", 0f);
+                            Enhanced = false; AutoMerge = false; RushMerge = false; MergeNotBefore = 0f; MergeStartRatio = -1f; AStartRatio = -1f; BStartRatio = -1f;
+                            string log = LastStrikeLog.Replace(" · 표적 1 · 총 피해 ", " ");
+                            log = System.Text.RegularExpressions.Regex.Replace(log, @" · 한 체 몫 \d+ · 소진 직전 적재\([^)]*\)", "");
+                            sb.AppendLine($"| {(en ? "뒤" : "전")} | {g * 100f:F0}% | {(at <= 0f ? "붙는 즉시" : $"{at:F0}초에")} | {Cell(v)} | "
+                                          + (LastMergeReadyAt < 0f ? "안 참" : $"{LastMergeReadyAt:F1}초") + " / " + (LastMergeAt < 0f ? "—" : $"{LastMergeAt:F1}초")
+                                          + $" | {LastTagStrikes}회: {log} | {LastEnemyHpLeft:F0} |");
+                        }
+            }
+            finally { Enhanced = false; AutoMerge = false; RushMerge = false; MergeNotBefore = 0f; MergeStartRatio = -1f; AStartRatio = -1f; BStartRatio = -1f; }
+            System.IO.File.WriteAllText("Docs/261016_merge160.md", sb.ToString());
+            Debug.Log(sb.ToString());
+            if (Application.isBatchMode) EditorApplication.Exit(0);
+        }
 
         /// <summary>
         /// **S6 자연 진행 갈림 재기**(2026-10-16 · 사용자 육안 「합체가 거의 마지막에 차서 못 잡음」 · 값 0).
@@ -2747,6 +2782,9 @@ namespace MBI.EditorTools
                 // #155 — 파밍에서 이어 온 게이지로 들어간 판(러너 `Begin` 과 같은 문 · SetCharge)
                 if (MergeStartRatio >= 0f && elapsed <= 0f && sim.Merge != null)
                     sim.Merge.SetCharge(MergeStartRatio * MergeSystem.GaugeFullSeconds);
+                // #160 — S6 도전 층 차오름(러너 `TickMergeRush` 와 같은 식)
+                if (RushMerge && sim.Merge != null && !sim.Merge.UsedThisStage && !sim.Merge.IsActive && elapsed <= MergeRushRule.RushSeconds + Dt)
+                    sim.Merge.SetCharge(MergeRushRule.ChargeAt(Mathf.Max(0f, MergeStartRatio) * MergeSystem.GaugeFullSeconds, elapsed, sim.Merge.ChargeSeconds));
                 if (sim.Merge != null && sim.Merge.IsReady && LastMergeReadyAt < 0f) LastMergeReadyAt = elapsed;
                 bool engaged = false;   // 적이 로봇 사거리 안에 든 뒤에 누른다 — 밖에서 누르면 버스트가 허공이다
                 foreach (CombatEntity en in sim.Enemies)
@@ -2755,7 +2793,7 @@ namespace MBI.EditorTools
                 float enemyHp = 0f;
                 foreach (CombatEntity en in sim.Enemies) if (en.IsAlive) enemyHp += en.hp;
                 bool wasMerging = sim.Merge != null && sim.Merge.IsActive;
-                if (AutoMerge && engaged && LastMergeAt < 0f && sim.Merge != null && sim.Merge.IsReady && sim.TryMerge())
+                if (AutoMerge && engaged && elapsed >= MergeNotBefore && LastMergeAt < 0f && sim.Merge != null && sim.Merge.IsReady && sim.TryMerge())
                 {
                     LastMergeAt = elapsed;
                     LastHpBeforeMerge = enemyHp;
