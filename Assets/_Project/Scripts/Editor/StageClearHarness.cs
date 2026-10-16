@@ -538,7 +538,7 @@ namespace MBI.EditorTools
                 : "[시작 조건] **심사자 S1 점프** — 빈 칸 자동 채움 · 창고·마운트 **빈손**");
 
             var stage = AssetDatabase.LoadAssetAtPath<StageDefinition>($"{SoRoot}/Stages/Stage_{stageId}.asset");
-            var robot = AssetDatabase.LoadAssetAtPath<RobotDefinition>($"{SoRoot}/Robots/Robot_A.asset");
+            var robot = Knob(AssetDatabase.LoadAssetAtPath<RobotDefinition>($"{SoRoot}/Robots/Robot_A.asset"));
             var tuning = AssetDatabase.LoadAssetAtPath<CombatTuning>($"{SoRoot}/CombatTuning.asset");
 
             if (stage == null || robot == null || tuning == null)
@@ -588,9 +588,9 @@ namespace MBI.EditorTools
             ShotAllocator.AllocateRates(robot.weapons, robot.consumptionCap,
                 SupplySignals.ArrivalRateOf, SupplySignals.MountStockOf, lines);
 
-            // 마운트계수는 스테이지의 축이 정한다 — 러너 `Begin` 과 같은 규칙이다.
-            float mountCoef = stage.powerModel == StagePowerModel.Logistics
-                ? robot.mountCoef : robot.enhancedMountCoef;
+            // 마운트계수 — 러너 `Begin` 과 같은 규칙이다.
+            // 🗑️ 구 「스테이지의 축(powerModel)이 정한다」 폐기(2026-10-16 #150) — 강화 표식 하나가 정한다.
+            float mountCoef = MountEnhanceRule.MountCoef(Enhanced, robot.mountCoef, robot.enhancedMountCoef);
 
             var setup = new RobotSetup
             {
@@ -643,6 +643,7 @@ namespace MBI.EditorTools
                 }
             }
             List<EnemySpawn> spawns = StageSpawnFactory.Build(stage, catalog, tuning);
+            if (SpawnHook != null) spawns = SpawnHook(spawns);   // 2026-10-16 문턱 훑기(하네스 전용)
 
             var sim = new CombatSimulation(setup, spawns,
                 tuning.arenaRadiusTbd, stage.challengeTime, tuning.spawnCadenceTbd);
@@ -1557,10 +1558,305 @@ namespace MBI.EditorTools
 
             StartingBoard.Apply(g, NodeResolver(propellantNeed));
             StartingBoard.Place(g, StartingBoard.FillsEmptySlot);
+            BoardHook?.Invoke(g);   // 2026-10-16 · S2 모듈 갈래(하네스 전용 · 게임 코드 0)
 
             BeltAutoOrient.Resolve(g);
             BeltFlow.Resolve(g);
             return g;
+        }
+
+        /// <summary>적 묶음 갈고리 — 하네스 전용(2026-10-16 문턱 훑기). 자산은 안 건드린다.</summary>
+        internal static System.Func<List<EnemySpawn>, List<EnemySpawn>> SpawnHook;
+
+        /// <summary>두 로봇 판(RunTag) 로봇 HP 덮기 — 하네스 전용. 0 이면 자산 값.</summary>
+        internal static float HpAll;
+
+        /// <summary>적을 고르게 솎는다 — 차례는 지키고 k 비율만 남긴다(앞에서 자르면 쉬운 적만 남는다).</summary>
+        private static List<EnemySpawn> Thin(List<EnemySpawn> src, float k)
+        {
+            var o = new List<EnemySpawn>();
+            for (int i = 0; i < src.Count; i++)
+                if (Mathf.FloorToInt((i + 1) * k) > Mathf.FloorToInt(i * k)) o.Add(src[i]);
+            return o;
+        }
+
+        private static List<EnemySpawn> ScaleAtk(List<EnemySpawn> src, float f)
+        {
+            var o = new List<EnemySpawn>(src.Count);
+            foreach (EnemySpawn e in src) { EnemySpawn c = e; c.atk *= f; o.Add(c); }
+            return o;
+        }
+
+        private static string Cell(StageVerdict v) =>
+            $"{(v.result == CombatResult.Win ? "**Win**" : v.result.ToString())} · 처치 {v.total - v.remaining}/{v.total} · {v.seconds:F1}초 · HP {v.hp:F0}/{v.maxHp:F0}";
+
+        private static StageVerdict RunOne(string id, float hp)
+        {
+            bool two = id == "S5" || id == "S6";
+            HpAll = hp;
+            if (two) RunTag(id); else Run(id, preloadMount: true, propellantNeed: BasePropellantNeed, hpOverride: hp);
+            HpAll = 0f;
+            return LastVerdict;
+        }
+
+        /// <summary>
+        /// **문턱 훑기**(2026-10-16 · 사용자 결정 「지금 값 손봐 새 빌드」 앞 · 자산·값 0).
+        /// 배치 실행: <c>-executeMethod MBI.EditorTools.StageClearHarness.RunThresholdSweepBatch</c>
+        /// </summary>
+        public static void RunThresholdSweepBatch()
+        {
+            var sb = new StringBuilder();
+            string[] ids = { "S1", "S2", "S3", "S4", "S5", "S6" };
+            sb.AppendLine("############ 문턱 훑기 (2026-10-16 · 9d3a11e 자산 · 하네스 안에서만 바꿈) ############");
+            sb.AppendLine("판 = 시작 보드 + 튜토리얼 칸 · 마운트 가득 · 자동 조종 · S5·S6 = 두 로봇(태그) 판");
+            try
+            {
+                sb.AppendLine();
+                sb.AppendLine("## ① 로봇 HP");
+                sb.AppendLine("| HP | " + string.Join(" | ", ids) + " |");
+                sb.AppendLine("|---|" + string.Concat(System.Array.ConvertAll(ids, _ => "---|")));
+                foreach (float hp in new[] { 1000f, 1500f, 2000f, 3000f, 5000f })
+                {
+                    var cells = new List<string>();
+                    foreach (string id in ids) cells.Add(Cell(RunOne(id, hp)));
+                    sb.AppendLine($"| {hp:F0} | " + string.Join(" | ", cells) + " |");
+                }
+
+                sb.AppendLine();
+                sb.AppendLine("## ② 몬스터 수 (HP 1000) — 차례를 지켜 고르게 솎음");
+                sb.AppendLine("| 비율 | " + string.Join(" | ", ids) + " |");
+                sb.AppendLine("|---|" + string.Concat(System.Array.ConvertAll(ids, _ => "---|")));
+                foreach (float k in new[] { 1f, 0.8f, 0.6f, 0.45f })
+                {
+                    SpawnHook = l => Thin(l, k);
+                    var cells = new List<string>();
+                    foreach (string id in ids) cells.Add(Cell(RunOne(id, 0f)));
+                    SpawnHook = null;
+                    sb.AppendLine($"| ×{k:F2} | " + string.Join(" | ", cells) + " |");
+                }
+
+                sb.AppendLine();
+                sb.AppendLine("## ③ 적 공격력 (수·HP 고정)");
+                sb.AppendLine("| 배 | " + string.Join(" | ", ids) + " |");
+                sb.AppendLine("|---|" + string.Concat(System.Array.ConvertAll(ids, _ => "---|")));
+                foreach (float f in new[] { 1f, 0.75f, 0.5f })
+                {
+                    SpawnHook = l => ScaleAtk(l, f);
+                    var cells = new List<string>();
+                    foreach (string id in ids) cells.Add(Cell(RunOne(id, 0f)));
+                    SpawnHook = null;
+                    sb.AppendLine($"| ×{f:F2} | " + string.Join(" | ", cells) + " |");
+                }
+
+                sb.AppendLine();
+                sb.AppendLine("## ④ 모듈 구멍 메움 어림 — 판 배수(PlantScale)로 대신 잼 · ⚠️ 어림(판 전체를 곱해 실제 모듈 하나보다 크다)");
+                sb.AppendLine("| 판 배수 | " + string.Join(" | ", ids) + " |");
+                sb.AppendLine("|---|" + string.Concat(System.Array.ConvertAll(ids, _ => "---|")));
+                foreach (float k in new[] { 1.5f, 2.25f })
+                {
+                    PlantScale = k;
+                    var cells = new List<string>();
+                    foreach (string id in ids) cells.Add(Cell(RunOne(id, 0f)));
+                    PlantScale = 1f;
+                    sb.AppendLine($"| ×{k:F2} (어림) | " + string.Join(" | ", cells) + " |");
+                }
+            }
+            finally { SpawnHook = null; HpAll = 0f; PlantScale = 1f; }
+
+            System.IO.File.WriteAllText("Docs/261016_threshold_sweep.md", sb.ToString());
+            Debug.Log(sb.ToString());
+            if (Application.isBatchMode) EditorApplication.Exit(0);
+        }
+
+        /// <summary>피해량 배수 — 하네스 전용(2026-10-16 피해량 축). `moduleMult` 한 칸에 곱한다(PerHit 의 곱 항 · 드론도 같은 항).</summary>
+        internal static float DmgMult = 1f;
+
+        /// <summary>발사율 배수 — 하네스 전용. 무기 `shotsPerSec` 와 `consumptionCap` 에 함께 곱한다.</summary>
+        internal static float RateMult = 1f;
+
+        /// <summary>자산을 메모리에서만 복제해 배수를 건다 — **자산 파일은 안 건드린다**(저장 안 함).</summary>
+        private static RobotDefinition Knob(RobotDefinition r)
+        {
+            if (r == null || (Mathf.Approximately(DmgMult, 1f) && Mathf.Approximately(RateMult, 1f))) return r;
+            RobotDefinition c = Object.Instantiate(r);
+            c.hideFlags = HideFlags.DontSave;
+            c.moduleMult = r.moduleMult * DmgMult;
+            c.weapons = new List<WeaponSpec>(r.weapons);
+            for (int i = 0; i < c.weapons.Count; i++)
+            {
+                WeaponSpec w = c.weapons[i];
+                w.shotsPerSec *= RateMult;
+                c.weapons[i] = w;
+            }
+            c.consumptionCap = r.consumptionCap * RateMult;
+            return c;
+        }
+
+        private static string Row(string head, string[] ids)
+        {
+            var cells = new List<string>();
+            foreach (string id in ids) cells.Add(Cell(RunOne(id, 0f)));
+            return $"| {head} | " + string.Join(" | ", cells) + " |";
+        }
+
+        /// <summary>
+        /// **피해량 축 훑기**(2026-10-16 · 사용자 「클리어 못 하는 조건은 피해량이 부족해서다」 · 자산·값 0).
+        /// 배치 실행: <c>-executeMethod MBI.EditorTools.StageClearHarness.RunDamageSweepBatch</c>
+        /// </summary>
+        public static void RunDamageSweepBatch()
+        {
+            var sb = new StringBuilder();
+            string[] ids = { "S1", "S2", "S3", "S4", "S5", "S6" };
+            string head = "| 배수 | " + string.Join(" | ", ids) + " |";
+            string bar = "|---|" + string.Concat(System.Array.ConvertAll(ids, _ => "---|"));
+            sb.AppendLine("############ 피해량 축 훑기 (2026-10-16 · 9d3a11e 자산 · 하네스 안에서만 바꿈) ############");
+            try
+            {
+                // ── 바탕 수치 — 자산에서 읽는다 ──
+                var ra = AssetDatabase.LoadAssetAtPath<RobotDefinition>($"{SoRoot}/Robots/Robot_A.asset");
+                var tu = AssetDatabase.LoadAssetAtPath<CombatTuning>($"{SoRoot}/CombatTuning.asset");
+                sb.AppendLine($"Robot_A moduleMult {ra.moduleMult} · mountCoef {ra.mountCoef} · enhanced {ra.enhancedMountCoef} · consumptionCap {ra.consumptionCap} · multiShot {tu.multiShotCountTbd} · aoeSplash {tu.aoeSplashFactorTbd}");
+                foreach (WeaponSpec w in ra.weapons) sb.AppendLine($"  무기 {w.kind} d{w.damagePerShot} · {w.shotsPerSec}발/초");
+                foreach (string id in new[] { "S1", "S2", "S3", "S4" })
+                {
+                    List<EnemySpawn> got = null;
+                    SpawnHook = l => { got = l; return l; };
+                    RunOne(id, 0f);
+                    SpawnHook = null;
+                    var kinds = new Dictionary<string, int>();
+                    var desc = new Dictionary<string, string>();
+                    if (got != null)
+                        foreach (EnemySpawn e in got)
+                        {
+                            kinds[e.label] = kinds.TryGetValue(e.label, out int n) ? n + 1 : 1;
+                            desc[e.label] = $"hp{e.hp} def{e.def} atk{e.atk}";
+                        }
+                    var parts = new List<string>();
+                    foreach (var kv in kinds) parts.Add($"{kv.Key} ×{kv.Value} ({desc[kv.Key]})");
+                    sb.AppendLine($"  {id} 적: " + string.Join(" · ", parts));
+                }
+
+                sb.AppendLine();
+                sb.AppendLine("## ② 피해량 (moduleMult × k · 발사율 그대로)");
+                sb.AppendLine(head); sb.AppendLine(bar);
+                foreach (float k in new[] { 1f, 1.25f, 1.5f, 2f, 3f })
+                { DmgMult = k; sb.AppendLine(Row($"피해 ×{k:F2}", ids)); DmgMult = 1f; }
+
+                sb.AppendLine();
+                sb.AppendLine("## ②' 발사율 (shotsPerSec·consumptionCap × k · 피해 그대로)");
+                sb.AppendLine(head); sb.AppendLine(bar);
+                foreach (float k in new[] { 1.5f, 2f })
+                { RateMult = k; sb.AppendLine(Row($"발사율 ×{k:F2}", ids)); RateMult = 1f; }
+
+                sb.AppendLine();
+                sb.AppendLine("## ③ 모듈 구멍 메움 + 피해량 — 모듈 흐름은 판 배수로 대신 잼 ⚠️ 어림(판 전체 곱 · 전력도 같이 곱해짐)");
+                sb.AppendLine("  모듈 1개(생산량 또는 생산속도) = 탄약 2.00→2.50 = 판 ×1.25 · 둘(같은 노드 ×1.5×1.5) = 2.00→3.25 = 판 ×1.625");
+                sb.AppendLine(head); sb.AppendLine(bar);
+                foreach (float m in new[] { 1.25f, 1.625f })
+                    foreach (float k in new[] { 1f, 1.25f, 1.5f, 2f, 3f })
+                    {
+                        PlantScale = m; DmgMult = k;
+                        sb.AppendLine(Row($"판 ×{m:F3}(어림) · 피해 ×{k:F2}", ids));
+                        PlantScale = 1f; DmgMult = 1f;
+                    }
+            }
+            finally { SpawnHook = null; HpAll = 0f; PlantScale = 1f; DmgMult = 1f; RateMult = 1f; }
+
+            System.IO.File.WriteAllText("Docs/261016_damage_sweep.md", sb.ToString());
+            Debug.Log(sb.ToString());
+            if (Application.isBatchMode) EditorApplication.Exit(0);
+        }
+
+        /// <summary>
+        /// 마운트 강화 표식 — 하네스 판의 「저장」 자리(2026-10-16 #150). 기본 거짓 = 강화 안 한 판.
+        /// ⚠️ 종전 하네스는 S4+ 를 저절로 ×1.45 로 쟀다 — 이제 이 칸을 켜야 그 판이다.
+        /// </summary>
+        public static bool Enhanced;
+
+        /// <summary>
+        /// **#149·#150 투입 뒤 S1~S6 표**(2026-10-16) — 강화 전·후 둘.
+        /// 배치 실행: <c>-executeMethod MBI.EditorTools.StageClearHarness.RunPostChangeBatch</c>
+        /// </summary>
+        public static void RunPostChangeBatch()
+        {
+            var sb = new StringBuilder();
+            string[] ids = { "S1", "S2", "S3", "S4", "S5", "S6" };
+            sb.AppendLine("############ #149·#150 투입 뒤 (2026-10-16 · moduleMult 1.5 · hp 성장 절반 · 계수 = 강화 표식) ############");
+            sb.AppendLine("판 = 시작 보드 + 튜토리얼 칸 · 마운트 가득 · 자동 조종 · S5·S6 = 두 로봇(태그) 판 · 120초");
+            try
+            {
+                var ra = AssetDatabase.LoadAssetAtPath<RobotDefinition>($"{SoRoot}/Robots/Robot_A.asset");
+                sb.AppendLine($"Robot_A moduleMult {ra.moduleMult} · mountCoef {ra.mountCoef} · enhanced {ra.enhancedMountCoef}");
+                foreach (string id in new[] { "S1", "S2", "S3", "S4", "S5", "S6" })
+                {
+                    List<EnemySpawn> got = null;
+                    SpawnHook = l => { got = l; return l; };
+                    RunOne(id, 0f);
+                    SpawnHook = null;
+                    var kinds = new Dictionary<string, int>();
+                    var desc = new Dictionary<string, string>();
+                    if (got != null)
+                        foreach (EnemySpawn e in got)
+                        {
+                            kinds[e.label] = kinds.TryGetValue(e.label, out int n) ? n + 1 : 1;
+                            desc[e.label] = $"hp{e.hp} def{e.def} atk{e.atk}";
+                        }
+                    var parts = new List<string>();
+                    foreach (var kv in kinds) parts.Add($"{kv.Key} ×{kv.Value} ({desc[kv.Key]})");
+                    sb.AppendLine($"  {id} 적: " + string.Join(" · ", parts));
+                }
+                sb.AppendLine();
+                sb.AppendLine("| 강화 | " + string.Join(" | ", ids) + " |");
+                sb.AppendLine("|---|" + string.Concat(System.Array.ConvertAll(ids, _ => "---|")));
+                foreach (bool en in new[] { false, true })
+                {
+                    Enhanced = en;
+                    sb.AppendLine(Row(en ? "투입 뒤 (×1.45)" : "투입 전 (×1.0)", ids));
+                    Enhanced = false;
+                }
+            }
+            finally { SpawnHook = null; HpAll = 0f; PlantScale = 1f; DmgMult = 1f; RateMult = 1f; Enhanced = false; }
+
+            System.IO.File.WriteAllText("Docs/261016_post149_sweep.md", sb.ToString());
+            Debug.Log(sb.ToString());
+            if (Application.isBatchMode) EditorApplication.Exit(0);
+        }
+
+        /// <summary>판을 세운 직후 손대는 갈고리 — 하네스 전용(2026-10-16 · 사용자 막힘 「S2 도전을 못 넘는다」 실측).</summary>
+        internal static System.Action<BoardGrid> BoardHook;
+
+        /// <summary>
+        /// **S2 도전 — 시작 보드 / +생산량 모듈 / +생산량·생산속도 모듈**(T4 대상 (7,8)) 세 갈래를 같은 문으로 잰다.
+        /// 배치 실행: <c>-executeMethod MBI.EditorTools.StageClearHarness.RunS2ModuleBatch</c>
+        /// </summary>
+        public static void RunS2ModuleBatch()
+        {
+            var sb = new StringBuilder();
+            sb.AppendLine("############ S2 도전 · 모듈 갈래 (2026-10-16 · 9d3a11e 자산) ############");
+            var m = AssetDatabase.LoadAssetAtPath<ModuleDefinition>($"{SoRoot}/Modules/Module_M.asset");
+            var r = AssetDatabase.LoadAssetAtPath<ModuleDefinition>($"{SoRoot}/Modules/Module_R.asset");
+            var cases = new (string name, System.Action<BoardGrid> hook)[]
+            {
+                ("ⓐ 시작 보드", null),
+                ("ⓑ +생산량 모듈 @(7,8)", g => g.GetAt(new Vector2Int(7, 8))?.TryAttachModule(m)),
+                ("ⓒ +생산량·생산속도 @(7,8)", g => { var n = g.GetAt(new Vector2Int(7, 8)); n?.TryAttachModule(m); n?.TryAttachModule(r); }),
+            };
+            try
+            {
+                foreach (var c in cases)
+                {
+                    BoardHook = c.hook;
+                    string report = Run("S2", preloadMount: true);
+                    StageVerdict v = LastVerdict;
+                    sb.AppendLine($"{c.name}: {v.result} · {v.seconds:F1}초 · 남은 적 {v.remaining}/{v.total} · 처치 {v.total - v.remaining}"
+                                  + $" · HP {v.hp:F0}/{v.maxHp:F0}");
+                    sb.AppendLine("---- 보고 ----");
+                    sb.AppendLine(report);
+                }
+            }
+            finally { BoardHook = null; }
+            Debug.Log(sb.ToString());
+            if (Application.isBatchMode) EditorApplication.Exit(0);
         }
 
         /// <summary>B 시작 보드 — 같은 문(`StartingBoardB.Apply`)으로 세운다.</summary>
@@ -1726,8 +2022,8 @@ namespace MBI.EditorTools
             sb.AppendLine();
 
             var stage = AssetDatabase.LoadAssetAtPath<StageDefinition>($"{SoRoot}/Stages/Stage_{stageId}.asset");
-            var robotA = AssetDatabase.LoadAssetAtPath<RobotDefinition>($"{SoRoot}/Robots/Robot_A.asset");
-            var robotB = AssetDatabase.LoadAssetAtPath<RobotDefinition>($"{SoRoot}/Robots/Robot_B.asset");
+            var robotA = Knob(AssetDatabase.LoadAssetAtPath<RobotDefinition>($"{SoRoot}/Robots/Robot_A.asset"));
+            var robotB = Knob(AssetDatabase.LoadAssetAtPath<RobotDefinition>($"{SoRoot}/Robots/Robot_B.asset"));
             var tuning = AssetDatabase.LoadAssetAtPath<CombatTuning>($"{SoRoot}/CombatTuning.asset");
             if (stage == null || robotA == null || robotB == null || tuning == null)
             {
@@ -1802,12 +2098,12 @@ namespace MBI.EditorTools
             ShotAllocator.AllocateRates(robotA.weapons, robotA.consumptionCap,
                 SupplySignals.ArrivalRateOf, SupplySignals.MountStockOf, lines);
 
-            float mountCoef = stage.powerModel == StagePowerModel.Logistics
-                ? robotA.mountCoef : robotA.enhancedMountCoef;
+            // 🗑️ 구 powerModel 조건 폐기(#150) — 강화 표식이 정한다(러너와 같은 문)
+            float mountCoef = MountEnhanceRule.MountCoef(Enhanced, robotA.mountCoef, robotA.enhancedMountCoef);
 
             var setupA = new RobotSetup
             {
-                hp = tuning.robotHp, mountCoef = mountCoef, moduleMult = robotA.moduleMult,
+                hp = HpAll > 0f ? HpAll : tuning.robotHp, mountCoef = mountCoef, moduleMult = robotA.moduleMult,
                 attackRange = tuning.robotAttackRangeTbd, radius = 0.5f,
                 multiShotCount = tuning.multiShotCountTbd,
                 aoeRadius = tuning.aoeRadiusTbd, aoeSplashFactor = tuning.aoeSplashFactorTbd,
@@ -1818,9 +2114,8 @@ namespace MBI.EditorTools
             // 로봇 B — 본체 무기가 없다(화력은 전부 드론). 러너의 `BuildRobotBSetup` 과 같은 값이다.
             var setupB = new RobotSetup
             {
-                hp = tuning.robotHp,
-                mountCoef = stage.powerModel == StagePowerModel.Logistics
-                    ? robotB.mountCoef : robotB.enhancedMountCoef,
+                hp = HpAll > 0f ? HpAll : tuning.robotHp,
+                mountCoef = MountEnhanceRule.MountCoef(Enhanced, robotB.mountCoef, robotB.enhancedMountCoef),
                 moduleMult = robotB.moduleMult,
                 attackRange = tuning.robotAttackRangeTbd, radius = 0.5f,
                 multiShotCount = 1, aoeRadius = 0f, aoeSplashFactor = 1f,
@@ -1841,6 +2136,7 @@ namespace MBI.EditorTools
             mountA.Load(MountItem.Standard, mountA.SlotCount * stack);
 
             List<EnemySpawn> spawns = StageSpawnFactory.Build(stage, EnemyCatalog(), tuning);
+            if (SpawnHook != null) spawns = SpawnHook(spawns);   // 2026-10-16 문턱 훑기(하네스 전용)
             var sim = new CombatSimulation(setupA, setupB, mountA, mountB, spawns,
                 tuning.arenaRadiusTbd, stage.challengeTime, tuning.spawnCadenceTbd);
             sim.AutoTagEnabled = true;

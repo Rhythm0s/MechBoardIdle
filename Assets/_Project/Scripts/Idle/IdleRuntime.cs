@@ -47,6 +47,8 @@ namespace MBI.Idle
             // 파싱 실패·첫 실행은 둘 다 "기록 없음"으로 같게 다룬다(예외로 게임을 죽이지 않는다).
             Data = _store.TryLoad(out SaveDataV1 loaded) ? loaded : new SaveDataV1();
             Wallet = new CurrencyWallet(Data.scrap, Data.enhMaterial, Data.gold);
+            // #150 — 전투가 첫 판을 세우기 전에 계수를 알아야 한다(Awake · 튜토리얼 복원과 같은 자리)
+            IdleSignals.MountEnhanced = Data.mountEnhanced;
 
             // 튜토리얼을 이미 했는지 전투 쪽에 알린다. **Awake에서 한다** —
             // Stage0Session이 자기 Awake에서 이 값을 읽어 들어갈지 말지를 정하므로,
@@ -132,6 +134,17 @@ namespace MBI.Idle
                 Wallet.AddScrap(mScrap);
             }
 
+            // 마운트 강화(2026-10-16 #150) — 재료를 쓰는 **유일한 자리**다(적립과 같은 규약).
+            //    ⚠️ 표식을 세운 뒤 **바로 저장한다** — 자동저장을 기다리다 탭을 닫으면 재료만 사라진다.
+            if (IdleSignals.TryDrainMountEnhance(out double enhCost)
+                && MountEnhanceRule.CanEnhance(Data.mountEnhanced, Wallet.EnhMaterial, enhCost)
+                && Wallet.TrySpendEnhMaterial(enhCost))
+            {
+                Data.mountEnhanced = true;
+                IdleSignals.MountEnhanced = true;
+                Save();
+            }
+
             // 파밍 바퀴 기록 — 스테이지별 **최고 한 바퀴 시급**만 남는다(기획서 6장).
             // ⚠️ 적는 자리는 여기 하나다. 전투 쪽이 세이브를 직접 만지면 규칙이 흩어진다.
             if (IdleSignals.TryDrainFarmLap(out string lapStage, out float lapRate))
@@ -179,6 +192,7 @@ namespace MBI.Idle
             IdleSignals.WalletScrap = Wallet.Scrap;
             IdleSignals.WalletEnhMaterial = Wallet.EnhMaterial;
             IdleSignals.WalletGold = Wallet.Gold;
+            IdleSignals.MountEnhanced = Data != null && Data.mountEnhanced;   // #150 · 「처음부터」면 새 저장이라 거짓
             IdleSignals.KillsTowardGold = Data != null ? Data.killsTowardGold : 0;
 
             // ⚠️ **마리당 고철을 여기서 게시한다** — 전투 화면의 드롭 팝이 「+n 스크랩」을

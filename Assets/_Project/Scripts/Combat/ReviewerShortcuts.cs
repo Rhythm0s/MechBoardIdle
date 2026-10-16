@@ -146,8 +146,8 @@ namespace MBI.Combat
             //    (09-19 에 「메인 메뉴로」가 그렇게 사라졌다), 자리만 밀면 안 뜬 날
             //    **빈 칸**이 남는다(빌드 실측). 한 값이 두 곳에 살면 안 된다(지침 §7).
             bool showFinish = ShowTutorial && runner != null && runner.CanFinishChallengeNow;
-            // 스테이지 · 게이지 · 전멸 · [도전 즉시 종료] · 초기화 · 덤프 · 메인 메뉴 · 닫기
-            int buttonRows = showFinish ? 8 : 7;
+            // 강화(#150) · 스테이지 · 게이지 · 전멸 · [도전 즉시 종료] · 초기화 · 덤프 · 메인 메뉴 · 닫기
+            int buttonRows = showFinish ? 9 : 8;
             float noteH = 44f * scale;  // 안내 두 줄
 
             // ✅ **소리 줄이 이 판 안으로 들어왔다**(2026-10-14 사용자 확정 ⑤).
@@ -241,6 +241,9 @@ namespace MBI.Combat
             //    종전에는 그 패널이 **떠 있는 판**으로 혼자 폈고, 그것이 진행 띠와
             //    스테이지·도전 단추 위에 겹쳐 앉았다(사용자 스크린샷).
             y += MBI.UI.AudioOptionsPanel.DrawChannels(x, y, w, scale);
+
+            DrawEnhanceButton(y, x, w, h, button);
+            y += h + pad;
 
             DrawStageButtons(y, x, w, h, pad, button);
             y += h + pad;
@@ -417,6 +420,30 @@ namespace MBI.Combat
         /// 처음 상태로 되돌리는 것은 넷이다 — 저장 · 창고와 마운트 · 비워 둔 칸 · 튜토리얼 진행.
         /// 하나라도 빠지면 「다시 찍을 수 있다」가 성립하지 않는다.
         /// </summary>
+        /// <summary>
+        /// **마운트 강화 단추** (2026-10-16 사용자 확정 #150 · 최소판).
+        ///
+        /// ⚠️ 자리 = 설정 판(구현 판단). 지시는 「HUD 강화재료 표시 옆」이었는데 그 표시는
+        ///    「i」 진단 패널 안에만 있고, 상단 칩 줄은 고철·골드·설정으로 차 있다.
+        ///    설정 판은 줄 수에서 높이를 내고 굴림틀이 있어 한 줄을 더해도 안 잘린다.
+        /// ⚠️ 바로가기가 아니라 **진행 단추**다 — 배포 빌드에도 늘 그린다(ShowTutorial 과 무관).
+        /// 재료를 쓰는 것은 방치 런타임이다 — 여기서는 요청만 놓는다(지갑을 두 곳이 만지지 않는다).
+        /// </summary>
+        private void DrawEnhanceButton(float y, float x, float w, float h, GUIStyle style)
+        {
+            float cost = runner != null ? runner.EnhanceCost : 0f;
+            bool enhanced = IdleSignals.MountEnhanced;
+            string label = enhanced
+                ? MountEnhanceRule.AppliedLabel(runner != null ? runner.EnhancedMountCoefValue : 1f)
+                : MountEnhanceRule.ButtonLabel;
+
+            bool was = GUI.enabled;
+            GUI.enabled = was && MountEnhanceRule.CanEnhance(enhanced, IdleSignals.WalletEnhMaterial, cost);
+            if (UiSkin.Button(new Rect(x, y, w, h), label, style))
+                IdleSignals.RequestMountEnhance(cost);
+            GUI.enabled = was;
+        }
+
         private void DrawResetButton(float y, float x, float w, float h, GUIStyle style)
         {
             if (!ShowTutorial || runner == null) return; // 배포 빌드에는 없다

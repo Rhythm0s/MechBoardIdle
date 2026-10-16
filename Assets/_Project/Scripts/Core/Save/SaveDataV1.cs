@@ -42,6 +42,14 @@ namespace MBI.Core
         /// 돌아가는 카운터는 「스무 마리마다」라는 약속을 못 지킨다.
         /// </summary>
         public int killsTowardGold;
+
+        /// <summary>
+        /// **마운트 강화 표식** (2026-10-16 사용자 확정 #150 · <see cref="MountEnhanceRule"/>).
+        /// 참이면 마운트계수가 강화값(×1.45)이다. 되돌리기 없음 · 「처음부터」는 새 저장이라 거짓으로 선다.
+        /// ⚠️ 스키마 번호는 안 올린다 — `killsTowardGold` 와 같은 **더하기만 하는 칸**이라
+        ///    옛 저장에는 칸이 없고 JsonUtility 가 기본값(거짓)을 준다. 옛 저장 = 강화 안 함이 맞다.
+        /// </summary>
+        public bool mountEnhanced;
         public string lastFarmStageId = "";        // 끈 시점의 상주 스테이지
         public int totalKills;
 

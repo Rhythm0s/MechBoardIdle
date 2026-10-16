@@ -71,6 +71,30 @@ namespace MBI.Combat
         private const float ScaleEpsilon = 0.001f;                      // 이만큼 변해야 재배분
         private float _manualHoldUntil;                                 // 이 시각까지는 수동 우선(자동 정지)
         private float _mountCoef;
+
+        /// <summary>지금 판에 든 강화 표식 — 게시값과 다르면 그 자리에서 계수를 갈아 끼운다(#150).</summary>
+        private bool _mountEnhancedApplied;
+
+        /// <summary>설정 판 단추가 읽는 강화 비용 — ENHANCE_DATA s4Cost(BalanceConfig). 없으면 0(단추 안 눌림).</summary>
+        public float EnhanceCost => robot != null && robot.balanceRef != null ? robot.balanceRef.s4Cost : 0f;
+
+        /// <summary>설정 판 단추가 적는 강화 배율 — 자산 값(글자에 박지 않는다).</summary>
+        public float EnhancedMountCoefValue => robot != null ? robot.enhancedMountCoef : 1f;
+
+        /// <summary>
+        /// 강화 표식이 바뀌었으면 **이 판에 바로 넣는다**(2026-10-16 #150).
+        /// 파밍 중에 누르면 다음 도전을 기다리지 않고 지금 판부터 ×1.45 다 — 누른 사람이 바로 본다.
+        /// </summary>
+        private void ApplyMountEnhanceIfChanged()
+        {
+            if (_sim == null || _mountEnhancedApplied == IdleSignals.MountEnhanced) return;
+            _mountEnhancedApplied = IdleSignals.MountEnhanced;
+            _mountCoef = MountEnhanceRule.MountCoef(_mountEnhancedApplied, robot.mountCoef, robot.enhancedMountCoef);
+            _sim.SetMountCoef(0, _mountCoef);
+            if (robotB != null)
+                _sim.SetMountCoef(1, MountEnhanceRule.MountCoef(_mountEnhancedApplied,
+                    robotB.mountCoef, robotB.enhancedMountCoef));
+        }
         private bool _ready;
         private float _lastRobotHp; // 피격 점멸 트리거 — HP가 줄어든 프레임을 잡는다
         private readonly MergeCutscene _cutscene = new MergeCutscene(); // 합체 3초 연출(시간표는 코어가 쥔다)
@@ -521,9 +545,11 @@ namespace MBI.Combat
             //    — 사용자 확정 2026-10-13(#103 · `RobotBGate` 주석).
             RobotBGate.CurrentStageNumber = StageMapName.NumberOf(stage.stageId);
 
-            // 마운트계수: 물류(S1~S3)=base, 그 외(강화/태그/버스트)=enhanced(1.45).
-            _mountCoef = stage.powerModel == StagePowerModel.Logistics
-                ? robot.mountCoef : robot.enhancedMountCoef;
+            // 🗑️ 구 「마운트계수: 물류(S1~S3)=base, 그 외(강화/태그/버스트)=enhanced(1.45)」 폐기
+            //    (2026-10-16 사용자 확정 #150) — 재료를 안 넣어도 S4 부터 ×1.45 가 저절로 켜졌다.
+            //    이제 **강화 표식 하나**가 정한다(`MountEnhanceRule`).
+            _mountEnhancedApplied = IdleSignals.MountEnhanced;
+            _mountCoef = MountEnhanceRule.MountCoef(_mountEnhancedApplied, robot.mountCoef, robot.enhancedMountCoef);
             float origin = robot.balanceRef != null ? robot.balanceRef.origin : 100f;
             float ammoCapacity = robot.balanceRef != null ? robot.balanceRef.storeCapacity : 40f;
             // 브릿지 게시 단위 = 물류 단위(마운트계수 미적용). 마운트계수는 판정식 내부 항이라 전투가 곱한다.
@@ -625,8 +651,9 @@ namespace MBI.Combat
             return new RobotSetup
             {
                 hp = tuning.robotHp,
-                mountCoef = stage.powerModel == StagePowerModel.Logistics
-                    ? robotB.mountCoef : robotB.enhancedMountCoef,
+                // 🗑️ 구 powerModel 조건 폐기(#150) — A 와 같은 표식이 정한다
+                mountCoef = MountEnhanceRule.MountCoef(IdleSignals.MountEnhanced,
+                    robotB.mountCoef, robotB.enhancedMountCoef),
                 moduleMult = robotB.moduleMult,
                 attackRange = tuning.robotAttackRangeTbd,
                 radius = RobotSize * 0.5f,
@@ -1338,6 +1365,8 @@ namespace MBI.Combat
             //
             //    ⚠️ 세우는 것은 **판**이고 시작 깃발이 아니다 — 닫으면 이어서 돈다.
             if (MainMenuGate.IsOpen || SettingsGate.IsOpen) return;
+
+            ApplyMountEnhanceIfChanged();
 
             // 결과가 나도 끝까지 튼다 — 버스트로 마지막 적이 죽으면 연출이 그 프레임에 끊긴다.
             _cutscene.Tick(Time.deltaTime);

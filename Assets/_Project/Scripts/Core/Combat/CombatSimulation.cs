@@ -1496,6 +1496,16 @@ namespace MBI.Core
         /// ⚠️ 누산기(Act.lineTimers)는 **보존한다.** 매 프레임 호출될 수 있는데 여기서 0으로 되돌리면
         /// 누산이 1.0에 영영 도달하지 못해 영구 무발사가 된다.
         /// </summary>
+        /// <summary>
+        /// 마운트계수를 판 도중에 바꾼다 (2026-10-16 #150 — 파밍 중 강화 단추를 누른 그 판에 바로 든다).
+        /// 0 = 로봇 A, 1 = 로봇 B. 없는 쪽은 건너뛴다.
+        /// </summary>
+        public void SetMountCoef(int sideIndex, float coef)
+        {
+            if (sideIndex < 0 || sideIndex >= _sides.Length) return;
+            _sides[sideIndex].setup.mountCoef = coef;
+        }
+
         public void SetFireLines(IReadOnlyList<AmmoLine> lines)
         {
             if (Act.setup.lines == null) Act.setup.lines = new List<AmmoLine>();

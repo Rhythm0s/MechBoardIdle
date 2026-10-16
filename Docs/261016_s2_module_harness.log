@@ -1,0 +1,787 @@
+[Licensing::Module] Trying to connect to existing licensing client channel...
+Built from '6000.4/staging' branch; Version is '6000.4.3f1 (39d1a88d4dd1) revision 3789224'; Using compiler version '194234433'; Build Type 'Release'
+[Licensing::IpcConnector] Channel LicenseClient-Kang doesn't exist
+OS: 'Windows 11  (10.0.26200) Professional' Language: 'ko' Physical Memory: 32671 MB
+BatchMode: 1, IsHumanControllingUs: 0, StartBugReporterOnCrash: 0, Is64bit: 1
+System  architecture: x64
+Process architecture: x64
+Date: 2026-10-16T05:51:30Z
+[Licensing::Module] Successfully launched the LicensingClient (PId: 10024)
+
+COMMAND LINE ARGUMENTS:
+C:\Program Files\Unity\Hub\Editor\6000.4.3f1\Editor\Unity.exe
+-batchmode
+-nographics
+-projectPath
+.
+-executeMethod
+MBI.EditorTools.StageClearHarness.RunS2ModuleBatch
+-logFile
+Docs/261016_s2_module_harness.log
+Successfully changed project path to: C:/Unity_Project/26_MechBoardIdle/MechBoardIdle
+C:/Unity_Project/26_MechBoardIdle/MechBoardIdle
+[UnityMemory] Configuration Parameters - Can be set up in boot.config
+    "memorysetup-temp-allocator-size-gi-baking-worker=262144"
+    "memorysetup-temp-allocator-size-gi-baking-worker=262144"
+    "memorysetup-temp-allocator-size-gi-baking-worker=262144"
+    "memorysetup-temp-allocator-size-gi-baking-worker=262144"
+    "memorysetup-temp-allocator-size-gi-baking-worker=262144"
+    "memorysetup-temp-allocator-size-nav-mesh-worker=65536"
+    "memorysetup-temp-allocator-size-audio-worker=65536"
+    "memorysetup-temp-allocator-size-cloud-worker=32768"
+    "memorysetup-temp-allocator-size-gfx=262144"
+    "memorysetup-temp-allocator-size-preload-manager=33554432"
+    "memorysetup-temp-allocator-size-job-worker=262144"
+    "memorysetup-temp-allocator-size-background-worker=32768"
+    "memorysetup-allocator-temp-initial-block-size-main=262144"
+    "memorysetup-allocator-temp-initial-block-size-worker=262144"
+    "memorysetup-bucket-allocator-granularity=16"
+    "memorysetup-bucket-allocator-bucket-count=8"
+    "memorysetup-bucket-allocator-block-size=33554432"
+    "memorysetup-bucket-allocator-block-count=8"
+    "memorysetup-main-allocator-block-size=16777216"
+    "memorysetup-thread-allocator-block-size=16777216"
+    "memorysetup-gfx-main-allocator-block-size=16777216"
+    "memorysetup-gfx-thread-allocator-block-size=16777216"
+    "memorysetup-cache-allocator-block-size=4194304"
+    "memorysetup-typetree-allocator-block-size=2097152"
+    "memorysetup-profiler-bucket-allocator-granularity=16"
+    "memorysetup-profiler-bucket-allocator-bucket-count=8"
+    "memorysetup-profiler-bucket-allocator-block-size=33554432"
+    "memorysetup-profiler-bucket-allocator-block-count=8"
+    "memorysetup-profiler-allocator-block-size=16777216"
+    "memorysetup-profiler-editor-allocator-block-size=1048576"
+    "memorysetup-temp-allocator-size-main=16777216"
+    "memorysetup-job-temp-allocator-block-size=2097152"
+    "memorysetup-job-temp-allocator-block-size-background=1048576"
+    "memorysetup-job-temp-allocator-reduction-small-platforms=262144"
+Player connection [16736]  Target information:
+
+Player connection [16736]  * "[IP] 210.126.10.226 [Port] 55504 [Flags] 2 [Guid] 2893393363 [EditorId] 2893393363 [Version] 1048832 [Id] WindowsEditor(7,DESKTOP-UK44D20) [Debug] 1 [PackageName] WindowsEditor [ProjectName] Editor" 
+
+Player connection [16736] Host joined multi-casting on [225.0.0.222:54997]...
+Player connection [16736] Host joined alternative multi-casting on [225.0.0.222:34997]...
+Input System module state changed to: Initialized.
+[Physics::Module] Initialized fallback backend.
+[Physics::Module] Id: 0xdecafbad
+Starting IPC server.
+Waiting for clients to connect on \\.\pipe\Unity-LicenseClient-Kang, press Ctrl-C to exit.
+[Licensing::IpcConnector] Successfully connected to: "LicenseClient-Kang" at "2026-10-16T05:51:30.9132055Z"
+[Package Manager] Connected to IPC stream "Upm-23596" after 0.7 seconds.
+[Licensing::Module] Licensing is not yet initialized.
+[Licensing::Client] Handshaking with LicensingClient:
+  Version:                 1.18.1+9fbee8e
+  Session Id:              967e337993a943de86cbc9aed94464d1
+  Correlation Id:          0ca8583bafadb79122c7cd07e60cd25d
+  External correlation Id: 9022620159226005357
+  Machine Id:              8tH7dWratbOZRRcckw4PCdbaWzU=
+[Licensing::Module] Successfully connected to LicensingClient on channel: "LicenseClient-Kang" (connect: 0.85s, validation: 0.06s, handshake: 2.68s)
+[Licensing::IpcConnector] Successfully connected to: "LicenseClient-Kang-notifications" at "2026-10-16T05:51:33.6551968Z"
+[Licensing::Module] Connected to LicensingClient (PId: 10024, launch time: 0.02, total connection time: 3.59s)
+[Licensing::Module] Error: Access token is unavailable; failed to update
+[Licensing::Client] Successfully resolved entitlement details
+[Licensing::Module] License group:
+  Id: 14568599483702-UnityPersXXXX
+  Product: Unity Personal
+  Type: Assigned
+  Expiration: Unlimited
+[Licensing::Client] Successfully updated license, isAsync: True, time: 0.01
+[Licensing::Client] Successfully resolved entitlement details
+[Licensing::Module] Licensing Background thread has ended after 3.66s
+[Licensing::Module] Licensing is initialized (took 2.59s).
+[Licensing::Client] Successfully resolved entitlement details
+Library Redirect Path: Library/
+[Physics::Module] Selected backend.
+[Physics::Module] Name: PhysX
+[Physics::Module] Id: 0xf2b8ea05
+[Physics::Module] SDK Version: 4.1.2
+[Physics::Module] Integration Version: 1.0.0
+[Physics::Module] Threading Mode: Multi-Threaded
+Active build profile path: `Assets/Settings/Build Profiles/Android™.asset`
+Artifact Garbage Collection - Removed 2 unused hashed content files
+Got setting from build profile YAML, name `m_BuildTarget`, value `13`
+Got setting from build profile YAML, name `m_Subtarget`, value `0`
+Initialize engine version: 6000.4.3f1 (39d1a88d4dd1)
+[Subsystems] Discovering subsystems at path C:/Program Files/Unity/Hub/Editor/6000.4.3f1/Editor/Data/Resources/UnitySubsystems
+[Subsystems] Discovering subsystems at path C:/Unity_Project/26_MechBoardIdle/MechBoardIdle/Assets
+Forcing GfxDevice: Null
+GfxDevice: creating device client; kGfxThreadingModeNonThreaded
+NullGfxDevice:
+    Version:  NULL 1.0 [1.0]
+    Renderer: Null Device
+    Vendor:   Unity Technologies
+Shader Hidden/ChartRasterizerHardware is not supported: GPU does not support conservative rasterization
+Initialize mono
+Mono path[0] = 'C:/Program Files/Unity/Hub/Editor/6000.4.3f1/Editor/Data/Managed'
+Mono path[1] = 'C:/Program Files/Unity/Hub/Editor/6000.4.3f1/Editor/Data/MonoBleedingEdge/lib/mono/unityjit-win32'
+Mono config path = 'C:/Program Files/Unity/Hub/Editor/6000.4.3f1/Editor/Data/MonoBleedingEdge/etc'
+Using monoOptions --debugger-agent=transport=dt_socket,embedding=1,server=y,suspend=n,address=127.0.0.1:56596
+CodeReloadManager initialized
+Using cacheserver namespaces - metadata:defaultmetadata, artifacts:defaultartifacts
+Using cacheserver namespaces - metadata:defaultmetadata, artifacts:defaultartifacts
+ImportWorker Server TCP listen port: 0
+AcceleratorClientConnectionCallback - disconnected - :0
+Begin MonoManager ReloadAssembly
+Registering precompiled unity dll's ...
+Register platform support module: C:/Program Files/Unity/Hub/Editor/6000.4.3f1/Editor/Data/PlaybackEngines/WebGLSupport/UnityEditor.WebGL.Extensions.dll
+Register platform support module: C:/Program Files/Unity/Hub/Editor/6000.4.3f1/Editor/Data/PlaybackEngines/WindowsStandaloneSupport/UnityEditor.WindowsStandalone.Extensions.dll
+[Licensing::Client] Successfully resolved entitlement details
+Register platform support module: C:/Program Files/Unity/Hub/Editor/6000.4.3f1/Editor/Data/PlaybackEngines/AndroidPlayer/UnityEditor.Android.Extensions.dll
+Registered in 0.524717 seconds.
+Native extension for Android target not found
+Native extension for WindowsStandalone target not found
+Native extension for WebGL target not found
+Package Manager log level set to [2]
+ScheduleIndexationOnStartup MainProcess:False IndexOnStartup:True
+Mono: successfully reloaded assembly
+- Finished resetting the current domain, in  0.497 seconds
+Domain Reload Profiling: 3904ms
+	BeginReloadAssembly (380ms)
+		CreateAndSetChildDomain (18ms)
+	RebuildCommonClasses (505ms)
+	RebuildNativeTypeToScriptingClass (11ms)
+	initialDomainReloadingComplete (625ms)
+	LoadAllAssembliesAndSetupDomain (1884ms)
+		LoadAssemblies (372ms)
+		AnalyzeDomain (1855ms)
+			TypeCache.Refresh (1853ms)
+				TypeCache.ScanAssembly (1578ms)
+	FinalizeReload (499ms)
+		SetupLoadedEditorAssemblies (0ms)
+			InitializePlatformSupportModulesInManaged (63ms)
+			BeforeProcessingInitializeOnLoad (90ms)
+			ProcessInitializeOnLoadAttributes (143ms)
+			ProcessInitializeOnLoadMethodAttributes (134ms)
+[Licensing::Client] Successfully resolved entitlement details
+Application.AssetDatabase Initial Refresh Start
+[Package Manager] Restoring resolved packages state from cache
+[Licensing::Client] Successfully resolved entitlement details
+[Package Manager] Registered 65 packages:
+  Packages from [https://packages.unity.com]:
+    com.unity.2d.animation@14.0.3 (location: C:\Unity_Project\26_MechBoardIdle\MechBoardIdle\Library\PackageCache\com.unity.2d.animation@a6f2f1d22eb5)
+    com.unity.2d.aseprite@4.0.1 (location: C:\Unity_Project\26_MechBoardIdle\MechBoardIdle\Library\PackageCache\com.unity.2d.aseprite@151b68d46c40)
+    com.unity.2d.psdimporter@13.0.2 (location: C:\Unity_Project\26_MechBoardIdle\MechBoardIdle\Library\PackageCache\com.unity.2d.psdimporter@11a0e04e0561)
+    com.unity.2d.spriteshape@14.0.1 (location: C:\Unity_Project\26_MechBoardIdle\MechBoardIdle\Library\PackageCache\com.unity.2d.spriteshape@da3647ffbbd7)
+    com.unity.2d.tilemap.extras@7.0.1 (location: C:\Unity_Project\26_MechBoardIdle\MechBoardIdle\Library\PackageCache\com.unity.2d.tilemap.extras@66df903b3633)
+    com.unity.2d.tooling@2.0.1 (location: C:\Unity_Project\26_MechBoardIdle\MechBoardIdle\Library\PackageCache\com.unity.2d.tooling@baa4133dcff2)
+    com.unity.collab-proxy@2.12.4 (location: C:\Unity_Project\26_MechBoardIdle\MechBoardIdle\Library\PackageCache\com.unity.collab-proxy@0b1559bcd34e)
+    com.unity.ide.rider@3.0.39 (location: C:\Unity_Project\26_MechBoardIdle\MechBoardIdle\Library\PackageCache\com.unity.ide.rider@4504839d03f7)
+    com.unity.ide.visualstudio@2.0.27 (location: C:\Unity_Project\26_MechBoardIdle\MechBoardIdle\Library\PackageCache\com.unity.ide.visualstudio@dc1ddd4f09b6)
+    com.unity.inputsystem@1.19.0 (location: C:\Unity_Project\26_MechBoardIdle\MechBoardIdle\Library\PackageCache\com.unity.inputsystem@21a28c3a6c83)
+    com.unity.timeline@1.8.12 (location: C:\Unity_Project\26_MechBoardIdle\MechBoardIdle\Library\PackageCache\com.unity.timeline@8cd8509afae5)
+    com.unity.visualscripting@1.9.11 (location: C:\Unity_Project\26_MechBoardIdle\MechBoardIdle\Library\PackageCache\com.unity.visualscripting@8bed5ad90189)
+    com.unity.2d.common@13.0.1 (location: C:\Unity_Project\26_MechBoardIdle\MechBoardIdle\Library\PackageCache\com.unity.2d.common@49d8bea2bff3)
+    com.unity.mathematics@1.3.3 (location: C:\Unity_Project\26_MechBoardIdle\MechBoardIdle\Library\PackageCache\com.unity.mathematics@19a9377c4ffa)
+    com.unity.searcher@4.9.4 (location: C:\Unity_Project\26_MechBoardIdle\MechBoardIdle\Library\PackageCache\com.unity.searcher@d45a78918735)
+    com.unity.burst@1.8.29 (location: C:\Unity_Project\26_MechBoardIdle\MechBoardIdle\Library\PackageCache\com.unity.burst@6bb9aca3ef38)
+    com.unity.nuget.mono-cecil@1.11.6 (location: C:\Unity_Project\26_MechBoardIdle\MechBoardIdle\Library\PackageCache\com.unity.nuget.mono-cecil@ecb9724e46ff)
+    com.unity.test-framework.performance@3.4.0 (location: C:\Unity_Project\26_MechBoardIdle\MechBoardIdle\Library\PackageCache\com.unity.test-framework.performance@aa81a99c4a75)
+  Built-in packages:
+    com.unity.2d.sprite@1.0.0 (location: C:\Unity_Project\26_MechBoardIdle\MechBoardIdle\Library\PackageCache\com.unity.2d.sprite@929df5adbb1f)
+    com.unity.2d.tilemap@1.0.0 (location: C:\Unity_Project\26_MechBoardIdle\MechBoardIdle\Library\PackageCache\com.unity.2d.tilemap@c457c5249013)
+    com.unity.multiplayer.center@1.0.1 (location: C:\Unity_Project\26_MechBoardIdle\MechBoardIdle\Library\PackageCache\com.unity.multiplayer.center@f01f4ba8d00a)
+    com.unity.render-pipelines.universal@17.4.0 (location: C:\Unity_Project\26_MechBoardIdle\MechBoardIdle\Library\PackageCache\com.unity.render-pipelines.universal@f76d6966885c)
+    com.unity.test-framework@1.6.0 (location: C:\Unity_Project\26_MechBoardIdle\MechBoardIdle\Library\PackageCache\com.unity.test-framework@76560ee600cb)
+    com.unity.ugui@2.0.0 (location: C:\Unity_Project\26_MechBoardIdle\MechBoardIdle\Library\PackageCache\com.unity.ugui@d8a2716f3013)
+    com.unity.modules.accessibility@1.0.0 (location: C:\Unity_Project\26_MechBoardIdle\MechBoardIdle\Library\PackageCache\com.unity.modules.accessibility)
+    com.unity.modules.adaptiveperformance@1.0.0 (location: C:\Unity_Project\26_MechBoardIdle\MechBoardIdle\Library\PackageCache\com.unity.modules.adaptiveperformance)
+    com.unity.modules.ai@1.0.0 (location: C:\Unity_Project\26_MechBoardIdle\MechBoardIdle\Library\PackageCache\com.unity.modules.ai)
+    com.unity.modules.androidjni@1.0.0 (location: C:\Unity_Project\26_MechBoardIdle\MechBoardIdle\Library\PackageCache\com.unity.modules.androidjni)
+    com.unity.modules.animation@1.0.0 (location: C:\Unity_Project\26_MechBoardIdle\MechBoardIdle\Library\PackageCache\com.unity.modules.animation)
+    com.unity.modules.assetbundle@1.0.0 (location: C:\Unity_Project\26_MechBoardIdle\MechBoardIdle\Library\PackageCache\com.unity.modules.assetbundle)
+    com.unity.modules.audio@1.0.0 (location: C:\Unity_Project\26_MechBoardIdle\MechBoardIdle\Library\PackageCache\com.unity.modules.audio)
+    com.unity.modules.cloth@1.0.0 (location: C:\Unity_Project\26_MechBoardIdle\MechBoardIdle\Library\PackageCache\com.unity.modules.cloth)
+    com.unity.modules.director@1.0.0 (location: C:\Unity_Project\26_MechBoardIdle\MechBoardIdle\Library\PackageCache\com.unity.modules.director)
+    com.unity.modules.imageconversion@1.0.0 (location: C:\Unity_Project\26_MechBoardIdle\MechBoardIdle\Library\PackageCache\com.unity.modules.imageconversion)
+    com.unity.modules.imgui@1.0.0 (location: C:\Unity_Project\26_MechBoardIdle\MechBoardIdle\Library\PackageCache\com.unity.modules.imgui)
+    com.unity.modules.jsonserialize@1.0.0 (location: C:\Unity_Project\26_MechBoardIdle\MechBoardIdle\Library\PackageCache\com.unity.modules.jsonserialize)
+    com.unity.modules.particlesystem@1.0.0 (location: C:\Unity_Project\26_MechBoardIdle\MechBoardIdle\Library\PackageCache\com.unity.modules.particlesystem)
+    com.unity.modules.physics@1.0.0 (location: C:\Unity_Project\26_MechBoardIdle\MechBoardIdle\Library\PackageCache\com.unity.modules.physics)
+    com.unity.modules.physics2d@1.0.0 (location: C:\Unity_Project\26_MechBoardIdle\MechBoardIdle\Library\PackageCache\com.unity.modules.physics2d)
+    com.unity.modules.screencapture@1.0.0 (location: C:\Unity_Project\26_MechBoardIdle\MechBoardIdle\Library\PackageCache\com.unity.modules.screencapture)
+    com.unity.modules.terrain@1.0.0 (location: C:\Unity_Project\26_MechBoardIdle\MechBoardIdle\Library\PackageCache\com.unity.modules.terrain)
+    com.unity.modules.terrainphysics@1.0.0 (location: C:\Unity_Project\26_MechBoardIdle\MechBoardIdle\Library\PackageCache\com.unity.modules.terrainphysics)
+    com.unity.modules.tilemap@1.0.0 (location: C:\Unity_Project\26_MechBoardIdle\MechBoardIdle\Library\PackageCache\com.unity.modules.tilemap)
+    com.unity.modules.ui@1.0.0 (location: C:\Unity_Project\26_MechBoardIdle\MechBoardIdle\Library\PackageCache\com.unity.modules.ui)
+    com.unity.modules.uielements@1.0.0 (location: C:\Unity_Project\26_MechBoardIdle\MechBoardIdle\Library\PackageCache\com.unity.modules.uielements)
+    com.unity.modules.umbra@1.0.0 (location: C:\Unity_Project\26_MechBoardIdle\MechBoardIdle\Library\PackageCache\com.unity.modules.umbra)
+    com.unity.modules.unityanalytics@1.0.0 (location: C:\Unity_Project\26_MechBoardIdle\MechBoardIdle\Library\PackageCache\com.unity.modules.unityanalytics)
+    com.unity.modules.unitywebrequest@1.0.0 (location: C:\Unity_Project\26_MechBoardIdle\MechBoardIdle\Library\PackageCache\com.unity.modules.unitywebrequest)
+    com.unity.modules.unitywebrequestassetbundle@1.0.0 (location: C:\Unity_Project\26_MechBoardIdle\MechBoardIdle\Library\PackageCache\com.unity.modules.unitywebrequestassetbundle)
+    com.unity.modules.unitywebrequestaudio@1.0.0 (location: C:\Unity_Project\26_MechBoardIdle\MechBoardIdle\Library\PackageCache\com.unity.modules.unitywebrequestaudio)
+    com.unity.modules.unitywebrequesttexture@1.0.0 (location: C:\Unity_Project\26_MechBoardIdle\MechBoardIdle\Library\PackageCache\com.unity.modules.unitywebrequesttexture)
+    com.unity.modules.unitywebrequestwww@1.0.0 (location: C:\Unity_Project\26_MechBoardIdle\MechBoardIdle\Library\PackageCache\com.unity.modules.unitywebrequestwww)
+    com.unity.modules.vectorgraphics@1.0.0 (location: C:\Unity_Project\26_MechBoardIdle\MechBoardIdle\Library\PackageCache\com.unity.modules.vectorgraphics)
+    com.unity.modules.vehicles@1.0.0 (location: C:\Unity_Project\26_MechBoardIdle\MechBoardIdle\Library\PackageCache\com.unity.modules.vehicles)
+    com.unity.modules.video@1.0.0 (location: C:\Unity_Project\26_MechBoardIdle\MechBoardIdle\Library\PackageCache\com.unity.modules.video)
+    com.unity.modules.vr@1.0.0 (location: C:\Unity_Project\26_MechBoardIdle\MechBoardIdle\Library\PackageCache\com.unity.modules.vr)
+    com.unity.modules.wind@1.0.0 (location: C:\Unity_Project\26_MechBoardIdle\MechBoardIdle\Library\PackageCache\com.unity.modules.wind)
+    com.unity.modules.xr@1.0.0 (location: C:\Unity_Project\26_MechBoardIdle\MechBoardIdle\Library\PackageCache\com.unity.modules.xr)
+    com.unity.modules.subsystems@1.0.0 (location: C:\Unity_Project\26_MechBoardIdle\MechBoardIdle\Library\PackageCache\com.unity.modules.subsystems)
+    com.unity.modules.hierarchycore@1.0.0 (location: C:\Unity_Project\26_MechBoardIdle\MechBoardIdle\Library\PackageCache\com.unity.modules.hierarchycore)
+    com.unity.ext.nunit@2.0.5 (location: C:\Unity_Project\26_MechBoardIdle\MechBoardIdle\Library\PackageCache\com.unity.ext.nunit@d8c07649098d)
+    com.unity.render-pipelines.core@17.4.0 (location: C:\Unity_Project\26_MechBoardIdle\MechBoardIdle\Library\PackageCache\com.unity.render-pipelines.core@9d79d0cd2cf7)
+    com.unity.shadergraph@17.4.0 (location: C:\Unity_Project\26_MechBoardIdle\MechBoardIdle\Library\PackageCache\com.unity.shadergraph@34406da38d62)
+    com.unity.render-pipelines.universal-config@17.4.0 (location: C:\Unity_Project\26_MechBoardIdle\MechBoardIdle\Library\PackageCache\com.unity.render-pipelines.universal-config@0db4263b9e6b)
+    com.unity.collections@6.4.0 (location: C:\Unity_Project\26_MechBoardIdle\MechBoardIdle\Library\PackageCache\com.unity.collections@9c2353fb96f6)
+[Subsystems] No new subsystems found in resolved package list.
+[Package Manager] Done registering packages in 0.06 seconds
+[ScriptCompilation] Requested script compilation because: AssetDatabase observed changes in script compilation related files
+info: Microsoft.Hosting.Lifetime[14]
+      Now listening on: http://localhost:80
+info: Microsoft.Hosting.Lifetime[0]
+      Application started. Press Ctrl+C to shut down.
+info: Microsoft.Hosting.Lifetime[0]
+      Hosting environment: Production
+info: Microsoft.Hosting.Lifetime[0]
+      Content root path: C:\Unity_Project\26_MechBoardIdle\MechBoardIdle
+info: Microsoft.AspNetCore.Hosting.Diagnostics[1]
+      Request starting HTTP/2 POST http://ilpp/UnityILPP.PostProcessing/Ping - application/grpc -
+info: Microsoft.AspNetCore.Routing.EndpointMiddleware[0]
+      Executing endpoint 'gRPC - /UnityILPP.PostProcessing/Ping'
+info: Microsoft.AspNetCore.Routing.EndpointMiddleware[1]
+      Executed endpoint 'gRPC - /UnityILPP.PostProcessing/Ping'
+info: Microsoft.AspNetCore.Hosting.Diagnostics[2]
+      Request finished HTTP/2 POST http://ilpp/UnityILPP.PostProcessing/Ping - 200 - application/grpc 47.1896ms
+Starting: C:\Program Files\Unity\Hub\Editor\6000.4.3f1\Editor\Data\Tools\BuildPipeline\bee_backend.exe --ipc --defer-dag-verification --dagfile="Library/Bee/2000b0aE.dag" --continue-on-failure --profile="Library/Bee/backend1.traceevents" ScriptAssemblies
+WorkingDir: C:/Unity_Project/26_MechBoardIdle/MechBoardIdle
+DisplayProgressbar: Compiling Scripts
+info: Microsoft.AspNetCore.Hosting.Diagnostics[1]
+      Request starting HTTP/2 POST http://ilpp/UnityILPP.PostProcessing/ConfigurePostProcessors - application/grpc -
+info: Microsoft.AspNetCore.Routing.EndpointMiddleware[0]
+      Executing endpoint 'gRPC - /UnityILPP.PostProcessing/ConfigurePostProcessors'
+warn: Unity.ILPP.Runner.PostProcessingAssemblyLoadContext[0]
+      Assembly system.runtime.interopservices.windowsruntime has duplicate hint path. Ignoring "C:\Program Files\Unity\Hub\Editor\6000.4.3f1\Editor\Data\UnityReferenceAssemblies\unity-4.8-api\Facades\System.Runtime.InteropServices.WindowsRuntime.dll" in favor of "C:\Program Files\Unity\Hub\Editor\6000.4.3f1\Editor\Data\NetStandard\Extensions\2.0.0\System.Runtime.InteropServices.WindowsRuntime.dll"
+warn: Unity.ILPP.Runner.PostProcessingAssemblyLoadContext[0]
+      Assembly system.componentmodel.composition has duplicate hint path. Ignoring "C:\Program Files\Unity\Hub\Editor\6000.4.3f1\Editor\Data\UnityReferenceAssemblies\unity-4.8-api\System.ComponentModel.Composition.dll" in favor of "C:\Program Files\Unity\Hub\Editor\6000.4.3f1\Editor\Data\NetStandard\compat\2.1.0\shims\netfx\System.ComponentModel.Composition.dll"
+info: Unity.ILPP.Runner.PostProcessingAssemblyLoadContext[0]
+      Resolved Unity.Burst.Cecil, Version=0.11.6.0, Culture=neutral, PublicKeyToken=50cebf1cceb9d05e with Library\PackageCache\com.unity.burst@6bb9aca3ef38\Unity.Burst.CodeGen\Unity.Burst.Cecil.dll
+info: Unity.ILPP.Runner.PostProcessingAssemblyLoadContext[0]
+      Resolved Mono.Cecil, Version=0.11.5.0, Culture=neutral, PublicKeyToken=50cebf1cceb9d05e with Library\PackageCache\com.unity.nuget.mono-cecil@ecb9724e46ff\Mono.Cecil.dll
+info: Microsoft.AspNetCore.Routing.EndpointMiddleware[1]
+      Executed endpoint 'gRPC - /UnityILPP.PostProcessing/ConfigurePostProcessors'
+info: Microsoft.AspNetCore.Hosting.Diagnostics[2]
+      Request finished HTTP/2 POST http://ilpp/UnityILPP.PostProcessing/ConfigurePostProcessors - 200 - application/grpc 594.7439ms
+info: Microsoft.AspNetCore.Hosting.Diagnostics[1]
+      Request starting HTTP/2 POST http://ilpp/UnityILPP.PostProcessing/PostProcessAssembly - application/grpc -
+info: Microsoft.AspNetCore.Routing.EndpointMiddleware[0]
+      Executing endpoint 'gRPC - /UnityILPP.PostProcessing/PostProcessAssembly'
+info: Unity.ILPP.Runner.PostProcessingPipeline[0]
+      Processing assembly Library/Bee/artifacts/2000b0aE.dag/MBI.Editor.dll, with 114 defines and 298 references
+info: Unity.ILPP.Runner.PostProcessingPipeline[0]
+      processors: Unity.Jobs.CodeGen.JobsILPostProcessor, zzzUnity.Burst.CodeGen.BurstILPostProcessor
+info: Unity.ILPP.Runner.PostProcessingPipeline[0]
+      running Unity.Jobs.CodeGen.JobsILPostProcessor
+info: Unity.ILPP.Runner.PostProcessingPipeline[0]
+      running zzzUnity.Burst.CodeGen.BurstILPostProcessor
+info: Microsoft.AspNetCore.Routing.EndpointMiddleware[1]
+      Executed endpoint 'gRPC - /UnityILPP.PostProcessing/PostProcessAssembly'
+info: Microsoft.AspNetCore.Hosting.Diagnostics[2]
+      Request finished HTTP/2 POST http://ilpp/UnityILPP.PostProcessing/PostProcessAssembly - 200 - application/grpc 21.6436ms
+info: Microsoft.AspNetCore.Hosting.Diagnostics[1]
+      Request starting HTTP/2 POST http://ilpp/UnityILPP.PostProcessing/PostProcessAssembly - application/grpc -
+info: Microsoft.AspNetCore.Routing.EndpointMiddleware[0]
+      Executing endpoint 'gRPC - /UnityILPP.PostProcessing/PostProcessAssembly'
+info: Unity.ILPP.Runner.PostProcessingPipeline[0]
+      Processing assembly Library/Bee/artifacts/2000b0aE.dag/MBI.Tests.EditMode.dll, with 114 defines and 281 references
+info: Unity.ILPP.Runner.PostProcessingPipeline[0]
+      processors: Unity.Jobs.CodeGen.JobsILPostProcessor, zzzUnity.Burst.CodeGen.BurstILPostProcessor
+info: Unity.ILPP.Runner.PostProcessingPipeline[0]
+      running Unity.Jobs.CodeGen.JobsILPostProcessor
+info: Unity.ILPP.Runner.PostProcessingPipeline[0]
+      running zzzUnity.Burst.CodeGen.BurstILPostProcessor
+info: Microsoft.AspNetCore.Routing.EndpointMiddleware[1]
+      Executed endpoint 'gRPC - /UnityILPP.PostProcessing/PostProcessAssembly'
+info: Microsoft.AspNetCore.Hosting.Diagnostics[2]
+      Request finished HTTP/2 POST http://ilpp/UnityILPP.PostProcessing/PostProcessAssembly - 200 - application/grpc 7.0882ms
+ExitCode: 0 Duration: 8s49ms
+[ 372/1144  0s] WriteResponseFile Library/Bee/artifacts/rsp/4747638433968585886.rsp
+[ 877/1144  0s] ILPP-Configuration Library/ilpp-configuration.nevergeneratedoutput
+[1136/1144  5s] Csc Library/Bee/artifacts/2000b0aE.dag/MBI.Editor.dll (+2 others)
+[1137/1144  0s] ILPostProcess Library/Bee/artifacts/2000b0aE.dag/post-processed/MBI.Editor.dll (+pdb)
+Processing assembly Library/Bee/artifacts/2000b0aE.dag/MBI.Editor.dll, with 114 defines and 298 references
+
+processors: Unity.Jobs.CodeGen.JobsILPostProcessor, zzzUnity.Burst.CodeGen.BurstILPostProcessor
+
+running Unity.Jobs.CodeGen.JobsILPostProcessor
+
+running zzzUnity.Burst.CodeGen.BurstILPostProcessor
+[1138/1144  0s] CopyFiles Library/ScriptAssemblies/MBI.Editor.pdb
+[1139/1144  0s] CopyFiles Library/ScriptAssemblies/MBI.Editor.dll
+[1140/1144  1s] Csc Library/Bee/artifacts/2000b0aE.dag/MBI.Tests.EditMode.dll (+2 others)
+[1141/1144  0s] ILPostProcess Library/Bee/artifacts/2000b0aE.dag/post-processed/MBI.Tests.EditMode.dll (+pdb)
+Processing assembly Library/Bee/artifacts/2000b0aE.dag/MBI.Tests.EditMode.dll, with 114 defines and 281 references
+
+processors: Unity.Jobs.CodeGen.JobsILPostProcessor, zzzUnity.Burst.CodeGen.BurstILPostProcessor
+
+running Unity.Jobs.CodeGen.JobsILPostProcessor
+
+running zzzUnity.Burst.CodeGen.BurstILPostProcessor
+[1142/1144  0s] CopyFiles Library/ScriptAssemblies/MBI.Tests.EditMode.pdb
+[1143/1144  0s] CopyFiles Library/ScriptAssemblies/MBI.Tests.EditMode.dll
+*** Tundra build success (7.94 seconds), 10 items updated, 1144 evaluated
+AssetDatabase: script compilation time: 9.037427s
+Begin MonoManager ReloadAssembly
+Assembly Assembly-CSharp-Editor-firstpass.dll at Library/ScriptAssemblies/Assembly-CSharp-Editor-firstpass.dll not valid. Loading of assembly skipped.
+Assembly Assembly-CSharp-Editor.dll at Library/ScriptAssemblies/Assembly-CSharp-Editor.dll not valid. Loading of assembly skipped.
+Assembly Assembly-CSharp-firstpass.dll at Library/ScriptAssemblies/Assembly-CSharp-firstpass.dll not valid. Loading of assembly skipped.
+Assembly Assembly-CSharp.dll at Library/ScriptAssemblies/Assembly-CSharp.dll not valid. Loading of assembly skipped.
+Assembly DocCodeExamples.dll at Library/ScriptAssemblies/DocCodeExamples.dll not valid. Loading of assembly skipped.
+Assembly TestNewCustomAssembly.dll at Library/ScriptAssemblies/TestNewCustomAssembly.dll not valid. Loading of assembly skipped.
+Assembly Unity.2D.Animation.EditorTests.dll at Library/ScriptAssemblies/Unity.2D.Animation.EditorTests.dll not valid. Loading of assembly skipped.
+Assembly Unity.2D.Aseprite.EditorTests.dll at Library/ScriptAssemblies/Unity.2D.Aseprite.EditorTests.dll not valid. Loading of assembly skipped.
+Assembly Unity.2D.Common.EditorTests.dll at Library/ScriptAssemblies/Unity.2D.Common.EditorTests.dll not valid. Loading of assembly skipped.
+Assembly Unity.2D.Psdimporter.EditorTests.dll at Library/ScriptAssemblies/Unity.2D.Psdimporter.EditorTests.dll not valid. Loading of assembly skipped.
+Assembly Unity.2D.Sprite.Package.EditorTests.dll at Library/ScriptAssemblies/Unity.2D.Sprite.Package.EditorTests.dll not valid. Loading of assembly skipped.
+Assembly Unity.2D.SpriteShape.EditorTests.dll at Library/ScriptAssemblies/Unity.2D.SpriteShape.EditorTests.dll not valid. Loading of assembly skipped.
+Assembly Unity.2D.Tilemap.Package.EditorTests.dll at Library/ScriptAssemblies/Unity.2D.Tilemap.Package.EditorTests.dll not valid. Loading of assembly skipped.
+Assembly Unity.Collections.BurstCompatibilityGen.dll at Library/ScriptAssemblies/Unity.Collections.BurstCompatibilityGen.dll not valid. Loading of assembly skipped.
+Assembly Unity.Collections.DocCodeSamples.dll at Library/ScriptAssemblies/Unity.Collections.DocCodeSamples.dll not valid. Loading of assembly skipped.
+Assembly Unity.Collections.PerformanceTests.dll at Library/ScriptAssemblies/Unity.Collections.PerformanceTests.dll not valid. Loading of assembly skipped.
+Assembly Unity.Collections.Tests.dll at Library/ScriptAssemblies/Unity.Collections.Tests.dll not valid. Loading of assembly skipped.
+Assembly Unity.Collections.Tests.Playmode.dll at Library/ScriptAssemblies/Unity.Collections.Tests.Playmode.dll not valid. Loading of assembly skipped.
+Assembly Unity.InputSystem.IntegrationTests.dll at Library/ScriptAssemblies/Unity.InputSystem.IntegrationTests.dll not valid. Loading of assembly skipped.
+Assembly Unity.Mathematics.Tests.dll at Library/ScriptAssemblies/Unity.Mathematics.Tests.dll not valid. Loading of assembly skipped.
+Assembly Unity.Multiplayer.Center.Editor.Tests.dll at Library/ScriptAssemblies/Unity.Multiplayer.Center.Editor.Tests.dll not valid. Loading of assembly skipped.
+Assembly Unity.Multiplayer.Center.Tests.dll at Library/ScriptAssemblies/Unity.Multiplayer.Center.Tests.dll not valid. Loading of assembly skipped.
+Assembly Unity.Nuget.Mono-Cecil.dll at Library/ScriptAssemblies/Unity.Nuget.Mono-Cecil.dll not valid. Loading of assembly skipped.
+Assembly Unity.PathTracing.Editor.Tests.dll at Library/ScriptAssemblies/Unity.PathTracing.Editor.Tests.dll not valid. Loading of assembly skipped.
+Assembly Unity.PathTracing.Runtime.Tests.dll at Library/ScriptAssemblies/Unity.PathTracing.Runtime.Tests.dll not valid. Loading of assembly skipped.
+Assembly Unity.RenderPipelines.Core.Editor.Tests.dll at Library/ScriptAssemblies/Unity.RenderPipelines.Core.Editor.Tests.dll not valid. Loading of assembly skipped.
+Assembly Unity.RenderPipelines.Core.Runtime.Tests.dll at Library/ScriptAssemblies/Unity.RenderPipelines.Core.Runtime.Tests.dll not valid. Loading of assembly skipped.
+Assembly Unity.RenderPipelines.Universal.Config.Editor.Tests.dll at Library/ScriptAssemblies/Unity.RenderPipelines.Universal.Config.Editor.Tests.dll not valid. Loading of assembly skipped.
+Assembly Unity.RenderPipelines.Universal.Editor.Tests.dll at Library/ScriptAssemblies/Unity.RenderPipelines.Universal.Editor.Tests.dll not valid. Loading of assembly skipped.
+Assembly Unity.RenderPipelines.Universal.Runtime.Tests.dll at Library/ScriptAssemblies/Unity.RenderPipelines.Universal.Runtime.Tests.dll not valid. Loading of assembly skipped.
+Assembly Unity.Searcher.EditorTests.dll at Library/ScriptAssemblies/Unity.Searcher.EditorTests.dll not valid. Loading of assembly skipped.
+Assembly Unity.ShaderGraph.Editor.Tests.dll at Library/ScriptAssemblies/Unity.ShaderGraph.Editor.Tests.dll not valid. Loading of assembly skipped.
+Assembly Unity.TextMeshPro.Editor.Tests.dll at Library/ScriptAssemblies/Unity.TextMeshPro.Editor.Tests.dll not valid. Loading of assembly skipped.
+Assembly Unity.TextMeshPro.Tests.dll at Library/ScriptAssemblies/Unity.TextMeshPro.Tests.dll not valid. Loading of assembly skipped.
+Assembly Unity.UnifiedRayTracing.Editor.Tests.dll at Library/ScriptAssemblies/Unity.UnifiedRayTracing.Editor.Tests.dll not valid. Loading of assembly skipped.
+Assembly UnityEditor.UI.Common.Tests.dll at Library/ScriptAssemblies/UnityEditor.UI.Common.Tests.dll not valid. Loading of assembly skipped.
+Assembly UnityEditor.UI.EditorTests.dll at Library/ScriptAssemblies/UnityEditor.UI.EditorTests.dll not valid. Loading of assembly skipped.
+Assembly UnityEngine.UI.Tests.dll at Library/ScriptAssemblies/UnityEngine.UI.Tests.dll not valid. Loading of assembly skipped.
+Start importing ProjectSettings/ProjectSettings.asset using Guid(00000000000000004000000000000000) (LibraryAssetImporter) -> (Import Result ID: 'a958f2f8c7779a9d94ffec29aab9ccbe') in 0.0258519 seconds [static dependencies only]. Details - ImportResultOutputID=d3ca6db29495033f6ec6c171ea098da8 DependenciesID=8214da01aff8ca9e2d892c17baf53f21 StaticDependenciesID=d5ca5e9caa1fc554bf775573c06e282f 
+Refreshing native plugins compatible for Editor in 117.43 ms, found 5 plugins.
+Native extension for Android target not found
+Native extension for WindowsStandalone target not found
+Native extension for WebGL target not found
+Refreshing native plugins compatible for Editor in 5.13 ms, found 5 plugins.
+ScheduleIndexationOnStartup MainProcess:True IndexOnStartup:True
+Mono: successfully reloaded assembly
+- Finished resetting the current domain, in  5.458 seconds
+Domain Reload Profiling: 16446ms
+	BeginReloadAssembly (377ms)
+		DisableScriptedObjects (33ms)
+		CreateAndSetChildDomain (152ms)
+	RebuildCommonClasses (41ms)
+	RebuildNativeTypeToScriptingClass (13ms)
+	initialDomainReloadingComplete (7617ms)
+	LoadAllAssembliesAndSetupDomain (2938ms)
+		LoadAssemblies (2373ms)
+		AnalyzeDomain (702ms)
+			TypeCache.Refresh (612ms)
+				TypeCache.ScanAssembly (597ms)
+			BuildScriptInfoCaches (78ms)
+			ResolveRequiredComponents (10ms)
+	FinalizeReload (5459ms)
+		SetupLoadedEditorAssemblies (0ms)
+			InitializePlatformSupportModulesInManaged (40ms)
+			BeforeProcessingInitializeOnLoad (225ms)
+			ProcessInitializeOnLoadAttributes (3914ms)
+			ProcessInitializeOnLoadMethodAttributes (690ms)
+			AfterProcessingInitializeOnLoad (18ms)
+		AwakeInstancesAfterBackupRestoration (22ms)
+Shader Hidden/ChartRasterizerHardware is not supported: GPU does not support conservative rasterization
+Refreshing native plugins compatible for Editor in 4.75 ms, found 5 plugins.
+(Values over 0.050ms)
+Asset Pipeline Refresh (id=eafb4d854723bd04c9e0ea536fce4e3e): Total: 29.879 seconds - Initiated by InitialRefreshV2(ForceSynchronousImport)
+	Summary:
+		Imports: total=1 (actual=1, local cache=0, cache server=0)
+		Asset DB Process Time: managed=6 ms, native=9318 ms
+		Asset DB Callback time: managed=250 ms, native=153 ms
+		Scripting: domain reloads=1, domain reload time=11003 ms, compile time=9039 ms, other=106 ms
+		Project Asset Count: scripts=1668, non-scripts=3659
+		Asset File Changes: new=0, changed=2, moved=0, deleted=0
+		Scan Filter Count: 0
+	InvokePackagesCallback: 99.114ms
+	ApplyChangesToAssetFolders: 1.159ms
+	Scan: 369.436ms
+	OnSourceAssetsModified: 0.919ms
+	CategorizeScriptCompilationAssets: 1852.734ms
+	ProcessAssetsWithTransientArtifactChanges: 93.914ms
+	CategorizeAssets: 120.425ms
+	CompileScripts: 9039.114ms
+	ImportOutOfDateAssets: 5640.284ms (5608.937ms without children)
+		ImportManagerImport: 27.707ms (1.489ms without children)
+		ReloadNativeAssets: 0.077ms
+		UnloadImportedAssets: 1.193ms
+		EnsureUptoDateAssetsAreRegisteredWithGuidPM: 1.478ms
+		OnDemandSchedulerStart: 0.887ms
+	PostProcessAllAssets: 352.899ms
+		XRBuildSystem.XRAssetImported 2.343ms
+		VCAutoAddAssetPostprocess 1.944ms
+		MonoPostProcessAllAssets: 249.713ms
+			AssetPostprocessor.OnPostprocessAllAssets 172.962ms
+			StyleCatalogPostProcessor.OnPostprocessAllAssets 27.366ms
+			UniversalRenderPipelineGlobalSettingsPostprocessor.OnPostprocessAllAssets 11.626ms
+			BuilderAssetPostprocessor.OnPostprocessAllAssets 6.136ms
+			WindowAssetPostprocessingWatcher.OnPostprocessAllAssets 2.220ms
+			SpeedTree9Postprocessor.OnPostprocessAllAssets 1.991ms
+			ShaderGraphAssetPostProcessor.OnPostprocessAllAssets 1.441ms
+			AssetChangedListener.OnPostprocessAllAssets 1.418ms
+			RetainedModeAssetPostprocessor.OnPostprocessAllAssets 1.383ms
+			RenderPipelineGlobalSettingsPostprocessor.OnPostprocessAllAssets 0.993ms
+			MaterialPostprocessor.OnPostprocessAllAssets 0.905ms
+			TMPro_TexturePostProcessor.OnPostprocessAllAssets 0.679ms
+			ArtifactBrowserPostProcessor.OnPostprocessAllAssets 0.548ms
+			ReferencedClipsPostProcessor.OnPostprocessAllAssets 0.514ms
+			SpriteEditorTexturePostprocessor.OnPostprocessAllAssets 0.512ms
+			UVCSAssetPostprocessor.OnPostprocessAllAssets 0.446ms
+			TextAssetPostProcessor.OnPostprocessAllAssets 0.410ms
+			PostProcessor.OnPostprocessAllAssets 0.351ms
+			InputActionAssetPostprocessor.OnPostprocessAllAssets 0.340ms
+			AssetEvents.OnPostprocessAllAssets 0.322ms
+			SpriteShapeAssetPostProcessor.OnPostprocessAllAssets 0.321ms
+			InputActionJsonNameModifierAssetProcessor.OnPostprocessAllAssets 0.306ms
+			AssetProcessor.OnPostprocessAllAssets 0.298ms
+			AudioMixerPostprocessor.OnPostprocessAllAssets 0.281ms
+			TerrainToolbarOverlayPostProcessor.OnPostprocessAllAssets 0.275ms
+			AssetDatabaseCallbacks.OnPostprocessAllAssets 0.246ms
+			ProjectSettingsPostprocessor.OnPostprocessAllAssets 0.245ms
+			SpriteLibraryAssetPostprocessor.OnPostprocessAllAssets 0.199ms
+			ConfigAssetsTracker.OnPostprocessAllAssets 0.155ms
+			SpeedTreePostProcessor.OnPostprocessAllAssets 0.152ms
+			ScenarioDriftAssetsTracker.OnPostprocessAllAssets 0.149ms
+			SamplePostprocessor.OnPostprocessAllAssets 0.146ms
+			SyncVS.PostprocessSyncProject 0.129ms
+			PSDImportPostProcessor.OnPostprocessAllAssets 0.127ms
+			PSDImporterAssetPostProcessor.OnPostprocessAllAssets 0.085ms
+			AudioContainerPostProcessor.OnPostprocessAllAssets 0.076ms
+	PostAssetChangesProfiler: 8.253ms
+	GatherAllCurrentPrimaryImportResultRevisions: 0.254ms
+	UnloadStreamsBegin: 3.796ms
+	PersistCurrentRevisions: 0.422ms
+	GenerateScriptTypeHashes: 4.274ms
+	GenerateScriptTypeSerializationHashes: 9.265ms
+	Untracked: 12329.237ms
+
+Application.AssetDatabase Initial Refresh End
+Scanning for USB devices : 27.570ms
+Initializing Unity extensions:
+[MODES] ModeService[none].Initialize
+[MODES] ModeService[none].LoadModes
+[MODES] Loading mode Default (0) for mode-current-id-MechBoardIdle
+Method MBI.Editor.GameDataTables.ApplyFieldTable has invalid parameters. MenuCommand is the only optional supported parameter.
+UnityEngine.Debug:ExtractStackTraceNoAlloc (byte*,int,string)
+UnityEngine.StackTraceUtility:ExtractStackTrace ()
+UnityEngine.DebugLogHandler:Internal_Log (UnityEngine.LogType,UnityEngine.LogOption,string,UnityEngine.Object)
+UnityEngine.DebugLogHandler:LogFormat (UnityEngine.LogType,UnityEngine.Object,string,object[])
+UnityEngine.Logger:LogFormat (UnityEngine.LogType,string,object[])
+UnityEngine.Debug:LogWarningFormat (string,object[])
+UnityEditor.MenuService:ValidateMethodForMenuCommand (System.Reflection.MethodInfo)
+UnityEditor.MenuService/<>c:<ExtractMenuItemsFromAttributes>b__18_0 (System.Reflection.MethodInfo)
+System.Linq.Enumerable/WhereEnumerableIterator`1<System.Reflection.MethodInfo>:ToArray ()
+System.Linq.Buffer`1<System.Reflection.MethodInfo>:.ctor (System.Collections.Generic.IEnumerable`1<System.Reflection.MethodInfo>)
+System.Linq.OrderedEnumerable`1<System.Reflection.MethodInfo>:ToList ()
+System.Linq.Enumerable:ToList<System.Reflection.MethodInfo> (System.Collections.Generic.IEnumerable`1<System.Reflection.MethodInfo>)
+UnityEditor.MenuService:ExtractMenuItemsFromAttributes ()
+UnityEditor.MenuService:GetMenuItemsFromAttributesById (string)
+UnityEditor.MenuService:GetMenuItemsFromAttributes ()
+
+Unloading 27 Unused Serialized files (Serialized files now loaded: 0)
+Unloading 7709 unused Assets / (3.9 MB). Loaded Objects now: 8575.
+Memory consumption went from 228.0 MB to 224.1 MB.
+Total: 15.011900 ms (FindLiveObjects: 0.848400 ms CreateObjectMapping: 1.171700 ms MarkObjects: 9.398400 ms  DeleteObjects: 3.435000 ms)
+
+############ S2 도전 · 모듈 갈래 (2026-10-16 · 9d3a11e 자산) ############
+ⓐ 시작 보드: LoseDead · 98.8초 · 남은 적 12/110 · 처치 98 · HP 0/1000
+---- 보고 ----
+=== 스테이지 S2 클리어 하네스 (2026-09-17) ===
+[판] 추진제 필요 생산치 **30** (자산 30 대비 ×1.00 · 기준)
+[판] 쉴드 줄 **배포 보드에 포함** — 값은 자산이 든다(대당 최대치 · 충전 비율)
+[판] 자동 조종 **켬** — 게임과 같은 문(2026-09-17 신설)
+[시작 조건] **튜토리얼 종료** — 마운트 적재 참(정상 경로) · 창고 빈손
+
+[판] S2 · 모듈 배치
+  요구치 18 · 제한 120s · 적 110 기
+  로봇 HP 1000 · 사거리 9.2 · 마운트계수 1.00 · 소비 상한 12.0
+  보드 = 시작 배치 + 튜토리얼 칸(운반로 이어진 판) · 마운트 **가득**(40) · 창고 빈손
+  이어진 노드 12 · 탄약 생산 2.00 발/초 · 생산 배율 1.00 · 코어 있음
+
+[결과]
+  LoseDead · 98.8초
+  남은 적 12/110 · 로봇 HP 0/1000
+  쏜 발 591
+  첫 도착 0.0초
+  첫 발사 0.5초
+
+[회피 축 — `260917_W02` 2-2]
+  부스터 2 대 · 회피 스택 상한 8 · 추진제 유입 0.3333 개/초
+  **자동 회피 발동 31 회**  ← 측정법: `DodgeSystem.TotalDodges`(발동할 때마다 1 증가) 를 판 끝에서 읽는다
+  회피 스택 최고 8  ← 측정법: 매 틱 `Dodge.Stacks` 를 보고 그중 최대
+  추진제 소진 틱 877/1976 (44.4%)  ← 측정법: 부스터가 있는 틱 중 `Stacks == 0` 인 틱의 비율
+  **전력 효율 1.000** (공급 30 · 수요 17.0)  ← 측정법: `LogisticsSimulation.Throttles` 의 `power` = min(1, 공급/수요)
+  **피격 248 회**(회피로 무효가 된 것 포함)  ← 측정법: 근접·포탄이 **명중 판정에 들어온** 순간마다 1 증가
+  **받은 총 피해 1007**  ← 측정법: 실제로 **HP 에서** 깎인 값의 합. 🗑️ 구 「쉴드는 시뮬에 없다」 폐기 — 09-17 에 쉴드가 붙었고 그 몫은 아래 줄이 센다
+  **회피로 무효화한 피해 322**  ← 측정법: 무적이라 **계산에 들어가지도 않은** 공격력의 합
+  마운트 최고 도착률 10.00 발/초
+  재배분 188 회 — 0 이면 라인이 시작값(빈 줄)으로 굳은 것이다
+
+[쉴드 축]
+  최대치 200 (발생 노드 1 대 × 대당 200) · 충전률 5.00/초 (비율 2.5%/초 · 재료 1.000 개/초 · 대당 소비 1)  ← 측정법: `ShieldSystem.ChargeFrom` = 최대치 × 비율 × (먹은 재료 ÷ 먹고 싶은 재료)
+  빈 게이지가 차는 데 40.0초  ← 측정법: 최대치 ÷ 충전률. **비율이 고정이라 그릇을 키워도 이 수는 안 변한다**
+  **쉴드가 막은 피해 400**  ← 측정법: 피격마다 게이지에서 실제로 빠진 양의 합(`ShieldSystem.Absorbed`). ⚠️ 넘친 몫은 여기 안 들고 위의 「받은 총 피해」로 간다
+  쉴드 0 인 틱 123/1976 (6.2%)  ← 측정법: 매 틱 `Shield.Value <= 0` 인 틱의 비율 · **재료가 모자란다는 뜻**
+  쉴드 만충 틱 378/1976 (19.1%)  ← 측정법: 매 틱 `Shield.IsFull` 인 틱의 비율 · **그릇이 남아돈다는 뜻**
+  쉴드 줄이 쓴 칸 6 칸(벨트 3 + 가공 1 + 군수 1 + 발생 1)  ← 측정법: **시작 보드 배치**에서 센다(하네스가 따로 안 놓는다). ⚠️ **가공을 표준탄 줄과 공유하지 않는 판정**이라 한 칸이 더 든다
+
+[못 쏜 까닭 — 틱마다 하나씩 · 차례가 인과다]
+  쏜 틱                197 (10.0%)
+  표적 없음              0 (0.0%)  ← 사거리 밖 대기
+  표적 있고 재고 0       0 (0.0%)  ← 창고→마운트 이송
+  둘 다 있는데 안 쏨  1779 (90.0%)  ← 발사 간격·게이트
+  창고 최고 1.0 · 마운트 최고 40.0 · 마운트 평균 39.9
+  📌 **창고는 높은데 마운트가 낮으면 이송이 병목**이고, 둘 다 높은데 안 쏘면 게이트다.
+
+[굳은 적 — 10초마다 · 사거리 밖인데 안 움직인 수]
+    10초 · 살아있음 6 · 사거리 안 0 · **굳음 0** · 보병 6(안 0·굳음 0)
+    20초 · 살아있음 8 · 사거리 안 0 · **굳음 0** · 보병 8(안 0·굳음 0)
+    30초 · 살아있음 10 · 사거리 안 0 · **굳음 0** · 보병 10(안 0·굳음 0)
+    40초 · 살아있음 12 · 사거리 안 0 · **굳음 0** · 보병 12(안 0·굳음 0)
+    50초 · 살아있음 14 · 사거리 안 0 · **굳음 0** · 보병 14(안 0·굳음 0)
+    60초 · 살아있음 16 · 사거리 안 4 · **굳음 0** · 보병 16(안 4·굳음 0)
+    70초 · 살아있음 19 · 사거리 안 3 · **굳음 0** · 보병 19(안 3·굳음 0)
+    80초 · 살아있음 25 · 사거리 안 2 · **굳음 0** · 보병 21(안 2·굳음 0) · 포격 4(안 0·굳음 0)
+    90초 · 살아있음 20 · 사거리 안 9 · **굳음 0** · 보병 10(안 1·굳음 0) · 포격 10(안 8·굳음 0)
+    되돌림(못 닿는 적 → 링) **0회** · 문턱 = 이동 속도 × 20초
+  좌우 반전 3 회 — 떨림 잣대. 크면 붙들기(현재 0.40초)가 모자란 것이다
+  구 규칙(우회 금지)은 2026-09-16 에 폐기됐다 — 주 축이 막히면
+  부 축으로 한 칸 본다. 둘 다 막히면 그대로 선다(길막은 살아 있다).
+
+[스폰 거리 — 띠 8.0~14.0]
+    #0 0.05초 · 거리 7.93
+    #1 0.05초 · 거리 11.63
+    #2 0.05초 · 거리 9.34
+    #3 0.05초 · 거리 13.05
+    #4 3.25초 · 거리 9.89
+    #5 6.40초 · 거리 12.73
+    #6 9.60초 · 거리 9.57
+    #7 12.80초 · 거리 12.39
+    #8 19.25초 · 거리 12.05
+    #9 22.45초 · 거리 8.88
+  ⚠️ 이것은 **나타난 순간**의 거리다 — 적은 그 뒤 로봇 쪽으로 걸어온다.
+
+[출력 축 — 요구치 18]
+  명목 40.0 · 배율 뒤 40.0 · 실제(도착 기준) 최고 100.0 · 마지막 100.0
+  갭 분해(마지막 틱) -60.0 — 전력 0.0 · 발열 0.0 · 벨트 -60.0
+  굴린 값(60초 창 · 화면이 내는 것과 같은 방식) 최고 20.1
+  ✅ 요구치 18 를 넘겼다 (굴린 최고 20.1)
+  ⚠️ 판정은 **굴린 값**으로 한다 — 굴리지 않은 최고는 한 틱에 몰려 도착한
+     것이 스파이크로 읽힌 수라, 그것으로 판정하면 없는 성능을 보고하게 된다.
+
+ⓑ +생산량 모듈 @(7,8): LoseDead · 98.8초 · 남은 적 12/110 · 처치 98 · HP 0/1000
+---- 보고 ----
+=== 스테이지 S2 클리어 하네스 (2026-09-17) ===
+[판] 추진제 필요 생산치 **30** (자산 30 대비 ×1.00 · 기준)
+[판] 쉴드 줄 **배포 보드에 포함** — 값은 자산이 든다(대당 최대치 · 충전 비율)
+[판] 자동 조종 **켬** — 게임과 같은 문(2026-09-17 신설)
+[시작 조건] **튜토리얼 종료** — 마운트 적재 참(정상 경로) · 창고 빈손
+
+[판] S2 · 모듈 배치
+  요구치 18 · 제한 120s · 적 110 기
+  로봇 HP 1000 · 사거리 9.2 · 마운트계수 1.00 · 소비 상한 12.0
+  보드 = 시작 배치 + 튜토리얼 칸(운반로 이어진 판) · 마운트 **가득**(40) · 창고 빈손
+  이어진 노드 12 · 탄약 생산 2.50 발/초 · 생산 배율 1.00 · 코어 있음
+
+[결과]
+  LoseDead · 98.8초
+  남은 적 12/110 · 로봇 HP 0/1000
+  쏜 발 591
+  첫 도착 0.0초
+  첫 발사 0.5초
+
+[회피 축 — `260917_W02` 2-2]
+  부스터 2 대 · 회피 스택 상한 8 · 추진제 유입 0.3333 개/초
+  **자동 회피 발동 31 회**  ← 측정법: `DodgeSystem.TotalDodges`(발동할 때마다 1 증가) 를 판 끝에서 읽는다
+  회피 스택 최고 8  ← 측정법: 매 틱 `Dodge.Stacks` 를 보고 그중 최대
+  추진제 소진 틱 877/1976 (44.4%)  ← 측정법: 부스터가 있는 틱 중 `Stacks == 0` 인 틱의 비율
+  **전력 효율 1.000** (공급 30 · 수요 19.0)  ← 측정법: `LogisticsSimulation.Throttles` 의 `power` = min(1, 공급/수요)
+  **피격 248 회**(회피로 무효가 된 것 포함)  ← 측정법: 근접·포탄이 **명중 판정에 들어온** 순간마다 1 증가
+  **받은 총 피해 1007**  ← 측정법: 실제로 **HP 에서** 깎인 값의 합. 🗑️ 구 「쉴드는 시뮬에 없다」 폐기 — 09-17 에 쉴드가 붙었고 그 몫은 아래 줄이 센다
+  **회피로 무효화한 피해 322**  ← 측정법: 무적이라 **계산에 들어가지도 않은** 공격력의 합
+  마운트 최고 도착률 10.00 발/초
+  재배분 188 회 — 0 이면 라인이 시작값(빈 줄)으로 굳은 것이다
+
+[쉴드 축]
+  최대치 200 (발생 노드 1 대 × 대당 200) · 충전률 5.00/초 (비율 2.5%/초 · 재료 1.000 개/초 · 대당 소비 1)  ← 측정법: `ShieldSystem.ChargeFrom` = 최대치 × 비율 × (먹은 재료 ÷ 먹고 싶은 재료)
+  빈 게이지가 차는 데 40.0초  ← 측정법: 최대치 ÷ 충전률. **비율이 고정이라 그릇을 키워도 이 수는 안 변한다**
+  **쉴드가 막은 피해 400**  ← 측정법: 피격마다 게이지에서 실제로 빠진 양의 합(`ShieldSystem.Absorbed`). ⚠️ 넘친 몫은 여기 안 들고 위의 「받은 총 피해」로 간다
+  쉴드 0 인 틱 123/1976 (6.2%)  ← 측정법: 매 틱 `Shield.Value <= 0` 인 틱의 비율 · **재료가 모자란다는 뜻**
+  쉴드 만충 틱 378/1976 (19.1%)  ← 측정법: 매 틱 `Shield.IsFull` 인 틱의 비율 · **그릇이 남아돈다는 뜻**
+  쉴드 줄이 쓴 칸 6 칸(벨트 3 + 가공 1 + 군수 1 + 발생 1)  ← 측정법: **시작 보드 배치**에서 센다(하네스가 따로 안 놓는다). ⚠️ **가공을 표준탄 줄과 공유하지 않는 판정**이라 한 칸이 더 든다
+
+[못 쏜 까닭 — 틱마다 하나씩 · 차례가 인과다]
+  쏜 틱                197 (10.0%)
+  표적 없음              0 (0.0%)  ← 사거리 밖 대기
+  표적 있고 재고 0       0 (0.0%)  ← 창고→마운트 이송
+  둘 다 있는데 안 쏨  1779 (90.0%)  ← 발사 간격·게이트
+  창고 최고 40.0 · 마운트 최고 40.0 · 마운트 평균 39.9
+  📌 **창고는 높은데 마운트가 낮으면 이송이 병목**이고, 둘 다 높은데 안 쏘면 게이트다.
+
+[굳은 적 — 10초마다 · 사거리 밖인데 안 움직인 수]
+    10초 · 살아있음 6 · 사거리 안 0 · **굳음 0** · 보병 6(안 0·굳음 0)
+    20초 · 살아있음 8 · 사거리 안 0 · **굳음 0** · 보병 8(안 0·굳음 0)
+    30초 · 살아있음 10 · 사거리 안 0 · **굳음 0** · 보병 10(안 0·굳음 0)
+    40초 · 살아있음 12 · 사거리 안 0 · **굳음 0** · 보병 12(안 0·굳음 0)
+    50초 · 살아있음 14 · 사거리 안 0 · **굳음 0** · 보병 14(안 0·굳음 0)
+    60초 · 살아있음 16 · 사거리 안 4 · **굳음 0** · 보병 16(안 4·굳음 0)
+    70초 · 살아있음 19 · 사거리 안 3 · **굳음 0** · 보병 19(안 3·굳음 0)
+    80초 · 살아있음 25 · 사거리 안 2 · **굳음 0** · 보병 21(안 2·굳음 0) · 포격 4(안 0·굳음 0)
+    90초 · 살아있음 20 · 사거리 안 9 · **굳음 0** · 보병 10(안 1·굳음 0) · 포격 10(안 8·굳음 0)
+    되돌림(못 닿는 적 → 링) **0회** · 문턱 = 이동 속도 × 20초
+  좌우 반전 3 회 — 떨림 잣대. 크면 붙들기(현재 0.40초)가 모자란 것이다
+  구 규칙(우회 금지)은 2026-09-16 에 폐기됐다 — 주 축이 막히면
+  부 축으로 한 칸 본다. 둘 다 막히면 그대로 선다(길막은 살아 있다).
+
+[스폰 거리 — 띠 8.0~14.0]
+    #0 0.05초 · 거리 7.93
+    #1 0.05초 · 거리 11.63
+    #2 0.05초 · 거리 9.34
+    #3 0.05초 · 거리 13.05
+    #4 3.25초 · 거리 9.89
+    #5 6.40초 · 거리 12.73
+    #6 9.60초 · 거리 9.57
+    #7 12.80초 · 거리 12.39
+    #8 19.25초 · 거리 12.05
+    #9 22.45초 · 거리 8.88
+  ⚠️ 이것은 **나타난 순간**의 거리다 — 적은 그 뒤 로봇 쪽으로 걸어온다.
+
+[출력 축 — 요구치 18]
+  명목 40.0 · 배율 뒤 40.0 · 실제(도착 기준) 최고 100.0 · 마지막 100.0
+  갭 분해(마지막 틱) -60.0 — 전력 0.0 · 발열 0.0 · 벨트 -60.0
+  굴린 값(60초 창 · 화면이 내는 것과 같은 방식) 최고 20.1
+  ✅ 요구치 18 를 넘겼다 (굴린 최고 20.1)
+  ⚠️ 판정은 **굴린 값**으로 한다 — 굴리지 않은 최고는 한 틱에 몰려 도착한
+     것이 스파이크로 읽힌 수라, 그것으로 판정하면 없는 성능을 보고하게 된다.
+
+ⓒ +생산량·생산속도 @(7,8): LoseDead · 98.8초 · 남은 적 12/110 · 처치 98 · HP 0/1000
+---- 보고 ----
+=== 스테이지 S2 클리어 하네스 (2026-09-17) ===
+[판] 추진제 필요 생산치 **30** (자산 30 대비 ×1.00 · 기준)
+[판] 쉴드 줄 **배포 보드에 포함** — 값은 자산이 든다(대당 최대치 · 충전 비율)
+[판] 자동 조종 **켬** — 게임과 같은 문(2026-09-17 신설)
+[시작 조건] **튜토리얼 종료** — 마운트 적재 참(정상 경로) · 창고 빈손
+
+[판] S2 · 모듈 배치
+  요구치 18 · 제한 120s · 적 110 기
+  로봇 HP 1000 · 사거리 9.2 · 마운트계수 1.00 · 소비 상한 12.0
+  보드 = 시작 배치 + 튜토리얼 칸(운반로 이어진 판) · 마운트 **가득**(40) · 창고 빈손
+  이어진 노드 12 · 탄약 생산 3.25 발/초 · 생산 배율 1.00 · 코어 있음
+
+[결과]
+  LoseDead · 98.8초
+  남은 적 12/110 · 로봇 HP 0/1000
+  쏜 발 591
+  첫 도착 0.0초
+  첫 발사 0.5초
+
+[회피 축 — `260917_W02` 2-2]
+  부스터 2 대 · 회피 스택 상한 8 · 추진제 유입 0.3333 개/초
+  **자동 회피 발동 31 회**  ← 측정법: `DodgeSystem.TotalDodges`(발동할 때마다 1 증가) 를 판 끝에서 읽는다
+  회피 스택 최고 8  ← 측정법: 매 틱 `Dodge.Stacks` 를 보고 그중 최대
+  추진제 소진 틱 877/1976 (44.4%)  ← 측정법: 부스터가 있는 틱 중 `Stacks == 0` 인 틱의 비율
+  **전력 효율 1.000** (공급 30 · 수요 21.0)  ← 측정법: `LogisticsSimulation.Throttles` 의 `power` = min(1, 공급/수요)
+  **피격 248 회**(회피로 무효가 된 것 포함)  ← 측정법: 근접·포탄이 **명중 판정에 들어온** 순간마다 1 증가
+  **받은 총 피해 1007**  ← 측정법: 실제로 **HP 에서** 깎인 값의 합. 🗑️ 구 「쉴드는 시뮬에 없다」 폐기 — 09-17 에 쉴드가 붙었고 그 몫은 아래 줄이 센다
+  **회피로 무효화한 피해 322**  ← 측정법: 무적이라 **계산에 들어가지도 않은** 공격력의 합
+  마운트 최고 도착률 10.00 발/초
+  재배분 188 회 — 0 이면 라인이 시작값(빈 줄)으로 굳은 것이다
+
+[쉴드 축]
+  최대치 200 (발생 노드 1 대 × 대당 200) · 충전률 5.00/초 (비율 2.5%/초 · 재료 1.000 개/초 · 대당 소비 1)  ← 측정법: `ShieldSystem.ChargeFrom` = 최대치 × 비율 × (먹은 재료 ÷ 먹고 싶은 재료)
+  빈 게이지가 차는 데 40.0초  ← 측정법: 최대치 ÷ 충전률. **비율이 고정이라 그릇을 키워도 이 수는 안 변한다**
+  **쉴드가 막은 피해 400**  ← 측정법: 피격마다 게이지에서 실제로 빠진 양의 합(`ShieldSystem.Absorbed`). ⚠️ 넘친 몫은 여기 안 들고 위의 「받은 총 피해」로 간다
+  쉴드 0 인 틱 123/1976 (6.2%)  ← 측정법: 매 틱 `Shield.Value <= 0` 인 틱의 비율 · **재료가 모자란다는 뜻**
+  쉴드 만충 틱 378/1976 (19.1%)  ← 측정법: 매 틱 `Shield.IsFull` 인 틱의 비율 · **그릇이 남아돈다는 뜻**
+  쉴드 줄이 쓴 칸 6 칸(벨트 3 + 가공 1 + 군수 1 + 발생 1)  ← 측정법: **시작 보드 배치**에서 센다(하네스가 따로 안 놓는다). ⚠️ **가공을 표준탄 줄과 공유하지 않는 판정**이라 한 칸이 더 든다
+
+[못 쏜 까닭 — 틱마다 하나씩 · 차례가 인과다]
+  쏜 틱                197 (10.0%)
+  표적 없음              0 (0.0%)  ← 사거리 밖 대기
+  표적 있고 재고 0       0 (0.0%)  ← 창고→마운트 이송
+  둘 다 있는데 안 쏨  1779 (90.0%)  ← 발사 간격·게이트
+  창고 최고 40.0 · 마운트 최고 40.0 · 마운트 평균 39.9
+  📌 **창고는 높은데 마운트가 낮으면 이송이 병목**이고, 둘 다 높은데 안 쏘면 게이트다.
+
+[굳은 적 — 10초마다 · 사거리 밖인데 안 움직인 수]
+    10초 · 살아있음 6 · 사거리 안 0 · **굳음 0** · 보병 6(안 0·굳음 0)
+    20초 · 살아있음 8 · 사거리 안 0 · **굳음 0** · 보병 8(안 0·굳음 0)
+    30초 · 살아있음 10 · 사거리 안 0 · **굳음 0** · 보병 10(안 0·굳음 0)
+    40초 · 살아있음 12 · 사거리 안 0 · **굳음 0** · 보병 12(안 0·굳음 0)
+    50초 · 살아있음 14 · 사거리 안 0 · **굳음 0** · 보병 14(안 0·굳음 0)
+    60초 · 살아있음 16 · 사거리 안 4 · **굳음 0** · 보병 16(안 4·굳음 0)
+    70초 · 살아있음 19 · 사거리 안 3 · **굳음 0** · 보병 19(안 3·굳음 0)
+    80초 · 살아있음 25 · 사거리 안 2 · **굳음 0** · 보병 21(안 2·굳음 0) · 포격 4(안 0·굳음 0)
+    90초 · 살아있음 20 · 사거리 안 9 · **굳음 0** · 보병 10(안 1·굳음 0) · 포격 10(안 8·굳음 0)
+    되돌림(못 닿는 적 → 링) **0회** · 문턱 = 이동 속도 × 20초
+  좌우 반전 3 회 — 떨림 잣대. 크면 붙들기(현재 0.40초)가 모자란 것이다
+  구 규칙(우회 금지)은 2026-09-16 에 폐기됐다 — 주 축이 막히면
+  부 축으로 한 칸 본다. 둘 다 막히면 그대로 선다(길막은 살아 있다).
+
+[스폰 거리 — 띠 8.0~14.0]
+    #0 0.05초 · 거리 7.93
+    #1 0.05초 · 거리 11.63
+    #2 0.05초 · 거리 9.34
+    #3 0.05초 · 거리 13.05
+    #4 3.25초 · 거리 9.89
+    #5 6.40초 · 거리 12.73
+    #6 9.60초 · 거리 9.57
+    #7 12.80초 · 거리 12.39
+    #8 19.25초 · 거리 12.05
+    #9 22.45초 · 거리 8.88
+  ⚠️ 이것은 **나타난 순간**의 거리다 — 적은 그 뒤 로봇 쪽으로 걸어온다.
+
+[출력 축 — 요구치 18]
+  명목 40.0 · 배율 뒤 40.0 · 실제(도착 기준) 최고 100.0 · 마지막 100.0
+  갭 분해(마지막 틱) -60.0 — 전력 0.0 · 발열 0.0 · 벨트 -60.0
+  굴린 값(60초 창 · 화면이 내는 것과 같은 방식) 최고 20.1
+  ✅ 요구치 18 를 넘겼다 (굴린 최고 20.1)
+  ⚠️ 판정은 **굴린 값**으로 한다 — 굴리지 않은 최고는 한 틱에 몰려 도착한
+     것이 스파이크로 읽힌 수라, 그것으로 판정하면 없는 성능을 보고하게 된다.
+
+UnityEngine.Debug:ExtractStackTraceNoAlloc (byte*,int,string)
+UnityEngine.StackTraceUtility:ExtractStackTrace ()
+UnityEngine.DebugLogHandler:Internal_Log (UnityEngine.LogType,UnityEngine.LogOption,string,UnityEngine.Object)
+UnityEngine.DebugLogHandler:LogFormat (UnityEngine.LogType,UnityEngine.Object,string,object[])
+UnityEngine.Logger:Log (UnityEngine.LogType,object)
+UnityEngine.Debug:Log (object)
+MBI.EditorTools.StageClearHarness:RunS2ModuleBatch () (at Assets/_Project/Scripts/Editor/StageClearHarness.cs:1600)
+
+(Filename: Assets/_Project/Scripts/Editor/StageClearHarness.cs Line: 1600)
+
+Killing ADB server in 2.1756541 seconds.
+[Physics::Module] Cleanup current backend.
+[Physics::Module] Id: 0xf2b8ea05
+Input System module state changed to: ShutdownInProgress.
+Input Polling Thread exited.
+Input System module state changed to: Shutdown.
+[Licensing::IpcConnector] LicenseClient-Kang-notifications channel disconnected successfully.
+[Licensing::IpcConnector] LicenseClient-Kang channel disconnected successfully.
+AcceleratorClientConnectionCallback - disconnected - :0
+Shut down.
+Cleanup mono
+CodeReloadManager destroyed
+abort_threads: Failed aborting id: 00000000000008F4, mono_thread_manage will ignore it
+
+abort_threads: Failed aborting id: 000000000000822C, mono_thread_manage will ignore it
+
+abort_threads: Failed aborting id: 00000000000008F4, mono_thread_manage will ignore it
+
+abort_threads: Failed aborting id: 000000000000822C, mono_thread_manage will ignore it
+
+debugger-agent: Unable to listen on 2736
+Checking for leaked weakptr:
+  Found no leaked weakptrs.
+[Package Manager] Server process was shutdown
+##utp:{"type":"MemoryLeaks","version":2,"phase":"Immediate","time":1792129944007,"processId":23596,"allocatedMemory":15657188,"memoryLabels":[{"Default":200996},{"Permanent":15276},{"NewDelete":65187},{"Thread":4230384},{"Manager":34093},{"VertexData":8},{"Geometry":816},{"Texture":24},{"Shader":850484},{"Material":24},{"GfxDevice":55321},{"Animation":392},{"Audio":3008},{"FreeType":8},{"FontEngine":736},{"Physics":2090},{"Physics2D":16},{"Serialization":824},{"Input":9880},{"JobScheduler":33024},{"TextLib":216},{"Mono":32},{"MonoCode":64},{"ScriptingNativeRuntime":155052},{"BaseObject":1620496},{"Resource":1184},{"Renderer":3008},{"Transform":4685},{"File":1088},{"WebCam":616},{"Culling":32},{"Terrain":11394},{"Wind":24},{"STL":40},{"String":14939},{"StaticString":6718},{"Utility":2673318},{"Curl":2559},{"PoolAlloc":2168},{"AI":80},{"TypeTree":16261},{"ScriptManager":448},{"RuntimeInitializeOnLoadManager":64},{"SpriteAtlas":120},{"GI":7792},{"Director":8320},{"CloudService":7376},{"WebRequest":845},{"VR":48050},{"SceneManager":504},{"Video":64},{"LazyScriptCache":32},{"Camera":17},{"Secure":2113},{"SerializationCache":1576},{"APIUpdating":10320},{"Subsystems":336},{"VirtualTexturing":57888},{"StaticSafetyDebugInfo":278528},{"Analytics":464},{"Hierarchy":608},{"CoreStats":13032},{"Identifiers":12960},{"Gui":128},{"EditorUtility":112675},{"VersionControl":4},{"Undo":931},{"AssetDatabase":5020815},{"EditorGi":328},{"UnityConnect":37753},{"Upm":1912},{"UpmDiagnostics":8},{"AssetCompliance":64},{"DrivenProperties":72},{"LocalIPC":210},{"ProfilerEditor":9746},{"CoreBusinessMetrics":2872},{"Windowing":456},{"Licensing":1232},{"AssetReference":32},{"IPCStream":32}]}
+~StackAllocator(ALLOC_TEMP_MAIN) m_LastAlloc not NULL. Did you forget to call FreeAllStackAllocations()? To get more information, run app with -diag-temp-memory-leak-validation cmd line argument

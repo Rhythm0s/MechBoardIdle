@@ -153,6 +153,32 @@ namespace MBI.Core
         public static double WalletGold;
 
         /// <summary>
+        /// 마운트 강화 표식 게시 — **상태**(2026-10-16 #150). 방치 런타임이 저장에서 게시하고
+        /// 전투(계수)·설정 판(단추)이 읽는다. <see cref="WalletScrap"/>와 같은 규약이다.
+        /// </summary>
+        public static bool MountEnhanced;
+
+        private static bool _enhanceRequested;
+        private static double _enhanceCost;
+
+        /// <summary>강화 요청 — **사건**(설정 판 단추). 재료를 쓰는 것은 방치 런타임 하나다(적립 규칙과 같은 자리).</summary>
+        public static void RequestMountEnhance(double cost)
+        {
+            _enhanceRequested = true;
+            _enhanceCost = cost;
+        }
+
+        /// <summary>강화 요청을 가져가며 비운다.</summary>
+        public static bool TryDrainMountEnhance(out double cost)
+        {
+            cost = _enhanceCost;
+            bool had = _enhanceRequested;
+            _enhanceRequested = false;
+            _enhanceCost = 0d;
+            return had;
+        }
+
+        /// <summary>
         /// 「돌아왔다」 창이 지금 화면에 있는가와 그 자리 — **방치 HUD 가 쓰고 전투 화면이 읽는다**
         /// (2026-09-18 사용자 육안 · 결함 ③).
         ///
@@ -322,6 +348,9 @@ namespace MBI.Core
             WalletScrap = 0d;
             WalletEnhMaterial = 0d;
             WalletGold = 0d;
+            MountEnhanced = false;
+            _enhanceRequested = false;
+            _enhanceCost = 0d;
             KillsTowardGold = 0;
             OfflinePopupOpen = false;
             OfflinePopupRect = default;
