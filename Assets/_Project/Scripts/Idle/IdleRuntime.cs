@@ -147,6 +147,14 @@ namespace MBI.Idle
                 Save();
             }
 
+            // 바로가기 점프 강화(사용자 확정 #162) — 재료 없이 표식만 · 바로 저장(위와 같은 까닭).
+            if (IdleSignals.TryDrainJumpEnhance() && !Data.mountEnhanced)
+            {
+                Data.mountEnhanced = true;
+                IdleSignals.MountEnhanced = true;
+                Save();
+            }
+
             // 파밍 바퀴 기록 — 스테이지별 **최고 한 바퀴 시급**만 남는다(기획서 6장).
             // ⚠️ 적는 자리는 여기 하나다. 전투 쪽이 세이브를 직접 만지면 규칙이 흩어진다.
             if (IdleSignals.TryDrainFarmLap(out string lapStage, out float lapRate))

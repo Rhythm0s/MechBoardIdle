@@ -2208,7 +2208,7 @@ namespace MBI.EditorTools
         public static void RunMergeRushBatch()
         {
             var sb = new StringBuilder();
-            sb.AppendLine("############ #160 — 차오름 3초 · A 40 · B 0 · Auto 켬 · 60초 (범위 = 합체 있는 도전 층) ############");
+            sb.AppendLine("############ #160·#161(S6 12000) — 차오름 3초 · A 40 · B 0 · Auto 켬 · 60초 (범위 = 합체 있는 도전 층) ############");
             sb.AppendLine("| 판 | 강화 | 들고 온 게이지 | 합체 누름 | 결과 | 합체 찬/누른 시각 | 태그 스킬(시각 피해) | 남은 적 HP |");
             sb.AppendLine("|---|---|---|---|---|---|---|---|");
             try
@@ -2245,7 +2245,7 @@ namespace MBI.EditorTools
             }
             finally { Enhanced = false; RushMerge = false; AutoMerge = false; }
 
-            System.IO.File.WriteAllText("Docs/261016_merge160.md", sb.ToString());
+            System.IO.File.WriteAllText("Docs/261016_merge161.md", sb.ToString());
             Debug.Log(sb.ToString());
             if (Application.isBatchMode) EditorApplication.Exit(0);
         }

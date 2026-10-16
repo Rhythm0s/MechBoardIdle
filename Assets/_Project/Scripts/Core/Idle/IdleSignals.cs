@@ -174,6 +174,26 @@ namespace MBI.Core
             _enhanceCost = cost;
         }
 
+        private static bool _jumpEnhanceRequested;
+
+        /// <summary>
+        /// **바로가기 점프 강화 요청**(사용자 확정 #162) — 재료 없이 표식만 켠다. 저장은 방치 런타임이 쓴다.
+        /// 표식(<see cref="MountEnhanced"/>)은 바로 세운다 — 점프한 판이 서는 순간 계수가 ×1.45 여야 한다.
+        /// </summary>
+        public static void RequestJumpEnhance()
+        {
+            _jumpEnhanceRequested = true;
+            MountEnhanced = true;
+        }
+
+        /// <summary>점프 강화 요청을 가져가며 비운다.</summary>
+        public static bool TryDrainJumpEnhance()
+        {
+            bool had = _jumpEnhanceRequested;
+            _jumpEnhanceRequested = false;
+            return had;
+        }
+
         /// <summary>강화 요청을 가져가며 비운다.</summary>
         public static bool TryDrainMountEnhance(out double cost)
         {
@@ -356,6 +376,7 @@ namespace MBI.Core
             WalletGold = 0d;
             MountEnhanced = false;
             MergeChargeSeconds = 0f;
+            _jumpEnhanceRequested = false;
             _enhanceRequested = false;
             _enhanceCost = 0d;
             KillsTowardGold = 0;

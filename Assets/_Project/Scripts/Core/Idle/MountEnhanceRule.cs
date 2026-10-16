@@ -25,6 +25,16 @@ namespace MBI.Core
         public static bool CanEnhance(bool enhanced, double material, double cost) =>
             !enhanced && cost > 0d && material >= cost;
 
+        /// <summary>
+        /// **바로가기 점프로 강화 표식을 켜는 판**(사용자 확정 #162 · 2026-10-16) — S4 부터.
+        /// #156(마운트 만충)과 같은 결 · 심사자용 · 「그 판에 자연 진행으로 온 상태」 흉내.
+        /// 재료는 안 건드린다 · S1~S3 점프는 안 켠다(켜진 표식을 끄지도 않는다) · 「처음부터」면 꺼진다.
+        /// </summary>
+        public const int JumpEnhanceFromStage = 4;
+
+        /// <summary>이 판 번호로 점프하면 강화 표식을 켜는가.</summary>
+        public static bool JumpTurnsOn(int stageNumber) => stageNumber >= JumpEnhanceFromStage;
+
         /// <summary>마운트계수 — **표식 ? 강화 : 기본**. 러너와 하네스가 같은 문을 지난다.</summary>
         public static float MountCoef(bool enhanced, float baseCoef, float enhancedCoef) =>
             enhanced ? enhancedCoef : baseCoef;

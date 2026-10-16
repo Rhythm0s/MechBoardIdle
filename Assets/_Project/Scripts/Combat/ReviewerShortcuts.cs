@@ -610,6 +610,10 @@ namespace MBI.Combat
             // (실측: 안 채운 판 60 초 0 개 / 채운 판 219 개 · 표준 4.00 발/초).
             TutorialSignals.FillEmptySlotRequested = true;
 
+            // 사용자 확정 #162 — S4 이상 점프는 강화 표식을 켠다(재료 안 씀 · 판이 서기 **전에** 켜야 계수가 바로 선다).
+            if (s != null && MountEnhanceRule.JumpTurnsOn(StageMapName.NumberOf(s.stageId)))
+                IdleSignals.RequestJumpEnhance();
+
             runner.LoadStage(s);
             runner.FillMountsForJump();   // 사용자 확정 #156 — 바로가기 점프는 마운트 가득으로 든다(합체 게이지는 그대로)
         }

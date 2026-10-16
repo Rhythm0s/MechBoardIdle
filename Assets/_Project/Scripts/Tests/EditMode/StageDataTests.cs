@@ -114,12 +114,13 @@ namespace MBI.Tests
             Assert.AreEqual(StagePowerModel.Burst, so.powerModel, "S6 powerModel");
             // ✅ 18000(2026-10-16 사용자 확정 #151 · 🗑️ 구 36000 폐기 · 이름의 「36000」은 낡은 글자).
             // ✅ 13500(2026-10-16 사용자 확정 #155 · 🗑️ 구 18000(#151) 폐기).
-            Assert.AreEqual(13500f, so.bossHp, Delta, "S6 bossHp 필드");
+            // ✅ 12000(2026-10-16 사용자 확정 #161 · 🗑️ 구 13500(#155) 폐기).
+            Assert.AreEqual(12000f, so.bossHp, Delta, "S6 bossHp 필드");
             Assert.AreEqual(1, so.composition.Count);
             StageComposition c = so.composition[0];
             Assert.AreEqual("boss", c.enemyKey);
             Assert.AreEqual(1, c.count);
-            Assert.AreEqual(13500f, c.hp, Delta);
+            Assert.AreEqual(12000f, c.hp, Delta);
             Assert.AreEqual(12f, c.def, Delta);
         }
 
