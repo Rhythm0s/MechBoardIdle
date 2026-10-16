@@ -529,7 +529,7 @@
       "req": 18,
       "reqConfirmed": true,
       "reqBasis": "2026-09-15 사용자 확정 — 시작 보드 군수 줄 4 → 2(공급을 낮춰 마운트가 천천히 차게). 한 줄 = 표준탄 1발/초 → 두 줄 = 2발/초 → 도달 20 x 0.9 = 18(확정 규칙 round(도달x0.9) · 260910_W02 Anchor3). 실측으로 네 줄이 4.03발/초였다. ⚠️ 가정 — 설계 사후 확인. 구 36(네 줄 · 도달 40)은 폐기. 구 54(도달 60 전제)는 폐기 — 60 의 출처는 「표준탄 라인 스펙 6발/초」였고 그것은 마운트 소비 상한이지 시작 보드가 채워야 할 값이 아니다(W01 2-2)",
-      "challengeTime": 120,
+      "challengeTime": 60,
       "powerModel": "logistics",
       "enhMaterialReward": 30,
       "spawnCap": 0,
@@ -540,7 +540,7 @@
       "composition": [
         {
           "enemy": "infantry",
-          "count": 100,
+          "count": 50,
           "hp": 20,
           "def": 0
         }
@@ -563,7 +563,7 @@
       "req": 18,
       "reqConfirmed": true,
       "reqBasis": "2026-09-15 사용자 확정 — 시작 보드 군수 줄 4 → 2(공급을 낮춰 마운트가 천천히 차게). 한 줄 = 표준탄 1발/초 → 두 줄 = 2발/초 → 도달 20 x 0.9 = 18(확정 규칙 round(도달x0.9) · 260910_W02 Anchor3). 실측으로 네 줄이 4.03발/초였다. ⚠️ 가정 — 설계 사후 확인. 구 36(네 줄 · 도달 40)은 폐기. 구 54(도달 60 전제)는 폐기 — 60 의 출처는 「표준탄 라인 스펙 6발/초」였고 그것은 마운트 소비 상한이지 시작 보드가 채워야 할 값이 아니다(W01 2-2)",
-      "challengeTime": 120,
+      "challengeTime": 60,
       "powerModel": "logistics",
       "enhMaterialReward": 33,
       "spawnCap": 0,
@@ -574,13 +574,13 @@
       "composition": [
         {
           "enemy": "infantry",
-          "count": 100,
+          "count": 50,
           "hp": 22.5,
           "def": 1
         },
         {
           "enemy": "artillery",
-          "count": 10,
+          "count": 5,
           "hp": 60,
           "def": 1
         }
@@ -623,7 +623,7 @@
       "req": 126,
       "reqConfirmed": true,
       "reqBasis": "260910_W02 2-1 정본 — 요구치 = 도달치 x 0.9(역산). 턱걸이를 막는 장치는 이제 이 상수 0.9 하나다 — S3 도달 140 x 0.9 = 126. 구 104 와 구 130 은 폐기",
-      "challengeTime": 120,
+      "challengeTime": 60,
       "powerModel": "logistics",
       "enhMaterialReward": 37,
       "spawnCap": 0,
@@ -634,19 +634,19 @@
       "composition": [
         {
           "enemy": "infantry",
-          "count": 150,
+          "count": 75,
           "hp": 27.5,
           "def": 3
         },
         {
           "enemy": "artillery",
-          "count": 20,
+          "count": 10,
           "hp": 82.5,
           "def": 3
         },
         {
           "enemy": "armor",
-          "count": 5,
+          "count": 2,
           "hp": 600,
           "def": 3
         }
@@ -701,7 +701,7 @@
       "req": 183,
       "reqConfirmed": true,
       "reqBasis": "260910_W02 2-1 정본 — 요구치 = 도달치 x 0.9(역산). 턱걸이를 막는 장치는 이제 이 상수 0.9 하나다 — S4 는 강화 후 도달 203 x 0.9 = 183. 밴드에서 고정치로 옮겼다(260910_W02 2-4 — 판정 함수가 Fixed 를 이미 처리하므로 구조 변경이 아니다). 구 [186,215] 는 09-01 요구치 20% 하향 전 값이고 구 [149,215] 는 그 하한만 고친 것이라 둘 다 폐기 — 두 전파가 여기서 한 번에 들어갔다",
-      "challengeTime": 120,
+      "challengeTime": 60,
       "powerModel": "enhanced",
       "enhMaterialReward": 0,
       "spawnCap": 0,
@@ -712,19 +712,19 @@
       "composition": [
         {
           "enemy": "infantry",
-          "count": 160,
+          "count": 80,
           "hp": 30,
           "def": 5
         },
         {
           "enemy": "artillery",
-          "count": 25,
+          "count": 12,
           "hp": 90,
           "def": 5
         },
         {
           "enemy": "armor",
-          "count": 12,
+          "count": 6,
           "hp": 550,
           "def": 5
         }
@@ -777,7 +777,7 @@
       "topic": "태그 학습",
       "reqType": "formula",
       "reqConfirmed": true,
-      "challengeTime": 120,
+      "challengeTime": 60,
       "powerModel": "tag",
       "enhMaterialReward": 0,
       "spawnCap": 0,
@@ -788,7 +788,7 @@
       "composition": [
         {
           "enemy": "armor",
-          "count": 15,
+          "count": 7,
           "hp": 850,
           "def": 45
         }
@@ -799,20 +799,20 @@
       "topic": "합체·버스트",
       "reqType": "budget",
       "reqConfirmed": true,
-      "challengeTime": 120,
+      "challengeTime": 60,
       "powerModel": "burst",
       "enhMaterialReward": 0,
       "spawnCap": 0,
       "spawnInterval": 0,
       "spawnConfirmed": false,
       "compConfirmed": true,
-      "monsterDir": "강적 1기 — 합체 필연 밴드 34,067 < HP ≤ 39,018 · 실효 109.4초",
-      "bossHp": 36000,
+      "monsterDir": "강적 1기 — HP 18000 · 제한 60초 · #151로 재확정(2026-10-16 · 도전 몬스터 수·시간 절반) · 🗑️ 구 근거 「합체 필연 밴드 34,067 < HP ≤ 39,018 · 실효 109.4초」 폐기(120초 판의 셈)",
+      "bossHp": 18000,
       "composition": [
         {
           "enemy": "boss",
           "count": 1,
-          "hp": 36000,
+          "hp": 18000,
           "def": 12
         }
       ]

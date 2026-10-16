@@ -18,7 +18,7 @@ MonoBehaviour:
   req: 0
   reqBand: {x: 0, y: 0}
   powerModel: 3
-  challengeTime: 120
+  challengeTime: 60
   enhMaterialReward: 0
   spawnCap: 10
   spawnInterval: 10
@@ -26,9 +26,9 @@ MonoBehaviour:
   composition:
   - enemyKey: boss
     count: 1
-    hp: 36000
+    hp: 18000
     def: 12
-  bossHp: 36000
+  bossHp: 18000
   farmComposition:
   - enemyKey: infantry
     count: 6

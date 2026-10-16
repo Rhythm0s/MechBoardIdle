@@ -18,14 +18,14 @@ MonoBehaviour:
   req: 0
   reqBand: {x: 0, y: 0}
   powerModel: 2
-  challengeTime: 120
+  challengeTime: 60
   enhMaterialReward: 0
   spawnCap: 10
   spawnInterval: 10
   spawnConfirmed: 0
   composition:
   - enemyKey: armor
-    count: 15
+    count: 7
     hp: 850
     def: 45
   bossHp: 0

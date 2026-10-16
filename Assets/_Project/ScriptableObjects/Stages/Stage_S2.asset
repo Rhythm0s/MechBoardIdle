@@ -18,18 +18,18 @@ MonoBehaviour:
   req: 18
   reqBand: {x: 0, y: 0}
   powerModel: 0
-  challengeTime: 120
+  challengeTime: 60
   enhMaterialReward: 33
   spawnCap: 10
   spawnInterval: 10
   spawnConfirmed: 1
   composition:
   - enemyKey: infantry
-    count: 100
+    count: 50
     hp: 22.5
     def: 1
   - enemyKey: artillery
-    count: 10
+    count: 5
     hp: 60
     def: 1
   bossHp: 0

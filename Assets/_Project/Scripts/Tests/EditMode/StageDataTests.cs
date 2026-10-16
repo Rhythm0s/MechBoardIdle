@@ -82,7 +82,9 @@ namespace MBI.Tests
             // 설계가 미리 정해 둔 갈래대로 **100 기 x HP 20** 으로 내려 다시 쟀다.
             // ⚠️ `compConfirmed` 는 여전히 false 다 — 이것도 가정이며 구판은
             //    `compositionPrev` 에 그대로 남아 있다.
-            Assert.AreEqual(100, c.count);
+            // ✅ 50 기(2026-10-16 사용자 확정 #151 · 도전 몬스터 수·시간 절반 · 🗑️ 구 100 기 폐기).
+            //    시험 이름의 「100」은 낡은 글자다 — 이름을 바꾸면 기록이 끊겨 기대값만 고쳤다.
+            Assert.AreEqual(50, c.count);
             Assert.AreEqual(20f, c.hp, Delta);
             Assert.AreEqual(0f, c.def, Delta);
 
@@ -92,7 +94,7 @@ namespace MBI.Tests
             //    09-15 에 시작 보드가 **두 줄**이 되면서 도달이 20 이다(요구치 18 의 출처).
             //    구 식(3600 / 36 = 100초)을 그대로 두면 **없는 보드로 나누는 셈**이 된다.
             float totalHp = c.count * c.hp;
-            Assert.AreEqual(2000f, totalHp, Delta, "총 HP");
+            Assert.AreEqual(1000f, totalHp, Delta, "총 HP");   // #151 · 50 × 20 (구 2000)
             Assert.LessOrEqual(totalHp / 20f, so.challengeTime,
                 "두 줄 보드 도달 20 으로 제한 시간 안에 못 깬다");
 
@@ -110,12 +112,13 @@ namespace MBI.Tests
 
             Assert.AreEqual(StageReqType.Budget, so.reqType, "S6 reqType");
             Assert.AreEqual(StagePowerModel.Burst, so.powerModel, "S6 powerModel");
-            Assert.AreEqual(36000f, so.bossHp, Delta, "S6 bossHp 필드");
+            // ✅ 18000(2026-10-16 사용자 확정 #151 · 🗑️ 구 36000 폐기 · 이름의 「36000」은 낡은 글자).
+            Assert.AreEqual(18000f, so.bossHp, Delta, "S6 bossHp 필드");
             Assert.AreEqual(1, so.composition.Count);
             StageComposition c = so.composition[0];
             Assert.AreEqual("boss", c.enemyKey);
             Assert.AreEqual(1, c.count);
-            Assert.AreEqual(36000f, c.hp, Delta);
+            Assert.AreEqual(18000f, c.hp, Delta);
             Assert.AreEqual(12f, c.def, Delta);
         }
 

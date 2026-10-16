@@ -69,6 +69,18 @@ namespace MBI.EditorTools
             public int total;
             public float hp;
             public float maxHp;
+
+            /// <summary>
+            /// 아직 안 나온 적 (2026-10-16 · #151 하네스 정정). ⚠️ <see cref="remaining"/> 는 **살아 있는 적**뿐이라
+            /// 종전 표의 「처치 = 전체 − remaining」은 **안 나온 적까지 처치로 셌다** — 처치는 전체 − 살아 있음 − 안 나옴이다.
+            /// </summary>
+            public int unspawned;
+
+            /// <summary>마지막 적의 **예정** 스폰 시각(WaveSpawnRule · 묶음 간격). 제한 시간보다 크면 스폰이 막는 판이다.</summary>
+            public float plannedLastSpawn;
+
+            /// <summary>실제로 다 나온 시각. 다 안 나왔으면 -1.</summary>
+            public float allSpawnedAt;
         }
 
         /// <summary>마지막으로 돌린 판의 판정. 판마다 덮어쓴다.</summary>
@@ -802,6 +814,7 @@ namespace MBI.EditorTools
             var sample = new float[1];
             float peakRolled = 0f;
             int shots = 0;
+            float allSpawnedAt = -1f;   // #151 — 다 나온 시각
             CombatResult result = CombatResult.InProgress;
 
             // ⚠️ 보스 밀기 계측(2026-10-01) — 보스가 없는 판에서는 전부 0 으로 남는다.
@@ -1082,6 +1095,7 @@ namespace MBI.EditorTools
                     nextStuckAt += 10f;
                 }
 
+                if (allSpawnedAt < 0f && sim.Unspawned == 0) allSpawnedAt = elapsed;   // #151 열
                 result = sim.Result;
                 if (result != CombatResult.InProgress) break;
             }
@@ -1093,6 +1107,9 @@ namespace MBI.EditorTools
                 ok = result == CombatResult.Win, result = result, seconds = elapsed,
                 remaining = sim.Remaining, total = sim.TotalEnemies,
                 hp = sim.Robot.hp, maxHp = sim.Robot.maxHp,
+                unspawned = sim.Unspawned,
+                plannedLastSpawn = WaveSpawnRule.SpawnTime(sim.TotalEnemies - 1, sim.WaveSize, sim.WaveInterval),
+                allSpawnedAt = allSpawnedAt,
             };
 
             sb.AppendLine();
@@ -1588,7 +1605,11 @@ namespace MBI.EditorTools
         }
 
         private static string Cell(StageVerdict v) =>
-            $"{(v.result == CombatResult.Win ? "**Win**" : v.result.ToString())} · 처치 {v.total - v.remaining}/{v.total} · {v.seconds:F1}초 · HP {v.hp:F0}/{v.maxHp:F0}";
+            $"{(v.result == CombatResult.Win ? "**Win**" : v.result.ToString())} · 처치 {v.total - v.remaining - v.unspawned}/{v.total}"
+            + (v.unspawned > 0 ? $" (미등장 {v.unspawned})" : "")
+            + $" · {v.seconds:F1}초 · HP {v.hp:F0}/{v.maxHp:F0}";
+        // 🗑️ 구 「처치 = total − remaining」 폐기(2026-10-16 · #151) — remaining 은 살아 있는 적뿐이라 안 나온 적을 처치로 셌다.
+        //    10-16 문턱·피해량 훑기 표의 「처치」는 그 셈이다(미등장이 있던 칸은 처치가 부풀어 있다).
 
         private static StageVerdict RunOne(string id, float hp)
         {
@@ -1782,7 +1803,7 @@ namespace MBI.EditorTools
             var sb = new StringBuilder();
             string[] ids = { "S1", "S2", "S3", "S4", "S5", "S6" };
             sb.AppendLine("############ #149·#150 투입 뒤 (2026-10-16 · moduleMult 1.5 · hp 성장 절반 · 계수 = 강화 표식) ############");
-            sb.AppendLine("판 = 시작 보드 + 튜토리얼 칸 · 마운트 가득 · 자동 조종 · S5·S6 = 두 로봇(태그) 판 · 120초");
+            sb.AppendLine("판 = 시작 보드 + 튜토리얼 칸 · 마운트 가득 · 자동 조종 · S5·S6 = 두 로봇(태그) 판 · 제한 시간 = 자산(#151 뒤 60초)");
             try
             {
                 var ra = AssetDatabase.LoadAssetAtPath<RobotDefinition>($"{SoRoot}/Robots/Robot_A.asset");
@@ -1808,16 +1829,76 @@ namespace MBI.EditorTools
                 sb.AppendLine();
                 sb.AppendLine("| 강화 | " + string.Join(" | ", ids) + " |");
                 sb.AppendLine("|---|" + string.Concat(System.Array.ConvertAll(ids, _ => "---|")));
+                var spawnRows = new List<string>();
                 foreach (bool en in new[] { false, true })
                 {
                     Enhanced = en;
-                    sb.AppendLine(Row(en ? "투입 뒤 (×1.45)" : "투입 전 (×1.0)", ids));
+                    var cells = new List<string>();
+                    foreach (string id in ids)
+                    {
+                        StageVerdict v = RunOne(id, 0f);
+                        cells.Add(Cell(v));
+                        string after = v.allSpawnedAt < 0f ? $"— (다 안 나옴 · 미등장 {v.unspawned})"
+                            : v.result == CombatResult.Win ? $"{v.seconds - v.allSpawnedAt:F1}초"
+                            : $"— (전멸 못 함 · 살아 있음 {v.remaining})";
+                        spawnRows.Add($"| {(en ? "뒤" : "전")} | {id} | {v.plannedLastSpawn:F1}초 | "
+                                      + (v.allSpawnedAt < 0f ? "—" : $"{v.allSpawnedAt:F1}초") + $" | {after} |");
+                    }
+                    sb.AppendLine($"| {(en ? "투입 뒤 (×1.45)" : "투입 전 (×1.0)")} | " + string.Join(" | ", cells) + " |");
                     Enhanced = false;
+                }
+                sb.AppendLine();
+                sb.AppendLine("## 스폰 열 — 마지막 적 예정 시각(WaveSpawnRule) · 실제 다 나온 시각 · 다 나온 뒤 전멸까지(= 순수 처치 시간)");
+                sb.AppendLine("| 강화 | 판 | 마지막 스폰 예정 | 다 나온 시각 | 다 나온 뒤 전멸까지 |");
+                sb.AppendLine("|---|---|---|---|---|");
+                foreach (string r in spawnRows) sb.AppendLine(r);
+            }
+            finally { SpawnHook = null; HpAll = 0f; PlantScale = 1f; DmgMult = 1f; RateMult = 1f; Enhanced = false; }
+
+            System.IO.File.WriteAllText("Docs/261016_post151_sweep.md", sb.ToString());   // 🗑️ 구 post149 파일명 — 그 표는 #150 커밋에 남는다
+            Debug.Log(sb.ToString());
+            if (Application.isBatchMode) EditorApplication.Exit(0);
+        }
+
+        /// <summary>
+        /// **S5 LoseDead 당겨짐 원인 프로브**(2026-10-16 · 플랜 요청 · 값 0). S5 두 로봇 판을 갈래별로 돌려
+        /// 상세 보고를 통째로 남긴다 — 무엇이 47.4초 → 25.7초를 만들었나.
+        /// 배치 실행: <c>-executeMethod MBI.EditorTools.StageClearHarness.RunS5ProbeBatch</c>
+        /// </summary>
+        public static void RunS5ProbeBatch()
+        {
+            var sb = new StringBuilder();
+            sb.AppendLine("############ S5 원인 프로브 (2026-10-16 · 하네스 안에서만 바꿈) ############");
+            try
+            {
+                var ra = AssetDatabase.LoadAssetAtPath<RobotDefinition>($"{SoRoot}/Robots/Robot_A.asset");
+                var rb = AssetDatabase.LoadAssetAtPath<RobotDefinition>($"{SoRoot}/Robots/Robot_B.asset");
+                var rf = AssetDatabase.LoadAssetAtPath<RobotDefinition>($"{SoRoot}/Robots/Robot_Fusion.asset");
+                sb.AppendLine($"moduleMult A {ra.moduleMult} · B {rb.moduleMult} · Fusion {(rf != null ? rf.moduleMult.ToString() : "없음")}");
+                var cases = new (string name, float dmg, bool en, System.Func<List<EnemySpawn>, List<EnemySpawn>> hook)[]
+                {
+                    ("지금 값(moduleMult 1.5 · 장갑 7 × hp850 · 강화 안 함)", 1f, false, null),
+                    ("지금 값 + 강화(×1.45)", 1f, true, null),
+                    ("moduleMult 1.0 으로 되돌림(피해 ÷1.5)", 1f / 1.5f, false, null),
+                    ("moduleMult 1.0 + 강화(= 구 9d3a11e 의 계수 조합)", 1f / 1.5f, true, null),
+                    ("장갑 hp 1100 으로 되돌림", 1f, false, l => { var o = new List<EnemySpawn>(); foreach (var e in l) { var c = e; c.hp = 1100f; o.Add(c); } return o; }),
+                    ("moduleMult 1.0 + 강화 + hp 1100 + 수 15(같은 줄 두 번 · 구 판에 가깝게)", 1f / 1.5f, true,
+                        l => { var o = new List<EnemySpawn>(); foreach (var e in l) { var c = e; c.hp = 1100f; o.Add(c); o.Add(c); } if (o.Count > 15) o.RemoveRange(15, o.Count - 15); return o; }),
+                };
+                foreach (var c in cases)
+                {
+                    DmgMult = c.dmg; Enhanced = c.en; SpawnHook = c.hook;
+                    string detail = RunTag("S5");
+                    StageVerdict v = LastVerdict;
+                    DmgMult = 1f; Enhanced = false; SpawnHook = null;
+                    sb.AppendLine();
+                    sb.AppendLine($"## {c.name} → {Cell(v)}");
+                    sb.AppendLine(detail);
                 }
             }
             finally { SpawnHook = null; HpAll = 0f; PlantScale = 1f; DmgMult = 1f; RateMult = 1f; Enhanced = false; }
 
-            System.IO.File.WriteAllText("Docs/261016_post149_sweep.md", sb.ToString());
+            System.IO.File.WriteAllText("Docs/261016_s5_probe.md", sb.ToString());
             Debug.Log(sb.ToString());
             if (Application.isBatchMode) EditorApplication.Exit(0);
         }
@@ -2165,6 +2246,7 @@ namespace MBI.EditorTools
             int steps = Mathf.RoundToInt(HardCapSeconds / Dt);
             float elapsed = 0f;
             int tagSwaps = 0, lastActive = 0;
+            float allSpawnedAt = -1f;   // #151 — 다 나온 시각
             float bFullAt = -1f;
             var strikeLog = new List<string>();
             float stackSum = 0f, aoeSum = 0f;
@@ -2303,6 +2385,7 @@ namespace MBI.EditorTools
                     peakShieldB = Mathf.Max(peakShieldB, sim.Shield != null ? sim.Shield.Value : 0f);
                 }
                 if (sim.ActiveRobotIndex != lastActive) { tagSwaps++; lastActive = sim.ActiveRobotIndex; }
+                if (allSpawnedAt < 0f && sim.Unspawned == 0) allSpawnedAt = elapsed;   // #151 열
                 if (sim.TagSkillStrikes > strikesBefore)
                 {
                     // ⚠️ **만충 시각은 이 자리에서 잰다.** 대기 보드가 채우는 것도, 만충을 보고
@@ -2324,6 +2407,9 @@ namespace MBI.EditorTools
                 ok = sim.Result == CombatResult.Win, result = sim.Result, seconds = elapsed,
                 remaining = sim.Remaining, total = sim.TotalEnemies,
                 hp = sim.Robot.hp, maxHp = sim.Robot.maxHp,
+                unspawned = sim.Unspawned,
+                plannedLastSpawn = WaveSpawnRule.SpawnTime(sim.TotalEnemies - 1, sim.WaveSize, sim.WaveInterval),
+                allSpawnedAt = allSpawnedAt,
             };
 
             sb.AppendLine();
