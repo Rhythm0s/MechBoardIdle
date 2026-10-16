@@ -524,7 +524,7 @@
   "stages": [
     {
       "id": "S1",
-      "topic": "벨트 연결(온보딩)",
+      "topic": "벨트 연결",
       "reqType": "fixed",
       "req": 18,
       "reqConfirmed": true,
@@ -558,7 +558,7 @@
     },
     {
       "id": "S2",
-      "topic": "모듈 배치(M/R)",
+      "topic": "모듈 배치",
       "reqType": "fixed",
       "req": 18,
       "reqConfirmed": true,
@@ -618,7 +618,7 @@
     },
     {
       "id": "S3",
-      "topic": "물류 재설계(영상B)",
+      "topic": "물류 재설계",
       "reqType": "fixed",
       "req": 126,
       "reqConfirmed": true,
@@ -696,7 +696,7 @@
     },
     {
       "id": "S4",
-      "topic": "마운트 강화(벽)",
+      "topic": "마운트 강화",
       "reqType": "fixed",
       "req": 183,
       "reqConfirmed": true,
@@ -796,7 +796,7 @@
     },
     {
       "id": "S6",
-      "topic": "합체·버스트(영상C)",
+      "topic": "합체·버스트",
       "reqType": "budget",
       "reqConfirmed": true,
       "challengeTime": 120,
