@@ -1865,7 +1865,7 @@ namespace MBI.EditorTools
             }
             finally { SpawnHook = null; HpAll = 0f; PlantScale = 1f; DmgMult = 1f; RateMult = 1f; Enhanced = false; }
 
-            System.IO.File.WriteAllText("Docs/261016_post153_sweep.md", sb.ToString());   // 🗑️ 구 post149·151·152 파일명 — 그 표들은 앞 커밋에 남는다
+            System.IO.File.WriteAllText("Docs/261016_post153d_sweep.md", sb.ToString());   // 🗑️ 구 post149·151·152·153 파일명 — 그 표들은 앞 커밋에 남는다
             Debug.Log(sb.ToString());
             if (Application.isBatchMode) EditorApplication.Exit(0);
         }

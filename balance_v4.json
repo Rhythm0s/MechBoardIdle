@@ -634,19 +634,19 @@
       "composition": [
         {
           "enemy": "infantry",
-          "count": 75,
+          "count": 25,
           "hp": 27.5,
           "def": 3
         },
         {
           "enemy": "artillery",
-          "count": 10,
+          "count": 4,
           "hp": 82.5,
           "def": 3
         },
         {
           "enemy": "armor",
-          "count": 2,
+          "count": 1,
           "hp": 600,
           "def": 3
         }
@@ -712,19 +712,19 @@
       "composition": [
         {
           "enemy": "infantry",
-          "count": 80,
+          "count": 19,
           "hp": 30,
           "def": 5
         },
         {
           "enemy": "artillery",
-          "count": 12,
+          "count": 3,
           "hp": 90,
           "def": 5
         },
         {
           "enemy": "armor",
-          "count": 6,
+          "count": 2,
           "hp": 550,
           "def": 5
         }
