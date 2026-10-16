@@ -2070,6 +2070,58 @@ namespace MBI.EditorTools
             if (Application.isBatchMode) EditorApplication.Exit(0);
         }
 
+        /// <summary>합체가 차는 즉시 누른다 — 하네스 전용(2026-10-16 S6 확인).</summary>
+        internal static bool AutoMerge;
+
+        /// <summary>합체 게이지를 1초 앞까지 채운 채 시작 — 하네스 가정 판(2026-10-16 · 「합체를 쓸 수 있었다면」).</summary>
+        internal static bool MergePrefill;
+        internal static float LastMergeAt = -1f, LastMergeReadyAt = -1f, LastBurstDamage, LastEnemyHpLeft;
+
+        /// <summary>
+        /// **S6 태그·합체 확인**(2026-10-16 사용자 직접 지시 「스테이지 6 태그 및 합체도 사용해도 시간 초과 발생하는지」 · 값 0).
+        /// 배치 실행: <c>-executeMethod MBI.EditorTools.StageClearHarness.RunS6MergeBatch</c>
+        /// </summary>
+        public static void RunS6MergeBatch()
+        {
+            var sb = new StringBuilder();
+            sb.AppendLine("############ S6 태그·합체 확인 (2026-10-16 · 983f3f6 자산 · 60초 · 두 로봇 판 · 자동 태그 켬) ############");
+            sb.AppendLine("| 강화 | 합체 | 결과 | 합체 찬 시각 | 합체 누른 시각 | 버스트 피해 | 보스 남은 HP |");
+            sb.AppendLine("|---|---|---|---|---|---|---|");
+            try
+            {
+                foreach (bool en in new[] { false, true })
+                    foreach (bool merge in new[] { false, true })
+                    {
+                        Enhanced = en; AutoMerge = merge;
+                        StageVerdict v = RunOne("S6", 0f);
+                        Enhanced = false; AutoMerge = false;
+                        sb.AppendLine($"| {(en ? "뒤" : "전")} | {(merge ? "씀(차면 바로)" : "안 씀")} | {Cell(v)} | "
+                                      + (LastMergeReadyAt < 0f ? "안 참" : $"{LastMergeReadyAt:F1}초") + " | "
+                                      + (LastMergeAt < 0f ? "—" : $"{LastMergeAt:F1}초") + $" | {LastBurstDamage:F0} | {LastEnemyHpLeft:F0} |");
+                    }
+                sb.AppendLine();
+                sb.AppendLine("## ⚠️ 가정 판 — 합체 게이지를 미리 채워 두었다면(게임에는 없는 판 · 게이지 90초 > 도전 60초라 지금은 못 찬다)");
+                sb.AppendLine("| 강화 | 결과 | 합체 누른 시각 | 버스트 피해 | 보스 남은 HP |");
+                sb.AppendLine("|---|---|---|---|---|");
+                foreach (bool en in new[] { false, true })
+                {
+                    Enhanced = en; AutoMerge = true; MergePrefill = true;
+                    StageVerdict v = RunOne("S6", 0f);
+                    Enhanced = false; AutoMerge = false; MergePrefill = false;
+                    sb.AppendLine($"| {(en ? "뒤" : "전")} | {Cell(v)} | " + (LastMergeAt < 0f ? "—" : $"{LastMergeAt:F1}초") + $" | {LastBurstDamage:F0} | {LastEnemyHpLeft:F0} |");
+                }
+                sb.AppendLine();
+                sb.AppendLine("상세(강화 뒤 · 합체 씀):");
+                Enhanced = true; AutoMerge = true;
+                sb.AppendLine(RunTag("S6"));
+            }
+            finally { SpawnHook = null; HpAll = 0f; PlantScale = 1f; DmgMult = 1f; RateMult = 1f; Enhanced = false; AggroOverride = 0f; AutoMerge = false; MergePrefill = false; }
+
+            System.IO.File.WriteAllText("Docs/261016_s6_merge.md", sb.ToString());
+            Debug.Log(sb.ToString());
+            if (Application.isBatchMode) EditorApplication.Exit(0);
+        }
+
         /// <summary>판을 세운 직후 손대는 갈고리 — 하네스 전용(2026-10-16 · 사용자 막힘 「S2 도전을 못 넘는다」 실측).</summary>
         internal static System.Action<BoardGrid> BoardHook;
 
@@ -2417,6 +2469,7 @@ namespace MBI.EditorTools
             float elapsed = 0f;
             int tagSwaps = 0, lastActive = 0;
             float allSpawnedAt = -1f;   // #151 — 다 나온 시각
+            LastMergeAt = -1f; LastMergeReadyAt = -1f; LastBurstDamage = 0f;   // 2026-10-16 S6 합체 확인
             int peakAggro = 0;          // #152 — 한 번에 깨어 있던 최대 수
             float bFullAt = -1f;
             var strikeLog = new List<string>();
@@ -2512,6 +2565,13 @@ namespace MBI.EditorTools
                     sim.Robot.position = AutoPilotPolicy.NextPosition(ctx);
                 }
 
+                // 2026-10-16 사용자 지시 「S6 태그·합체를 써도 시간 초과인가」 — 합체가 차는 즉시 누른다(하네스 전용).
+                if (MergePrefill && elapsed <= 0f && sim.Merge != null) sim.Merge.FillGaugeAlmost();   // 가정 판 — 게이지가 1초 앞에서 시작
+                if (sim.Merge != null && sim.Merge.IsReady && LastMergeReadyAt < 0f) LastMergeReadyAt = elapsed;
+                bool engaged = false;   // 보스(적)가 깨어 싸움에 든 뒤에 누른다 — 사거리 밖에서 누르면 버스트가 허공이다
+                foreach (CombatEntity en in sim.Enemies) if (en.IsAlive && en.aggro) { engaged = true; break; }
+                if (AutoMerge && engaged && LastMergeAt < 0f && sim.Merge != null && sim.Merge.IsReady && sim.TryMerge())
+                    LastMergeAt = elapsed;
                 int strikesBefore = sim.TagSkillStrikes;
                 float bStack = mountB.AmountOf(MountItem.Drone);
                 float bAoe = mountB.AmountOf(MountItem.DroneAoe);
@@ -2573,6 +2633,9 @@ namespace MBI.EditorTools
             }
 
             // ── 보고 ───────────────────────────────────────────────────────
+            LastBurstDamage = sim.LastBurstDamage;
+            LastEnemyHpLeft = 0f;
+            foreach (CombatEntity e in sim.Enemies) if (e.IsAlive) LastEnemyHpLeft += e.hp;
             LastVerdict = new StageVerdict
             {
                 stageId = stageId, how = "두 로봇",

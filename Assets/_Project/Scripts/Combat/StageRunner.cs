@@ -642,6 +642,8 @@ namespace MBI.Combat
             // **탐색 규칙·전원 스폰은 도전 층만**(사용자 확정 #153 · 2026-10-16) — 파밍 층은 종전처럼
             //    스폰 즉시 다가온다(범위 0 = 규칙 끔). 층을 정한 **뒤**에 건다 — 갈래는 여기 하나다.
             bool challengeLayer = !StageLayerSignals.IsFarming;
+            if (challengeLayer && !IsTutorialStage)
+                Debug.Log($"[MBI] 도전 판 섬 — {(stage != null ? stage.stageId : "?")} · 들고 온 {CarryLine()}.");   // 지시 ② 증거
             if (_sim != null)
             {
                 _sim.SpawnAllAtOnce = challengeLayer;
@@ -2214,7 +2216,7 @@ namespace MBI.Combat
             GUI.color = prevColor;
             if (!allowed) UiSkin.DrawLockVeil(r);
             GUI.enabled = wasEnabled;
-            if (hit && allowed) EnterChallenge();
+            if (hit && allowed) RequestChallenge();   // 2026-10-16 사용자 직접 지시 ③ — 들어가기 전 안내 창
         }
 
         /// <summary>
@@ -2535,9 +2537,75 @@ namespace MBI.Combat
         public void EnterChallenge()
         {
             if (IsTutorialStage) return;
-            Debug.Log($"[MBI] 도전 시작 — {(stage != null ? stage.stageId : "?")}.");
+            _entryNoticeOpen = false;
+            // 지시 ②의 증거 줄 — 들어가기 직전 마운트 양. 판을 다시 세운 뒤 `Begin` 이 같은 줄을 한 번 더 찍는다.
+            Debug.Log($"[MBI] 도전 시작 — {(stage != null ? stage.stageId : "?")} · 들어가기 전 {CarryLine()}.");
             _challengeNext = true;
             Restart();
+        }
+
+        /// <summary>도전 안내 창이 떠 있는가(2026-10-16 지시 ③).</summary>
+        private bool _entryNoticeOpen;
+
+        /// <summary>
+        /// **「도전」을 누르면 바로 들어가지 않고 안내 창부터 띄운다** (2026-10-16 사용자 직접 지시 ③).
+        /// 창의 「도전 시작」이 <see cref="EnterChallenge"/> 를 부른다 · 「취소」는 그대로 닫는다.
+        /// </summary>
+        public void RequestChallenge()
+        {
+            if (IsTutorialStage) return;
+            _entryNoticeOpen = true;
+        }
+
+        /// <summary>지금 마운트 양 한 줄(로그용) — A 탄환 · B 드론. 마운트가 아직 없으면 0.</summary>
+        private string CarryLine()
+        {
+            float a = _mountA != null ? _mountA.Total : 0f;
+            float b = _mountB != null
+                ? _mountB.AmountOf(MountItem.Drone) + _mountB.AmountOf(MountItem.DroneAoe) : 0f;
+            return $"A 마운트 {a:F1} · B 마운트 드론 {b:F1}";
+        }
+
+        private void DrawEntryNotice()
+        {
+            float sc = UiLayout.Scale(Screen.height);
+            float w = Mathf.Min(Screen.width - 32f, 1100f * sc);
+            bool showB = robotB != null && RobotBGate.IsUnlocked;
+            float h = (showB ? 560f : 470f) * sc;
+            var rect = new Rect((Screen.width - w) * 0.5f, (Screen.height - h) * 0.42f, w, h);
+            GUI.ModalWindow(0x5E17, rect, EntryNoticeWindow, GUIContent.none, GUIStyle.none);
+        }
+
+        private void EntryNoticeWindow(int id)
+        {
+            float sc = UiLayout.Scale(Screen.height);
+            bool showB = robotB != null && RobotBGate.IsUnlocked;
+            float w = Mathf.Min(Screen.width - 32f, 1100f * sc);
+            float h = (showB ? 560f : 470f) * sc;
+            UiPlate.Draw(new Rect(0f, 0f, w, h));
+
+            GUIStyle btn = HudButtonStyle();
+            int px = btn.fontSize;
+            var title = new GUIStyle(GUI.skin.label) { fontSize = px, fontStyle = FontStyle.Bold, alignment = TextAnchor.MiddleCenter };
+            var line = new GUIStyle(GUI.skin.label) { fontSize = Mathf.Max(10, Mathf.RoundToInt(px * 0.82f)), alignment = TextAnchor.MiddleCenter, wordWrap = true };
+
+            float pad = 28f * sc, y = pad, lh = 70f * sc;
+            GUI.Label(new Rect(pad, y, w - pad * 2f, lh), ChallengeEntryNotice.Title, title); y += lh;
+            GUI.Label(new Rect(pad, y, w - pad * 2f, lh * 1.3f), ChallengeEntryNotice.Body, line); y += lh * 1.3f;
+
+            float aNow = _mountA != null ? _mountA.Total : 0f;
+            float aCap = _mountA != null ? _mountA.FullCapacity : 0f;
+            GUI.Label(new Rect(pad, y, w - pad * 2f, lh), ChallengeEntryNotice.LineA(aNow, aCap), line); y += lh;
+            if (showB)
+            {
+                float bNow = _mountB != null ? _mountB.AmountOf(MountItem.Drone) + _mountB.AmountOf(MountItem.DroneAoe) : 0f;
+                float bCap = _mountB != null ? _mountB.FullCapacity : 0f;
+                GUI.Label(new Rect(pad, y, w - pad * 2f, lh), ChallengeEntryNotice.LineB(bNow, bCap), line); y += lh;
+            }
+
+            float bw = (w - pad * 3f) * 0.5f, bh = h - y - pad;
+            if (UiSkin.Button(new Rect(pad, y, bw, bh), ChallengeEntryNotice.Confirm, btn)) EnterChallenge();
+            else if (UiSkin.Button(new Rect(pad * 2f + bw, y, bw, bh), ChallengeEntryNotice.Cancel, btn)) _entryNoticeOpen = false;
         }
 
         /// <summary>**도전 → 파밍**. 결과 화면의 「스테이지로」가 부른다.</summary>
@@ -3009,7 +3077,7 @@ namespace MBI.Combat
                     if (!UiSkin.Button(r, labels[i], bs)) continue;
 
                     if (!layered) { Restart(); break; }
-                    if (i == 0) { EnterChallenge(); break; }
+                    if (i == 0) { RequestChallenge(); break; }   // 「다시 도전」도 안내를 거친다(지시 ③)
                     if (i == 1) { ReturnToFarm(); break; }
 
                     StageDefinition next = NextStageOf(stage);
@@ -3048,6 +3116,9 @@ namespace MBI.Combat
 
             // ✅ **오프라인 보상 판 = HUD 맨 위**(#142 b · CID_102) — 배지 카드·막 위에 앉는다.
             HudTopLayer.DrawAll();
+
+            // **도전 들어가기 전 안내**(2026-10-16 사용자 직접 지시 ③) — 모달 창이라 다른 단추가 누름을 못 가져간다.
+            if (_entryNoticeOpen) DrawEntryNotice();
 
             // IMGUI는 나중에 그린 것이 위에 온다 — 연출은 결과 화면 위에도 덮여야 한다.
             DrawMergeCutscene();
