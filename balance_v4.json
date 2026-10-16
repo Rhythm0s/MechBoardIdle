@@ -34,9 +34,9 @@
       "key": "moduleMult",
       "label": "모듈 배율(M/R 합성)",
       "group": "원점·곡선",
-      "value": 1.0,
+      "value": 1.5,
       "confirmed": true,
-      "basis": "MVP 상수 1.0 확정 (성장 통로 흡수)",
+      "basis": "1.5 (2026-10-16 사용자 확정 #149 · 피해량 축 · 구 MVP 상수 1.0 폐기)",
       "intent": "판정식 곱항",
       "docRef": "밸런스 3장 미결 #16"
     },
@@ -575,7 +575,7 @@
         {
           "enemy": "infantry",
           "count": 100,
-          "hp": 25,
+          "hp": 22.5,
           "def": 1
         },
         {
@@ -635,13 +635,13 @@
         {
           "enemy": "infantry",
           "count": 150,
-          "hp": 35,
+          "hp": 27.5,
           "def": 3
         },
         {
           "enemy": "artillery",
           "count": 20,
-          "hp": 105,
+          "hp": 82.5,
           "def": 3
         },
         {
@@ -713,19 +713,19 @@
         {
           "enemy": "infantry",
           "count": 160,
-          "hp": 40,
+          "hp": 30,
           "def": 5
         },
         {
           "enemy": "artillery",
           "count": 25,
-          "hp": 120,
+          "hp": 90,
           "def": 5
         },
         {
           "enemy": "armor",
           "count": 12,
-          "hp": 500,
+          "hp": 550,
           "def": 5
         }
       ],
@@ -789,7 +789,7 @@
         {
           "enemy": "armor",
           "count": 15,
-          "hp": 1100,
+          "hp": 850,
           "def": 45
         }
       ]

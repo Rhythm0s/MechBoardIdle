@@ -32,13 +32,13 @@ MonoBehaviour:
   farmComposition:
   - enemyKey: infantry
     count: 6
-    hp: 48
+    hp: 34
     def: 5
   - enemyKey: artillery
     count: 2
-    hp: 144
+    hp: 102
     def: 5
   - enemyKey: armor
     count: 2
-    hp: 1320
+    hp: 960
     def: 45

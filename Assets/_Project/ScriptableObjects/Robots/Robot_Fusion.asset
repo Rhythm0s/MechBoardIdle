@@ -18,7 +18,7 @@ MonoBehaviour:
   consumptionCap: 12
   mountCoef: 1
   enhancedMountCoef: 1.45
-  moduleMult: 1
+  moduleMult: 1.5
   sprite: {fileID: 21300000, guid: 8766d544854975c47938bca38e1bfc0f, type: 3}
   droneSprite: {fileID: 0}
   droneAoeSprite: {fileID: 0}
