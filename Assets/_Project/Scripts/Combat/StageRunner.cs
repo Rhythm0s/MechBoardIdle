@@ -2599,7 +2599,9 @@ namespace MBI.Combat
             if (showB)
             {
                 float bNow = _mountB != null ? _mountB.AmountOf(MountItem.Drone) + _mountB.AmountOf(MountItem.DroneAoe) : 0f;
-                float bCap = _mountB != null ? _mountB.FullCapacity : 0f;
+                // ⚠️ 드론 상한 = B 슬롯 × 드론 스택(절반). `FullCapacity` 는 빈 슬롯을 큰 스택(탄)으로 세어 45 로 나왔다(8123 실측).
+                float stackB = robot != null && robot.balanceRef != null ? robot.balanceRef.mountStackLimit : 10f;
+                float bCap = MountLoad.SlotsRobotB * stackB * DroneStackFactor;
                 GUI.Label(new Rect(pad, y, w - pad * 2f, lh), ChallengeEntryNotice.LineB(bNow, bCap), line); y += lh;
             }
 
