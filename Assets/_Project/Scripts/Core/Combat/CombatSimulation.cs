@@ -1721,6 +1721,25 @@ namespace MBI.Core
         public bool SuspendQueuedSpawns { get; set; }
 
         /// <summary>
+        /// **줄 선 적을 한꺼번에 낸다** (사용자 확정 #152 · 2026-10-16 · 도전 층).
+        /// 🗑️ 도전 층의 묶음 스폰(<see cref="WaveSpawnRule"/> · 09-18 가정) 폐기 — 참이면 줄이 풀리는 첫 틱에 전원이 선다.
+        /// 자리는 지금 스폰 띠 규칙 그대로이고, 겹치면 띠 바깥으로 민다(사용자 확정 #152).
+        /// 파밍 층(정원·N초 보충 · <see cref="SpawnBatch"/>)은 이 깃발과 무관하다.
+        /// </summary>
+        public bool SpawnAllAtOnce { get; set; }
+
+        private float _aggroRange;
+
+        /// <summary>
+        /// **몬스터 탐색 범위** (사용자 확정 #152 · 2026-10-16 · 초기값 9.2 = 로봇 자동 조종 사거리와 같은 수).
+        /// 0 이하면 규칙이 꺼진다(종전 거동 — 처음부터 로봇을 향해 온다). 거리는 **중심 사이**로 잰다(구현 판단).
+        /// </summary>
+        public void SetAggroRange(float range) => _aggroRange = Mathf.Max(0f, range);
+
+        /// <summary>지금 탐색 범위(진단·시험용).</summary>
+        public float AggroRange => _aggroRange;
+
+        /// <summary>
         /// **남은 줄을 다 나온 것으로 친다** — 개발 도구가 판을 앞당길 때 쓴다
         /// (2026-10-13 · 결과 화면을 95 초 안 기다리고 보려고).
         ///
@@ -1749,12 +1768,19 @@ namespace MBI.Core
             while (_spawnedCount < _spawnQueue.Count)
             {
                 // ⚠️ **웨이브다**(2026-09-18) — 묶음 1 이면 종전 식과 같은 수가 나온다.
-                float spawnAt = WaveSpawnRule.SpawnTime(_spawnedCount, _waveSize, WaveInterval);
-                if (Elapsed < spawnAt) break;
+                // 🗑️ 도전 층은 폐기(사용자 확정 #152) — SpawnAllAtOnce 면 시각을 안 본다.
+                if (!SpawnAllAtOnce)
+                {
+                    float spawnAt = WaveSpawnRule.SpawnTime(_spawnedCount, _waveSize, WaveInterval);
+                    if (Elapsed < spawnAt) break;
+                }
 
                 EnemySpawn s = _spawnQueue[_spawnedCount];
-                _enemies.Add(MakeEnemy(s, SpawnRingRule.Position(
-                    RobotPosition, _spawnedCount, _spawnQueue.Count, SpawnDistance(_spawnedCount))));
+                Vector2 at = SpawnRingRule.Position(
+                    RobotPosition, _spawnedCount, _spawnQueue.Count, SpawnDistance(_spawnedCount));
+                if (SpawnAllAtOnce)
+                    at = PushOutOfOverlap(at, s.radius, SpawnRingRule.Direction(_spawnedCount, _spawnQueue.Count));
+                _enemies.Add(MakeEnemy(s, at));
                 _spawnedCount++;
             }
         }
@@ -1792,6 +1818,30 @@ namespace MBI.Core
                 scrapPerKill = s.scrapPerKill,
             };
 
+        /// <summary>
+        /// 한꺼번에 낸 적이 겹치면 **띠 바깥으로** 민다(사용자 확정 #152). 겹침이 풀릴 때까지 반경 합만큼씩, 최대 16번.
+        /// </summary>
+        private Vector2 PushOutOfOverlap(Vector2 at, float radius, Vector2 outward)
+        {
+            for (int tries = 0; tries < 16; tries++)
+            {
+                bool hit = false;
+                foreach (CombatEntity o in _enemies)
+                {
+                    float need = radius + o.radius;
+                    if (need <= 0f) continue;
+                    if ((o.position - at).sqrMagnitude < need * need)
+                    {
+                        at += outward * need;
+                        hit = true;
+                        break;
+                    }
+                }
+                if (!hit) break;
+            }
+            return at;
+        }
+
         private void MoveAndAttackEnemies(float dt)
         {
             foreach (CombatEntity e in _enemies)
@@ -1799,6 +1849,14 @@ namespace MBI.Core
                 if (!e.IsAlive) continue;
                 Vector2 toRobot = Act.body.position - e.position;
                 float dist = toRobot.magnitude;
+
+                // **탐색 범위 밖이면 제자리**(사용자 확정 #152 · 2026-10-16) — 걷지도, 쏘지도 않는다
+                // (원거리형도 · 보스도). 한 번 들어오면 깨어나 계속 쫓는다(되돌아가지 않음).
+                if (_aggroRange > 0f && !e.aggro)
+                {
+                    if (dist > _aggroRange) continue;
+                    e.aggro = true;
+                }
 
                 // ⚠️ **사거리는 표면 사이 거리다**(2026-09-15 · 육안 ⑤ 결함 · 실측).
                 //

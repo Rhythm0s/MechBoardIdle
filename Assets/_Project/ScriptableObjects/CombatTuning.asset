@@ -15,6 +15,7 @@ MonoBehaviour:
   robotHp: 1000
   dodgeVfxSeconds: 0.5
   robotAttackRangeTbd: 9.2
+  enemyAggroRangeTbd: 9.2
   autoPilotHoldWhenMoreThanTbd: 0
   robotMoveSpeedTbd: 4.5
   enemyMoveSpeedTbd: 1.5

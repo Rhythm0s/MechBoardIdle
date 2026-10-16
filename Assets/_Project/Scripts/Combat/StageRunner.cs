@@ -607,6 +607,10 @@ namespace MBI.Combat
             _sim.SetWave(tuning.waveSizeTbd,
                 WaveSpawnRule.Interval(tuning.waveIntervalSecondsTbd,
                                        tuning.waveSizeTbd, tuning.spawnCadenceTbd));
+            // 사용자 확정 #152(2026-10-16) — 도전 층은 전원 한꺼번에 스폰(🗑️ WaveSpawnRule 도전 층 폐기 ·
+            //    위 웨이브는 이제 줄이 쓰지 않는다 · 파밍 정원 보충은 따로다) · 몬스터는 탐색 범위 안에서만 깬다.
+            _sim.SpawnAllAtOnce = true;
+            _sim.SetAggroRange(tuning.enemyAggroRangeTbd);
 
             // 로봇 뷰(중앙). 아트가 있으면 그것을, 없으면 색 플레이스홀더로 폴백한다(교체 지점 §8).
             _robotView = NewView("Robot");

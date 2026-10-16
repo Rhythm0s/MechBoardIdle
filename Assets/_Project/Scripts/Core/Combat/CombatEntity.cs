@@ -70,6 +70,13 @@ namespace MBI.Core
         /// </summary>
         public bool sideStepPrimed;
 
+        /// <summary>
+        /// **깨었는가** — 탐색 범위 안에 로봇이 한 번이라도 들어왔는가
+        /// (사용자 확정 #152 · 2026-10-16). 거짓이면 제자리에서 기다리고 쏘지도 않는다.
+        /// 한 번 참이 되면 되돌아가지 않는다(계속 추격 · 사용자 확정 #152).
+        /// </summary>
+        public bool aggro;
+
         public float radius;       // 충돌 반경 — 완전 겹침 방지(분리 처리). 0이면 분리 없음.
 
         // 적 전용 이동·공격

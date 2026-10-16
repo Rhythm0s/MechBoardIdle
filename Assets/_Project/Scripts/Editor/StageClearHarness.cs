@@ -81,6 +81,9 @@ namespace MBI.EditorTools
 
             /// <summary>실제로 다 나온 시각. 다 안 나왔으면 -1.</summary>
             public float allSpawnedAt;
+
+            /// <summary>한 순간에 깨어 있던(로봇을 쫓던) 적의 최대 수 — 한 번에 끌려오는 수(사용자 확정 #152 확인 열).</summary>
+            public int peakAggro;
         }
 
         /// <summary>마지막으로 돌린 판의 판정. 판마다 덮어쓴다.</summary>
@@ -682,6 +685,8 @@ namespace MBI.EditorTools
             sim.SetWave(tuning.waveSizeTbd,
                 WaveSpawnRule.Interval(tuning.waveIntervalSecondsTbd,
                                        tuning.waveSizeTbd, tuning.spawnCadenceTbd));
+            sim.SpawnAllAtOnce = true;                         // 사용자 확정 #152 — 러너와 같은 문(도전 층 전원 스폰)
+            sim.SetAggroRange(tuning.enemyAggroRangeTbd);      // 사용자 확정 #152 — 탐색 범위
 
             if (tuning.spawnRingMinTbd > 0f && tuning.spawnRingMaxTbd > 0f)
                 sim.SetSpawnBand(tuning.spawnRingMinTbd, tuning.spawnRingMaxTbd);
@@ -815,6 +820,7 @@ namespace MBI.EditorTools
             float peakRolled = 0f;
             int shots = 0;
             float allSpawnedAt = -1f;   // #151 — 다 나온 시각
+            int peakAggro = 0;          // #152 — 한 번에 깨어 있던 최대 수
             CombatResult result = CombatResult.InProgress;
 
             // ⚠️ 보스 밀기 계측(2026-10-01) — 보스가 없는 판에서는 전부 0 으로 남는다.
@@ -1096,6 +1102,7 @@ namespace MBI.EditorTools
                 }
 
                 if (allSpawnedAt < 0f && sim.Unspawned == 0) allSpawnedAt = elapsed;   // #151 열
+                { int awake = 0; foreach (CombatEntity e in sim.Enemies) if (e.IsAlive && e.aggro) awake++; if (awake > peakAggro) peakAggro = awake; }   // #152 열
                 result = sim.Result;
                 if (result != CombatResult.InProgress) break;
             }
@@ -1110,6 +1117,7 @@ namespace MBI.EditorTools
                 unspawned = sim.Unspawned,
                 plannedLastSpawn = WaveSpawnRule.SpawnTime(sim.TotalEnemies - 1, sim.WaveSize, sim.WaveInterval),
                 allSpawnedAt = allSpawnedAt,
+                peakAggro = peakAggro,
             };
 
             sb.AppendLine();
@@ -1802,7 +1810,7 @@ namespace MBI.EditorTools
         {
             var sb = new StringBuilder();
             string[] ids = { "S1", "S2", "S3", "S4", "S5", "S6" };
-            sb.AppendLine("############ #149·#150 투입 뒤 (2026-10-16 · moduleMult 1.5 · hp 성장 절반 · 계수 = 강화 표식) ############");
+            sb.AppendLine("############ #149~#152 투입 뒤 (2026-10-16 · moduleMult 1.5 · hp 성장 절반 · 계수 = 강화 표식 · 도전 60초·수 절반 · 전원 스폰 · 탐색 범위) ############");
             sb.AppendLine("판 = 시작 보드 + 튜토리얼 칸 · 마운트 가득 · 자동 조종 · S5·S6 = 두 로봇(태그) 판 · 제한 시간 = 자산(#151 뒤 60초)");
             try
             {
@@ -1842,20 +1850,21 @@ namespace MBI.EditorTools
                             : v.result == CombatResult.Win ? $"{v.seconds - v.allSpawnedAt:F1}초"
                             : $"— (전멸 못 함 · 살아 있음 {v.remaining})";
                         spawnRows.Add($"| {(en ? "뒤" : "전")} | {id} | {v.plannedLastSpawn:F1}초 | "
-                                      + (v.allSpawnedAt < 0f ? "—" : $"{v.allSpawnedAt:F1}초") + $" | {after} |");
+                                      + (v.allSpawnedAt < 0f ? "—" : $"{v.allSpawnedAt:F1}초") + $" | {after} | {v.peakAggro} |");
                     }
                     sb.AppendLine($"| {(en ? "투입 뒤 (×1.45)" : "투입 전 (×1.0)")} | " + string.Join(" | ", cells) + " |");
                     Enhanced = false;
                 }
                 sb.AppendLine();
                 sb.AppendLine("## 스폰 열 — 마지막 적 예정 시각(WaveSpawnRule) · 실제 다 나온 시각 · 다 나온 뒤 전멸까지(= 순수 처치 시간)");
-                sb.AppendLine("| 강화 | 판 | 마지막 스폰 예정 | 다 나온 시각 | 다 나온 뒤 전멸까지 |");
-                sb.AppendLine("|---|---|---|---|---|");
+                sb.AppendLine("⚠️ #152 뒤 「마지막 스폰 예정」은 옛 묶음 규칙의 셈이다 — 도전 층은 이제 첫 틱에 전원이 선다(다 나온 시각 참고).");
+                sb.AppendLine("| 강화 | 판 | 마지막 스폰 예정(옛 셈) | 다 나온 시각 | 다 나온 뒤 전멸까지 | 한 번에 깨어 있던 최대 수 |");
+                sb.AppendLine("|---|---|---|---|---|---|");
                 foreach (string r in spawnRows) sb.AppendLine(r);
             }
             finally { SpawnHook = null; HpAll = 0f; PlantScale = 1f; DmgMult = 1f; RateMult = 1f; Enhanced = false; }
 
-            System.IO.File.WriteAllText("Docs/261016_post151_sweep.md", sb.ToString());   // 🗑️ 구 post149 파일명 — 그 표는 #150 커밋에 남는다
+            System.IO.File.WriteAllText("Docs/261016_post152_sweep.md", sb.ToString());   // 🗑️ 구 post149·post151 파일명 — 그 표들은 #150·#151 커밋에 남는다
             Debug.Log(sb.ToString());
             if (Application.isBatchMode) EditorApplication.Exit(0);
         }
@@ -2234,6 +2243,8 @@ namespace MBI.EditorTools
             sim.SetWave(tuning.waveSizeTbd,
                 WaveSpawnRule.Interval(tuning.waveIntervalSecondsTbd,
                                        tuning.waveSizeTbd, tuning.spawnCadenceTbd));
+            sim.SpawnAllAtOnce = true;                         // 사용자 확정 #152 — 러너와 같은 문(도전 층 전원 스폰)
+            sim.SetAggroRange(tuning.enemyAggroRangeTbd);      // 사용자 확정 #152 — 탐색 범위
             if (tuning.spawnRingMinTbd > 0f && tuning.spawnRingMaxTbd > 0f)
                 sim.SetSpawnBand(tuning.spawnRingMinTbd, tuning.spawnRingMaxTbd);
 
@@ -2247,6 +2258,7 @@ namespace MBI.EditorTools
             float elapsed = 0f;
             int tagSwaps = 0, lastActive = 0;
             float allSpawnedAt = -1f;   // #151 — 다 나온 시각
+            int peakAggro = 0;          // #152 — 한 번에 깨어 있던 최대 수
             float bFullAt = -1f;
             var strikeLog = new List<string>();
             float stackSum = 0f, aoeSum = 0f;
@@ -2386,6 +2398,7 @@ namespace MBI.EditorTools
                 }
                 if (sim.ActiveRobotIndex != lastActive) { tagSwaps++; lastActive = sim.ActiveRobotIndex; }
                 if (allSpawnedAt < 0f && sim.Unspawned == 0) allSpawnedAt = elapsed;   // #151 열
+                { int awake = 0; foreach (CombatEntity e in sim.Enemies) if (e.IsAlive && e.aggro) awake++; if (awake > peakAggro) peakAggro = awake; }   // #152 열
                 if (sim.TagSkillStrikes > strikesBefore)
                 {
                     // ⚠️ **만충 시각은 이 자리에서 잰다.** 대기 보드가 채우는 것도, 만충을 보고
@@ -2410,6 +2423,7 @@ namespace MBI.EditorTools
                 unspawned = sim.Unspawned,
                 plannedLastSpawn = WaveSpawnRule.SpawnTime(sim.TotalEnemies - 1, sim.WaveSize, sim.WaveInterval),
                 allSpawnedAt = allSpawnedAt,
+                peakAggro = peakAggro,
             };
 
             sb.AppendLine();
