@@ -43,6 +43,24 @@ namespace MBI.Core
             set => _tag.Locked = value;
         }
 
+        /// <summary>
+        /// **잠긴 동안에도 태그 스킬은 나간다**(사용자 확정 #163 · 2026-10-16 · 앞선 「합체 중 태그 잠금 = 의도」 뒤집음).
+        /// 합체가 잠글 때만 켠다 — 풀리는 것은 **태그 스킬**(만충 시 자동/수동 · 드론 소비)이고,
+        /// **교대는 그대로 잠긴다**(합체 = 둘이 함께 싸우는 20초 · ⚠️ 플랜 읽기 가정).
+        /// ⚠️ 시험이 교대를 막으려 `Locked` 만 세우는 판은 이것이 꺼져 있어 종전 거동 그대로다.
+        /// </summary>
+        public bool SkillWhileLocked { get; set; }
+
+        /// <summary>마지막 성공한 태그가 **교대**였는가(합체 중 스킬만 나간 판은 거짓).</summary>
+        public bool LastTagSwapped { get; private set; }
+
+        /// <summary>기다리는 스킬이 비울 마운트의 로봇(교대 판 = 들어온 로봇 · 합체 중 = 대기 로봇).</summary>
+        public int PendingSkillIndex => _pendingIndex;
+
+        /// <summary>합체 중 지금 태그 스킬을 낼 수 있는가(쿨다운 · 대기 만충).</summary>
+        public bool CanSkillWhileLocked =>
+            _tag.Locked && SkillWhileLocked && _tag.CooldownReady && StandbyMount.IsFull;
+
         /// <summary>마지막 태그에서 태그 스킬이 나갔는가(연출·피해 계산 트리거).</summary>
         /// <summary>
         /// 태그 스킬 타격. 시뮬이 꽂아 준다 — 인자는 마운트 적재량, 반환은 **실제로 때렸는가**.
@@ -159,8 +177,10 @@ namespace MBI.Core
             // ⚠️ 실패 판정이 플래그를 지우지 않게 **성공한 뒤에** 초기화한다.
             // 「마지막 태그에서 스킬이 나갔는가」는 연출·피해 계산이 읽는 값인데,
             // 매 틱 리셋하면 교대 다음 프레임에 사라져 그 프레임을 놓친 쪽은 영영 못 읽는다.
+            if (_tag.Locked && SkillWhileLocked) return ExecuteSkillOnly(reason);
             if (!_tag.TryTag(reason)) return false;
 
+            LastTagSwapped = true;
             LastTagFiredSkill = false;
             LastTagSkillDrained = 0f;
 
@@ -191,6 +211,25 @@ namespace MBI.Core
             return true;
         }
 
+        /// <summary>
+        /// **합체 중 태그 스킬 — 교대 없이**(사용자 확정 #163). 대기 로봇의 마운트가 만충이면
+        /// 그 마운트 전량으로 한 번 때린다(타격·비움은 종전처럼 클립 뒤 · 표적 없으면 보류).
+        /// 소진 사유(Depleted)는 교대뿐이라 여기서는 아무 일도 없다.
+        /// </summary>
+        private bool ExecuteSkillOnly(TagEntry reason)
+        {
+            if (!TagSystem.HasTagSkill(reason, StandbyMount.IsFull)) return false;
+            float loaded = StandbyMount.Total;
+            if (loaded <= 0f || !_tag.TrySkillOnly()) return false;
+
+            LastTagSwapped = false;
+            LastTagFiredSkill = false;
+            LastTagSkillDrained = 0f;
+            _pendingRounds = loaded;
+            _pendingIndex = StandbyIndex;
+            return true;
+        }
+
         /// <summary>태그 스킬 피해. 식은 GrandEntrance 하나를 쓴다(합체 경로와 공용).</summary>
         public float TagSkillDamage(float avgDamagePerShot) =>
             GrandEntrance.Damage(LastTagFiredSkill, LastTagSkillDrained, avgDamagePerShot);
@@ -199,6 +238,8 @@ namespace MBI.Core
         {
             ActiveIndex = 0;
             _tag.Reset();
+            SkillWhileLocked = false;
+            LastTagSwapped = false;
             LastTagFiredSkill = false;
             LastTagSkillDrained = 0f;
             _pendingRounds = 0f;

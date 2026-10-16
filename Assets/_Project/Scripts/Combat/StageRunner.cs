@@ -3302,7 +3302,8 @@ namespace MBI.Combat
             //    교대는 둘째 로봇이 있어야 성립하는 동작이라, 없는 동안 누르면
             //    「눌러도 아무 일 없는 버튼」이 된다. 까닭은 글자가 말한다.
             bool robotBReady = RobotBGate.IsUnlocked;
-            GUI.enabled = _sim.Tag.Tag.CanTag && robotBReady;
+            // #163 — 합체 중엔 대기 만충·쿨다운이 풀렸을 때 **스킬만** 낼 수 있다(교대는 잠김).
+            GUI.enabled = (_sim.Tag.Tag.CanTag || _sim.Tag.CanSkillWhileLocked) && robotBReady;
 
             // ⚠️⚠️ **길게 누르면 자동 교대가 켜진다**(2026-09-16 사용자 확정 · §74-16 ③).
             //    버튼을 그리기 **전에** 눌린 시간을 잰다 — 그래야 길게 누른 프레임에
@@ -3319,8 +3320,8 @@ namespace MBI.Combat
             //    눌리지도 않는 단추에 「지금 누르라」는 노란 링**이 그려졌다.
             //    단추를 막은 손질(5a00a0c)이 **버튼만 막고 링은 안 막은** 자리다 —
             //    못 하는 일을 권하는 표시는 밝기보다 나쁘다.
-            bool skillReady = robotBReady && TagSystem.SkillReady(
-                _sim.Tag.Tag.CanTag, _sim.Tag.StandbyMount != null && _sim.Tag.StandbyMount.IsFull);
+            bool skillReady = robotBReady && (_sim.Tag.CanSkillWhileLocked || TagSystem.SkillReady(
+                _sim.Tag.Tag.CanTag, _sim.Tag.StandbyMount != null && _sim.Tag.StandbyMount.IsFull));
             // ⚠️ **밝기만으로는 사용자 눈에 안 보였다**(2026-09-16 육안 2차 ③) —
             //    원형 버튼은 이미 밝은 판이라 1.45배가 묻힌다. **테두리를 같이 두른다.**
             if (skillReady) DrawTagSkillRing(tagRect);
@@ -3365,7 +3366,7 @@ namespace MBI.Combat
                 round);
             GUI.color = tagPrev;
 
-            if (tagHit && !longPressed && _sim.TryManualTag())
+            if (tagHit && !longPressed && _sim.TryManualTag() && _sim.Tag.LastTagSwapped)   // #163 — 합체 중 스킬만이면 뷰·등장 연출 없음
             {
                 // ⚠️ **여기서 뷰를 바로 다시 묶는다**(2026-09-14 · 「교대가 한 박자 느리다」).
                 //
@@ -3552,7 +3553,13 @@ namespace MBI.Combat
         /// </summary>
         private string TagButtonLabel()
         {
-            if (_sim.Tag.Locked) return "태그\n잠금";
+            // #163 — 합체 중: 스킬을 낼 수 있으면 「태그 스킬」 · 쿨다운이면 쿨다운 · 아니면 잠금(교대 잠김)
+            if (_sim.Tag.Locked)
+            {
+                if (_sim.Tag.CanSkillWhileLocked) return "태그\n스킬";
+                float lcd = _sim.Tag.Tag.CooldownRemaining;
+                return _sim.Tag.SkillWhileLocked && lcd > 0f ? $"쿨다운\n{lcd:F1}s" : "태그\n잠금";
+            }
             float cd = _sim.Tag.Tag.CooldownRemaining;
             if (cd > 0f) return $"쿨다운\n{cd:F1}s";
 

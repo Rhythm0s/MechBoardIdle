@@ -85,6 +85,19 @@ namespace MBI.Core
             return true;
         }
 
+        /// <summary>쿨다운만 본다(잠금은 안 본다) — 합체 중 태그 스킬(#163)이 쓴다.</summary>
+        public bool CooldownReady => _cooldown <= 0f;
+
+        /// <summary>
+        /// **잠긴 채 스킬만 낸다**(사용자 확정 #163 · 2026-10-16) — 쿨다운은 똑같이 먹고, 교대 수는 안 센다.
+        /// </summary>
+        public bool TrySkillOnly()
+        {
+            if (!CooldownReady) return false;
+            _cooldown = CooldownSeconds;
+            return true;
+        }
+
         /// <summary>재시작 등에서 상태를 되돌린다.</summary>
         public void Reset()
         {

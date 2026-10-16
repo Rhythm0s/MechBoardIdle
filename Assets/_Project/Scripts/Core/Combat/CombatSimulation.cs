@@ -886,7 +886,7 @@ namespace MBI.Core
         public bool TryMerge()
         {
             if (Merge == null || !Merge.TryActivate()) return false;
-            if (Tag != null) Tag.Locked = true;
+            if (Tag != null) { Tag.Locked = true; Tag.SkillWhileLocked = true; }   // #163 — 교대만 잠근다 · 스킬은 나간다
 
             // 발동 순간에 일어나는 것은 **버스트 하나**다 — 태그 스킬은 부르지 않는다(2026-08-29 확정).
             FireBurst();
@@ -968,7 +968,8 @@ namespace MBI.Core
             // ⚠️ **Act가 아니라 들어오는 로봇이다.** TagBattle은 이 시점에 이미 교대를 끝냈지만
             // 시뮬의 _active는 TickAuto가 돌아온 뒤에 갱신된다. Act를 쓰면 **나가는 로봇의**
             // 마운트로 평균을 내서 피해가 어긋난다 — 실제로 200이 나올 자리에 100이 나왔다.
-            RobotSide side = _sides[Tag.ActiveIndex];
+            // #163 — 합체 중엔 교대 없이 **대기 로봇의 마운트**로 때린다. 교대 판은 이 값이 곧 들어온 로봇이다.
+            RobotSide side = _sides[Tag.PendingSkillIndex];
 
             // 광역 — **화면 안에 들어와 있는** 적을 먼저 모은다. 하나도 없으면 보류다.
             // ⚠️ 「살아 있는 적 전부」가 아니다(2026-09-08 정정 · 260908_W05 2-2) —
@@ -1128,6 +1129,7 @@ namespace MBI.Core
 
             Vector2 where = RobotPosition;
             if (!Tag.TryManualTag()) return false;
+            if (!Tag.LastTagSwapped) { _tagSkillWait = 0f; return true; }   // #163 — 합체 중 스킬만(교대 없음)
             _active = Tag.ActiveIndex;
             PlaceIncomingRobot(where);
             return true;
@@ -1638,7 +1640,7 @@ namespace MBI.Core
             bool wasActive = Merge.IsActive;
             Merge.Tick(dt, inCombat: true);
 
-            if (wasActive && !Merge.IsActive && Tag != null) Tag.Locked = false;
+            if (wasActive && !Merge.IsActive && Tag != null) { Tag.Locked = false; Tag.SkillWhileLocked = false; }
         }
 
         /// <summary>
@@ -1660,7 +1662,7 @@ namespace MBI.Core
             //    이미 들어온 로봇(원점)을 가리킨다(2026-09-16 · 사용자 보고 ⑤).
             Vector2 where = RobotPosition;
             bool tagged = Tag.TickAuto(dt, AutoTagEnabled);
-            if (tagged)
+            if (tagged && Tag.LastTagSwapped)   // #163 — 합체 중 스킬만 나간 판은 활성·자리를 안 바꾼다
             {
                 _active = Tag.ActiveIndex;
                 PlaceIncomingRobot(where);
