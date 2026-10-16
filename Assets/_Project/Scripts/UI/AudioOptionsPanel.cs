@@ -162,9 +162,23 @@ namespace MBI.UI
             // 아무것도 안 그린다 — 소리 줄은 설정 패널이 그린다.
         }
 
+        /// <summary>
+        /// **줄 여백을 줄였다**(#159 · 2026-10-16 사용자 육안 「너무 크다」 · 설정 판 높이를 줄인다).
+        /// 종전 한 줄 = 이름표 30 + 슬라이더 26 + 틈 14 = 70 → 이름표 22 + 슬라이더 14 + 틈 3 = 39(약 절반 · ⚠️ 가정).
+        /// ⚠️ **글자 크기는 그대로다** — 글자는 종전 이름표 높이 30 에서 낸다(<see cref="FontBasis"/>).
+        /// </summary>
+        public const float RowLabel = 22f, RowSlider = 14f, RowGap = 3f;
+
+        /// <summary>글자 크기를 내는 높이 — 종전 이름표 높이 30(#159 에서도 안 바꾼다).</summary>
+        public const float FontBasis = 30f;
+
+        /// <summary>채널 이름표 글자 크기 — 종전 식 그대로.</summary>
+        public static int LabelFontSize(float scale) =>
+            KoreanFont.Snap(Mathf.Max(11, Mathf.RoundToInt(FontBasis * scale * 0.62f)));
+
         /// <summary>채널 한 줄이 쓰는 높이(이름표 + 슬라이더 + 틈).</summary>
         public static float ChannelRowHeight(float scale) =>
-            30f * scale + 26f * scale + 14f * scale;
+            (RowLabel + RowSlider + RowGap) * scale;
 
         /// <summary>채널 셋이 쓰는 높이 — 부르는 쪽이 판 높이에 더한다.</summary>
         public static float ChannelsHeight(float scale) => ChannelRowHeight(scale) * 3f;
@@ -182,13 +196,13 @@ namespace MBI.UI
         /// <returns>쓴 높이.</returns>
         public static float DrawChannels(float x, float y, float width, float scale)
         {
-            float rowLabel = 30f * scale;
-            float rowSlider = 26f * scale;
-            float rowGap = 14f * scale;
+            float rowLabel = RowLabel * scale;
+            float rowSlider = RowSlider * scale;
+            float rowGap = RowGap * scale;
 
             var labelStyle = new GUIStyle(GUI.skin.label)
             {
-                fontSize = KoreanFont.Snap(Mathf.Max(11, Mathf.RoundToInt(rowLabel * 0.62f))),
+                fontSize = LabelFontSize(scale),   // #159 — 여백만 줄이고 글자는 그대로
                 alignment = TextAnchor.MiddleLeft,
                 clipping = TextClipping.Overflow,   // 재기 전에 잘리는 함정을 피한다
             };
