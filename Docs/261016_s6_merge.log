@@ -5,8 +5,8 @@ OS: 'Windows 11  (10.0.26200) Professional' Language: 'ko' Physical Memory: 3267
 BatchMode: 1, IsHumanControllingUs: 0, StartBugReporterOnCrash: 0, Is64bit: 1
 System  architecture: x64
 Process architecture: x64
-Date: 2026-10-16T09:44:32Z
-[Licensing::Module] Successfully launched the LicensingClient (PId: 6164)
+Date: 2026-10-16T09:56:02Z
+[Licensing::Module] Successfully launched the LicensingClient (PId: 14132)
 
 COMMAND LINE ARGUMENTS:
 C:\Program Files\Unity\Hub\Editor\6000.4.3f1\Editor\Unity.exe
@@ -55,29 +55,29 @@ C:/Unity_Project/26_MechBoardIdle/MechBoardIdle
     "memorysetup-job-temp-allocator-block-size=2097152"
     "memorysetup-job-temp-allocator-block-size-background=1048576"
     "memorysetup-job-temp-allocator-reduction-small-platforms=262144"
-Player connection [19016]  Target information:
+Player connection [32332]  Target information:
 
-Player connection [19016]  * "[IP] 210.126.10.226 [Port] 55504 [Flags] 2 [Guid] 3791298593 [EditorId] 3791298593 [Version] 1048832 [Id] WindowsEditor(7,DESKTOP-UK44D20) [Debug] 1 [PackageName] WindowsEditor [ProjectName] Editor" 
+Player connection [32332]  * "[IP] 210.126.10.226 [Port] 55504 [Flags] 2 [Guid] 317013971 [EditorId] 317013971 [Version] 1048832 [Id] WindowsEditor(7,DESKTOP-UK44D20) [Debug] 1 [PackageName] WindowsEditor [ProjectName] Editor" 
 
-Player connection [19016] Host joined multi-casting on [225.0.0.222:54997]...
-Player connection [19016] Host joined alternative multi-casting on [225.0.0.222:34997]...
+Player connection [32332] Host joined multi-casting on [225.0.0.222:54997]...
+Player connection [32332] Host joined alternative multi-casting on [225.0.0.222:34997]...
 Input System module state changed to: Initialized.
 [Physics::Module] Initialized fallback backend.
 [Physics::Module] Id: 0xdecafbad
 Starting IPC server.
 Waiting for clients to connect on \\.\pipe\Unity-LicenseClient-Kang, press Ctrl-C to exit.
-[Licensing::IpcConnector] Successfully connected to: "LicenseClient-Kang" at "2026-10-16T09:44:32.7640801Z"
-[Package Manager] Connected to IPC stream "Upm-15488" after 0.4 seconds.
+[Licensing::IpcConnector] Successfully connected to: "LicenseClient-Kang" at "2026-10-16T09:56:02.918462Z"
+[Package Manager] Connected to IPC stream "Upm-35960" after 0.4 seconds.
 [Licensing::Module] Licensing is not yet initialized.
 [Licensing::Client] Handshaking with LicensingClient:
   Version:                 1.18.1+9fbee8e
-  Session Id:              92329a15da90443bac37e00eaf05ca1a
-  Correlation Id:          71f8216ff3402945023d38ac2e6072bf
-  External correlation Id: 1905671340819685093
+  Session Id:              0e043c9b6e02429090d4d0b9c076073f
+  Correlation Id:          d58c42f34cf74d9ff5e692b553386a15
+  External correlation Id: 7743765879386475837
   Machine Id:              8tH7dWratbOZRRcckw4PCdbaWzU=
-[Licensing::Module] Successfully connected to LicensingClient on channel: "LicenseClient-Kang" (connect: 0.57s, validation: 0.07s, handshake: 2.51s)
-[Licensing::IpcConnector] Successfully connected to: "LicenseClient-Kang-notifications" at "2026-10-16T09:44:35.3401604Z"
-[Licensing::Module] Connected to LicensingClient (PId: 6164, launch time: 0.02, total connection time: 3.14s)
+[Licensing::Module] Successfully connected to LicensingClient on channel: "LicenseClient-Kang" (connect: 0.56s, validation: 0.07s, handshake: 2.47s)
+[Licensing::IpcConnector] Successfully connected to: "LicenseClient-Kang-notifications" at "2026-10-16T09:56:05.4507552Z"
+[Licensing::Module] Connected to LicensingClient (PId: 14132, launch time: 0.02, total connection time: 3.10s)
 [Licensing::Module] Error: Access token is unavailable; failed to update
 [Licensing::Client] Successfully resolved entitlement details
 [Licensing::Module] License group:
@@ -87,8 +87,8 @@ Waiting for clients to connect on \\.\pipe\Unity-LicenseClient-Kang, press Ctrl-
   Expiration: Unlimited
 [Licensing::Client] Successfully updated license, isAsync: True, time: 0.01
 [Licensing::Client] Successfully resolved entitlement details
-[Licensing::Module] Licensing Background thread has ended after 3.20s
-[Licensing::Module] Licensing is initialized (took 2.59s).
+[Licensing::Module] Licensing Background thread has ended after 3.16s
+[Licensing::Module] Licensing is initialized (took 2.49s).
 [Licensing::Client] Successfully resolved entitlement details
 Library Redirect Path: Library/
 [Physics::Module] Selected backend.
@@ -114,7 +114,7 @@ Initialize mono
 Mono path[0] = 'C:/Program Files/Unity/Hub/Editor/6000.4.3f1/Editor/Data/Managed'
 Mono path[1] = 'C:/Program Files/Unity/Hub/Editor/6000.4.3f1/Editor/Data/MonoBleedingEdge/lib/mono/unityjit-win32'
 Mono config path = 'C:/Program Files/Unity/Hub/Editor/6000.4.3f1/Editor/Data/MonoBleedingEdge/etc'
-Using monoOptions --debugger-agent=transport=dt_socket,embedding=1,server=y,suspend=n,address=127.0.0.1:56488
+Using monoOptions --debugger-agent=transport=dt_socket,embedding=1,server=y,suspend=n,address=127.0.0.1:56960
 CodeReloadManager initialized
 Using cacheserver namespaces - metadata:defaultmetadata, artifacts:defaultartifacts
 Using cacheserver namespaces - metadata:defaultmetadata, artifacts:defaultartifacts
@@ -126,31 +126,31 @@ Register platform support module: C:/Program Files/Unity/Hub/Editor/6000.4.3f1/E
 Register platform support module: C:/Program Files/Unity/Hub/Editor/6000.4.3f1/Editor/Data/PlaybackEngines/WindowsStandaloneSupport/UnityEditor.WindowsStandalone.Extensions.dll
 [Licensing::Client] Successfully resolved entitlement details
 Register platform support module: C:/Program Files/Unity/Hub/Editor/6000.4.3f1/Editor/Data/PlaybackEngines/AndroidPlayer/UnityEditor.Android.Extensions.dll
-Registered in 0.014686 seconds.
+Registered in 0.014385 seconds.
 Native extension for Android target not found
 Native extension for WindowsStandalone target not found
 Native extension for WebGL target not found
 Package Manager log level set to [2]
 ScheduleIndexationOnStartup MainProcess:False IndexOnStartup:True
 Mono: successfully reloaded assembly
-- Finished resetting the current domain, in  0.450 seconds
-Domain Reload Profiling: 1051ms
-	BeginReloadAssembly (190ms)
-		CreateAndSetChildDomain (17ms)
-	RebuildCommonClasses (43ms)
-	RebuildNativeTypeToScriptingClass (11ms)
-	initialDomainReloadingComplete (108ms)
-	LoadAllAssembliesAndSetupDomain (247ms)
+- Finished resetting the current domain, in  0.435 seconds
+Domain Reload Profiling: 1054ms
+	BeginReloadAssembly (197ms)
+		CreateAndSetChildDomain (25ms)
+	RebuildCommonClasses (42ms)
+	RebuildNativeTypeToScriptingClass (15ms)
+	initialDomainReloadingComplete (118ms)
+	LoadAllAssembliesAndSetupDomain (245ms)
 		LoadAssemblies (165ms)
-		AnalyzeDomain (236ms)
-			TypeCache.Refresh (235ms)
-				TypeCache.ScanAssembly (219ms)
-	FinalizeReload (452ms)
+		AnalyzeDomain (234ms)
+			TypeCache.Refresh (232ms)
+				TypeCache.ScanAssembly (214ms)
+	FinalizeReload (437ms)
 		SetupLoadedEditorAssemblies (0ms)
-			InitializePlatformSupportModulesInManaged (66ms)
-			BeforeProcessingInitializeOnLoad (89ms)
-			ProcessInitializeOnLoadAttributes (119ms)
-			ProcessInitializeOnLoadMethodAttributes (109ms)
+			InitializePlatformSupportModulesInManaged (65ms)
+			BeforeProcessingInitializeOnLoad (91ms)
+			ProcessInitializeOnLoadAttributes (113ms)
+			ProcessInitializeOnLoadMethodAttributes (96ms)
 [Licensing::Client] Successfully resolved entitlement details
 Application.AssetDatabase Initial Refresh Start
 [Package Manager] Restoring resolved packages state from cache
@@ -225,7 +225,6 @@ Application.AssetDatabase Initial Refresh Start
     com.unity.collections@6.4.0 (location: C:\Unity_Project\26_MechBoardIdle\MechBoardIdle\Library\PackageCache\com.unity.collections@9c2353fb96f6)
 [Subsystems] No new subsystems found in resolved package list.
 [Package Manager] Done registering packages in 0.06 seconds
-[ScriptCompilation] Requested script compilation because: AssetDatabase observed changes in script compilation related files
 info: Microsoft.Hosting.Lifetime[14]
       Now listening on: http://localhost:80
 info: Microsoft.Hosting.Lifetime[0]
@@ -241,7 +240,7 @@ info: Microsoft.AspNetCore.Routing.EndpointMiddleware[0]
 info: Microsoft.AspNetCore.Routing.EndpointMiddleware[1]
       Executed endpoint 'gRPC - /UnityILPP.PostProcessing/Ping'
 info: Microsoft.AspNetCore.Hosting.Diagnostics[2]
-      Request finished HTTP/2 POST http://ilpp/UnityILPP.PostProcessing/Ping - 200 - application/grpc 30.9176ms
+      Request finished HTTP/2 POST http://ilpp/UnityILPP.PostProcessing/Ping - 200 - application/grpc 31.2748ms
 Starting: C:\Program Files\Unity\Hub\Editor\6000.4.3f1\Editor\Data\Tools\BuildPipeline\bee_backend.exe --ipc --defer-dag-verification --dagfile="Library/Bee/2000b0aE.dag" --continue-on-failure --profile="Library/Bee/backend1.traceevents" ScriptAssemblies
 WorkingDir: C:/Unity_Project/26_MechBoardIdle/MechBoardIdle
 DisplayProgressbar: Compiling Scripts
@@ -260,65 +259,11 @@ info: Unity.ILPP.Runner.PostProcessingAssemblyLoadContext[0]
 info: Microsoft.AspNetCore.Routing.EndpointMiddleware[1]
       Executed endpoint 'gRPC - /UnityILPP.PostProcessing/ConfigurePostProcessors'
 info: Microsoft.AspNetCore.Hosting.Diagnostics[2]
-      Request finished HTTP/2 POST http://ilpp/UnityILPP.PostProcessing/ConfigurePostProcessors - 200 - application/grpc 85.9312ms
-info: Microsoft.AspNetCore.Hosting.Diagnostics[1]
-      Request starting HTTP/2 POST http://ilpp/UnityILPP.PostProcessing/PostProcessAssembly - application/grpc -
-info: Microsoft.AspNetCore.Routing.EndpointMiddleware[0]
-      Executing endpoint 'gRPC - /UnityILPP.PostProcessing/PostProcessAssembly'
-info: Unity.ILPP.Runner.PostProcessingPipeline[0]
-      Processing assembly Library/Bee/artifacts/2000b0aE.dag/MBI.Editor.dll, with 114 defines and 298 references
-info: Unity.ILPP.Runner.PostProcessingPipeline[0]
-      processors: Unity.Jobs.CodeGen.JobsILPostProcessor, zzzUnity.Burst.CodeGen.BurstILPostProcessor
-info: Unity.ILPP.Runner.PostProcessingPipeline[0]
-      running Unity.Jobs.CodeGen.JobsILPostProcessor
-info: Unity.ILPP.Runner.PostProcessingPipeline[0]
-      running zzzUnity.Burst.CodeGen.BurstILPostProcessor
-info: Microsoft.AspNetCore.Routing.EndpointMiddleware[1]
-      Executed endpoint 'gRPC - /UnityILPP.PostProcessing/PostProcessAssembly'
-info: Microsoft.AspNetCore.Hosting.Diagnostics[2]
-      Request finished HTTP/2 POST http://ilpp/UnityILPP.PostProcessing/PostProcessAssembly - 200 - application/grpc 18.9006ms
-info: Microsoft.AspNetCore.Hosting.Diagnostics[1]
-      Request starting HTTP/2 POST http://ilpp/UnityILPP.PostProcessing/PostProcessAssembly - application/grpc -
-info: Microsoft.AspNetCore.Routing.EndpointMiddleware[0]
-      Executing endpoint 'gRPC - /UnityILPP.PostProcessing/PostProcessAssembly'
-info: Unity.ILPP.Runner.PostProcessingPipeline[0]
-      Processing assembly Library/Bee/artifacts/2000b0aE.dag/MBI.Tests.EditMode.dll, with 114 defines and 281 references
-info: Unity.ILPP.Runner.PostProcessingPipeline[0]
-      processors: Unity.Jobs.CodeGen.JobsILPostProcessor, zzzUnity.Burst.CodeGen.BurstILPostProcessor
-info: Unity.ILPP.Runner.PostProcessingPipeline[0]
-      running Unity.Jobs.CodeGen.JobsILPostProcessor
-info: Unity.ILPP.Runner.PostProcessingPipeline[0]
-      running zzzUnity.Burst.CodeGen.BurstILPostProcessor
-info: Microsoft.AspNetCore.Routing.EndpointMiddleware[1]
-      Executed endpoint 'gRPC - /UnityILPP.PostProcessing/PostProcessAssembly'
-info: Microsoft.AspNetCore.Hosting.Diagnostics[2]
-      Request finished HTTP/2 POST http://ilpp/UnityILPP.PostProcessing/PostProcessAssembly - 200 - application/grpc 7.6519ms
-ExitCode: 0 Duration: 4s574ms
-[ 877/1144  0s] ILPP-Configuration Library/ilpp-configuration.nevergeneratedoutput
-[1136/1144  2s] Csc Library/Bee/artifacts/2000b0aE.dag/MBI.Editor.dll (+2 others)
-[1137/1144  0s] ILPostProcess Library/Bee/artifacts/2000b0aE.dag/post-processed/MBI.Editor.dll (+pdb)
-Processing assembly Library/Bee/artifacts/2000b0aE.dag/MBI.Editor.dll, with 114 defines and 298 references
-
-processors: Unity.Jobs.CodeGen.JobsILPostProcessor, zzzUnity.Burst.CodeGen.BurstILPostProcessor
-
-running Unity.Jobs.CodeGen.JobsILPostProcessor
-
-running zzzUnity.Burst.CodeGen.BurstILPostProcessor
-[1138/1144  0s] CopyFiles Library/ScriptAssemblies/MBI.Editor.pdb
-[1139/1144  0s] CopyFiles Library/ScriptAssemblies/MBI.Editor.dll
-[1140/1144  1s] Csc Library/Bee/artifacts/2000b0aE.dag/MBI.Tests.EditMode.dll (+2 others)
-[1141/1144  0s] ILPostProcess Library/Bee/artifacts/2000b0aE.dag/post-processed/MBI.Tests.EditMode.dll (+pdb)
-Processing assembly Library/Bee/artifacts/2000b0aE.dag/MBI.Tests.EditMode.dll, with 114 defines and 281 references
-
-processors: Unity.Jobs.CodeGen.JobsILPostProcessor, zzzUnity.Burst.CodeGen.BurstILPostProcessor
-
-running Unity.Jobs.CodeGen.JobsILPostProcessor
-
-running zzzUnity.Burst.CodeGen.BurstILPostProcessor
-[1142/1144  0s] CopyFiles Library/ScriptAssemblies/MBI.Tests.EditMode.pdb
-[1143/1144  0s] CopyFiles Library/ScriptAssemblies/MBI.Tests.EditMode.dll
-*** Tundra build success (4.46 seconds), 9 items updated, 1144 evaluated
-AssetDatabase: script compilation time: 5.130622s
+      Request finished HTTP/2 POST http://ilpp/UnityILPP.PostProcessing/ConfigurePostProcessors - 200 - application/grpc 81.9667ms
+ExitCode: 0 Duration: 0s572ms
+[ 879/1144  0s] ILPP-Configuration Library/ilpp-configuration.nevergeneratedoutput
+*** Tundra build success (0.46 seconds), 1 items updated, 1144 evaluated
+AssetDatabase: script compilation time: 1.100133s
 Begin MonoManager ReloadAssembly
 Assembly Assembly-CSharp-Editor-firstpass.dll at Library/ScriptAssemblies/Assembly-CSharp-Editor-firstpass.dll not valid. Loading of assembly skipped.
 Assembly Assembly-CSharp-Editor.dll at Library/ScriptAssemblies/Assembly-CSharp-Editor.dll not valid. Loading of assembly skipped.
@@ -358,109 +303,79 @@ Assembly Unity.UnifiedRayTracing.Editor.Tests.dll at Library/ScriptAssemblies/Un
 Assembly UnityEditor.UI.Common.Tests.dll at Library/ScriptAssemblies/UnityEditor.UI.Common.Tests.dll not valid. Loading of assembly skipped.
 Assembly UnityEditor.UI.EditorTests.dll at Library/ScriptAssemblies/UnityEditor.UI.EditorTests.dll not valid. Loading of assembly skipped.
 Assembly UnityEngine.UI.Tests.dll at Library/ScriptAssemblies/UnityEngine.UI.Tests.dll not valid. Loading of assembly skipped.
-Refreshing native plugins compatible for Editor in 5.23 ms, found 5 plugins.
+Refreshing native plugins compatible for Editor in 6.49 ms, found 5 plugins.
 Native extension for Android target not found
 Native extension for WindowsStandalone target not found
 Native extension for WebGL target not found
-Refreshing native plugins compatible for Editor in 5.25 ms, found 5 plugins.
+Refreshing native plugins compatible for Editor in 5.56 ms, found 5 plugins.
 ScheduleIndexationOnStartup MainProcess:True IndexOnStartup:True
 Mono: successfully reloaded assembly
-- Finished resetting the current domain, in  4.324 seconds
-Domain Reload Profiling: 6376ms
-	BeginReloadAssembly (424ms)
+- Finished resetting the current domain, in  4.218 seconds
+Domain Reload Profiling: 5585ms
+	BeginReloadAssembly (387ms)
 		DisableScriptedObjects (33ms)
-		CreateAndSetChildDomain (189ms)
-	RebuildCommonClasses (43ms)
-	RebuildNativeTypeToScriptingClass (14ms)
-	initialDomainReloadingComplete (767ms)
+		CreateAndSetChildDomain (162ms)
+	RebuildCommonClasses (39ms)
+	RebuildNativeTypeToScriptingClass (12ms)
+	initialDomainReloadingComplete (124ms)
 	LoadAllAssembliesAndSetupDomain (804ms)
-		LoadAssemblies (639ms)
-		AnalyzeDomain (312ms)
-			TypeCache.Refresh (222ms)
-				TypeCache.ScanAssembly (206ms)
-			BuildScriptInfoCaches (78ms)
-			ResolveRequiredComponents (10ms)
-	FinalizeReload (4325ms)
+		LoadAssemblies (622ms)
+		AnalyzeDomain (319ms)
+			TypeCache.Refresh (225ms)
+				TypeCache.ScanAssembly (208ms)
+			BuildScriptInfoCaches (80ms)
+			ResolveRequiredComponents (12ms)
+	FinalizeReload (4218ms)
 		SetupLoadedEditorAssemblies (0ms)
-			InitializePlatformSupportModulesInManaged (43ms)
-			BeforeProcessingInitializeOnLoad (226ms)
-			ProcessInitializeOnLoadAttributes (3535ms)
-			ProcessInitializeOnLoadMethodAttributes (231ms)
-			AfterProcessingInitializeOnLoad (19ms)
-		AwakeInstancesAfterBackupRestoration (28ms)
-Refreshing native plugins compatible for Editor in 6.23 ms, found 5 plugins.
+			InitializePlatformSupportModulesInManaged (45ms)
+			BeforeProcessingInitializeOnLoad (230ms)
+			ProcessInitializeOnLoadAttributes (3432ms)
+			ProcessInitializeOnLoadMethodAttributes (247ms)
+			AfterProcessingInitializeOnLoad (23ms)
+		AwakeInstancesAfterBackupRestoration (25ms)
 (Values over 0.050ms)
-Asset Pipeline Refresh (id=2f627f5c4892ce245813e0dd50b9bfa6): Total: 12.843 seconds - Initiated by InitialRefreshV2(ForceSynchronousImport)
+Asset Pipeline Refresh (id=736fb699a80c14d40a973984587e53cd): Total: 7.715 seconds - Initiated by InitialRefreshV2(ForceSynchronousImport)
 	Summary:
 		Imports: total=0 (actual=0, local cache=0, cache server=0)
-		Asset DB Process Time: managed=0 ms, native=5179 ms
-		Asset DB Callback time: managed=273 ms, native=77 ms
-		Scripting: domain reloads=1, domain reload time=2068 ms, compile time=5133 ms, other=109 ms
+		Asset DB Process Time: managed=0 ms, native=4963 ms
+		Asset DB Callback time: managed=89 ms, native=63 ms
+		Scripting: domain reloads=1, domain reload time=1384 ms, compile time=1102 ms, other=111 ms
 		Project Asset Count: scripts=1668, non-scripts=3659
-		Asset File Changes: new=0, changed=1, moved=0, deleted=0
+		Asset File Changes: new=0, changed=0, moved=0, deleted=0
 		Scan Filter Count: 0
-	InvokePackagesCallback: 70.327ms
-	ApplyChangesToAssetFolders: 1.549ms
-	Scan: 301.587ms
-	OnSourceAssetsModified: 0.885ms
-	CategorizeScriptCompilationAssets: 66.257ms
-	ProcessAssetsWithTransientArtifactChanges: 128.033ms
-	CategorizeAssets: 75.269ms
-	CompileScripts: 5133.073ms
-	ImportOutOfDateAssets: 4346.619ms (4344.649ms without children)
-		UnloadImportedAssets: 0.800ms
-		EnsureUptoDateAssetsAreRegisteredWithGuidPM: 0.711ms
-		OnDemandSchedulerStart: 0.417ms
-	PostProcessAllAssets: 276.229ms
-		XRBuildSystem.XRAssetImported 1.674ms
-		VCAutoAddAssetPostprocess 1.089ms
-		MonoPostProcessAllAssets: 272.744ms
-			AssetPostprocessor.OnPostprocessAllAssets 168.927ms
-			UniversalRenderPipelineGlobalSettingsPostprocessor.OnPostprocessAllAssets 26.121ms
-			StyleCatalogPostProcessor.OnPostprocessAllAssets 20.958ms
-			BuilderAssetPostprocessor.OnPostprocessAllAssets 6.898ms
-			SpeedTree9Postprocessor.OnPostprocessAllAssets 3.442ms
-			ShaderGraphAssetPostProcessor.OnPostprocessAllAssets 2.593ms
-			WindowAssetPostprocessingWatcher.OnPostprocessAllAssets 2.532ms
-			RetainedModeAssetPostprocessor.OnPostprocessAllAssets 1.950ms
-			AssetChangedListener.OnPostprocessAllAssets 1.663ms
-			RenderPipelineGlobalSettingsPostprocessor.OnPostprocessAllAssets 0.952ms
-			AssetProcessor.OnPostprocessAllAssets 0.849ms
-			ArtifactBrowserPostProcessor.OnPostprocessAllAssets 0.729ms
-			MaterialPostprocessor.OnPostprocessAllAssets 0.679ms
-			SpriteEditorTexturePostprocessor.OnPostprocessAllAssets 0.597ms
-			TMPro_TexturePostProcessor.OnPostprocessAllAssets 0.588ms
-			ReferencedClipsPostProcessor.OnPostprocessAllAssets 0.440ms
-			UVCSAssetPostprocessor.OnPostprocessAllAssets 0.398ms
-			InputActionAssetPostprocessor.OnPostprocessAllAssets 0.361ms
-			TextAssetPostProcessor.OnPostprocessAllAssets 0.347ms
-			SpriteShapeAssetPostProcessor.OnPostprocessAllAssets 0.341ms
-			PostProcessor.OnPostprocessAllAssets 0.332ms
-			AudioMixerPostprocessor.OnPostprocessAllAssets 0.322ms
-			InputActionJsonNameModifierAssetProcessor.OnPostprocessAllAssets 0.256ms
-			AssetEvents.OnPostprocessAllAssets 0.238ms
-			TerrainToolbarOverlayPostProcessor.OnPostprocessAllAssets 0.231ms
-			ProjectSettingsPostprocessor.OnPostprocessAllAssets 0.218ms
-			SpriteLibraryAssetPostprocessor.OnPostprocessAllAssets 0.217ms
-			SyncVS.PostprocessSyncProject 0.205ms
-			AssetDatabaseCallbacks.OnPostprocessAllAssets 0.172ms
-			SpeedTreePostProcessor.OnPostprocessAllAssets 0.165ms
-			SamplePostprocessor.OnPostprocessAllAssets 0.165ms
-			PSDImportPostProcessor.OnPostprocessAllAssets 0.152ms
-			ConfigAssetsTracker.OnPostprocessAllAssets 0.135ms
-			ScenarioDriftAssetsTracker.OnPostprocessAllAssets 0.116ms
-			PSDImporterAssetPostProcessor.OnPostprocessAllAssets 0.091ms
-			AudioContainerPostProcessor.OnPostprocessAllAssets 0.085ms
-	PostAssetChangesProfiler: 8.378ms
-	UnloadStreamsBegin: 3.240ms
-	PersistCurrentRevisions: 0.184ms
-	GenerateScriptTypeHashes: 3.762ms
-	GenerateScriptTypeSerializationHashes: 6.706ms
-	Untracked: 2421.155ms
+	InvokePackagesCallback: 68.613ms
+	ApplyChangesToAssetFolders: 0.965ms
+	Scan: 192.726ms
+	CategorizeScriptCompilationAssets: 66.872ms
+	ProcessAssetsWithTransientArtifactChanges: 112.138ms
+	CategorizeAssets: 82.928ms
+	CompileScripts: 1101.559ms
+	ImportOutOfDateAssets: 4243.111ms (4239.369ms without children)
+		ReloadNativeAssets: 0.111ms
+		UnloadImportedAssets: 2.010ms
+		EnsureUptoDateAssetsAreRegisteredWithGuidPM: 1.060ms
+		OnDemandSchedulerStart: 0.557ms
+	PostProcessAllAssets: 89.670ms
+		MonoPostProcessAllAssets: 89.394ms
+			UniversalRenderPipelineGlobalSettingsPostprocessor.OnPostprocessAllAssets 28.651ms
+			SpeedTree9Postprocessor.OnPostprocessAllAssets 18.132ms
+			WindowAssetPostprocessingWatcher.OnPostprocessAllAssets 10.528ms
+			RenderPipelineGlobalSettingsPostprocessor.OnPostprocessAllAssets 1.861ms
+			ReferencedClipsPostProcessor.OnPostprocessAllAssets 0.520ms
+			InputActionAssetPostprocessor.OnPostprocessAllAssets 0.303ms
+			TerrainToolbarOverlayPostProcessor.OnPostprocessAllAssets 0.276ms
+			AssetDatabaseCallbacks.OnPostprocessAllAssets 0.270ms
+			SyncVS.PostprocessSyncProject 0.239ms
+			ProjectSettingsPostprocessor.OnPostprocessAllAssets 0.237ms
+	UnloadStreamsBegin: 3.373ms
+	PersistCurrentRevisions: 0.136ms
+	GenerateScriptTypeHashes: 3.744ms
+	GenerateScriptTypeSerializationHashes: 7.005ms
+	Untracked: 1741.379ms
 
 Application.AssetDatabase Initial Refresh End
 Shader Hidden/ChartRasterizerHardware is not supported: GPU does not support conservative rasterization
-Scanning for USB devices : 22.149ms
+Scanning for USB devices : 15.809ms
 Initializing Unity extensions:
 [MODES] ModeService[none].Initialize
 [MODES] ModeService[none].LoadModes
@@ -483,58 +398,56 @@ UnityEditor.MenuService:GetMenuItemsFromAttributesById (string)
 UnityEditor.MenuService:GetMenuItemsFromAttributes ()
 
 Unloading 27 Unused Serialized files (Serialized files now loaded: 0)
-Unloading 7715 unused Assets / (3.9 MB). Loaded Objects now: 8579.
-Memory consumption went from 218.5 MB to 214.7 MB.
-Total: 17.667300 ms (FindLiveObjects: 1.174900 ms CreateObjectMapping: 1.566400 ms MarkObjects: 10.887900 ms  DeleteObjects: 4.033600 ms)
+Unloading 7715 unused Assets / (3.5 MB). Loaded Objects now: 8576.
+Memory consumption went from 212.5 MB to 209.0 MB.
+Total: 12.120700 ms (FindLiveObjects: 0.848400 ms CreateObjectMapping: 0.388100 ms MarkObjects: 7.341000 ms  DeleteObjects: 3.539800 ms)
 
 ############ S6 태그·합체 확인 (2026-10-16 · 983f3f6 자산 · 60초 · 두 로봇 판 · 자동 태그 켬) ############
 | 강화 | 합체 | 결과 | 합체 찬 시각 | 합체 누른 시각 | 버스트 피해 | 보스 남은 HP |
 |---|---|---|---|---|---|---|
-| 전 | 안 씀 | LoseTimeout · 처치 0/1 · 60.0초 · HP 1000/1000 | 안 참 | — | 0 | 9417 |
-| 전 | 씀(차면 바로) | LoseTimeout · 처치 0/1 · 60.0초 · HP 1000/1000 | 안 참 | — | 0 | 9417 |
-| 뒤 | 안 씀 | LoseTimeout · 처치 0/1 · 60.0초 · HP 1000/1000 | 안 참 | — | 0 | 4193 |
-| 뒤 | 씀(차면 바로) | LoseTimeout · 처치 0/1 · 60.0초 · HP 1000/1000 | 안 참 | — | 0 | 4193 |
+| 전 | 안 씀 | LoseTimeout · 처치 0/1 · 60.0초 · HP 1000/1000 | 안 참 | — | 0 | 4917 |
+| 전 | 씀(차면 바로) | LoseTimeout · 처치 0/1 · 60.0초 · HP 1000/1000 | 안 참 | — | 0 | 4917 |
+| 뒤 | 안 씀 | **Win** · 처치 1/1 · 53.6초 · HP 1000/1000 | 안 참 | — | 0 | 0 |
+| 뒤 | 씀(차면 바로) | **Win** · 처치 1/1 · 53.6초 · HP 1000/1000 | 안 참 | — | 0 | 0 |
 
 ## ⚠️ 가정 판 — 합체 게이지를 미리 채워 두었다면(게임에는 없는 판 · 게이지 90초 > 도전 60초라 지금은 못 찬다)
 | 강화 | 결과 | 합체 누른 시각 | 버스트 피해 | 보스 남은 HP |
 |---|---|---|---|---|
-| 전 | LoseTimeout · 처치 0/1 · 60.0초 · HP 1000/1000 | 1.0초 | 18 | 9303 |
-| 뒤 | LoseTimeout · 처치 0/1 · 60.0초 · HP 1000/1000 | 1.0초 | 59 | 3822 |
+| 전 | LoseTimeout · 처치 0/1 · 60.0초 · HP 1000/1000 | 1.0초 | 18 | 4803 |
+| 뒤 | **Win** · 처치 1/1 · 53.6초 · HP 1000/1000 | 1.0초 | 59 | 0 |
 
 ## #155 — 파밍에서 이어 온 게이지로 들어감 · 적이 로봇 사거리에 든 순간 합체(하네스 자동)
 | 강화 | 들고 온 게이지 | 결과 | 합체 누른 시각 | 버스트 피해 | 합체 20초 동안 깎은 HP | 60초에 깎은 HP | 보스 남은 HP |
 |---|---|---|---|---|---|---|---|
-| 전 | 100% | LoseTimeout · 처치 0/1 · 60.0초 · HP 1000/1000 | 0.1초 | 18 | 8679(판 끝까지) | 8697 | 9303 |
-| 전 | 50% | LoseTimeout · 처치 0/1 · 60.0초 · HP 741/1000 | 45.0초 | 18 | 162(판 끝까지) | 4607 | 13393 |
-| 전 | 0% | LoseTimeout · 처치 0/1 · 60.0초 · HP 1000/1000 | 못 씀 | 0 | — | 8583 | 9417 |
-| 뒤 | 100% | LoseTimeout · 처치 0/1 · 60.0초 · HP 1000/1000 | 0.1초 | 59 | 14120(판 끝까지) | 14178 | 3822 |
-| 뒤 | 50% | LoseTimeout · 처치 0/1 · 60.0초 · HP 741/1000 | 45.0초 | 59 | 526(판 끝까지) | 7935 | 10065 |
-| 뒤 | 0% | LoseTimeout · 처치 0/1 · 60.0초 · HP 1000/1000 | 못 씀 | 0 | — | 13808 | 4193 |
+| 전 | 100% | LoseTimeout · 처치 0/1 · 60.0초 · HP 1000/1000 | 0.1초 | 18 | 8679(판 끝까지) | 13197 | 4803 |
+| 전 | 50% | LoseTimeout · 처치 0/1 · 60.0초 · HP 741/1000 | 45.0초 | 18 | 162(판 끝까지) | 9107 | 8893 |
+| 전 | 0% | LoseTimeout · 처치 0/1 · 60.0초 · HP 1000/1000 | 못 씀 | 0 | — | 13083 | 4917 |
+| 뒤 | 100% | **Win** · 처치 1/1 · 53.6초 · HP 1000/1000 | 0.1초 | 59 | 13442(판 끝까지) | 18000 | 0 |
+| 뒤 | 50% | LoseTimeout · 처치 0/1 · 60.0초 · HP 741/1000 | 45.0초 | 59 | 526(판 끝까지) | 12435 | 5565 |
+| 뒤 | 0% | **Win** · 처치 1/1 · 53.6초 · HP 1000/1000 | 못 씀 | 0 | — | 18000 | 0 |
 
 ## 자취 — 강화 뒤 · 게이지 100% · 합체 자동
-      2.5초 · 활성 A · 로봇(0.0,0.0) · 보스(4.3,0.0) r1.33 · 거리 4.25 · 깸 True · 보스 HP 17854 · 합체 중
-      5.0초 · 활성 A · 로봇(-2.5,0.0) · 보스(0.7,0.0) r1.33 · 거리 3.23 · 깸 True · 보스 HP 17766 · 합체 중
-      7.5초 · 활성 A · 로봇(-5.0,0.0) · 보스(-1.4,0.0) r1.33 · 거리 3.55 · 깸 True · 보스 HP 17678 · 합체 중
-     10.0초 · 활성 A · 로봇(-7.3,0.0) · 보스(-3.6,0.0) r1.33 · 거리 3.67 · 깸 True · 보스 HP 17590 · 합체 중
-     12.5초 · 활성 A · 로봇(-7.5,0.0) · 보스(-4.7,0.0) r1.33 · 거리 2.83 · 깸 True · 보스 HP 17503 · 합체 중
-     15.0초 · 활성 A · 로봇(-10.0,0.0) · 보스(-7.2,0.0) r1.33 · 거리 2.78 · 깸 True · 보스 HP 17415 · 합체 중
-     17.5초 · 활성 A · 로봇(-12.5,0.0) · 보스(-9.7,0.0) r1.33 · 거리 2.80 · 깸 True · 보스 HP 17327 · 합체 중
-     20.0초 · 활성 A · 로봇(-15.0,0.0) · 보스(-12.2,0.0) r1.33 · 거리 2.83 · 깸 True · 보스 HP 17239 · 합체 중
-     22.5초 · 활성 A · 로봇(-16.2,0.0) · 보스(-13.2,0.0) r1.33 · 거리 3.03 · 깸 True · 보스 HP 17191 · 합체 -
-     25.0초 · 활성 A · 로봇(-17.5,0.0) · 보스(-14.0,0.0) r1.33 · 거리 3.53 · 깸 True · 보스 HP 17142 · 합체 -
-     27.5초 · 활성 A · 로봇(-17.5,0.0) · 보스(-14.7,0.0) r1.33 · 거리 2.78 · 깸 True · 보스 HP 17093 · 합체 -
-     30.0초 · 활성 B · 로봇(-20.0,0.0) · 보스(-17.0,0.0) r1.33 · 거리 3.03 · 깸 True · 보스 HP 11018 · 합체 -
-     32.5초 · 활성 B · 로봇(-23.7,0.0) · 보스(-20.5,0.0) r1.33 · 거리 3.25 · 깸 True · 보스 HP 10915 · 합체 -
-     35.0초 · 활성 A · 로봇(-26.2,0.0) · 보스(-22.7,0.0) r1.33 · 거리 3.57 · 깸 True · 보스 HP 10475 · 합체 -
-     37.5초 · 활성 A · 로봇(-27.5,0.0) · 보스(-24.7,0.0) r1.33 · 거리 2.80 · 깸 True · 보스 HP 10426 · 합체 -
-     40.0초 · 활성 A · 로봇(-28.7,0.0) · 보스(-25.7,0.0) r1.33 · 거리 3.07 · 깸 True · 보스 HP 10377 · 합체 -
-     42.5초 · 활성 A · 로봇(-30.0,0.0) · 보스(-26.4,0.0) r1.33 · 거리 3.57 · 깸 True · 보스 HP 10328 · 합체 -
-     45.0초 · 활성 A · 로봇(-30.0,0.0) · 보스(-27.2,0.0) r1.33 · 거리 2.82 · 깸 True · 보스 HP 10280 · 합체 -
-     47.5초 · 활성 A · 로봇(-31.2,0.0) · 보스(-28.5,0.0) r1.33 · 거리 2.80 · 깸 True · 보스 HP 10231 · 합체 -
-     50.0초 · 활성 A · 로봇(-32.5,0.0) · 보스(-29.7,0.0) r1.33 · 거리 2.77 · 깸 True · 보스 HP 10182 · 합체 -
-     52.5초 · 활성 A · 로봇(-33.8,0.0) · 보스(-30.9,0.0) r1.33 · 거리 2.82 · 깸 True · 보스 HP 10133 · 합체 -
-     55.0초 · 활성 B · 로봇(-35.0,0.0) · 보스(-31.7,0.0) r1.33 · 거리 3.32 · 깸 True · 보스 HP 4038 · 합체 -
-     57.5초 · 활성 B · 로봇(-38.8,0.0) · 보스(-35.2,0.0) r1.33 · 거리 3.55 · 깸 True · 보스 HP 3925 · 합체 -
+      2.5초 · 활성 A · 로봇(0.0,0.0) · 보스(4.3,0.0) r1.33 · 거리 4.25 · 깸 True · 보스 HP 13354 · 합체 중
+      5.0초 · 활성 A · 로봇(-2.5,0.0) · 보스(0.7,0.0) r1.33 · 거리 3.23 · 깸 True · 보스 HP 13266 · 합체 중
+      7.5초 · 활성 A · 로봇(-5.0,0.0) · 보스(-1.4,0.0) r1.33 · 거리 3.55 · 깸 True · 보스 HP 13178 · 합체 중
+     10.0초 · 활성 A · 로봇(-7.3,0.0) · 보스(-3.6,0.0) r1.33 · 거리 3.67 · 깸 True · 보스 HP 13091 · 합체 중
+     12.5초 · 활성 A · 로봇(-7.5,0.0) · 보스(-4.7,0.0) r1.33 · 거리 2.83 · 깸 True · 보스 HP 13003 · 합체 중
+     15.0초 · 활성 A · 로봇(-10.0,0.0) · 보스(-7.2,0.0) r1.33 · 거리 2.78 · 깸 True · 보스 HP 12915 · 합체 중
+     17.5초 · 활성 A · 로봇(-12.5,0.0) · 보스(-9.7,0.0) r1.33 · 거리 2.80 · 깸 True · 보스 HP 12827 · 합체 중
+     20.0초 · 활성 A · 로봇(-15.0,0.0) · 보스(-12.2,0.0) r1.33 · 거리 2.83 · 깸 True · 보스 HP 12740 · 합체 중
+     22.5초 · 활성 A · 로봇(-16.2,0.0) · 보스(-13.2,0.0) r1.33 · 거리 3.03 · 깸 True · 보스 HP 12691 · 합체 -
+     25.0초 · 활성 A · 로봇(-17.5,0.0) · 보스(-14.0,0.0) r1.33 · 거리 3.53 · 깸 True · 보스 HP 12642 · 합체 -
+     27.5초 · 활성 A · 로봇(-17.5,0.0) · 보스(-14.7,0.0) r1.33 · 거리 2.78 · 깸 True · 보스 HP 12593 · 합체 -
+     30.0초 · 활성 B · 로봇(-20.0,0.0) · 보스(-17.0,0.0) r1.33 · 거리 3.03 · 깸 True · 보스 HP 6518 · 합체 -
+     32.5초 · 활성 B · 로봇(-23.7,0.0) · 보스(-20.5,0.0) r1.33 · 거리 3.25 · 깸 True · 보스 HP 6416 · 합체 -
+     35.0초 · 활성 A · 로봇(-26.2,0.0) · 보스(-22.7,0.0) r1.33 · 거리 3.57 · 깸 True · 보스 HP 5975 · 합체 -
+     37.5초 · 활성 A · 로봇(-27.5,0.0) · 보스(-24.7,0.0) r1.33 · 거리 2.80 · 깸 True · 보스 HP 5926 · 합체 -
+     40.0초 · 활성 A · 로봇(-28.7,0.0) · 보스(-25.7,0.0) r1.33 · 거리 3.07 · 깸 True · 보스 HP 5877 · 합체 -
+     42.5초 · 활성 A · 로봇(-30.0,0.0) · 보스(-26.4,0.0) r1.33 · 거리 3.57 · 깸 True · 보스 HP 5829 · 합체 -
+     45.0초 · 활성 A · 로봇(-30.0,0.0) · 보스(-27.2,0.0) r1.33 · 거리 2.82 · 깸 True · 보스 HP 5780 · 합체 -
+     47.5초 · 활성 A · 로봇(-31.2,0.0) · 보스(-28.5,0.0) r1.33 · 거리 2.80 · 깸 True · 보스 HP 5731 · 합체 -
+     50.0초 · 활성 A · 로봇(-32.5,0.0) · 보스(-29.7,0.0) r1.33 · 거리 2.77 · 깸 True · 보스 HP 5682 · 합체 -
+     52.5초 · 활성 A · 로봇(-33.8,0.0) · 보스(-30.9,0.0) r1.33 · 거리 2.82 · 깸 True · 보스 HP 5634 · 합체 -
 
 상세(강화 뒤 · 합체 씀):
 ############ 태그 두 로봇 판 · S6 (2026-09-18) ############
@@ -551,7 +464,7 @@ Total: 17.667300 ms (FindLiveObjects: 1.174900 ms CreateObjectMapping: 1.566400 
   B 보드 — 이어진 노드 18 · 드론 2.00 기/초 · 광역 몫 0.50 · 전력 30/27
 
 [결과]
-  LoseTimeout · 60.0초 · 남은 적 1/1 · 로봇 HP 1000/1000
+  Win · 53.6초 · 남은 적 0/1 · 로봇 HP 1000/1000
   교대 3 회 · 태그 스킬 3 회
 
 [목적 1 — 피해 나눔의 대가]  ← 측정법: 태그 스킬이 터질 때마다 표적 수와 총 피해를 읽는다
@@ -563,27 +476,27 @@ Total: 17.667300 ms (FindLiveObjects: 1.174900 ms CreateObjectMapping: 1.566400 
     **28.4초**에 만충(적재량 40) ← 태그 스킬이 나간 자리로 잰다(만충일 때만 나간다)
 
 [목적 3 — 두 드론 혼재]  ← 측정법: 매 틱 B 마운트의 두 종 적재를 평균 낸다
-    평균 적재 — 누적형 9.2 · 광역형 8.1 · 광역 비율 0.47
+    평균 적재 — 누적형 10.1 · 광역형 8.7 · 광역 비율 0.46
     보드 산출 몫 — 광역 0.50 (비율이 이 수와 갈리면 마운트가 유입대로 안 찬 것이다)
 
 [B 포트 둘 — 도착이 있는가]  ← 측정법: 종별 도착률을 판 내내 적분한 것. 종마다 다른 포트로 들어온다
-    누적형 **56 기** (포트 (9,10) 서면) · 광역형 **46 기** (포트 (2,10) 동면)
+    누적형 **49 기** (포트 (9,10) 서면) · 광역형 **41 기** (포트 (2,10) 동면)
     ⚠️ 한쪽이 0 이면 그 포트로 가는 줄이 끊긴 것이다.
 
 [기존 줄 산출 불변]  ← 측정법: B 가 나가 있는 동안의 회피 스택 최고 · 보호막 최고
-    회피 스택 최고 8 (추진제 줄) · 보호막 최고 200 (보호막 줄)
+    회피 스택 최고 8 (추진제 줄) · 보호막 최고 167 (보호막 줄)
     ⚠️ 둘 다 0 이면 코어 서면 분류기가 기존 줄을 굶긴 것이다.
 
 [회피 축 — 두 로봇 판]  ← 측정법: 한 로봇 판(`Run`)과 같은 값을 읽는다
-    **자동 회피 발동 14 회**  ← 측정법: `DodgeSystem.TotalDodges`(발동할 때마다 1 증가) 를 판 끝에서 읽는다
-    **피격 61 회**(회피로 무효가 된 것 포함)  ← 측정법: 근접·포탄이 **명중 판정에 들어온** 순간마다 1 증가
+    **자동 회피 발동 6 회**  ← 측정법: `DodgeSystem.TotalDodges`(발동할 때마다 1 증가) 를 판 끝에서 읽는다
+    **피격 53 회**(회피로 무효가 된 것 포함)  ← 측정법: 근접·포탄이 **명중 판정에 들어온** 순간마다 1 증가
     **받은 총 피해 337**  ← 측정법: 실제로 **HP 에서** 깎인 값의 합
-    **회피로 무효화한 피해 620**  ← 측정법: 무적이라 **계산에 들어가지도 않은** 공격력의 합
+    **회피로 무효화한 피해 460**  ← 측정법: 무적이라 **계산에 들어가지도 않은** 공격력의 합
     **쉴드가 막은 피해 263**  ← 측정법: 피격마다 게이지에서 실제로 빠진 양의 합
     ⚠️ **스택 최고 8 과 발동 0 회는 같이 설 수 있다** — 그릇은 찼는데 쓸 일이 없었거나, 쓸 수 없었다는 뜻이다. 둘은 다른 물음이다.
 
 [목적 4 — 광역형 한 기의 평균 표적 수]  ← 측정법: 광역 타격마다 (주 표적 1 + 곁에 닿은 수)
-    타격 21 회 · 닿은 표적 합 21 · **평균 1.00 마리** (설계 본전 4마리와 견준다)
+    타격 8 회 · 닿은 표적 합 8 · **평균 1.00 마리** (설계 본전 4마리와 견준다)
 
 [적 간격 — 반경이 무엇을 정하는가]  ← 측정법: 붙은 적마다 가장 가까운 이웃까지의 거리(0.5초마다)
     ⚠️ 붙은 적이 둘 이상인 적이 없었다 — 간격을 못 쟀다
@@ -607,7 +520,7 @@ MBI.EditorTools.StageClearHarness:RunS6MergeBatch () (at Assets/_Project/Scripts
 
 (Filename: Assets/_Project/Scripts/Editor/StageClearHarness.cs Line: 2153)
 
-Killing ADB server in 2.1577512 seconds.
+Killing ADB server in 2.1674989 seconds.
 [Physics::Module] Cleanup current backend.
 [Physics::Module] Id: 0xf2b8ea05
 Input System module state changed to: ShutdownInProgress.
@@ -619,21 +532,17 @@ AcceleratorClientConnectionCallback - disconnected - :0
 Shut down.
 Cleanup mono
 CodeReloadManager destroyed
-abort_threads: Failed aborting id: 00000000000062D4, mono_thread_manage will ignore it
+abort_threads: Failed aborting id: 000000000000566C, mono_thread_manage will ignore it
 
-abort_threads: Failed aborting id: 0000000000008A64, mono_thread_manage will ignore it
+abort_threads: Failed aborting id: 000000000000520C, mono_thread_manage will ignore it
 
-abort_threads: Failed aborting id: 00000000000023E4, mono_thread_manage will ignore it
+abort_threads: Failed aborting id: 000000000000566C, mono_thread_manage will ignore it
 
-abort_threads: Failed aborting id: 00000000000062D4, mono_thread_manage will ignore it
+abort_threads: Failed aborting id: 000000000000520C, mono_thread_manage will ignore it
 
-abort_threads: Failed aborting id: 0000000000008A64, mono_thread_manage will ignore it
-
-abort_threads: Failed aborting id: 00000000000023E4, mono_thread_manage will ignore it
-
-debugger-agent: Unable to listen on 3572
+debugger-agent: Unable to listen on 3420
 Checking for leaked weakptr:
   Found no leaked weakptrs.
 [Package Manager] Server process was shutdown
-##utp:{"type":"MemoryLeaks","version":2,"phase":"Immediate","time":1792143895052,"processId":15488,"allocatedMemory":15657146,"memoryLabels":[{"Default":200996},{"Permanent":15276},{"NewDelete":65187},{"Thread":4230384},{"Manager":34093},{"VertexData":8},{"Geometry":816},{"Texture":24},{"Shader":850484},{"Material":24},{"GfxDevice":55321},{"Animation":392},{"Audio":3008},{"FreeType":8},{"FontEngine":736},{"Physics":2090},{"Physics2D":16},{"Serialization":824},{"Input":9880},{"JobScheduler":33024},{"TextLib":216},{"Mono":32},{"MonoCode":64},{"ScriptingNativeRuntime":155052},{"BaseObject":1620496},{"Resource":1184},{"Renderer":3008},{"Transform":4685},{"File":1088},{"WebCam":616},{"Culling":32},{"Terrain":11394},{"Wind":24},{"STL":40},{"String":14937},{"StaticString":6718},{"Utility":2673318},{"Curl":2559},{"PoolAlloc":2168},{"AI":80},{"TypeTree":16261},{"ScriptManager":448},{"RuntimeInitializeOnLoadManager":64},{"SpriteAtlas":120},{"GI":7792},{"Director":8320},{"CloudService":7376},{"WebRequest":845},{"VR":48050},{"SceneManager":504},{"Video":64},{"LazyScriptCache":32},{"Camera":17},{"Secure":2113},{"SerializationCache":1576},{"APIUpdating":10320},{"Subsystems":336},{"VirtualTexturing":57888},{"StaticSafetyDebugInfo":278528},{"Analytics":464},{"Hierarchy":608},{"CoreStats":13032},{"Identifiers":12960},{"Gui":128},{"EditorUtility":112675},{"VersionControl":4},{"Undo":931},{"AssetDatabase":5020775},{"EditorGi":328},{"UnityConnect":37753},{"Upm":1912},{"UpmDiagnostics":8},{"AssetCompliance":64},{"DrivenProperties":72},{"LocalIPC":210},{"ProfilerEditor":9746},{"CoreBusinessMetrics":2872},{"Windowing":456},{"Licensing":1232},{"AssetReference":32},{"IPCStream":32}]}
+##utp:{"type":"MemoryLeaks","version":2,"phase":"Immediate","time":1792144580137,"processId":35960,"allocatedMemory":15657160,"memoryLabels":[{"Default":200996},{"Permanent":15276},{"NewDelete":65187},{"Thread":4230384},{"Manager":34093},{"VertexData":8},{"Geometry":816},{"Texture":24},{"Shader":850484},{"Material":24},{"GfxDevice":55321},{"Animation":392},{"Audio":3008},{"FreeType":8},{"FontEngine":736},{"Physics":2090},{"Physics2D":16},{"Serialization":824},{"Input":9880},{"JobScheduler":33024},{"TextLib":216},{"Mono":32},{"MonoCode":64},{"ScriptingNativeRuntime":155052},{"BaseObject":1620496},{"Resource":1184},{"Renderer":3008},{"Transform":4685},{"File":1088},{"WebCam":616},{"Culling":32},{"Terrain":11394},{"Wind":24},{"STL":40},{"String":14951},{"StaticString":6718},{"Utility":2673318},{"Curl":2559},{"PoolAlloc":2168},{"AI":80},{"TypeTree":16261},{"ScriptManager":448},{"RuntimeInitializeOnLoadManager":64},{"SpriteAtlas":120},{"GI":7792},{"Director":8320},{"CloudService":7376},{"WebRequest":845},{"VR":48050},{"SceneManager":504},{"Video":64},{"LazyScriptCache":32},{"Camera":17},{"Secure":2113},{"SerializationCache":1576},{"APIUpdating":10320},{"Subsystems":336},{"VirtualTexturing":57888},{"StaticSafetyDebugInfo":278528},{"Analytics":464},{"Hierarchy":608},{"CoreStats":13032},{"Identifiers":12960},{"Gui":128},{"EditorUtility":112675},{"VersionControl":4},{"Undo":931},{"AssetDatabase":5020775},{"EditorGi":328},{"UnityConnect":37753},{"Upm":1912},{"UpmDiagnostics":8},{"AssetCompliance":64},{"DrivenProperties":72},{"LocalIPC":210},{"ProfilerEditor":9746},{"CoreBusinessMetrics":2872},{"Windowing":456},{"Licensing":1232},{"AssetReference":32},{"IPCStream":32}]}
 ~StackAllocator(ALLOC_TEMP_MAIN) m_LastAlloc not NULL. Did you forget to call FreeAllStackAllocations()? To get more information, run app with -diag-temp-memory-leak-validation cmd line argument
