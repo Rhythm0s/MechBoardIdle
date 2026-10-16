@@ -2291,6 +2291,50 @@ namespace MBI.EditorTools
             if (Application.isBatchMode) EditorApplication.Exit(0);
         }
 
+        /// <summary>
+        /// **#164 S6 보스 HP 값 찾기** — ×2 태운 판 · 강화 뒤 · A 40 · B 0 · 3초 차오름 · Auto 켬 · 60초.
+        /// 12000 부터 500 단위로 즉시 합체 / 45초 합체 / 안 누름 / 강화 전(즉시 합체).
+        /// 배치: <c>-executeMethod MBI.EditorTools.StageClearHarness.RunS6HpSearchBatch</c>
+        /// </summary>
+        public static void RunS6HpSearchBatch()
+        {
+            var sb = new StringBuilder();
+            sb.AppendLine("############ #164 S6 보스 HP 찾기 (2026-10-17 · c74c4b8 하네스 · 합체 중 노드 산출 ×2 태움 · 강화 뒤 · A 40 · B 0 · 3초 차오름 · Auto 켬 · 60초) ############");
+            sb.AppendLine("| 보스 HP | 즉시 합체 | 남은 시간 | 큰 스킬(시각·피해) | 45초 합체 | 안 누름 | 강화 전 · 즉시 합체 |");
+            sb.AppendLine("|---|---|---|---|---|---|---|");
+            try
+            {
+                for (float hp = 12000f; hp <= 40000f; hp += 500f)
+                {
+                    string[] c = new string[4]; string big = "", left = ""; bool anyWin = false;
+                    for (int i = 0; i < 4; i++)
+                    {
+                        float h = hp;
+                        SpawnHook = l => { var o = new List<EnemySpawn>(); foreach (var e in l) { var x = e; x.hp = h; o.Add(x); } return o; };
+                        HarnessMergeOutput = true; Enhanced = i != 3; AutoMerge = true; RushMerge = true;
+                        MergeNotBefore = i == 1 ? 45f : i == 2 ? 999f : 0f; MergeStartRatio = 0f; AStartRatio = 1f; BStartRatio = 0f;
+                        StageVerdict v = RunOne("S6", 0f);
+                        bool win = v.result == CombatResult.Win;
+                        c[i] = win ? $"**Win {v.seconds:F1}초**" : $"{v.result} · 남은 {LastEnemyHpLeft:F0}";
+                        if (i == 0)
+                        {
+                            anyWin = win;
+                            left = win ? $"{60f - v.seconds:F1}초" : "—";
+                            big = LastStrikeLog.Replace(" · 표적 1 · 총 피해 ", "(");
+                            big = System.Text.RegularExpressions.Regex.Replace(big, @" · 한 체 몫 \d+ · 소진 직전 적재\([^)]*\)", ")");
+                        }
+                        KnobReset();
+                    }
+                    sb.AppendLine($"| {hp:F0} | {c[0]} | {left} | {big} | {c[1]} | {c[2]} | {c[3]} |");
+                    if (!anyWin) break;   // 즉시 합체로 못 잡으면 더 올릴 까닭이 없다
+                }
+            }
+            finally { KnobReset(); }
+            System.IO.File.WriteAllText("Docs/261017_s6_hp164.md", sb.ToString());
+            Debug.Log(sb.ToString());
+            if (Application.isBatchMode) EditorApplication.Exit(0);
+        }
+
         internal static float KnobBossHp;
         internal static bool HarnessMergeOutput;
         internal static float RateMergeB, RateMergeA, RateMergeT, RatePreB, RatePreA, RatePreT;
