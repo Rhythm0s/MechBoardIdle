@@ -49,6 +49,7 @@ namespace MBI.Idle
             Wallet = new CurrencyWallet(Data.scrap, Data.enhMaterial, Data.gold);
             // #150 — 전투가 첫 판을 세우기 전에 계수를 알아야 한다(Awake · 튜토리얼 복원과 같은 자리)
             IdleSignals.MountEnhanced = Data.mountEnhanced;
+            IdleSignals.MergeChargeSeconds = Data.mergeChargeSeconds;   // #155 — 첫 판이 서기 전에
 
             // 튜토리얼을 이미 했는지 전투 쪽에 알린다. **Awake에서 한다** —
             // Stage0Session이 자기 Awake에서 이 값을 읽어 들어갈지 말지를 정하므로,
@@ -90,6 +91,7 @@ namespace MBI.Idle
                 ResetSave();
                 // #141 · 저장은 비웠는데 메모리 장부가 남아 T3 안 뜸·S2 열림 — 새 저장으로 갈아끼운다
                 IdleSignals.RepublishAfterReset(Data);
+                IdleSignals.MergeChargeSeconds = 0f;   // #155 — 처음부터면 게이지도 0
                 RobotBGate.Reset();   // 처음부터면 B 도 다시 잠긴다
             }
 
@@ -221,6 +223,7 @@ namespace MBI.Idle
             Data.scrap = Wallet.Scrap;
             Data.enhMaterial = Wallet.EnhMaterial;
             Data.gold = Wallet.Gold;   // ⚠️ `killsTowardGold` 는 CreditSignals 가 이미 Data 에 직접 쓴다
+            Data.mergeChargeSeconds = IdleSignals.MergeChargeSeconds;   // #155
             Data.lastSeenUtcTicks = _clock.UtcNow.Ticks; // 꺼둔 시간 계산의 기준점
 
             // ⚠️⚠️ **끈 시점의 상주 파밍 판**(2026-10-13 · 순서 6). 이 한 줄이 없어서

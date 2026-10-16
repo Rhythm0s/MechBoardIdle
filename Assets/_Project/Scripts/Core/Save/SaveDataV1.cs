@@ -50,6 +50,12 @@ namespace MBI.Core
         ///    옛 저장에는 칸이 없고 JsonUtility 가 기본값(거짓)을 준다. 옛 저장 = 강화 안 함이 맞다.
         /// </summary>
         public bool mountEnhanced;
+
+        /// <summary>
+        /// **합체 게이지(초)** (사용자 확정 #155 · 2026-10-16) — 판을 넘어 이어 가므로 껐다 켜도 남는다.
+        /// ⚠️ 스키마 번호는 안 올린다 — 더하기만 하는 칸(옛 저장 = 0).
+        /// </summary>
+        public float mergeChargeSeconds;
         public string lastFarmStageId = "";        // 끈 시점의 상주 스테이지
         public int totalKills;
 

@@ -158,6 +158,12 @@ namespace MBI.Core
         /// </summary>
         public static bool MountEnhanced;
 
+        /// <summary>
+        /// **합체 게이지(초) 게시 — 상태**(사용자 확정 #155 · 2026-10-16). 전투가 매 프레임 쓰고, 판이 새로 설 때
+        /// 그 값을 새 판에 넣는다. 방치 런타임이 저장에서 복원하고 저장에 쓴다. 썼으면 0.
+        /// </summary>
+        public static float MergeChargeSeconds;
+
         private static bool _enhanceRequested;
         private static double _enhanceCost;
 
@@ -349,6 +355,7 @@ namespace MBI.Core
             WalletEnhMaterial = 0d;
             WalletGold = 0d;
             MountEnhanced = false;
+            MergeChargeSeconds = 0f;
             _enhanceRequested = false;
             _enhanceCost = 0d;
             KillsTowardGold = 0;

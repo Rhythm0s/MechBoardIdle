@@ -1865,7 +1865,7 @@ namespace MBI.EditorTools
             }
             finally { SpawnHook = null; HpAll = 0f; PlantScale = 1f; DmgMult = 1f; RateMult = 1f; Enhanced = false; }
 
-            System.IO.File.WriteAllText("Docs/261016_post153d_sweep.md", sb.ToString());   // 🗑️ 구 post149·151·152·153 파일명 — 그 표들은 앞 커밋에 남는다
+            System.IO.File.WriteAllText("Docs/261016_post155_sweep.md", sb.ToString());   // 🗑️ 구 post149·151·152·153·153d 파일명 — 그 표들은 앞 커밋에 남는다
             Debug.Log(sb.ToString());
             if (Application.isBatchMode) EditorApplication.Exit(0);
         }
@@ -2073,6 +2073,14 @@ namespace MBI.EditorTools
         /// <summary>합체가 차는 즉시 누른다 — 하네스 전용(2026-10-16 S6 확인).</summary>
         internal static bool AutoMerge;
 
+        /// <summary>S6 자취 — 2.5초마다 로봇·보스 자리(하네스 진단 · 2026-10-16).</summary>
+        internal static StringBuilder TraceS6;
+        private static float TraceNext;
+
+        /// <summary>#155 — 이 비율(0~1)의 게이지로 들어간다(하네스 · 음수면 0 에서 시작).</summary>
+        internal static float MergeStartRatio = -1f;
+        internal static float LastHpBeforeMerge = -1f, LastMergeEndHp = -1f;
+
         /// <summary>합체 게이지를 1초 앞까지 채운 채 시작 — 하네스 가정 판(2026-10-16 · 「합체를 쓸 수 있었다면」).</summary>
         internal static bool MergePrefill;
         internal static float LastMergeAt = -1f, LastMergeReadyAt = -1f, LastBurstDamage, LastEnemyHpLeft;
@@ -2111,11 +2119,35 @@ namespace MBI.EditorTools
                     sb.AppendLine($"| {(en ? "뒤" : "전")} | {Cell(v)} | " + (LastMergeAt < 0f ? "—" : $"{LastMergeAt:F1}초") + $" | {LastBurstDamage:F0} | {LastEnemyHpLeft:F0} |");
                 }
                 sb.AppendLine();
+                sb.AppendLine("## #155 — 파밍에서 이어 온 게이지로 들어감 · 적이 로봇 사거리에 든 순간 합체(하네스 자동)");
+                sb.AppendLine("| 강화 | 들고 온 게이지 | 결과 | 합체 누른 시각 | 버스트 피해 | 합체 20초 동안 깎은 HP | 60초에 깎은 HP | 보스 남은 HP |");
+                sb.AppendLine("|---|---|---|---|---|---|---|---|");
+                foreach (bool en in new[] { false, true })
+                    foreach (float r in new[] { 1f, 0.5f, 0f })
+                    {
+                        Enhanced = en; AutoMerge = true; MergeStartRatio = r;
+                        StageVerdict v = RunOne("S6", 0f);
+                        Enhanced = false; AutoMerge = false; MergeStartRatio = -1f;
+                        float total = 18000f;
+                        string during = LastHpBeforeMerge < 0f ? "—"
+                            : $"{LastHpBeforeMerge - LastBurstDamage - (LastMergeEndHp >= 0f ? LastMergeEndHp : LastEnemyHpLeft):F0}"
+                              + (LastMergeEndHp >= 0f ? "" : "(판 끝까지)");
+                        sb.AppendLine($"| {(en ? "뒤" : "전")} | {r * 100f:F0}% | {Cell(v)} | "
+                                      + (LastMergeAt < 0f ? "못 씀" : $"{LastMergeAt:F1}초") + $" | {LastBurstDamage:F0} | {during} | {total - LastEnemyHpLeft:F0} | {LastEnemyHpLeft:F0} |");
+                    }
+                sb.AppendLine();
+                sb.AppendLine("## 자취 — 강화 뒤 · 게이지 100% · 합체 자동");
+                TraceS6 = new StringBuilder(); TraceNext = 0f;
+                Enhanced = true; AutoMerge = true; MergeStartRatio = 1f;
+                RunOne("S6", 0f);
+                Enhanced = false; AutoMerge = false; MergeStartRatio = -1f;
+                sb.Append(TraceS6.ToString()); TraceS6 = null;
+                sb.AppendLine();
                 sb.AppendLine("상세(강화 뒤 · 합체 씀):");
                 Enhanced = true; AutoMerge = true;
                 sb.AppendLine(RunTag("S6"));
             }
-            finally { SpawnHook = null; HpAll = 0f; PlantScale = 1f; DmgMult = 1f; RateMult = 1f; Enhanced = false; AggroOverride = 0f; AutoMerge = false; MergePrefill = false; }
+            finally { SpawnHook = null; HpAll = 0f; PlantScale = 1f; DmgMult = 1f; RateMult = 1f; Enhanced = false; AggroOverride = 0f; AutoMerge = false; MergePrefill = false; MergeStartRatio = -1f; TraceS6 = null; }
 
             System.IO.File.WriteAllText("Docs/261016_s6_merge.md", sb.ToString());
             Debug.Log(sb.ToString());
@@ -2468,8 +2500,10 @@ namespace MBI.EditorTools
             int steps = Mathf.RoundToInt(HardCapSeconds / Dt);
             float elapsed = 0f;
             int tagSwaps = 0, lastActive = 0;
+            var tagLines = new List<AmmoLine>();   // 매 틱 A 줄 재배분용(아래 · 2026-10-16 정정)
             float allSpawnedAt = -1f;   // #151 — 다 나온 시각
             LastMergeAt = -1f; LastMergeReadyAt = -1f; LastBurstDamage = 0f;   // 2026-10-16 S6 합체 확인
+            LastHpBeforeMerge = -1f; LastMergeEndHp = -1f;
             int peakAggro = 0;          // #152 — 한 번에 깨어 있던 최대 수
             float bFullAt = -1f;
             var strikeLog = new List<string>();
@@ -2565,14 +2599,46 @@ namespace MBI.EditorTools
                     sim.Robot.position = AutoPilotPolicy.NextPosition(ctx);
                 }
 
+                // ⚠️⚠️ **A 발사 줄을 매 틱 다시 낸다**(2026-10-16 · 하네스 결함 정정). 종전 RunTag 는 판을 세울 때
+                //    **마운트가 실리기 전** 한 번만 배분해 A 의 줄이 비어 있었다 — 두 로봇 판(S5·S6)에서 A 가 **한 발도
+                //    안 쐈다**(S6 자취: 보스가 사거리 8 에 28초 서 있는데 HP 그대로). 러너는 매 프레임 `RefreshFireRate` 로
+                //    다시 낸다 — 같은 문을 지난다. B 가 나가 있을 때는 건드리지 않는다(B 는 본체 무기가 없다).
+                if (sim.ActiveRobotIndex == 0)
+                {
+                    // ⚠️ 재고는 **나선 마운트에서 바로** 읽는다 — RunTag 는 러너처럼 슬롯 신호(`PublishMount`)를 안 실어
+                    //    `SupplySignals.MountStockOf` 가 늘 0 이었다(이것이 A 무발사의 뿌리). 러너가 싣는 값과 같다.
+                    MountLoad am = sim.ActiveMount;
+                    ShotAllocator.AllocateRates(robotA.weapons, robotA.consumptionCap,
+                        SupplySignals.ArrivalRateOf, k => am != null ? am.AmountOf(MountItemMap.From(k)) : 0f, tagLines);
+                    sim.SetFireLines(tagLines);
+                }
                 // 2026-10-16 사용자 지시 「S6 태그·합체를 써도 시간 초과인가」 — 합체가 차는 즉시 누른다(하네스 전용).
                 if (MergePrefill && elapsed <= 0f && sim.Merge != null) sim.Merge.FillGaugeAlmost();   // 가정 판 — 게이지가 1초 앞에서 시작
+                // #155 — 파밍에서 이어 온 게이지로 들어간 판(러너 `Begin` 과 같은 문 · SetCharge)
+                if (MergeStartRatio >= 0f && elapsed <= 0f && sim.Merge != null)
+                    sim.Merge.SetCharge(MergeStartRatio * MergeSystem.GaugeFullSeconds);
                 if (sim.Merge != null && sim.Merge.IsReady && LastMergeReadyAt < 0f) LastMergeReadyAt = elapsed;
-                bool engaged = false;   // 보스(적)가 깨어 싸움에 든 뒤에 누른다 — 사거리 밖에서 누르면 버스트가 허공이다
-                foreach (CombatEntity en in sim.Enemies) if (en.IsAlive && en.aggro) { engaged = true; break; }
+                bool engaged = false;   // 적이 로봇 사거리 안에 든 뒤에 누른다 — 밖에서 누르면 버스트가 허공이다
+                foreach (CombatEntity en in sim.Enemies)
+                    if (en.IsAlive && (en.position - sim.Robot.position).magnitude <= tuning.robotAttackRangeTbd + en.radius)
+                    { engaged = true; break; }
+                float enemyHp = 0f;
+                foreach (CombatEntity en in sim.Enemies) if (en.IsAlive) enemyHp += en.hp;
+                bool wasMerging = sim.Merge != null && sim.Merge.IsActive;
                 if (AutoMerge && engaged && LastMergeAt < 0f && sim.Merge != null && sim.Merge.IsReady && sim.TryMerge())
+                {
                     LastMergeAt = elapsed;
+                    LastHpBeforeMerge = enemyHp;
+                }
+                if (TraceS6 != null && elapsed >= TraceNext)
+                {
+                    TraceNext += 2.5f;
+                    foreach (CombatEntity en in sim.Enemies)
+                        if (en.IsAlive)
+                            TraceS6.AppendLine($"    {elapsed,5:F1}초 · 활성 {(sim.ActiveRobotIndex == 0 ? "A" : "B")} · 로봇({sim.Robot.position.x:F1},{sim.Robot.position.y:F1}) · 보스({en.position.x:F1},{en.position.y:F1}) r{en.radius:F2} · 거리 {(en.position - sim.Robot.position).magnitude:F2} · 깸 {en.aggro} · 보스 HP {en.hp:F0} · 합체 {(sim.Merge != null && sim.Merge.IsActive ? "중" : "-")}");
+                }
                 int strikesBefore = sim.TagSkillStrikes;
+                if (wasMerging && LastMergeEndHp < 0f && sim.Merge != null && !sim.Merge.IsActive) LastMergeEndHp = enemyHp;
                 float bStack = mountB.AmountOf(MountItem.Drone);
                 float bAoe = mountB.AmountOf(MountItem.DroneAoe);
 

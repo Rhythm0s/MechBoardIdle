@@ -85,6 +85,17 @@ namespace MBI.Combat
         /// 강화 표식이 바뀌었으면 **이 판에 바로 넣는다**(2026-10-16 #150).
         /// 파밍 중에 누르면 다음 도전을 기다리지 않고 지금 판부터 ×1.45 다 — 누른 사람이 바로 본다.
         /// </summary>
+        /// <summary>
+        /// 합체 게이지를 게시한다(사용자 확정 #155) — 합체가 있는 판에서만. 썼거나 진행 중이면 0(줄어드는 때 = 사용).
+        /// 합체가 없는 판(로봇 B 전)에서는 손대지 않는다 — 저장된 값이 그대로 남는다.
+        /// </summary>
+        private void PublishMergeCharge()
+        {
+            if (_sim == null || _sim.Merge == null) return;
+            MergeSystem m = _sim.Merge;
+            IdleSignals.MergeChargeSeconds = (m.UsedThisStage || m.IsActive) ? 0f : m.ChargeSeconds;
+        }
+
         private void ApplyMountEnhanceIfChanged()
         {
             if (_sim == null || _mountEnhancedApplied == IdleSignals.MountEnhanced) return;
@@ -499,6 +510,8 @@ namespace MBI.Combat
 
         public void ResetCarry()
         {
+            IdleSignals.MergeChargeSeconds = 0f;                       // #155 — 처음부터면 게이지도 0
+            if (_sim != null && _sim.Merge != null) _sim.Merge.Reset();
             _storeA = null;
             _storeB = null;
             _mountA = null;
@@ -641,6 +654,9 @@ namespace MBI.Combat
 
             // **탐색 규칙·전원 스폰은 도전 층만**(사용자 확정 #153 · 2026-10-16) — 파밍 층은 종전처럼
             //    스폰 즉시 다가온다(범위 0 = 규칙 끔). 층을 정한 **뒤**에 건다 — 갈래는 여기 하나다.
+            // **합체 게이지를 이어 간다**(사용자 확정 #155) — 판이 새로 서도 앞 판의 값(저장 복원 포함)을 넣는다.
+            if (_sim != null && _sim.Merge != null) _sim.Merge.SetCharge(IdleSignals.MergeChargeSeconds);
+
             bool challengeLayer = !StageLayerSignals.IsFarming;
             if (challengeLayer && !IsTutorialStage)
                 Debug.Log($"[MBI] 도전 판 섬 — {(stage != null ? stage.stageId : "?")} · 들고 온 {CarryLine()}.");   // 지시 ② 증거
@@ -1381,6 +1397,7 @@ namespace MBI.Combat
             if (MainMenuGate.IsOpen || SettingsGate.IsOpen) return;
 
             ApplyMountEnhanceIfChanged();
+            PublishMergeCharge();
 
             // 결과가 나도 끝까지 튼다 — 버스트로 마지막 적이 죽으면 연출이 그 프레임에 끊긴다.
             _cutscene.Tick(Time.deltaTime);
@@ -2571,7 +2588,7 @@ namespace MBI.Combat
             float sc = UiLayout.Scale(Screen.height);
             float w = Mathf.Min(Screen.width - 32f, 1100f * sc);
             bool showB = robotB != null && RobotBGate.IsUnlocked;
-            float h = (showB ? 560f : 470f) * sc;
+            float h = (showB ? 630f : 470f) * sc;
             var rect = new Rect((Screen.width - w) * 0.5f, (Screen.height - h) * 0.42f, w, h);
             GUI.ModalWindow(0x5E17, rect, EntryNoticeWindow, GUIContent.none, GUIStyle.none);
         }
@@ -2581,7 +2598,7 @@ namespace MBI.Combat
             float sc = UiLayout.Scale(Screen.height);
             bool showB = robotB != null && RobotBGate.IsUnlocked;
             float w = Mathf.Min(Screen.width - 32f, 1100f * sc);
-            float h = (showB ? 560f : 470f) * sc;
+            float h = (showB ? 630f : 470f) * sc;
             UiPlate.Draw(new Rect(0f, 0f, w, h));
 
             GUIStyle btn = HudButtonStyle();
@@ -2603,9 +2620,21 @@ namespace MBI.Combat
                 float stackB = robot != null && robot.balanceRef != null ? robot.balanceRef.mountStackLimit : 10f;
                 float bCap = MountLoad.SlotsRobotB * stackB * DroneStackFactor;
                 GUI.Label(new Rect(pad, y, w - pad * 2f, lh), ChallengeEntryNotice.LineB(bNow, bCap), line); y += lh;
+                // 합체 게이지(사용자 확정 #155) — 이어 가는 값
+                GUI.Label(new Rect(pad, y, w - pad * 2f, lh),
+                    ChallengeEntryNotice.LineMerge(IdleSignals.MergeChargeSeconds / MergeSystem.GaugeFullSeconds), line); y += lh;
             }
 
-            float bw = (w - pad * 3f) * 0.5f, bh = h - y - pad;
+            // **T3 에서도 띄운다**(사용자 확정 #155 결) — 그때는 「도전 시작」 하나만 둔다(취소 숨김 · 구현 판단):
+            //    T3 는 「도전」만 열린 국면이라 닫고 돌아갈 곳이 없다.
+            bool t3 = TutorialSignals.HighlightChallengeButton;
+            float bh = h - y - pad;
+            if (t3)
+            {
+                if (UiSkin.Button(new Rect(pad, y, w - pad * 2f, bh), ChallengeEntryNotice.Confirm, btn)) EnterChallenge();
+                return;
+            }
+            float bw = (w - pad * 3f) * 0.5f;
             if (UiSkin.Button(new Rect(pad, y, bw, bh), ChallengeEntryNotice.Confirm, btn)) EnterChallenge();
             else if (UiSkin.Button(new Rect(pad * 2f + bw, y, bw, bh), ChallengeEntryNotice.Cancel, btn)) _entryNoticeOpen = false;
         }

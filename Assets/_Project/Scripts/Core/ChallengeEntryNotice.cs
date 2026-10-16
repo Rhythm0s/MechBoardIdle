@@ -24,6 +24,10 @@ namespace MBI.Core
         public static string LineB(float drones, float capacity) =>
             $"로봇 B 마운트 드론 {Floor(drones)}/{Floor(capacity)}";
 
+        /// <summary>합체 게이지 줄 — 이어 가는 게이지(사용자 확정 #155). 글자는 가정. 0~1 비율을 받는다.</summary>
+        public static string LineMerge(float ratio) =>
+            $"합체 게이지 {Floor(System.Math.Max(0f, System.Math.Min(1f, ratio)) * 100f)}%";
+
         /// <summary>
         /// 화면 숫자는 **내림**이다 — 39.6 을 40/40 으로 올려 적으면 「가득」으로 읽힌다
         /// (마일스톤 목표 줄 `MountProgressText` 와 같은 결).

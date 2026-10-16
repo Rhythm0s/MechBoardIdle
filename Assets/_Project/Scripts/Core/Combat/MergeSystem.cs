@@ -97,6 +97,19 @@ namespace MBI.Core
             _charge = Mathf.Max(0f, GaugeFullSeconds - 1f);
         }
 
+        /// <summary>지금 게이지(초) — 만충을 넘겨 쌓인 몫은 만충으로 자른다.</summary>
+        public float ChargeSeconds => Mathf.Min(_charge, GaugeFullSeconds);
+
+        /// <summary>
+        /// **게이지를 이어 받는다** (사용자 확정 #155 · 2026-10-16) — 판이 새로 서도(파밍 → 도전 · 결과 뒤 전환)
+        /// 앞 판의 게이지를 그대로 들고 온다. 이미 썼거나 진행 중이면 아무 일도 안 한다.
+        /// </summary>
+        public void SetCharge(float seconds)
+        {
+            if (UsedThisStage || IsActive) return;
+            _charge = Mathf.Clamp(seconds, 0f, GaugeFullSeconds);
+        }
+
         public void Reset()
         {
             _charge = 0f;
