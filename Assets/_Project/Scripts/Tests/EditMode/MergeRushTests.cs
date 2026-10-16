@@ -6,16 +6,16 @@ using UnityEngine;
 namespace MBI.Tests
 {
     /// <summary>
-    /// **S6 합체 연출 — 게이지 차오름 · 합체 원형 펄스** (사용자 확정 #160 · 2026-10-16).
+    /// **도전 층 합체 연출 — 게이지 차오름 · 합체 원형 펄스** (사용자 확정 #160 · 2026-10-16).
     /// </summary>
     public sealed class MergeRushTests
     {
         [Test]
-        public void S6_도전_층만_건다()
+        public void 합체가_있는_도전_층에만_건다()
         {
-            Assert.IsTrue(MergeRushRule.AppliesTo("S6", true));
-            Assert.IsFalse(MergeRushRule.AppliesTo("S6", false), "파밍 층은 지금대로");
-            Assert.IsFalse(MergeRushRule.AppliesTo("S5", true));
+            Assert.IsTrue(MergeRushRule.AppliesTo(true, true));
+            Assert.IsFalse(MergeRushRule.AppliesTo(false, true), "파밍 층은 90초 규칙 그대로");
+            Assert.IsFalse(MergeRushRule.AppliesTo(true, false), "로봇 B 해금 전(합체 없음)은 연출도 없다");
         }
 
         [Test]
@@ -56,7 +56,7 @@ namespace MBI.Tests
         public void 러너는_판이_설_때_차오름을_걸고_합체_원형에_펄스를_건다()
         {
             string src = System.IO.File.ReadAllText("Assets/_Project/Scripts/Combat/StageRunner.cs");
-            StringAssert.Contains("MergeRushRule.AppliesTo(stage.stageId, challengeLayer)", src);
+            StringAssert.Contains("MergeRushRule.AppliesTo(challengeLayer, _sim.Merge != null)", src);
             StringAssert.Contains("TickMergeRush(Time.deltaTime);", src);
             StringAssert.Contains("if (MergePulseOn) mergeRect = MergeRushRule.Scaled(mergeRect", src);
         }

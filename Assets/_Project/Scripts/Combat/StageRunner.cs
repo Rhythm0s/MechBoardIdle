@@ -100,10 +100,10 @@ namespace MBI.Combat
             if (_mergeRushElapsed >= MergeRushRule.RushSeconds) _mergeRushOn = false;
         }
 
-        /// <summary>합체 원형 펄스를 거는가 — S6 도전 층 · 만충 · 아직 안 누름.</summary>
+        /// <summary>합체 원형 펄스를 거는가 — 도전 층 · 만충 · 아직 안 누름(합체 있는 판만).</summary>
         private bool MergePulseOn =>
-            stage != null && _sim != null && _sim.Merge != null && _sim.Merge.IsReady
-            && !IsTutorialStage && MergeRushRule.AppliesTo(stage.stageId, !StageLayerSignals.IsFarming);
+            _sim != null && _sim.Merge != null && _sim.Merge.IsReady
+            && !IsTutorialStage && MergeRushRule.AppliesTo(!StageLayerSignals.IsFarming, true);
 
         /// <summary>
         /// 합체 게이지를 게시한다(사용자 확정 #155) — 합체가 있는 판에서만. 썼거나 진행 중이면 0(줄어드는 때 = 사용).
@@ -695,9 +695,9 @@ namespace MBI.Combat
             if (_sim != null && _sim.Merge != null) _sim.Merge.SetCharge(IdleSignals.MergeChargeSeconds);
 
             bool challengeLayer = !StageLayerSignals.IsFarming;
-            // **S6 합체 연출**(사용자 확정 #160) — 도전 층이 서면 게이지가 짧게 차오른다.
-            _mergeRushOn = !IsTutorialStage && stage != null && MergeRushRule.AppliesTo(stage.stageId, challengeLayer)
-                           && _sim != null && _sim.Merge != null && !_sim.Merge.UsedThisStage && !_sim.Merge.IsActive;
+            // **도전 층 합체 연출**(사용자 확정 #160 · 범위 = 모든 도전 층 · 합체 있는 판만) — 게이지가 짧게 차오른다.
+            _mergeRushOn = !IsTutorialStage && _sim != null && MergeRushRule.AppliesTo(challengeLayer, _sim.Merge != null)
+                           && !_sim.Merge.UsedThisStage && !_sim.Merge.IsActive;
             _mergeRushStart = _mergeRushOn ? _sim.Merge.ChargeSeconds : 0f;
             _mergeRushElapsed = 0f;
             if (challengeLayer && !IsTutorialStage)
@@ -3382,7 +3382,7 @@ namespace MBI.Combat
 
             // 합체 — 게이지가 차야 눌린다. 스테이지당 1회라 쓰고 나면 영영 비활성이다.
             GUI.enabled = _sim.Merge != null && _sim.Merge.IsReady;
-            // **합체 원형 펄스**(사용자 확정 #160) — S6 도전 층에서 만충이면 누를 때까지 커졌다 작아졌다 한다.
+            // **합체 원형 펄스**(사용자 확정 #160) — 도전 층에서 만충이면 누를 때까지 커졌다 작아졌다 한다.
             if (MergePulseOn) mergeRect = MergeRushRule.Scaled(mergeRect, MergeRushRule.PulseScale(Time.unscaledTime));
             if (UiSkin.Button(mergeRect, MergeButtonLabel(), round) && _sim.TryMerge())
             {

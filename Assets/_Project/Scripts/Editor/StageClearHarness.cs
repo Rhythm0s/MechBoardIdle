@@ -2208,26 +2208,43 @@ namespace MBI.EditorTools
         public static void RunMergeRushBatch()
         {
             var sb = new StringBuilder();
-            sb.AppendLine("############ #160 S6 — 차오름 3초 · A 40 · B 0 · Auto 켬 · 60초 ############");
-            sb.AppendLine("| 강화 | 들고 온 게이지 | 합체 누름 | 결과 | 합체 찬/누른 시각 | 태그 스킬(시각 피해) | 보스 남은 HP |");
-            sb.AppendLine("|---|---|---|---|---|---|---|");
+            sb.AppendLine("############ #160 — 차오름 3초 · A 40 · B 0 · Auto 켬 · 60초 (범위 = 합체 있는 도전 층) ############");
+            sb.AppendLine("| 판 | 강화 | 들고 온 게이지 | 합체 누름 | 결과 | 합체 찬/누른 시각 | 태그 스킬(시각 피해) | 남은 적 HP |");
+            sb.AppendLine("|---|---|---|---|---|---|---|---|");
             try
             {
+                foreach (string sid in new[] { "S5", "S6" })
                 foreach (bool en in new[] { true, false })
                     foreach (float g in new[] { 0f, 0.5f })
                         foreach (float at in new[] { 0f, 45f })
                         {
                             Enhanced = en; AutoMerge = true; RushMerge = true; MergeNotBefore = at; MergeStartRatio = g; AStartRatio = 1f; BStartRatio = 0f;
-                            StageVerdict v = RunOne("S6", 0f);
+                            StageVerdict v = RunOne(sid, 0f);
                             Enhanced = false; AutoMerge = false; RushMerge = false; MergeNotBefore = 0f; MergeStartRatio = -1f; AStartRatio = -1f; BStartRatio = -1f;
                             string log = LastStrikeLog.Replace(" · 표적 1 · 총 피해 ", " ");
                             log = System.Text.RegularExpressions.Regex.Replace(log, @" · 한 체 몫 \d+ · 소진 직전 적재\([^)]*\)", "");
-                            sb.AppendLine($"| {(en ? "뒤" : "전")} | {g * 100f:F0}% | {(at <= 0f ? "붙는 즉시" : $"{at:F0}초에")} | {Cell(v)} | "
+                            sb.AppendLine($"| {sid} | {(en ? "뒤" : "전")} | {g * 100f:F0}% | {(at <= 0f ? "붙는 즉시" : $"{at:F0}초에")} | {Cell(v)} | "
                                           + (LastMergeReadyAt < 0f ? "안 참" : $"{LastMergeReadyAt:F1}초") + " / " + (LastMergeAt < 0f ? "—" : $"{LastMergeAt:F1}초")
                                           + $" | {LastTagStrikes}회: {log} | {LastEnemyHpLeft:F0} |");
                         }
             }
             finally { Enhanced = false; AutoMerge = false; RushMerge = false; MergeNotBefore = 0f; MergeStartRatio = -1f; AStartRatio = -1f; BStartRatio = -1f; }
+            sb.AppendLine();
+            sb.AppendLine("############ S1~S4 영향 확인 — 차오름 끔/켬 (강화 뒤 · 기본 시작) ############");
+            sb.AppendLine("| 판 | 차오름 끔 | 차오름 켬 | 같은가 |");
+            sb.AppendLine("|---|---|---|---|");
+            try
+            {
+                foreach (string sid in new[] { "S1", "S2", "S3", "S4" })
+                {
+                    Enhanced = true; RushMerge = false; StageVerdict off = RunOne(sid, 0f); string offCell = Cell(off);
+                    Enhanced = true; RushMerge = true; AutoMerge = true; StageVerdict on = RunOne(sid, 0f); string onCell = Cell(on);
+                    Enhanced = false; RushMerge = false; AutoMerge = false;
+                    sb.AppendLine($"| {sid} | {offCell} | {onCell} | {(offCell == onCell ? "같음" : "⚠️ 다름")} |");
+                }
+            }
+            finally { Enhanced = false; RushMerge = false; AutoMerge = false; }
+
             System.IO.File.WriteAllText("Docs/261016_merge160.md", sb.ToString());
             Debug.Log(sb.ToString());
             if (Application.isBatchMode) EditorApplication.Exit(0);
