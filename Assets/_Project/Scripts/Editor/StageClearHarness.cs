@@ -687,6 +687,7 @@ namespace MBI.EditorTools
                                        tuning.waveSizeTbd, tuning.spawnCadenceTbd));
             sim.SpawnAllAtOnce = true;                         // 사용자 확정 #152 — 러너와 같은 문(도전 층 전원 스폰)
             sim.SetAggroRange(tuning.enemyAggroRangeTbd);      // 사용자 확정 #152 — 탐색 범위
+            if (AggroOverride > 0f) sim.SetAggroRange(AggroOverride);   // 훑기 전용(하네스 · 자산 0)
 
             if (tuning.spawnRingMinTbd > 0f && tuning.spawnRingMaxTbd > 0f)
                 sim.SetSpawnBand(tuning.spawnRingMinTbd, tuning.spawnRingMaxTbd);
@@ -1912,6 +1913,55 @@ namespace MBI.EditorTools
             if (Application.isBatchMode) EditorApplication.Exit(0);
         }
 
+        /// <summary>탐색 범위 덮기 — 하네스 전용(2026-10-16 훑기). 0 이하면 자산 값.</summary>
+        internal static float AggroOverride;
+
+        /// <summary>
+        /// **탐색 범위 훑기**(2026-10-16 · #152 뒤 · 값 0 · 하네스만).
+        /// 배치 실행: <c>-executeMethod MBI.EditorTools.StageClearHarness.RunAggroSweepBatch</c>
+        /// </summary>
+        public static void RunAggroSweepBatch()
+        {
+            var sb = new StringBuilder();
+            string[] ids = { "S1", "S2", "S3", "S4", "S5", "S6" };
+            sb.AppendLine("############ 탐색 범위 훑기 (2026-10-16 · 08ec1c7 자산 · 하네스 안에서만 바꿈 · 60초) ############");
+            sb.AppendLine("칸 = 결과 · 처치 · 시간 · HP · [한 번에 깨어 있던 최대 수]");
+            var bothAt = new List<string>();
+            try
+            {
+                foreach (bool en in new[] { false, true })
+                {
+                    sb.AppendLine();
+                    sb.AppendLine(en ? "## 강화 뒤 (×1.45)" : "## 강화 전 (×1.0)");
+                    sb.AppendLine("| 탐색 범위 | " + string.Join(" | ", ids) + " |");
+                    sb.AppendLine("|---|" + string.Concat(System.Array.ConvertAll(ids, _ => "---|")));
+                    foreach (float r in new[] { 4f, 5f, 6f, 7f, 8f, 9.2f })
+                    {
+                        AggroOverride = r; Enhanced = en;
+                        var cells = new List<string>();
+                        bool s3 = false, s4 = false;
+                        foreach (string id in ids)
+                        {
+                            StageVerdict v = RunOne(id, 0f);
+                            cells.Add(Cell(v) + $" · [{v.peakAggro}]");
+                            if (id == "S3") s3 = v.result == CombatResult.Win;
+                            if (id == "S4") s4 = v.result == CombatResult.Win;
+                        }
+                        AggroOverride = 0f; Enhanced = false;
+                        sb.AppendLine($"| {r:0.0}{(Mathf.Approximately(r, 9.2f) ? " (지금 표)" : "")} | " + string.Join(" | ", cells) + " |");
+                        if (s3 && s4) bothAt.Add($"{(en ? "강화 뒤" : "강화 전")} {r:0.0}");
+                    }
+                }
+            }
+            finally { SpawnHook = null; HpAll = 0f; PlantScale = 1f; DmgMult = 1f; RateMult = 1f; Enhanced = false; AggroOverride = 0f; }
+
+            sb.AppendLine();
+            sb.AppendLine("S3·S4 둘 다 서는 범위: " + (bothAt.Count > 0 ? string.Join(" · ", bothAt) : "없음(4~9.2 안에서)"));
+            System.IO.File.WriteAllText("Docs/261016_aggro_sweep.md", sb.ToString());
+            Debug.Log(sb.ToString());
+            if (Application.isBatchMode) EditorApplication.Exit(0);
+        }
+
         /// <summary>판을 세운 직후 손대는 갈고리 — 하네스 전용(2026-10-16 · 사용자 막힘 「S2 도전을 못 넘는다」 실측).</summary>
         internal static System.Action<BoardGrid> BoardHook;
 
@@ -2245,6 +2295,7 @@ namespace MBI.EditorTools
                                        tuning.waveSizeTbd, tuning.spawnCadenceTbd));
             sim.SpawnAllAtOnce = true;                         // 사용자 확정 #152 — 러너와 같은 문(도전 층 전원 스폰)
             sim.SetAggroRange(tuning.enemyAggroRangeTbd);      // 사용자 확정 #152 — 탐색 범위
+            if (AggroOverride > 0f) sim.SetAggroRange(AggroOverride);   // 훑기 전용(하네스 · 자산 0)
             if (tuning.spawnRingMinTbd > 0f && tuning.spawnRingMaxTbd > 0f)
                 sim.SetSpawnBand(tuning.spawnRingMinTbd, tuning.spawnRingMaxTbd);
 
