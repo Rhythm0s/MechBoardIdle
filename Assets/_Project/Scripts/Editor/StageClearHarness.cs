@@ -2199,6 +2199,111 @@ namespace MBI.EditorTools
         internal static string LastStrikeLog = "";
         /// <summary>#160 — 차오름을 건다 · 합체를 이 시각 전에는 안 누른다(늦게 누른 판).</summary>
         internal static bool RushMerge;
+
+        // ── 합체 손잡이 훑기(2026-10-17 · 하네스 덮개만) ──
+        internal static float KnobRefillMult = 1f, KnobMergeSeconds;
+        internal static bool KnobFreeDrones, KnobHalfSkill;
+
+        /// <summary>④ 합체 중 대기 마운트가 절반 이상이면 있는 만큼 스킬(쿨다운 5초 그대로) — 리플렉션으로 기다리는 스킬을 놓는다.</summary>
+        private static void KnobTryHalfSkill(CombatSimulation sim)
+        {
+            TagBattle tb = sim.Tag;
+            if (tb.HasPendingSkill || tb.StandbyMount == null) return;
+            float cap = tb.StandbyMount.FullCapacity;
+            if (cap <= 0f || tb.StandbyMount.Total < cap * 0.5f || tb.StandbyMount.IsFull) return;   // 만충은 게임 규칙이 낸다
+            if (!tb.Tag.TrySkillOnly()) return;
+            var bf = System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance;
+            typeof(TagBattle).GetField("_pendingRounds", bf).SetValue(tb, tb.StandbyMount.Total);
+            typeof(TagBattle).GetField("_pendingIndex", bf).SetValue(tb, tb.StandbyIndex);
+            typeof(CombatSimulation).GetField("_tagSkillWait", bf).SetValue(sim, 0f);
+        }
+
+        /// <summary>
+        /// **합체 손잡이 훑기** — 강화 뒤 · A 40 · B 0 진입 · 3초 차오름 · Auto 켬 · 60초. 손잡이별 승리 시각·여유·큰 스킬 시각.
+        /// 배치: <c>-executeMethod MBI.EditorTools.StageClearHarness.RunMergeKnobBatch</c>
+        /// </summary>
+        public static void RunMergeKnobBatch()
+        {
+            var sb = new StringBuilder();
+            sb.AppendLine("############ 합체 손잡이 훑기 (2026-10-17 · aa2be1b 자산 · S6 12000 · 강화 뒤 · A 40 · B 0 · 3초 차오름 · Auto 켬) ############");
+            sb.AppendLine("⚠️ 「하네스 종전」 행만 합체 중 노드 산출 ×2 를 안 태운 판(10-16 까지의 하네스 표가 모두 이것). 나머지 행은 게임처럼 `BoardItemTick.Step` 에 `mergeOutputMult`(2) 를 태운다. ③ ×K 는 그 위에 더 곱한다.");
+            sb.AppendLine("③ = 합체 중 B 마운트 **도착률**(보드 → 마운트 적재 속도)에 ×K. 산출(노드)·운송(벨트)은 안 건드린다.");
+            sb.AppendLine();
+            var knobs = new List<(string name, System.Action set)>
+            {
+                ("하네스 종전(합체 ×2 안 태움)", () => HarnessMergeOutput = false),
+                ("기준 = 게임처럼 합체 중 노드 산출 ×2", () => { }),
+                ("③ B 적재 ×2", () => KnobRefillMult = 2f),
+                ("③ B 적재 ×3", () => KnobRefillMult = 3f),
+                ("③ B 적재 ×4", () => KnobRefillMult = 4f),
+                ("③ B 적재 ×6", () => KnobRefillMult = 6f),
+                ("① 합체 중 B 드론 재고 안 줄음", () => KnobFreeDrones = true),
+                ("② 합체 지속 10초", () => KnobMergeSeconds = 10f),
+                ("④ 합체 중 절반 이상이면 있는 만큼", () => KnobHalfSkill = true),
+                ("⑤ 보스 HP 10000", () => KnobBossHp = 10000f),
+                ("⑤ 보스 HP 8000", () => KnobBossHp = 8000f),
+            };
+            var rateLines = new List<string>();
+            try
+            {
+                foreach (string sid in new[] { "S6", "S5" })
+                {
+                    sb.AppendLine($"#### {sid}");
+                    sb.AppendLine("| 손잡이 | 즉시 합체(3초) | 여유 | 큰 스킬 시각(피해) | 45초 합체 | 안 누름 |");
+                    sb.AppendLine("|---|---|---|---|---|---|");
+                    foreach (var k in knobs)
+                    {
+                        if (sid == "S5" && k.name.StartsWith("⑤")) continue;
+                        string[] cells = new string[3]; string big = ""; string margin = "";
+                        float[] ats = { 0f, 45f, 999f };
+                        for (int i = 0; i < 3; i++)
+                        {
+                            HarnessMergeOutput = true; RateReset();
+                            k.set();
+                            if (KnobBossHp > 0f) { float h = KnobBossHp; SpawnHook = l => { var o = new List<EnemySpawn>(); foreach (var e in l) { var c = e; c.hp = h; o.Add(c); } return o; }; }
+                            Enhanced = true; AutoMerge = true; RushMerge = true; MergeNotBefore = ats[i]; MergeStartRatio = 0f; AStartRatio = 1f; BStartRatio = 0f;
+                            StageVerdict v = RunOne(sid, 0f);
+                            cells[i] = v.result == CombatResult.Win ? $"**Win {v.seconds:F1}초**" : $"{v.result} · 남은 {LastEnemyHpLeft:F0}";
+                            if (i == 0)
+                            {
+                                margin = v.result == CombatResult.Win ? $"{60f - v.seconds:F1}초" : "—";
+                                var bigs = new List<string>();
+                                foreach (string part in LastStrikeLog.Split(new[] { " / " }, System.StringSplitOptions.RemoveEmptyEntries))
+                                {
+                                    var m = System.Text.RegularExpressions.Regex.Match(part, @"^([\d.]+)초 · 표적 \d+ · 총 피해 (\d+)");
+                                    if (m.Success) bigs.Add($"{m.Groups[1].Value}({m.Groups[2].Value})");
+                                }
+                                big = string.Join(" · ", bigs);
+                                if (k.name.StartsWith("하네스 종전") || k.name.StartsWith("기준")) rateLines.Add($"{sid} {k.name}: {RateLine()}");
+                            }
+                            KnobReset();
+                        }
+                        sb.AppendLine($"| {k.name} | {cells[0]} | {margin} | {big} | {cells[1]} | {cells[2]} |");
+                    }
+                    sb.AppendLine();
+                }
+            }
+            finally { KnobReset(); }
+            sb.AppendLine("#### 마운트 도착률 — 합체 전(3초~합체) / 합체 중 (즉시 합체 판)");
+            foreach (string l in rateLines) sb.AppendLine("- " + l);
+            System.IO.File.WriteAllText("Docs/261017_merge_knobs.md", sb.ToString());
+            Debug.Log(sb.ToString());
+            if (Application.isBatchMode) EditorApplication.Exit(0);
+        }
+
+        internal static float KnobBossHp;
+        internal static bool HarnessMergeOutput;
+        internal static float RateMergeB, RateMergeA, RateMergeT, RatePreB, RatePreA, RatePreT;
+        private static void RateReset() { RateMergeB = RateMergeA = RateMergeT = RatePreB = RatePreA = RatePreT = 0f; }
+        private static string RateLine() =>
+            $"B 드론 도착 {(RatePreT > 0f ? RatePreB / RatePreT : 0f):F2} → 합체 중 {(RateMergeT > 0f ? RateMergeB / RateMergeT : 0f):F2}/초 · "
+            + $"A 탄 도착 {(RatePreT > 0f ? RatePreA / RatePreT : 0f):F2} → {(RateMergeT > 0f ? RateMergeA / RateMergeT : 0f):F2}/초";
+        private static void KnobReset()
+        {
+            HarnessMergeOutput = false;
+            KnobRefillMult = 1f; KnobMergeSeconds = 0f; KnobFreeDrones = false; KnobHalfSkill = false; KnobBossHp = 0f; SpawnHook = null;
+            Enhanced = false; AutoMerge = false; RushMerge = false; MergeNotBefore = 0f; MergeStartRatio = -1f; AStartRatio = -1f; BStartRatio = -1f;
+        }
         internal static float MergeNotBefore;
 
         /// <summary>
@@ -2718,17 +2823,23 @@ namespace MBI.EditorTools
                 SupplySignals.ActiveOwner = aActive ? MountOwner.RobotA : MountOwner.RobotB;
 
                 // 1) 보드 둘 다 돈다 — 대기 보드도 계속 만든다(그것이 태그의 전제다).
-                BoardItemTick.Step(gridA, flowA, Dt, throttleA.Scale);
+                // 2026-10-17 — 게임처럼 합체 중 노드 산출 ×mergeOutputMult 를 태울 수 있다(러너 `MergeSignals.OutputMultiplier` → `BoardItemTick.Step`).
+                bool mmOn = sim.Merge != null && sim.Merge.IsActive;
+                float mm = HarnessMergeOutput && mmOn && robotA.balanceRef != null ? Mathf.Max(1f, robotA.balanceRef.mergeOutputMult) : 1f;
+                BoardItemTick.Step(gridA, flowA, Dt, throttleA.Scale, mm);
                 deliveryA.Observe(flowA.PendingMountArrivals, DamageOf, Dt, MountOwner.RobotA);
                 flowA.ClearPendingMountArrivals();
                 deliveryA.TryDrain(DeliverySampleSeconds, out _);
 
-                BoardItemTick.Step(gridB, flowB, Dt, throttleB.Scale);
+                BoardItemTick.Step(gridB, flowB, Dt, throttleB.Scale, mm);
                 deliveryB.Observe(flowB.PendingMountArrivals, DamageOf, Dt, MountOwner.RobotB);
                 flowB.ClearPendingMountArrivals();
                 deliveryB.TryDrain(DeliverySampleSeconds, out _);
                 arrivedStack += deliveryB.StackDroneRate * Dt;
                 arrivedAoe += deliveryB.AoeDroneRate * Dt;
+                // 합체 전/중 마운트 도착률 대조(2026-10-17 · 플랜 물음 「×2 가 실제 흐름에 곱해지나」)
+                if (mmOn) { RateMergeB += (deliveryB.StackDroneRate + deliveryB.AoeDroneRate) * Dt; RateMergeA += deliveryA.Rate * Dt; RateMergeT += Dt; }
+                else if (LastMergeAt < 0f && elapsed >= 3f) { RatePreB += (deliveryB.StackDroneRate + deliveryB.AoeDroneRate) * Dt; RatePreA += deliveryA.Rate * Dt; RatePreT += Dt; }
 
                 // 2) 각 보드의 산출을 **제 로봇에** 넣는다 — 활성이 누구냐로 자리가 갈린다.
                 if (aActive)
@@ -2828,8 +2939,31 @@ namespace MBI.EditorTools
                 float bAoe = mountB.AmountOf(MountItem.DroneAoe);
 
 
+                // ── 합체 손잡이 훑기(2026-10-17 · 하네스 덮개만 · 게임 코드 0) ──
+                bool knobMerging = sim.Merge != null && sim.Merge.IsActive;
+                float knobS0 = mountB.AmountOf(MountItem.Drone), knobA0 = mountB.AmountOf(MountItem.DroneAoe);
+                if (knobMerging && KnobHalfSkill && sim.Tag != null) KnobTryHalfSkill(sim);
+
                 sim.Tick(Dt);
                 elapsed += Dt;
+
+                if (knobMerging)
+                {
+                    if (KnobRefillMult > 1f)   // ③ 합체 중 B 마운트 적재 속도 ×K(보드가 마운트에 닿게 하는 도착률에 곱함)
+                    {
+                        mountB.Load(MountItem.Drone, (KnobRefillMult - 1f) * deliveryB.StackDroneRate * Dt);
+                        mountB.Load(MountItem.DroneAoe, (KnobRefillMult - 1f) * deliveryB.AoeDroneRate * Dt);
+                    }
+                    if (KnobFreeDrones)        // ① 합체 중 B 드론이 나가도 재고는 안 준다
+                    {
+                        float dS = mountB.AmountOf(MountItem.Drone) - knobS0, dA = mountB.AmountOf(MountItem.DroneAoe) - knobA0;
+                        if (dS < 0f) mountB.Load(MountItem.Drone, -dS);
+                        if (dA < 0f) mountB.Load(MountItem.DroneAoe, -dA);
+                    }
+                    if (KnobMergeSeconds > 0f && LastMergeAt >= 0f && elapsed - LastMergeAt >= KnobMergeSeconds && sim.Merge.IsActive)
+                        typeof(MergeSystem).GetField("_remaining", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)
+                            .SetValue(sim.Merge, 0.0001f);   // ② 지속을 줄인다 — 다음 틱에 끝나고 잠금이 풀린다
+                }
 
                 // 4) 표본
                 stackSum += bStack; aoeSum += bAoe; mountSamples++;
