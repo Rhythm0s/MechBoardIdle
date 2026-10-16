@@ -611,6 +611,7 @@ namespace MBI.Combat
             TutorialSignals.FillEmptySlotRequested = true;
 
             runner.LoadStage(s);
+            runner.FillMountsForJump();   // 사용자 확정 #156 — 바로가기 점프는 마운트 가득으로 든다(합체 게이지는 그대로)
         }
 
     }

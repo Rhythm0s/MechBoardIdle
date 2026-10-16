@@ -535,6 +535,23 @@ namespace MBI.Combat
             _mountB ?? (_mountB = new MountLoad(MountLoad.SlotsRobotB,
                 MountLoad.StandardStacks(stack, stack * DroneStackFactor)));
 
+        /// <summary>
+        /// **설정 바로가기로 판을 옮기면 로봇 A·B 마운트를 가득 채운다** (사용자 확정 #156 · 2026-10-16 · 심사자용).
+        /// 「그 판에 자연 진행으로 온 상태」를 흉내 낸다 — A = 표준탄 가득 · B = 드론(누적형 반 · 광역형 반) 가득.
+        /// 합체 게이지는 안 건드린다(#155 그대로). 튜토리얼 판 점프에는 안 쓴다 — 그 판은 빈 마운트에서 시작하는 수업이다(4-3).
+        /// 판을 세운 **뒤**에 부른다 — 새 판이 같은 마운트 물건을 들고 있으므로 그대로 든다.
+        /// </summary>
+        public void FillMountsForJump()
+        {
+            float stack = robot != null && robot.balanceRef != null ? robot.balanceRef.mountStackLimit : 10f;
+            MountA(stack).Load(MountItem.Standard, MountLoad.SlotsRobotA * stack);
+            float droneCap = MountLoad.SlotsRobotB * stack * DroneStackFactor;
+            MountLoad b = MountB(stack);
+            b.Load(MountItem.Drone, droneCap * 0.5f);
+            b.Load(MountItem.DroneAoe, droneCap);
+            Debug.Log($"[MBI] 바로가기 만충(#156) — {(stage != null ? stage.stageId : "?")} · {CarryLine()}.");
+        }
+
         /// <summary>드론 스택 비 — **자산이 원천**이다(`params.mountDroneStackFactor`).</summary>
         private float DroneStackFactor
         {

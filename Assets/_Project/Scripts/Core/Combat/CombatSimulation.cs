@@ -590,7 +590,18 @@ namespace MBI.Core
         }
 
         /// <summary>필드에 나가 있는 드론.</summary>
-        public IReadOnlyList<DroneUnit> Drones => Act.drones;
+        public IReadOnlyList<DroneUnit> Drones
+        {
+            get
+            {
+                // 합체 중에는 양쪽 드론이 다 나가므로(사용자 확정 #157) 화면도 둘 다 그린다.
+                if (!MergedNow) return Act.drones;
+                _dronesAll.Clear();
+                for (int i = 0; i < _sides.Length; i++) _dronesAll.AddRange(_sides[i].drones);
+                return _dronesAll;
+            }
+        }
+        private readonly List<DroneUnit> _dronesAll = new List<DroneUnit>();
 
         /// <summary>드론 사출대(진단·HUD용).</summary>
         public DroneBay Drones_Bay => Act.bay;
@@ -2021,16 +2032,30 @@ namespace MBI.Core
         // 「단발 고밀도(관통형)」라는 밸런스 표현이 이 구조를 가리킨다.
         private void DroneTick(float dt)
         {
-            if (Act.bay == null) return;
+            // ✅ **합체 중에는 양쪽 드론 칸이 다 나간다**(사용자 확정 #157 · 2026-10-16 · 🗑️ 나가 있던 쪽 드론만).
+            //    A 가 나가 있던 채 합체해도 B 의 드론이 B 마운트에서 나가고, 피해는 ×1.8(본체 탄과 같은 배율).
+            //    대기 쪽 마운트 유입은 대기 틱이 이미 한다 — 여기서는 나가 있는 쪽만 싣는다(두 번 싣지 않는다).
+            if (MergedNow)
+            {
+                for (int i = 0; i < _sides.Length; i++)
+                    DroneTickSide(_sides[i], dt, MergeSystem.MergeMultiplier, _sides[i] == Act);
+                return;
+            }
+            DroneTickSide(Act, dt, 1f, true);
+        }
+
+        private void DroneTickSide(RobotSide s, float dt, float damageMultiplier, bool loadInflow)
+        {
+            if (s.bay == null) return;
 
             // 유입은 **마운트로** 들어간다 — 드론은 로봇 B의 탄약이고, 탄약이 있는 곳은 마운트다.
-            LoadDronesInto(Act, dt);
+            if (loadInflow) LoadDronesInto(s, dt);
 
             // ⚠️ **둘을 합쳐 셈한다** — 어느 종이든 슬롯 하나를 쓴다.
-            float stock = Act.mount != null
-                ? Act.mount.AmountOf(MountItem.Drone) + Act.mount.AmountOf(MountItem.DroneAoe)
+            float stock = s.mount != null
+                ? s.mount.AmountOf(MountItem.Drone) + s.mount.AmountOf(MountItem.DroneAoe)
                 : 0f;
-            int launched = Act.bay.Launch(dt, stock);
+            int launched = s.bay.Launch(dt, stock);
 
             for (int i = 0; i < launched; i++)
             {
@@ -2044,49 +2069,49 @@ namespace MBI.Core
                 //
                 // 📌 **난수 없음** — 많이 남은 쪽을 먼저 쓰고, 같으면 누적형이다.
                 //    그러면 둘이 섞여 들어와도 한쪽만 쌓이지 않는다.
-                float haveStack = Act.mount != null ? Act.mount.AmountOf(MountItem.Drone) : 0f;
-                float haveAoe = Act.mount != null ? Act.mount.AmountOf(MountItem.DroneAoe) : 0f;
+                float haveStack = s.mount != null ? s.mount.AmountOf(MountItem.Drone) : 0f;
+                float haveAoe = s.mount != null ? s.mount.AmountOf(MountItem.DroneAoe) : 0f;
                 DroneKind kind = haveAoe > haveStack ? DroneKind.Aoe : DroneKind.Stack;
 
                 MountItem item = kind == DroneKind.Aoe ? MountItem.DroneAoe : MountItem.Drone;
-                if (Act.mount != null && !Act.mount.TryConsume(item, 1f))
+                if (s.mount != null && !s.mount.TryConsume(item, 1f))
                 {
                     // 셈과 재고가 어긋났다 — 슬롯을 돌려주고 이 기체는 안 낸다.
-                    Act.bay.Retire();
+                    s.bay.Retire();
                     continue;
                 }
 
                 // 광역형은 궤도 각을 **고르게 흩어** 시작한다 — 전부 0 에서 나면
                 // 여러 기가 한 점에 겹쳐 한 기처럼 보인다. 난수가 아니라 **차례**다.
-                int slots = Mathf.Max(1, Act.setup.droneSlots);
+                int slots = Mathf.Max(1, s.setup.droneSlots);
                 float angle = Mathf.PI * 2f * (_droneSpawned % slots) / slots;
                 _droneSpawned++;
 
-                float perHit = Act.setup.droneDamagePerHit > 0f
-                    ? Act.setup.droneDamagePerHit
-                    : Act.setup.droneCharge;   // 0 = 전량(구 거동)
+                float perHit = s.setup.droneDamagePerHit > 0f
+                    ? s.setup.droneDamagePerHit
+                    : s.setup.droneCharge;   // 0 = 전량(구 거동)
                 // 광역형은 **표적 하나에 절반**만 준다 — 여럿을 치는 대가다(2026-09-18 확정).
                 //
                 // ⚠️⚠️ **피해에만 건다 — 충전량은 그대로 먹는다.** 종전에는 `perHit` 자체를
                 //    반으로 줄였는데, 충전량 소비도 `perHit` 이라 **수명이 두 배**가 됐다 —
                 //    한 표적에게 주는 총 피해가 그대로여서 「표적당 절반」이 성립하지 않았다.
-                float factor = kind == DroneKind.Aoe && Act.setup.droneAoeDamageFactor > 0f
-                    ? Act.setup.droneAoeDamageFactor : 1f;
+                float factor = kind == DroneKind.Aoe && s.setup.droneAoeDamageFactor > 0f
+                    ? s.setup.droneAoeDamageFactor : 1f;
 
-                Act.drones.Add(new DroneUnit(Act.body.position,
-                    Act.setup.droneCharge, perHit, Act.setup.droneAttackRange,
+                s.drones.Add(new DroneUnit(Act.body.position,
+                    s.setup.droneCharge, perHit, s.setup.droneAttackRange,
                     kind, angle, factor));
                 // 사출 연출이 붙는 자리 — 판정은 위에서 이미 끝났다.
                 _droneLaunches.Add(Act.body.position);
             }
 
-            MoveDrones(dt);
+            MoveDrones(s, dt);
 
             // 사격 — 표적은 본체와 같은 최근접 규칙이되 **기준점이 드론 자신**이라
             // 본체와 다른 적을 칠 수 있다(자동 전투 구현 사양).
-            for (int i = Act.drones.Count - 1; i >= 0; i--)
+            for (int i = s.drones.Count - 1; i >= 0; i--)
             {
-                DroneUnit d = Act.drones[i];
+                DroneUnit d = s.drones[i];
 
                 // ⚠️⚠️ **누적형은 붙은 적만 친다**(2026-09-16 사용자 확정).
                 //    최근접을 다시 고르면 붙어 있는 뜻이 사라진다 — 옆에 더 가까운 적이
@@ -2105,7 +2130,7 @@ namespace MBI.Core
                 d.HitCooldown = DroneHitInterval;
 
                 // 판정식을 다시 만들지 않는다 — 본체 사격과 같은 식을 탄다.
-                float applied = DamageFormula.PerHit(dealt, Act.setup.mountCoef, Act.setup.moduleMult, target.def);
+                float applied = DamageFormula.PerHit(dealt, s.setup.mountCoef, s.setup.moduleMult, target.def) * damageMultiplier;
                 target.hp -= applied;
                 target.aggro = true;   // 사용자 확정 #153 — 맞으면 깸(맞은 적만 · 전파 없음)
                 DroneDamageDealt += applied;
@@ -2146,8 +2171,8 @@ namespace MBI.Core
                         //    **곁에 닿는 적이 0 이 됐다**(스위프가 r=5 에서도 0.00 마리로 나왔다).
                         // 📌 「광역」은 **떨어진 자리**에서 퍼지는 것이다 — 쏜 자리가 아니다.
                         if ((other.position - target.position).sqrMagnitude > aoeJudge * aoeJudge) continue;
-                        float more = DamageFormula.PerHit(dealt, Act.setup.mountCoef,
-                            Act.setup.moduleMult, other.def);
+                        float more = DamageFormula.PerHit(dealt, s.setup.mountCoef,
+                            s.setup.moduleMult, other.def) * damageMultiplier;
                         other.hp -= more;
                         other.aggro = true;   // 사용자 확정 #153 — 맞으면 깸(맞은 적만 · 전파 없음)
                         DroneDamageDealt += more;
@@ -2181,8 +2206,8 @@ namespace MBI.Core
                 if (!d.IsAlive)
                 {
                     _droneExpiries.Add(d.Position); // 소멸 연출이 붙는 자리
-                    Act.drones.RemoveAt(i);
-                    Act.bay.Retire();
+                    s.drones.RemoveAt(i);
+                    s.bay.Retire();
                 }
             }
         }
@@ -2203,12 +2228,12 @@ namespace MBI.Core
         /// ⚠️ **값 넷은 전부 가정이다**(`CombatTuning` 의 `drone*Tbd` · 설계 역기입 자리).
         /// ⚠️ **난수 0** — 궤도 각도 표적 고르기도 차례와 거리로만 정한다.
         /// </summary>
-        private void MoveDrones(float dt)
+        private void MoveDrones(RobotSide s, float dt)
         {
             if (dt <= 0f) return;
-            Vector2 robot = Act.body != null ? Act.body.position : Vector2.zero;
+            Vector2 robot = Act.body != null ? Act.body.position : Vector2.zero;   // 궤도·끈의 기준은 몸 하나(합체 중에도)
 
-            foreach (DroneUnit d in Act.drones)
+            foreach (DroneUnit d in s.drones)
             {
                 // ⚠️ **시계는 이동과 함께 돈다** — 사격 단계보다 먼저 줄어야
                 //    간격이 정확히 이 값이 된다. 사격 뒤에 줄이면 한 틱씩 늘어난다.

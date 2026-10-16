@@ -2154,6 +2154,45 @@ namespace MBI.EditorTools
             if (Application.isBatchMode) EditorApplication.Exit(0);
         }
 
+        /// <summary>#156 — 두 로봇 판에서 B 마운트도 드론 가득으로 시작(하네스 · 기본 거짓).</summary>
+        internal static bool FillBAtStart;
+
+        /// <summary>
+        /// **#157 뒤 S5·S6 합체 재측**(2026-10-16 · 합체 중 A 탄 + B 드론 둘 다 · 강화 뒤 · 60초 · 값 0).
+        /// 배치 실행: <c>-executeMethod MBI.EditorTools.StageClearHarness.RunMerge157Batch</c>
+        /// </summary>
+        public static void RunMerge157Batch()
+        {
+            var sb = new StringBuilder();
+            sb.AppendLine("############ #157 뒤 S5·S6 합체 재측 (2026-10-16 · 강화 뒤 · 60초 · 자동 태그 · 적이 사거리에 든 순간 합체) ############");
+            sb.AppendLine("| 판 | 시작 마운트 | 게이지 | 결과 | 합체 누른 시각 | 버스트 | 합체 20초 동안 깎은 HP | 적 남은 HP / 전체 |");
+            sb.AppendLine("|---|---|---|---|---|---|---|---|");
+            try
+            {
+                foreach (string id in new[] { "S5", "S6" })
+                    foreach (bool fillB in new[] { false, true })
+                        foreach (float g in new[] { 0f, 1f })
+                        {
+                            float pool = 0f;
+                            SpawnHook = l => { pool = 0f; foreach (var e in l) pool += e.hp; return l; };
+                            Enhanced = true; AutoMerge = g > 0f; MergeStartRatio = g; FillBAtStart = fillB;
+                            StageVerdict v = RunOne(id, 0f);
+                            Enhanced = false; AutoMerge = false; MergeStartRatio = -1f; FillBAtStart = false; SpawnHook = null;
+                            string during = LastHpBeforeMerge < 0f ? "—"
+                                : $"{LastHpBeforeMerge - LastBurstDamage - (LastMergeEndHp >= 0f ? LastMergeEndHp : LastEnemyHpLeft):F0}"
+                                  + (LastMergeEndHp >= 0f ? "" : "(판 끝까지)");
+                            sb.AppendLine($"| {id} | {(fillB ? "A 40 · B 40(#156 바로가기)" : "A 40 · B 0")} | {g * 100f:F0}% | {Cell(v)} | "
+                                          + (LastMergeAt < 0f ? (g > 0f ? "못 씀(적이 사거리에 안 듦)" : "안 씀") : $"{LastMergeAt:F1}초")
+                                          + $" | {LastBurstDamage:F0} | {during} | {LastEnemyHpLeft:F0} / {pool:F0} |");
+                        }
+            }
+            finally { SpawnHook = null; HpAll = 0f; PlantScale = 1f; DmgMult = 1f; RateMult = 1f; Enhanced = false; AggroOverride = 0f; AutoMerge = false; MergeStartRatio = -1f; FillBAtStart = false; }
+
+            System.IO.File.WriteAllText("Docs/261016_merge157.md", sb.ToString());
+            Debug.Log(sb.ToString());
+            if (Application.isBatchMode) EditorApplication.Exit(0);
+        }
+
         /// <summary>판을 세운 직후 손대는 갈고리 — 하네스 전용(2026-10-16 · 사용자 막힘 「S2 도전을 못 넘는다」 실측).</summary>
         internal static System.Action<BoardGrid> BoardHook;
 
@@ -2466,6 +2505,13 @@ namespace MBI.EditorTools
 
             // 튜토리얼 종료 판 — A 마운트만 표준탄으로 채운다(B 는 제 보드가 채운다).
             mountA.Load(MountItem.Standard, mountA.SlotCount * stack);
+            // #156 — 바로가기 만충 판을 흉내 낼 때 B 드론도 가득(누적형 반 · 광역형 반)
+            if (FillBAtStart)
+            {
+                float capB = MountLoad.SlotsRobotB * stack * droneFactor;
+                mountB.Load(MountItem.Drone, capB * 0.5f);
+                mountB.Load(MountItem.DroneAoe, capB);
+            }
 
             List<EnemySpawn> spawns = StageSpawnFactory.Build(stage, EnemyCatalog(), tuning);
             if (SpawnHook != null) spawns = SpawnHook(spawns);   // 2026-10-16 문턱 훑기(하네스 전용)
