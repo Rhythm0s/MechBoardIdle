@@ -210,7 +210,7 @@ namespace MBI.Data
         public float animMoveSeconds = 1.00f;
         [Tooltip("사망 목표 초.")]
         public float animDeathSeconds = 2.00f;
-        [Tooltip("태그 전환 목표 초. 잠정 — 전투 시스템 문서「태그 규칙」 확인 뒤 확정한다(W01 9장 2).")]
+        [Tooltip("태그 전환 목표 초. 0.75 확정(2026-09-07 · 15-1 5-1). 🗑️ 구 「잠정 — 전투 시스템 문서「태그 규칙」 확인 뒤 확정한다(W01 9장 2)」 폐기.")]
         public float animTagInSeconds = 0.75f;
         // 코드 이동은 발사 프레임보다 뒤에 끝나고 클립보다는 먼저 끝난다(`260907_W02` 2-3 사용자 확정).
         // 설계가 확정한 것은 값이 아니라 순서다 — 태그 지속 시간이 바뀌어도 이 꼬리는 그대로 두면

@@ -24,7 +24,7 @@ namespace MBI.Data
         // ---- 캔버스 규격(px) ----
         public const int TileCanvas = 192;     // 노드 · 벨트
         public const int RobotCanvas = 256;    // 로봇 A · B
-        public const int LargeCanvas = 512;    // 합체 로봇 · 보스
+        public const int LargeCanvas = 512;    // 🗑️ 구 주석 「합체 로봇 · 보스」 낡음(2026-10-17 점검 · 낡음 6) — 지금 전투 벌은 둘 다 256 × 배율 2(아래 45~52행). 값은 그대로 둔다(규격 시험이 읽음)
         public const int MonsterCanvas = 128;  // 몬스터 3종
         public const int DroneCanvas = 64;     // 드론 2종
 
@@ -104,6 +104,11 @@ namespace MBI.Data
         }
 
         /// <summary>보드용 스프라이트인가(캔버스가 타일 규격의 배수여야 하는 폴더).</summary>
+        /// <remarks>
+        /// ⚠️ **빈자리(2026-10-17 점검 · 낡음 10 · 고치지 않음 — 규칙 ① 태그 뒤)** — 경로에 `/Nodes/`·`/Belts/` 만 본다.
+        /// `Art/Board/` 바로 밑의 192 아닌 PNG 여섯(`_board_sheet` 768 · `arrow` 24 · `mod_m`·`mod_r`·`port_in_small`·`port_out_small` 64)은
+        /// 이 검사에 안 걸린다. 넓히면 그 여섯이 규격 위반으로 잡히므로 규격 쪽 판정이 먼저다.
+        /// </remarks>
         public static bool IsBoardArtPath(string assetPath)
         {
             if (string.IsNullOrEmpty(assetPath)) return false;

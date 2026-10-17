@@ -34,7 +34,7 @@ namespace MBI.Tests
         public void CanvasSizes_ConvertToExpectedWorldUnits()
         {
             Assert.AreEqual(1.333f, ArtSpec.RobotSize, 0.001f, "로봇 256px");
-            Assert.AreEqual(2.667f, ArtSpec.LargeSize, 0.001f, "합체·보스 512px");
+            Assert.AreEqual(2.667f, ArtSpec.LargeSize, 0.001f, "LargeCanvas 512px(🗑️ 구 「합체·보스」 — 지금 전투 벌은 둘 다 256)");
             Assert.AreEqual(0.667f, ArtSpec.MonsterSize, 0.001f, "몬스터 128px");
             Assert.AreEqual(0.333f, ArtSpec.DroneSize, 0.001f, "드론 64px");
         }
