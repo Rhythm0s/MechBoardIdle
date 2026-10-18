@@ -614,6 +614,10 @@ namespace MBI.Combat
             if (s != null && MountEnhanceRule.JumpTurnsOn(StageMapName.NumberOf(s.stageId)))
                 IdleSignals.RequestJumpEnhance();
 
+            // 사용자 확정 #167 · #168 — S5 · S6 점프는 로봇 A 보드를 폭발탄 프리셋으로 세운다(저장 보드 덮음 ⚠️ 가정).
+            if (s != null && PresetBoards.ExplosiveOnJump(StageMapName.NumberOf(s.stageId)))
+                PresetBoards.ExplosiveRequested = true;
+
             runner.LoadStage(s);
             runner.FillMountsForJump();   // 사용자 확정 #156 — 바로가기 점프는 마운트 가득으로 든다(합체 게이지는 그대로)
         }

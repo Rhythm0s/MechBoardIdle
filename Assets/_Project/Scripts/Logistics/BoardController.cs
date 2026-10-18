@@ -864,6 +864,34 @@ namespace MBI.Logistics
             Debug.Log("[MBI] 처음부터 — 판 둘을 시작 배치로 다시 세웠다.");
         }
 
+        /// <summary>
+        /// **A 판을 폭발탄 프리셋으로 다시 세운다**(사용자 확정 #167 · #168 · 바로가기 S5 · S6 점프).
+        /// 세우는 길은 「처음부터」와 같다(비우고 → 시작 배치 → 비워 둔 칸 채움) — 그 위에 `PresetBoards` 만 얹는다.
+        /// </summary>
+        private void ApplyExplosivePreset()
+        {
+            BoardGrid g = _boards[Index(MountOwner.RobotA)];
+            if (g == null) return;
+            if (_selected.HasValue) Deselect();
+
+            for (int x = 0; x < g.Columns; x++)
+            for (int y = 0; y < g.Rows; y++)
+            {
+                var cell = new Vector2Int(x, y);
+                if (g.GetAt(cell) != null) g.TryRemove(cell);
+                if (g.GetBeltAt(cell) != null) g.TryRemoveBelt(cell);
+            }
+            IdleSignals.SetBoardState(MountOwner.RobotA, null);
+            ApplyInitialLayout(g);
+            PlaceTutorialFill(g);
+            bool ok = PresetBoards.ApplyExplosive(g, FindStartingNode);
+            ResolveFlow(g, _flows[Index(MountOwner.RobotA)]);
+            if (_editing == MountOwner.RobotA) RespawnMarkersFromGrid();
+            RefreshConnections();
+            if (ok) Debug.Log("[MBI] 바로가기 프리셋(#167) — A 보드를 폭발탄 판으로 세웠다.");
+            else Debug.LogError("[MBI] 바로가기 프리셋(#167) — 못 선 칸이 있다(자산·칸 확인).");
+        }
+
         // 시작 배치를 깐다. 배치 경로는 플레이어 조작과 동일(TryPlace + 마커) — 별도 경로를 만들지 않는다.
         /// <summary>
         /// 비워 둔 칸을 채우는 **운반로 벨트 한 칸**을 놓는다
@@ -2697,6 +2725,14 @@ namespace MBI.Logistics
                 PlaceTutorialFill(_boards[Index(MountOwner.RobotA)]);
                 if (_editing == MountOwner.RobotA) RespawnMarkersFromGrid();
                 RefreshConnections();   // 벨트 한 칸이 라인을 잇는다 — 안 다시 풀면 안 흐른다
+            }
+
+            // 사용자 확정 #167 · #168 — 바로가기 S5 · S6 점프 = A 보드를 폭발탄 프리셋으로(시작 배치 → 비워 둔 칸 채움 → 프리셋).
+            //    ⚠️ 위 「채움」 뒤에 둔다 — 같은 프레임에 둘 다 오면 프리셋이 마지막에 판을 다시 세운다.
+            if (PresetBoards.ExplosiveRequested)
+            {
+                PresetBoards.ExplosiveRequested = false;
+                ApplyExplosivePreset();
             }
 
             if (_panning)

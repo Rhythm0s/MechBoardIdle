@@ -2551,6 +2551,83 @@ namespace MBI.EditorTools
             if (Application.isBatchMode) EditorApplication.Exit(0);
         }
 
+        /// <summary>
+        /// **#167·#168 폭발탄 프리셋 확인**(2026-10-18 · 하네스 · S5·S6 바로가기 판).
+        /// ① 물류만 60초 — 마운트 도착 수(종류별) · 전력 공급/수요 · 프리셋이 다 섰는가.
+        /// ② 전투 — S5·S6 · 프리셋 없음/있음 · 강화 뒤(즉시 합체 · 45초 합체 · 안 누름) + 강화 전(즉시 합체) · A 40 · B 0 · 3초 차오름 · 합체 ×2 태움.
+        /// 배치: <c>-executeMethod MBI.EditorTools.StageClearHarness.RunPreset167Batch</c>
+        /// </summary>
+        public static void RunPreset167Batch()
+        {
+            var sb = new StringBuilder();
+            sb.AppendLine("############ #167·#168 폭발탄 프리셋 (2026-10-18 · 하네스) ############");
+            bool presetOk = false;
+            System.Action<BoardGrid> hook = g => presetOk = PresetBoards.ApplyExplosive(g, NodeResolver(BasePropellantNeed));
+
+            // ① 물류만
+            foreach (bool on in new[] { false, true })
+            {
+                BoardHook = on ? hook : null;
+                BoardGrid g = Board();
+                BoardHook = null;
+                var flow = new BeltItemFlow();
+                flow.Rebuild(g);
+                for (int i = 0; i < 1200; i++) BoardItemTick.Step(g, flow, 0.05f, 1f);
+                var connected = LogisticsReach.ConnectedNodes(g);
+                var bal = AssetDatabase.LoadAssetAtPath<BalanceConfig>($"{SoRoot}/BalanceConfig.asset");
+                WorkloadRate.Result work = WorkloadRate.Compute(g, connected, bal);
+                NetworkAggregate agg = LogisticsNetwork.Aggregate(g, connected, work, 1f);
+                if (on)
+                {
+                    foreach (var cc in new[] { new Vector2Int(6, 8), new Vector2Int(7, 8), new Vector2Int(6, 7), new Vector2Int(8, 8) })
+                    {
+                        NodeInstance n = g.GetAt(cc);
+                        if (n == null) { sb.AppendLine($"  · {cc} 노드 없음"); continue; }
+                        var ib = new StringBuilder(); foreach (var kv in n.InputBuffer) ib.Append($"{kv.Key}={kv.Value:F1} ");
+                        sb.AppendLine($"  · {cc} {n.Definition.nodeId} 조합표 {n.CurrentRecipe.kind} 연결 {connected.Contains(cc)} 입력[{ib}] 출력 {n.OutputBuffer:F1}({n.BufferKind}) 정지 {n.StallReason}"
+                                      + $" 포트[{string.Join(",", System.Linq.Enumerable.Select(n.Ports(), pp => pp.face + ":" + pp.io + ":" + pp.kind))}]");
+                    }
+                    foreach (var bc in new[] { new Vector2Int(7, 7), new Vector2Int(8, 7), new Vector2Int(9, 8), new Vector2Int(9, 4), new Vector2Int(2, 4), new Vector2Int(2, 5), new Vector2Int(2, 6), new Vector2Int(1, 4) })
+                    {
+                        BeltInstance b = g.GetBeltAt(bc);
+                        sb.AppendLine($"  · 벨트 {bc} " + (b == null ? "없음" : $"{b.Element} in[{string.Join(",", b.InFaces)}] out[{string.Join(",", b.OutFaces)}]"));
+                    }
+                }
+                sb.AppendLine($"- 물류 60초 · {(on ? "폭발탄 프리셋" : "시작 보드")}{(on ? (presetOk ? " (다 섬)" : " ⚠️ 못 선 칸 있음") : "")}: "
+                              + $"마운트 도착 표준탄 {flow.MountArrivedOf(FlowKind.StandardAmmo)} · 폭발탄 {flow.MountArrivedOf(FlowKind.ExplosiveAmmo)} · 관통탄 {flow.MountArrivedOf(FlowKind.PierceAmmo)}"
+                              + $" · 전력 공급 {agg.powerSupply:F1} / 수요 {agg.powerDraw:F1}");
+            }
+            sb.AppendLine();
+
+            // ② 전투
+            sb.AppendLine("| 판 | 보드 | 강화 뒤 · 즉시 합체 | 남은 시간 | 강화 뒤 · 45초 합체 | 강화 뒤 · 안 누름 | 강화 전 · 즉시 합체 |");
+            sb.AppendLine("|---|---|---|---|---|---|---|");
+            try
+            {
+                foreach (string sid in new[] { "S5", "S6" })
+                    foreach (bool on in new[] { false, true })
+                    {
+                        var c = new string[4]; string left = "";
+                        (bool en, float at)[] runs = { (true, 0f), (true, 45f), (true, 999f), (false, 0f) };
+                        for (int k = 0; k < 4; k++)
+                        {
+                            BoardHook = on ? hook : null;
+                            Enhanced = runs[k].en; HarnessMergeOutput = true; AutoMerge = true; RushMerge = true;
+                            MergeNotBefore = runs[k].at; MergeStartRatio = 0f; AStartRatio = 1f; BStartRatio = 0f;
+                            StageVerdict v = RunOne(sid, 0f);
+                            c[k] = v.result == CombatResult.Win ? $"**Win {v.seconds:F1}초**" : $"{v.result} · 남은 적 HP {LastEnemyHpLeft:F0}";
+                            if (k == 0) left = v.result == CombatResult.Win ? $"{60f - v.seconds:F1}초" : "—";
+                            BoardHook = null; KnobReset();
+                        }
+                        sb.AppendLine($"| {sid} | {(on ? "폭발탄 프리셋" : "시작 보드")} | {c[0]} | {left} | {c[1]} | {c[2]} | {c[3]} |");
+                    }
+            }
+            finally { BoardHook = null; KnobReset(); }
+            System.IO.File.WriteAllText("Docs/261018_preset167.md", sb.ToString());
+            Debug.Log(sb.ToString());
+            if (Application.isBatchMode) EditorApplication.Exit(0);
+        }
+
         /// <summary>판을 세운 직후 손대는 갈고리 — 하네스 전용(2026-10-16 · 사용자 막힘 「S2 도전을 못 넘는다」 실측).</summary>
         internal static System.Action<BoardGrid> BoardHook;
 
