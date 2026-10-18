@@ -2579,7 +2579,7 @@ namespace MBI.EditorTools
                 NetworkAggregate agg = LogisticsNetwork.Aggregate(g, connected, work, 1f);
                 if (on)
                 {
-                    foreach (var cc in new[] { new Vector2Int(6, 8), new Vector2Int(7, 8), new Vector2Int(6, 7), new Vector2Int(8, 8) })
+                    foreach (var cc in new[] { new Vector2Int(6, 8), new Vector2Int(7, 8), new Vector2Int(6, 7), new Vector2Int(8, 7) })
                     {
                         NodeInstance n = g.GetAt(cc);
                         if (n == null) { sb.AppendLine($"  · {cc} 노드 없음"); continue; }
@@ -2587,7 +2587,7 @@ namespace MBI.EditorTools
                         sb.AppendLine($"  · {cc} {n.Definition.nodeId} 조합표 {n.CurrentRecipe.kind} 연결 {connected.Contains(cc)} 입력[{ib}] 출력 {n.OutputBuffer:F1}({n.BufferKind}) 정지 {n.StallReason}"
                                       + $" 포트[{string.Join(",", System.Linq.Enumerable.Select(n.Ports(), pp => pp.face + ":" + pp.io + ":" + pp.kind))}]");
                     }
-                    foreach (var bc in new[] { new Vector2Int(7, 7), new Vector2Int(8, 7), new Vector2Int(9, 8), new Vector2Int(9, 4), new Vector2Int(2, 4), new Vector2Int(2, 5), new Vector2Int(2, 6), new Vector2Int(1, 4) })
+                    foreach (var bc in new[] { new Vector2Int(7, 7), new Vector2Int(8, 8), new Vector2Int(8, 6), new Vector2Int(8, 5), new Vector2Int(9, 8), new Vector2Int(9, 4), new Vector2Int(2, 4), new Vector2Int(2, 5), new Vector2Int(2, 6), new Vector2Int(1, 4) })
                     {
                         BeltInstance b = g.GetBeltAt(bc);
                         sb.AppendLine($"  · 벨트 {bc} " + (b == null ? "없음" : $"{b.Element} in[{string.Join(",", b.InFaces)}] out[{string.Join(",", b.OutFaces)}]"));
@@ -3025,6 +3025,10 @@ namespace MBI.EditorTools
                 deliveryA.Observe(flowA.PendingMountArrivals, DamageOf, Dt, MountOwner.RobotA);
                 flowA.ClearPendingMountArrivals();
                 deliveryA.TryDrain(DeliverySampleSeconds, out _);
+                // 2026-10-18 — **A 탄종별 도착률을 사격 배분에 싣는다**(러너 `LogisticsOutputProvider` 와 같다 · 단일 판 `Run` 은 이미 함).
+                //    종전 두 로봇 판은 안 실어 배분이 탄종 도착을 못 봤다 — #167 폭발탄 프리셋이 전투에 안 잡히던 자리.
+                for (int k = 0; k < SupplySignals.MountArrivalRate.Length; k++)
+                    SupplySignals.MountArrivalRate[k] = deliveryA.RateOf((AmmoKind)k);
 
                 BoardItemTick.Step(gridB, flowB, Dt, throttleB.Scale, mm);
                 deliveryB.Observe(flowB.PendingMountArrivals, DamageOf, Dt, MountOwner.RobotB);

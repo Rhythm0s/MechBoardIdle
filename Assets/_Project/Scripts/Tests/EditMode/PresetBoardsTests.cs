@@ -50,6 +50,8 @@ namespace MBI.Tests
             for (int i = 0; i < 1200; i++) BoardItemTick.Step(g, flow, 0.05f, 1f);
             TestContext.WriteLine($"[#167 프리셋 60초] 폭발탄 {flow.MountArrivedOf(FlowKind.ExplosiveAmmo)} · 표준탄 {flow.MountArrivedOf(FlowKind.StandardAmmo)}");
             Assert.Greater(flow.MountArrivedOf(FlowKind.ExplosiveAmmo), 0, "폭발탄이 마운트에 닿아야 한다");
+            Assert.Greater(flow.MountArrivedOf(FlowKind.StandardAmmo), 0, "표준탄도 마운트에 닿아야 한다(사용자 확정 #169 · 분류기 동 갈래)");
+            Assert.AreEqual(1, x.Rotation, "복합 가공소는 한 번 돌려 북 = 표준탄 · 서 = 발전재료 · 남 = 산출");
         }
 
         [Test]

@@ -31,7 +31,8 @@ namespace MBI.Core
         /// </summary>
         public static bool ExplosiveRequested;
 
-        public static readonly Vector2Int ExplosiveNodeCell = new Vector2Int(8, 8);
+        public static readonly Vector2Int ExplosiveNodeCell = new Vector2Int(8, 7);
+        public static readonly Vector2Int SplitCell = new Vector2Int(8, 8);
         public static readonly Vector2Int PowerMaterialCell = new Vector2Int(6, 7);
         public static readonly Vector2Int MergeCell = new Vector2Int(2, 5);
 
@@ -49,16 +50,22 @@ namespace MBI.Core
             ok &= pm != null && pm.SelectRecipe(RecipeKind.PowerMaterial);
             Clear(grid, new Vector2Int(7, 7));
             ok &= grid.TryPlaceBelt(new Vector2Int(7, 7), PortFace.West, PortFace.East, FlowKind.None, out _);
-            Clear(grid, new Vector2Int(8, 7));
-            ok &= grid.TryPlaceBelt(new Vector2Int(8, 7), PortFace.West, PortFace.North, FlowKind.None, out _);
+            // ✅ **표준탄도 마운트에 닿게**(사용자 확정 #169 · 2026-10-18 · #168 「표준탄 + 폭발탄」).
+            //    동 줄 표준탄을 (8,8) **분류기**로 가른다(균등 분배 · 반씩) — 남 갈래 = 복합 가공소 · 동 갈래 = 표준탄 줄.
+            Clear(grid, SplitCell);
+            ok &= grid.TryPlaceBeltElement(SplitCell, BeltElementKind.Sorter,
+                new[] { PortFace.West }, new[] { PortFace.South, PortFace.East }, FlowKind.None, out _);
 
-            // 복합 가공소(8,8) — 조합표 폭발탄
+            // 복합 가공소(8,7) · 한 번 돌림(시계 90°) — 북면 = 표준탄(분류기 남 갈래) · 서면 = 발전재료((7,7)) · 남면 = 폭발탄 산출
+            //    → 옛 기둥 (8,6)(8,5) → 운반로 y5 → 마운트.  🗑️ #167 첫 판 「(8,8) 복합 가공소 · (8,7) 벨트 서→북」.
             Clear(grid, ExplosiveNodeCell);
             NodeDefinition munix = nodeById(StartingBoardB.ComplexId);
-            ok &= munix != null && grid.TryPlace(ExplosiveNodeCell, munix, out NodeInstance x)
-                  && x.SelectRecipe(RecipeKind.ExplosiveAmmo);
+            NodeInstance x = null;
+            bool placed = munix != null && grid.TryPlace(ExplosiveNodeCell, munix, out x);
+            if (placed) x.Rotation = 1;
+            ok &= placed && x.SelectRecipe(RecipeKind.ExplosiveAmmo);
 
-            // 산출 — x=9 기둥 남 → y4 서 → 마운트 포트 병합기
+            // 표준탄 갈래 — 분류기 동 → x=9 기둥 남 → y4 서 → 병합기(2,5)
             ok &= Belt(grid, 9, 8, PortFace.West, PortFace.South);
             for (int y = 7; y >= 5; y--) ok &= Belt(grid, 9, y, PortFace.North, PortFace.South);
             ok &= Belt(grid, 9, 4, PortFace.North, PortFace.West);
