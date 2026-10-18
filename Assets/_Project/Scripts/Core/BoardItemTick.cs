@@ -79,16 +79,24 @@ namespace MBI.Core
                 NodeRecipe recipe = node.CurrentRecipe;
                 if (!recipe.IsRunnable) return;
 
+                // ✅ **모듈 배율이 실제 흐름에 든다**(사용자 확정 #166 · 2026-10-18 · B구간 촬영 「모듈을 설치했지만 전투력이 안 오른다」).
+                //    🗑️ 구 거동 「모듈 배율은 집계(`LogisticsNetwork.Aggregate`)에만」 폐기 — 낱개 흐름은 모듈을 안 봐서
+                //    마운트 도착(= 「물류 실제」 = 전투력)이 그대로였다. 합체 배율과 **같은 자리**에 곱한다(집계 셈과 같게).
+                //    산출 배율 = 모듈 산출 배율 × 합체 배율 · 산출 하나가 먹는 재료 = 모듈 재료 배율 ÷ 산출 배율
+                //    (합체는 재료를 안 받는다 · 모듈 둘이면 곱 — 2.25 ⚠️ 가정).
+                float merge = Mathf.Max(1f, outputMultiplier);
+                float rate = node.ModuleOutputMultiplier * merge;
+                float perOutput = node.ModuleInputMultiplier / Mathf.Max(1e-6f, rate);
+
                 // 버퍼가 가득하거나 재료가 없으면 0을 돌려준다 — 둘 다 정지다.
                 // 여기서 사유를 가리지 않는다. 가리는 것은 진단의 몫이다.
-                float made = NodeProduction.Produce(recipe, node.OutputBuffer, produceDt,
-                    node.InputBuffer, outputMultiplier);
+                float made = NodeProduction.ProduceScaled(recipe, node.OutputBuffer, produceDt,
+                    node.InputBuffer, rate, perOutput);
                 if (made <= 0f) return;
 
                 // 만든 만큼만 먹는다. 순서를 바꾸면 버릴 산출의 재료까지 먼저 사라진다.
-                // ⚠️ **배율만큼 나눠 먹는다** — 재료는 배율을 안 받는다(합체 = 산출만 늘어난다).
-                NodeProduction.ConsumeFor(recipe, made / Mathf.Max(1f, outputMultiplier),
-                    node.InputBuffer);
+                // ⚠️ **산출 하나당 재료 배율만큼 먹는다** — 모듈 없고 합체만이면 「산출 ÷ 합체 배율」(종전과 같다).
+                NodeProduction.ConsumeFor(recipe, made * perOutput, node.InputBuffer);
 
                 node.OutputBuffer += made;
                 node.BufferKind = recipe.output;

@@ -2506,6 +2506,51 @@ namespace MBI.EditorTools
             if (Application.isBatchMode) EditorApplication.Exit(0);
         }
 
+        /// <summary>
+        /// **#166 모듈이 실제 흐름에 든 뒤 — S1~S6 · 강화 전/뒤 · 모듈 0/1/2**(2026-10-18 · T4 대상 칸 (7,8) · 하네스 전용).
+        /// 모듈 1 = 생산량(M) · 모듈 2 = 생산량 + 생산속도(M·R). 두 로봇 판(S5·S6)은 기본 시작(A 가득 · B 0) · 합체 중 ×2 태움 · 합체 안 누름.
+        /// 배치: <c>-executeMethod MBI.EditorTools.StageClearHarness.RunModule166Batch</c>
+        /// </summary>
+        public static void RunModule166Batch()
+        {
+            var m = AssetDatabase.LoadAssetAtPath<ModuleDefinition>($"{SoRoot}/Modules/Module_M.asset");
+            var r = AssetDatabase.LoadAssetAtPath<ModuleDefinition>($"{SoRoot}/Modules/Module_R.asset");
+            var hooks = new System.Action<BoardGrid>[]
+            {
+                null,
+                g => g.GetAt(new Vector2Int(7, 8))?.TryAttachModule(m),
+                g => { var n = g.GetAt(new Vector2Int(7, 8)); n?.TryAttachModule(m); n?.TryAttachModule(r); },
+            };
+            var sb = new StringBuilder();
+            sb.AppendLine("############ #166 모듈 → 실제 흐름 · S1~S6 · 60초 (2026-10-18 · 하네스 · T4 대상 칸 (7,8)) ############");
+            sb.AppendLine("모듈 1 = 생산량(M · 산출 ×1.5 · 재료 ×1) · 모듈 2 = M + 생산속도(R · 산출·재료 ×1.5) · 두 로봇 판 = A 가득 · B 0 · 합체 안 누름 · 합체 ×2 태움");
+            sb.AppendLine();
+            sb.AppendLine("| 판 | 강화 | 모듈 0 | 모듈 1 (M) | 모듈 2 (M+R) |");
+            sb.AppendLine("|---|---|---|---|---|");
+            try
+            {
+                foreach (string sid in new[] { "S1", "S2", "S3", "S4", "S5", "S6" })
+                    foreach (bool en in new[] { false, true })
+                    {
+                        var cells = new string[3];
+                        for (int k = 0; k < 3; k++)
+                        {
+                            BoardHook = hooks[k];
+                            Enhanced = en; HarnessMergeOutput = true;
+                            if (sid == "S5" || sid == "S6") { AStartRatio = 1f; BStartRatio = 0f; MergeStartRatio = 0f; }
+                            StageVerdict v = RunOne(sid, 0f);
+                            cells[k] = Cell(v) + (v.result == CombatResult.Win ? "" : $" · 남은 적 HP {LastEnemyHpLeft:F0}");
+                            BoardHook = null; KnobReset();
+                        }
+                        sb.AppendLine($"| {sid} | {(en ? "뒤" : "전")} | {cells[0]} | {cells[1]} | {cells[2]} |");
+                    }
+            }
+            finally { BoardHook = null; KnobReset(); }
+            System.IO.File.WriteAllText("Docs/261018_module166.md", sb.ToString());
+            Debug.Log(sb.ToString());
+            if (Application.isBatchMode) EditorApplication.Exit(0);
+        }
+
         /// <summary>판을 세운 직후 손대는 갈고리 — 하네스 전용(2026-10-16 · 사용자 막힘 「S2 도전을 못 넘는다」 실측).</summary>
         internal static System.Action<BoardGrid> BoardHook;
 

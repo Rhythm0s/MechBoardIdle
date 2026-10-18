@@ -71,6 +71,30 @@ namespace MBI.Core
         }
 
         /// <summary>
+        /// **산출 배율과 재료 배율을 따로 받는** 한 틱 산출 (사용자 확정 #166 · 2026-10-18 · 모듈이 실제 흐름에 든다).
+        ///
+        /// <paramref name="rateMultiplier"/> = 산출 개수 배율(모듈 산출 배율 × 합체 배율).
+        /// <paramref name="inputPerOutputFactor"/> = 산출 하나가 먹는 재료의 배율(모듈 재료 배율 ÷ 산출 배율).
+        /// 생산량 모듈 M(산출 1.5 · 재료 1)이면 산출 하나에 재료 1/1.5 — 같은 재료로 더 나온다.
+        /// 생산속도 모듈 R(산출 1.5 · 재료 1.5)이면 산출 하나에 재료 1 — 더 빨리, 더 먹는다.
+        /// 먹는 양은 부르는 쪽이 <see cref="ConsumeFor"/> 에 「산출 × 이 배율」로 넘긴다.
+        /// ⚠️ 버퍼 상한은 배율을 안 받는다(위 겹과 같다).
+        /// </summary>
+        public static float ProduceScaled(in NodeRecipe recipe, float bufferNow, float dt,
+            IReadOnlyDictionary<FlowKind, float> stock, float rateMultiplier, float inputPerOutputFactor)
+        {
+            if (!recipe.IsRunnable || dt <= 0f) return 0f;
+            float room = FreeSpace(recipe, bufferNow);
+            if (room <= 0f) return 0f;
+
+            float rate = Mathf.Max(0f, rateMultiplier);
+            float e = Mathf.Max(1e-6f, inputPerOutputFactor);
+            float byRate = recipe.outputPerSec * dt * rate;
+            float byInput = InputCap(recipe, stock) / e;
+            return Mathf.Min(Mathf.Min(byRate, byInput), room);
+        }
+
+        /// <summary>
         /// 지금 재고로 만들 수 있는 최대 산출 개수. 재료를 안 먹는 조합표는 무제한이다.
         ///
         /// **가장 모자란 재료가 상한을 정한다** — 하나라도 없으면 0이 되고, 그 하나가 병목이다.
