@@ -2335,6 +2335,35 @@ namespace MBI.EditorTools
             if (Application.isBatchMode) EditorApplication.Exit(0);
         }
 
+        internal static float LastDroneDamage;
+
+        /// <summary>
+        /// **누적형 드론이 방어를 몇 번 빼나 — 한 번 재기**(2026-10-18 · 조립 기획서 점검 · 코드 0).
+        /// S5(장갑 def 45) · 강화 뒤/전 · A 40 · B 40 · 합체 안 누름 · Auto 켬. 드론 총 피해와 태그 스킬 수를 적는다.
+        /// 배치: <c>-executeMethod MBI.EditorTools.StageClearHarness.RunDroneDefenseBatch</c>
+        /// </summary>
+        public static void RunDroneDefenseBatch()
+        {
+            var sb = new StringBuilder();
+            sb.AppendLine("############ 누적형 드론 × 방어 — S5(def 45) · A 40 · B 40 · 합체 안 누름 · Auto 켬 · 60초 (2026-10-18 · 1ea6b01) ############");
+            sb.AppendLine("| 강화 | 결과 | 드론이 준 피해 합 | 태그 스킬 | 남은 적 HP |");
+            sb.AppendLine("|---|---|---|---|---|");
+            try
+            {
+                foreach (bool en in new[] { true, false })
+                {
+                    Enhanced = en; HarnessMergeOutput = true; AutoMerge = false; AStartRatio = 1f; BStartRatio = 1f; MergeStartRatio = 0f;
+                    StageVerdict v = RunOne("S5", 0f);
+                    sb.AppendLine($"| {(en ? "뒤" : "전")} | {Cell(v)} | {LastDroneDamage:F0} | {LastTagStrikes}회 | {LastEnemyHpLeft:F0} |");
+                    KnobReset();
+                }
+            }
+            finally { KnobReset(); }
+            System.IO.File.WriteAllText("Docs/261018_drone_defense.md", sb.ToString());
+            Debug.Log(sb.ToString());
+            if (Application.isBatchMode) EditorApplication.Exit(0);
+        }
+
         internal static float KnobBossHp;
         internal static bool HarnessMergeOutput;
         internal static float RateMergeB, RateMergeA, RateMergeT, RatePreB, RatePreA, RatePreT;
@@ -3064,6 +3093,7 @@ namespace MBI.EditorTools
             // ── 보고 ───────────────────────────────────────────────────────
             LastBurstDamage = sim.LastBurstDamage;
             LastTagStrikes = sim.TagSkillStrikes;
+            LastDroneDamage = sim.DroneDamageDealt;
             LastStrikeLog = string.Join(" / ", strikeLog).Replace("    ", "");
             LastEnemyHpLeft = 0f;
             foreach (CombatEntity e in sim.Enemies) if (e.IsAlive) LastEnemyHpLeft += e.hp;
