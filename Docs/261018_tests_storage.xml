@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="utf-8"?>
+<test-run id="2" testcasecount="1" result="Passed" total="1" passed="1" failed="0" inconclusive="0" skipped="0" asserts="0" engine-version="3.5.0.0" clr-version="4.0.30319.42000" start-time="2026-10-18 10:21:02Z" end-time="2026-10-18 10:21:02Z" duration="0.1825952">
+  <test-suite type="TestSuite" id="1000" name="MechBoardIdle" fullname="MechBoardIdle" runstate="Runnable" testcasecount="1596" result="Passed" start-time="2026-10-18 10:21:02Z" end-time="2026-10-18 10:21:02Z" duration="0.182595" total="1" passed="1" failed="0" inconclusive="0" skipped="0" asserts="0">
+    <properties>
+      <property name="platform" value="EditMode" />
+    </properties>
+    <test-suite type="Assembly" id="2800" name="MBI.Tests.EditMode.dll" fullname="C:/Unity_Project/26_MechBoardIdle/MechBoardIdle/Library/ScriptAssemblies/MBI.Tests.EditMode.dll" runstate="Runnable" testcasecount="1596" result="Passed" start-time="2026-10-18 10:21:02Z" end-time="2026-10-18 10:21:02Z" duration="0.156353" total="1" passed="1" failed="0" inconclusive="0" skipped="0" asserts="0">
+      <properties>
+        <property name="_PID" value="41656" />
+        <property name="_APPDOMAIN" value="Unity Child Domain" />
+        <property name="platform" value="EditMode" />
+        <property name="EditorOnly" value="True" />
+      </properties>
+      <test-suite type="TestSuite" id="2801" name="MBI" fullname="MBI" runstate="Runnable" testcasecount="1596" result="Passed" start-time="2026-10-18 10:21:02Z" end-time="2026-10-18 10:21:02Z" duration="0.097598" total="1" passed="1" failed="0" inconclusive="0" skipped="0" asserts="0">
+        <properties />
+        <test-suite type="TestSuite" id="2802" name="Tests" fullname="MBI.Tests" runstate="Runnable" testcasecount="1596" result="Passed" start-time="2026-10-18 10:21:02Z" end-time="2026-10-18 10:21:02Z" duration="0.080859" total="1" passed="1" failed="0" inconclusive="0" skipped="0" asserts="0">
+          <properties />
+          <test-suite type="TestFixture" id="2562" name="StorageNodePassThroughTests" fullname="MBI.Tests.StorageNodePassThroughTests" classname="MBI.Tests.StorageNodePassThroughTests" runstate="Runnable" testcasecount="1" result="Passed" start-time="2026-10-18 10:21:02Z" end-time="2026-10-18 10:21:02Z" duration="0.063054" total="1" passed="1" failed="0" inconclusive="0" skipped="0" asserts="0">
+            <properties />
+            <test-case id="2563" name="저장_노드는_받은_품목을_하류로_내보내는가_지금_거동" fullname="MBI.Tests.StorageNodePassThroughTests.저장_노드는_받은_품목을_하류로_내보내는가_지금_거동" methodname="저장_노드는_받은_품목을_하류로_내보내는가_지금_거동" classname="MBI.Tests.StorageNodePassThroughTests" runstate="Runnable" seed="838619234" result="Passed" start-time="2026-10-18 10:21:02Z" end-time="2026-10-18 10:21:02Z" duration="0.048464" asserts="0">
+              <properties>
+                <property name="retryIteration" value="0" />
+                <property name="repeatIteration" value="0" />
+              </properties>
+              <output><![CDATA[[저장 거동] 저장 입력 버퍼 39.0 · 저장 출력 버퍼 0.0 · 하류 받는 곳 입력 0.0 · 도착 총계 39
+Saving results to: C:/Users/Kang/AppData/LocalLow/DefaultCompany/MechBoardIdle\TestResults.xml
+]]></output>
+            </test-case>
+          </test-suite>
+        </test-suite>
+      </test-suite>
+    </test-suite>
+  </test-suite>
+</test-run>
