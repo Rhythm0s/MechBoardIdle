@@ -1409,12 +1409,27 @@ namespace MBI.Combat
         /// ⚠️ 여기서는 **화면의 값만** 받아 둔다 — 배율과 그림은 시뮬에 안 들어간다.
         /// </summary>
         private List<EnemySpawn> BuildSpawns()
-            => StageSpawnFactory.Build(stage, enemyCatalog, tuning, (label, def) =>
-            {
-                // 배율은 없거나 0 이면 1 로 본다 — 낡은 자산이 적을 통째로 사라지게 하면 안 된다.
-                _viewScaleByLabel[label] = def != null && def.viewScale > 0 ? def.viewScale : 1;
-                _artByLabel[label] = def;
-            });
+        {
+            List<EnemySpawn> spawns = StageSpawnFactory.Build(stage, enemyCatalog, tuning, RegisterEnemyArt);
+
+            // ✅ **파밍 종류도 판이 설 때 등록한다**(사용자 확정 #170 · 2026-10-19 · #111 부터 파밍 종류 그림 미등록).
+            //    종전에는 도전 구성만 등록해, 그 판 도전에 없는 종류가 파밍에 나오면 그림을 못 찾아
+            //    **빨간 사각형**(`PlaceholderSprite.White`)으로 섰다 — S5 보병·포격 · S6 셋 다.
+            //    리필(`RefillFarm`)에서도 한 번 더 등록한다(둘 다 · 더 안전).
+            if (stage != null && stage.farmComposition != null)
+                foreach (StageComposition c in stage.farmComposition)
+                    StageSpawnFactory.FarmSpawn(c, enemyCatalog, tuning, RegisterEnemyArt);
+            return spawns;
+        }
+
+        /// <summary>적 표시명 → 그림·배율. 도전·파밍이 같은 문을 지난다(사용자 확정 #170).</summary>
+        private void RegisterEnemyArt(string label, EnemyDefinition def)
+        {
+            if (string.IsNullOrEmpty(label)) return;
+            // 배율은 없거나 0 이면 1 로 본다 — 낡은 자산이 적을 통째로 사라지게 하면 안 된다.
+            _viewScaleByLabel[label] = def != null && def.viewScale > 0 ? def.viewScale : 1;
+            _artByLabel[label] = def;
+        }
 
         private void Update()
         {
@@ -2841,7 +2856,7 @@ namespace MBI.Combat
             var batch = new List<EnemySpawn>();
             foreach (FarmRefillRule.Refill r in _farmPlan)
                 for (int i = 0; i < r.count; i++)
-                    batch.Add(StageSpawnFactory.FarmSpawn(r.entry, enemyCatalog, tuning));
+                    batch.Add(StageSpawnFactory.FarmSpawn(r.entry, enemyCatalog, tuning, RegisterEnemyArt));   // #170
 
             _sim.SpawnBatch(batch);
         }

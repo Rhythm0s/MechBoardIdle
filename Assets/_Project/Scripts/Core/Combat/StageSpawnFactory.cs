@@ -67,13 +67,16 @@ namespace MBI.Core.Combat
         /// 그래서 **같은 자리**(<see cref="Build"/> 의 몸)를 함수로 빼서 둘이 같이 쓴다.
         /// </summary>
         public static EnemySpawn FarmSpawn(StageComposition entry,
-            IReadOnlyList<EnemyDefinition> catalog, CombatTuning tuning)
+            IReadOnlyList<EnemyDefinition> catalog, CombatTuning tuning,
+            Action<string, EnemyDefinition> onDefinition = null)
         {
             EnemyDefinition def = null;
             if (catalog != null)
                 foreach (EnemyDefinition e in catalog)
                     if (e != null && e.enemyKey == entry.enemyKey) { def = e; break; }
 
+            // 사용자 확정 #170(2026-10-19) — 파밍 종류도 화면에 정의를 알린다(#111 부터 파밍 종류 그림 미등록).
+            onDefinition?.Invoke(def != null ? def.displayName : entry.enemyKey, def);
             return MakeSpawn(entry, def, tuning);
         }
 
