@@ -23,10 +23,23 @@ namespace MBI.Tests
         [Test]
         public void 팝오버_레벨_줄과_단추()
         {
-            Assert.AreEqual("강화 Lv 1 · ×1.00", MountEnhanceRule.LevelLine(false, 1.45f));
-            Assert.AreEqual("강화 Lv 2 · ×1.45", MountEnhanceRule.LevelLine(true, 1.45f));
+            Assert.AreEqual("Lv 1 · 피해량 ×1.00", MountEnhanceRule.LevelLine(false, 1.45f));   // #202
+            Assert.AreEqual("Lv 2 · 피해량 ×1.45", MountEnhanceRule.LevelLine(true, 1.45f));
             Assert.AreEqual("강화 (재료 50 · 고철 300)", MountEnhanceRule.ButtonLabelWithCost(false, 50d, 300d));
             Assert.AreEqual("강화 완료", MountEnhanceRule.ButtonLabelWithCost(true, 50d, 300d));
+        }
+
+        [Test]
+        public void 튜토리얼_막_동안_전투_정지()   // #203
+        {
+            Assert.IsTrue(TutorialPauseRule.ShouldPause(true, false, false));
+            Assert.IsTrue(TutorialPauseRule.ShouldPause(false, true, false));
+            Assert.IsTrue(TutorialPauseRule.ShouldPause(false, false, true));
+            Assert.IsFalse(TutorialPauseRule.ShouldPause(false, false, false));
+            string sr = System.IO.File.ReadAllText("Assets/_Project/Scripts/Combat/StageRunner.cs");
+            StringAssert.Contains("if (tutorialPause) goto TutorialSignalsUpdate;", sr);
+            Assert.Less(sr.IndexOf("if (tutorialPause) goto TutorialSignalsUpdate;"), sr.IndexOf("_sim.Tick(Time.deltaTime);"));
+            Assert.Less(sr.IndexOf("TutorialSignalsUpdate:"), sr.IndexOf("TutorialSignals.HighlightChallengeButton = ChallengeTutorialRule.IsActive("));
         }
 
         [Test]

@@ -105,7 +105,7 @@ namespace MBI.Core
         // ── #199 팝오버 레벨 · 배율 줄 + 단추 글자 ──────────
         /// <summary>「강화 Lv 1 · ×1.00」 / 「강화 Lv 2 · ×1.45」 — ⚠️ 꼴 가정(#199).</summary>
         public static string LevelLine(bool enhanced, float enhancedCoef) =>
-            enhanced ? $"강화 Lv 2 · ×{enhancedCoef:0.00}" : "강화 Lv 1 · ×1.00";
+            enhanced ? $"Lv 2 · 피해량 ×{enhancedCoef:0.00}" : "Lv 1 · 피해량 ×1.00";   // #202 — 🗑️ 「강화 Lv 2 · ×1.45」
 
         /// <summary>단추 글자 — 「강화 (재료 50 · 고철 300)」 / 강화 뒤 「강화 완료」(흐림) ⚠️ 가정(#199 · 🗑️ 「강화 (재료 전부 투입)」).</summary>
         public static string ButtonLabelWithCost(bool enhanced, double cost, double scrapCost) =>

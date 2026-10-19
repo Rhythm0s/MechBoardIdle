@@ -1473,7 +1473,12 @@ namespace MBI.Combat
             // 결과가 나도 끝까지 튼다 — 버스트로 마지막 적이 죽으면 연출이 그 프레임에 끊긴다.
             _cutscene.Tick(Time.deltaTime);
 
-            bool running = _sim.Result == CombatResult.InProgress;
+            // ✅ **#203 — 튜토리얼 막(S1 T3 · S3 강화 · S6 B 강화) 동안 전투 시뮬 정지**(사용자 확정 · `TutorialPauseRule`).
+            //    지난 프레임의 막 신호로 판단한다(신호는 아래 「T3」 자리에서 매 프레임 다시 낸다 — 거기는 정지 중에도 돈다).
+            bool tutorialPause = TutorialPauseRule.ShouldPause(TutorialSignals.HighlightChallengeButton,
+                TutorialSignals.HighlightEnhanceMount, TutorialSignals.HighlightEnhanceMountB);
+            bool running = _sim.Result == CombatResult.InProgress && !tutorialPause;
+            if (tutorialPause) goto TutorialSignalsUpdate;
 
             if (running)
             {
@@ -1719,6 +1724,7 @@ namespace MBI.Combat
             // 도전 통과를 **러너가 보고한다**(2026-10-13 · 순서 5·#111).
             ReportChallengeClearOnce();
 
+            TutorialSignalsUpdate:
             // **T3 — S1 돌파 도전 튜토리얼**(기획서 4장 · 확정 #115 · 2026-10-14).
             // ⚠️ 켜고 **끄는** 것을 매 프레임 다시 판단한다 — 앞 신호 둘이 「켜는 곳만
             //    있고 끄는 곳이 없어」 막다른 국면을 두 번 만들었다.
