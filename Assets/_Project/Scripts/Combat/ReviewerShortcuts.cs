@@ -438,7 +438,8 @@ namespace MBI.Combat
                 : MountEnhanceRule.ButtonLabel;
 
             bool was = GUI.enabled;
-            GUI.enabled = was && MountEnhanceRule.CanEnhance(enhanced, IdleSignals.WalletEnhMaterial, cost);
+            GUI.enabled = was && MountEnhanceRule.CanEnhance(enhanced, IdleSignals.WalletEnhMaterial, cost,
+                                                             IdleSignals.WalletScrap, BuildCost.EnhanceScrap);   // #172 재료 + 고철
             if (UiSkin.Button(new Rect(x, y, w, h), label, style))
                 IdleSignals.RequestMountEnhance(cost);
             GUI.enabled = was;
@@ -617,6 +618,10 @@ namespace MBI.Combat
             // 사용자 확정 #167 · #168 — S5 · S6 점프는 로봇 A 보드를 폭발탄 프리셋으로 세운다(저장 보드 덮음 ⚠️ 가정).
             if (s != null && PresetBoards.ExplosiveOnJump(StageMapName.NumberOf(s.stageId)))
                 PresetBoards.ExplosiveRequested = true;
+
+            // 사용자 확정 #103 → #173 — 로봇 B 자동 해금은 **바로가기 S5 · S6 점프에만** 남는다(S1~S4 점프는 끔 ·
+            //    골드로 산 해금은 저장 칸이라 그대로). 판이 서기 **전에** 세운다(태그 원형 · 자동 교대가 첫 프레임에 읽는다).
+            if (s != null) RobotBGate.JumpUnlocked = RobotBGate.JumpOpens(StageMapName.NumberOf(s.stageId));
 
             runner.LoadStage(s);
             runner.FillMountsForJump();   // 사용자 확정 #156 — 바로가기 점프는 마운트 가득으로 든다(합체 게이지는 그대로)

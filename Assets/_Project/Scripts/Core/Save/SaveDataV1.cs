@@ -56,6 +56,19 @@ namespace MBI.Core
         /// ⚠️ 스키마 번호는 안 올린다 — 더하기만 하는 칸(옛 저장 = 0).
         /// </summary>
         public float mergeChargeSeconds;
+
+        /// <summary>
+        /// **로봇 B 를 골드로 해금했는가** (사용자 확정 #173 · 2026-10-19). 참이면 B 가 열린다.
+        /// 🗑️ 구 규칙 「S4 통과 = 해금」(#84) 폐기 — 통과만으로는 안 열린다. 「처음부터」는 새 저장이라 거짓.
+        /// ⚠️ 스키마 번호는 안 올린다 — 더하기만 하는 칸(옛 저장 = 미해금).
+        /// </summary>
+        public bool robotBUnlocked;
+
+        /// <summary>
+        /// **초기 지급(고철 · 골드)을 줬는가** (사용자 확정 #174 · 2026-10-19). 새 저장 · 「처음부터」 때 한 번만 준다.
+        /// ⚠️ 옛 저장(칸 없음 = 거짓)에는 안 준다 — 「새 저장」 때만 주는 것이 확정이다(방치 런타임이 가른다).
+        /// </summary>
+        public bool startingGrantGiven;
         public string lastFarmStageId = "";        // 끈 시점의 상주 스테이지
         public int totalKills;
 

@@ -3328,7 +3328,11 @@ namespace MBI.Logistics
                 Debug.LogWarning("[MBI] BoardController: 배치할 노드 없음(팔레트/placeTarget 미할당).");
                 return;
             }
+            // ✅ **노드 설치 = 고철**(사용자 확정 #172 · 종류 무관). 모자라면 안 놓인다(팔레트 단추도 흐림).
+            //    값은 **놓는 데 성공한 뒤에** 적는다 — 실패한 탭에 값을 물리지 않는다. 환불 없음.
+            if (!BuildCost.CanAffordScrap(BuildCost.NodeScrap)) return;
             if (!_grid.TryPlace(cell, node, out _)) return;
+            BuildCost.TryReserveScrap(BuildCost.NodeScrap);
 
             // 🗑️ **미리 돌려 두는 길 폐기**(2026-09-18 ⑩) — 팔레트 버튼이 없어졌다.
             //    놓은 뒤 팝오버의 「90도 돌리기」가 그 일을 한다.
@@ -3386,6 +3390,8 @@ namespace MBI.Logistics
             ModuleDefinition module = modulePalette[_selectedModule];
             NodeInstance node = _grid.GetAt(cell);
             if (module == null || node == null) return false;
+            // ✅ **모듈 장착 = 고철**(사용자 확정 #172). 모자라면 안 붙는다 — 부르는 쪽은 「고르기」로 떨어진다.
+            if (!BuildCost.CanAffordScrap(BuildCost.ModuleScrap)) return false;
 
             if (!node.TryAttachModule(module))
             {
@@ -3393,12 +3399,35 @@ namespace MBI.Logistics
                 return false;
             }
 
+            BuildCost.TryReserveScrap(BuildCost.ModuleScrap);   // #172 — 붙은 뒤에 적는다 · 떼도 환불 없음
+
             // 붙는 순간 전력 수요가 바뀐다 — 다시 안 돌리면 변수 패널이 옛 수요를 든 채로 남는다.
             RefreshConnections();
             RefreshModuleSymbols(cell);
             Debug.Log($"[MBI] 모듈 장착: {module.displayName} → {node.Definition.displayName} " +
                       $"@ 셀({cell.x},{cell.y}) · 산출 ×{node.ModuleOutputMultiplier:F2} · 부하 ×{node.ModulePowerLoadMultiplier:F2}.");
             return true;
+        }
+
+        /// <summary>
+        /// 팔레트 단추 **비용 글자**(사용자 확정 #172 보충) — 단추 왼쪽 위 구석에 「고철 20」. 모자라면 빨강.
+        /// 비용 0(벨트 · 병합기 · 분류기 · 런타임 없는 판)이면 안 그린다. ⚠️ 자리 · 색 가정.
+        /// </summary>
+        private static void DrawPaletteCost(Rect button, double cost, bool affordable)
+        {
+            if (cost <= 0d) return;
+            var st = new GUIStyle(GUI.skin.label)
+            {
+                fontSize = KoreanFont.Snap(Mathf.Max(9, Mathf.RoundToInt(button.height * 0.11f))),
+                fontStyle = FontStyle.Bold,
+                alignment = TextAnchor.UpperLeft,
+                clipping = TextClipping.Overflow,
+                wordWrap = false,
+            };
+            st.normal.textColor = affordable ? new Color(0.95f, 0.92f, 0.8f) : new Color(1f, 0.32f, 0.28f);
+            float m = Mathf.Max(2f, button.height * 0.04f);
+            GUI.Label(new Rect(button.x + m, button.y + m, button.width - m * 2f, button.height * 0.3f),
+                      BuildCost.ScrapLabel(cost), st);
         }
 
         private static string ElementLabel(BeltElementKind e) =>
@@ -3810,7 +3839,9 @@ namespace MBI.Logistics
                     ? TutorialGate.Allows(TutorialGate.Control.PaletteMunitions)
                     : TutorialGate.Allows(TutorialGate.Control.PaletteOther);
                 bool wasEnabled = GUI.enabled;
-                GUI.enabled = wasEnabled && allowed;
+                // #172 — 고철이 모자라면 흐림(안 골라진다 · 놓기도 `Place` 가 다시 막는다).
+                bool affordable = BuildCost.CanAffordScrap(BuildCost.NodeScrap);
+                GUI.enabled = wasEnabled && allowed && affordable;
 
                 bool sel = i == _selectedNode;
                 if (UiSkin.Button(rect, (sel ? "● " : "") + palette[i].displayName, style))
@@ -3820,6 +3851,7 @@ namespace MBI.Logistics
                     _selectedModule = -1;
                 }
                 DrawPaletteThumb(rect, palette[i]);
+                DrawPaletteCost(rect, BuildCost.NodeScrap, affordable);
 
                 // ⚠️ **어둠막은 버튼 뒤에 그린다**(2026-09-11 재육안 · IMGUI 는 뒤에 그리는
                 // 쪽이 위로 온다). 앞에 그렸더니 **버튼이 제 바탕으로 덮어** 막이 한 번도
@@ -3899,7 +3931,8 @@ namespace MBI.Logistics
                     var mRect = new Rect(bx, 0f, side, side);
                     bool on = _selectedModule == m;
                     bool wasM = GUI.enabled;
-                    GUI.enabled = wasM && moduleAllowed;
+                    bool mAffordable = BuildCost.CanAffordScrap(BuildCost.ModuleScrap);   // #172
+                    GUI.enabled = wasM && moduleAllowed && mAffordable;
                     // 강제 버튼 — T4 ② 에서 아직 안 골랐으면 M/R 을 빛낸다(#138).
                     Color prevM = GUI.color;
                     if (!on && _selectedModule < 0 && TutorialGate.Current == TutorialGate.Phase.PlaceModule)
@@ -3918,6 +3951,7 @@ namespace MBI.Logistics
                         _elementMode = null;
                     }
                     DrawPaletteModuleThumb(mRect, modulePalette[m]);
+                    DrawPaletteCost(mRect, BuildCost.ModuleScrap, mAffordable);
                     if (!moduleAllowed) UiSkin.DrawLockVeil(mRect);
                     GUI.enabled = wasM;
                     bx += step;
@@ -4593,6 +4627,9 @@ namespace MBI.Logistics
             float powerEach = inst.Definition.resources.powerDraw * inst.ModulePowerLoadMultiplier;
             string powerLine = $"전력 {powerEach * Mathf.Clamp01(workload):F1} (대당 {powerEach:F1})"
                                + "  ·  " + ProductionTimeText(inst, cur);
+            // #172 보충 — 설치 비용 한 줄(코어는 못 놓으니 안 적는다 · 비용 0 이면 안 적는다). ⚠️ 문구 가정.
+            string costLine = BuildCost.NodeScrap > 0d && inst.Definition.type != NodeType.Core
+                ? BuildCost.NodeInstallLine(BuildCost.NodeScrap) : null;
             int moduleRows = inst.ModuleCount;
             var moduleSlots = new List<int>();
             var moduleTexts = new List<string>();
@@ -4617,6 +4654,7 @@ namespace MBI.Logistics
                 needW = Mathf.Max(needW, Need(head, t));
             needW = Mathf.Max(needW, Need(body, stateLine));
             needW = Mathf.Max(needW, Need(body, powerLine));
+            if (costLine != null) needW = Mathf.Max(needW, Need(body, costLine));
             needW = Mathf.Max(needW,
                 LayoutRecipeFlow(new Rect(0f, 0f, 0f, row), inst, cur, flowBody, draw: false));
             foreach (string t in moduleTexts) needW = Mathf.Max(needW, Need(body, t) + inner + delW);
@@ -4642,6 +4680,7 @@ namespace MBI.Logistics
             float titleH = Tall(head, title, w - titleX, h);
             float stateH = Tall(body, stateLine, w, row);
             float powerH = Tall(body, powerLine, w, row);
+            float costH = costLine != null ? Tall(body, costLine, w, row) : 0f;
             float modLabelW = Mathf.Max(1f, w - delW - inner);
             var moduleH = new List<float>();
             foreach (string t in moduleTexts) moduleH.Add(Tall(body, t, modLabelW, mh));
@@ -4661,7 +4700,8 @@ namespace MBI.Logistics
                           + titleH + pad
                           + row + stateH
                           + row + row
-                          + row + powerH;
+                          + row + powerH
+                          + costH;
             if (moduleRows > 0)
             {
                 total += row;
@@ -4750,6 +4790,11 @@ namespace MBI.Logistics
             y += row;
             GUI.Label(new Rect(x, y, w, powerH), powerLine, body);
             y += powerH;
+            if (costLine != null)
+            {
+                GUI.Label(new Rect(x, y, w, costH), costLine, body);
+                y += costH;
+            }
 
             // ══════════ 붙은 모듈 ══════════
             //
@@ -5628,7 +5673,7 @@ namespace MBI.Logistics
             string title = MountPopover.Title(owner);
             string load = MountPopover.LoadLine(MountPopover.LoadOf(owner), MountPopover.CapacityOf(owner),
                                                 MountPopover.KindsOf(owner));
-            string mat = MountPopover.MaterialLine(material, cost);
+            string mat = MountPopover.MaterialLine(material, cost, IdleSignals.WalletScrap, BuildCost.EnhanceScrap);   // #172 재료 · 고철 한 줄
             string label = MountPopover.ButtonLabel(enhanced, MountPopover.EnhancedCoef);
 
             float Need(GUIStyle st, string t) => st.CalcSize(new GUIContent(t)).x;
@@ -5665,7 +5710,8 @@ namespace MBI.Logistics
             GUI.Label(new Rect(x, y, w, matH), mat, body); y += matH + pad;
 
             bool was = GUI.enabled;
-            GUI.enabled = was && MountPopover.ButtonEnabled(editOk, enhanced, material, cost);
+            GUI.enabled = was && MountPopover.ButtonEnabled(editOk, enhanced, material, cost,
+                                                            IdleSignals.WalletScrap, BuildCost.EnhanceScrap);
             if (UiSkin.Button(new Rect(x, y, w, btnH), label, style))
                 IdleSignals.RequestMountEnhance(cost);
             GUI.enabled = was;

@@ -54,6 +54,13 @@ namespace MBI.Core
         public static string MaterialLine(double material, double cost) =>
             $"강화 재료 {Floor((float)material)}/{Floor((float)cost)}";
 
+        /// <summary>
+        /// 재료 + 고철 줄 — 「강화 재료 n/100 · 고철 n/300」(#172 보충 · 둘 다 한 줄). 고철 비용 0 이면 재료만. ⚠️ 가정.
+        /// </summary>
+        public static string MaterialLine(double material, double cost, double scrap, double scrapCost) =>
+            scrapCost <= 0d ? MaterialLine(material, cost)
+                : MaterialLine(material, cost) + $" · 고철 {Floor((float)scrap)}/{Floor((float)scrapCost)}";
+
         /// <summary>단추 글자 — 켜졌으면 「강화 ×n 적용」, 아니면 설정 판과 같은 글자.</summary>
         public static string ButtonLabel(bool enhanced, float enhancedCoef) =>
             enhanced ? MountEnhanceRule.AppliedLabel(enhancedCoef) : MountEnhanceRule.ButtonLabel;
@@ -63,6 +70,11 @@ namespace MBI.Core
         /// </summary>
         public static bool ButtonEnabled(bool canEdit, bool enhanced, double material, double cost) =>
             canEdit && MountEnhanceRule.CanEnhance(enhanced, material, cost);
+
+        /// <summary>재료 + 고철(#172) — 팝오버 단추가 쓰는 판.</summary>
+        public static bool ButtonEnabled(bool canEdit, bool enhanced, double material, double cost,
+                                         double scrap, double scrapCost) =>
+            canEdit && MountEnhanceRule.CanEnhance(enhanced, material, cost, scrap, scrapCost);
 
         // ── 러너가 싣는 값(로직스는 러너를 모른다 — 신호로 건넨다) ─────────────────
 

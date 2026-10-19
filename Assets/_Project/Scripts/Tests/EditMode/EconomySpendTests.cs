@@ -1,0 +1,127 @@
+using MBI.Core;
+using MBI.Data;
+using NUnit.Framework;
+using UnityEditor;
+
+namespace MBI.Tests
+{
+    /// <summary>
+    /// **고철 소비 · 강화 고철 · 로봇 B 해금 · 초기 지급** (2026-10-19 사용자 확정 #172 · #173 · #174).
+    /// </summary>
+    public sealed class EconomySpendTests
+    {
+        [TearDown]
+        public void Clean()
+        {
+            BuildCost.Reset();
+            IdleSignals.WalletScrap = 0d;
+        }
+
+        [Test]
+        public void 확정값이_경제_자산에_있다()
+        {
+            var e = AssetDatabase.LoadAssetAtPath<EconomyConfig>("Assets/_Project/ScriptableObjects/EconomyConfig.asset");
+            Assert.IsNotNull(e);
+            Assert.AreEqual(20, e.nodeInstallScrapCost, "노드 설치 고철");
+            Assert.AreEqual(30, e.moduleInstallScrapCost, "모듈 장착 고철");
+            Assert.AreEqual(300, e.enhanceScrapCost, "강화 고철");
+            Assert.AreEqual(50, e.robotBUnlockGoldCost, "로봇 B 해금 골드");
+            Assert.AreEqual(300, e.startingScrap, "초기 고철");
+            Assert.AreEqual(50, e.startingGold, "초기 골드");
+        }
+
+        [Test]
+        public void 대기_지출을_빼고_잰다_한_프레임에_여러_번_놓아도_잔액을_안_넘는다()
+        {
+            IdleSignals.WalletScrap = 50d;
+            Assert.IsTrue(BuildCost.TryReserveScrap(20d));
+            Assert.IsTrue(BuildCost.TryReserveScrap(20d));
+            Assert.IsFalse(BuildCost.CanAffordScrap(20d), "50 에서 40 을 적었는데 20 이 또 된다");
+            Assert.IsFalse(BuildCost.TryReserveScrap(20d));
+            Assert.AreEqual(40d, BuildCost.DrainPendingScrap(), 1e-9);
+            Assert.AreEqual(0d, BuildCost.DrainPendingScrap(), 1e-9, "가져가면 비어야 한다");
+        }
+
+        [Test]
+        public void 비용_0_은_공짜다_런타임_없는_판_종전_거동()
+        {
+            IdleSignals.WalletScrap = 0d;
+            Assert.IsTrue(BuildCost.CanAffordScrap(0d));
+            Assert.IsTrue(BuildCost.TryReserveScrap(0d));
+            Assert.AreEqual(0d, BuildCost.DrainPendingScrap(), 1e-9);
+        }
+
+        [Test]
+        public void 고철_부족_줄은_노드_하나도_못_놓을_때만()
+        {
+            Assert.IsTrue(BuildCost.ScrapShortForNode(19d, 20d));
+            Assert.IsFalse(BuildCost.ScrapShortForNode(20d, 20d));
+            Assert.IsFalse(BuildCost.ScrapShortForNode(0d, 0d), "비용 0 이면 부족도 없다");
+            Assert.AreEqual("고철 부족", BuildCost.ScrapShortLine);
+            Assert.AreEqual("고철 20", BuildCost.ScrapLabel(20d));
+            Assert.AreEqual("설치 비용 고철 20 · 환불 없음", BuildCost.NodeInstallLine(20d));
+        }
+
+        [Test]
+        public void 강화는_재료와_고철_둘_다_있어야_한다()
+        {
+            Assert.IsTrue(MountEnhanceRule.CanEnhance(false, 100d, 100d, 300d, 300d));
+            Assert.IsFalse(MountEnhanceRule.CanEnhance(false, 100d, 100d, 299d, 300d), "고철 모자람");
+            Assert.IsFalse(MountEnhanceRule.CanEnhance(false, 99d, 100d, 300d, 300d), "재료 모자람");
+            Assert.IsFalse(MountEnhanceRule.CanEnhance(true, 100d, 100d, 300d, 300d), "이미 켬");
+            Assert.IsTrue(MountEnhanceRule.CanEnhance(false, 100d, 100d, 0d, 0d), "고철 비용 0 = 종전(재료만)");
+        }
+
+        [Test]
+        public void 팝오버_줄은_재료와_고철을_한_줄에()
+        {
+            Assert.AreEqual("강화 재료 100/100 · 고철 250/300", MountPopover.MaterialLine(100d, 100d, 250d, 300d));
+            Assert.AreEqual("강화 재료 100/100", MountPopover.MaterialLine(100d, 100d, 250d, 0d));
+            Assert.IsFalse(MountPopover.ButtonEnabled(true, false, 100d, 100d, 250d, 300d));
+            Assert.IsTrue(MountPopover.ButtonEnabled(true, false, 100d, 100d, 300d, 300d));
+        }
+
+        [Test]
+        public void 새_저장_칸은_미해금_미지급으로_선다()
+        {
+            var d = new SaveDataV1();
+            Assert.IsFalse(d.robotBUnlocked);
+            Assert.IsFalse(d.startingGrantGiven);
+        }
+
+        /// <summary>지갑을 만지는 자리 · 비용을 무는 자리 · 해금 · 초기 지급 배선을 고정한다.</summary>
+        [Test]
+        public void 배선_소스_고정()
+        {
+            string bc = System.IO.File.ReadAllText("Assets/_Project/Scripts/Logistics/BoardController.cs").Replace("\r\n", "\n");
+            StringAssert.Contains("if (!BuildCost.CanAffordScrap(BuildCost.NodeScrap)) return;\n            if (!_grid.TryPlace(cell, node, out _)) return;\n            BuildCost.TryReserveScrap(BuildCost.NodeScrap);", bc);
+            StringAssert.Contains("if (!BuildCost.CanAffordScrap(BuildCost.ModuleScrap)) return false;", bc);
+            StringAssert.Contains("BuildCost.TryReserveScrap(BuildCost.ModuleScrap);", bc);
+            StringAssert.Contains("DrawPaletteCost(rect, BuildCost.NodeScrap, affordable);", bc);
+            StringAssert.Contains("DrawPaletteCost(mRect, BuildCost.ModuleScrap, mAffordable);", bc);
+            StringAssert.Contains("BuildCost.NodeInstallLine(BuildCost.NodeScrap)", bc);
+
+            string ir = System.IO.File.ReadAllText("Assets/_Project/Scripts/Idle/IdleRuntime.cs");
+            StringAssert.Contains("double buildSpend = BuildCost.DrainPendingScrap();", ir);
+            StringAssert.Contains("MountEnhanceRule.CanEnhance(Data.mountEnhanced, Wallet.EnhMaterial, enhCost, Wallet.Scrap, enhScrap)", ir);
+            StringAssert.Contains("if (enhScrap > 0d) Wallet.TrySpendScrap(enhScrap);", ir);
+            StringAssert.Contains("IdleSignals.TryDrainRobotBUnlock(out double bGold)", ir);
+            StringAssert.Contains("RobotBGate.Purchased = Data.robotBUnlocked;", ir);
+            StringAssert.Contains("if (!hadSave) GrantStarting();", ir);
+            StringAssert.Contains("GrantStarting();   // #174 — 「처음부터」도 새 저장이다", ir);
+            StringAssert.DoesNotContain("RobotBGate.S4Cleared", ir);
+
+            string sr = System.IO.File.ReadAllText("Assets/_Project/Scripts/Combat/StageRunner.cs");
+            StringAssert.Contains("TutorialSignals.HighlightUnlockRobotB = RobotBGate.TutorialActive(", sr);
+            StringAssert.Contains("DrawRobotBUnlockButton();", sr);
+            StringAssert.Contains("ChallengeTutorialOverlay.DrawRobotBUnlock(TutorialSignals.HighlightUnlockRobotB);", sr);
+
+            string rs = System.IO.File.ReadAllText("Assets/_Project/Scripts/Combat/ReviewerShortcuts.cs");
+            StringAssert.Contains("RobotBGate.JumpUnlocked = RobotBGate.JumpOpens(StageMapName.NumberOf(s.stageId));", rs);
+            StringAssert.Contains("IdleSignals.WalletScrap, BuildCost.EnhanceScrap", rs);
+
+            string ss = System.IO.File.ReadAllText("Assets/_Project/Scripts/UI/StatusStrip.cs");
+            StringAssert.Contains("list.Add(BuildCost.ScrapShortLine);", ss);
+        }
+    }
+}

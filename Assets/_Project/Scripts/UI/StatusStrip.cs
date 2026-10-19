@@ -67,7 +67,11 @@ namespace MBI.UI
                 SupplySignals.HasCombat, SupplySignals.MountTotal);
 
             warn = SupplyStopRules.BandIsVisible(stopped, powerShort);
-            return SupplyStopRules.Problems(notConnected, stopped, powerShort, mountEmpty);
+            List<string> list = SupplyStopRules.Problems(notConnected, stopped, powerShort, mountEmpty);
+            // ✅ **고철 부족**(사용자 확정 #172) — 노드 하나도 못 놓으면 한 줄. 문구는 `BuildCost` 한 곳이 든다.
+            if (BuildCost.ScrapShortForNode(IdleSignals.WalletScrap, BuildCost.NodeScrap))
+                list.Add(BuildCost.ScrapShortLine);
+            return list;
         }
 
         // 🗑️ **폐기**(2026-09-30) — `WarnText`(주황)와 `ScrapText`(흰끼)는 부르는 곳이 0 이다.

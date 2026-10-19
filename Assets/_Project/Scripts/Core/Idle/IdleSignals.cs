@@ -174,6 +174,28 @@ namespace MBI.Core
             _enhanceCost = cost;
         }
 
+        private static bool _robotBUnlockRequested;
+        private static double _robotBUnlockCost;
+
+        /// <summary>
+        /// **로봇 B 해금 요청 — 사건**(사용자 확정 #173 · 해금 단추). 골드를 쓰는 것은 방치 런타임 하나다.
+        /// </summary>
+        public static void RequestRobotBUnlock(double goldCost)
+        {
+            _robotBUnlockRequested = true;
+            _robotBUnlockCost = goldCost;
+        }
+
+        /// <summary>해금 요청을 가져가며 비운다.</summary>
+        public static bool TryDrainRobotBUnlock(out double goldCost)
+        {
+            goldCost = _robotBUnlockCost;
+            bool had = _robotBUnlockRequested;
+            _robotBUnlockRequested = false;
+            _robotBUnlockCost = 0d;
+            return had;
+        }
+
         private static bool _jumpEnhanceRequested;
 
         /// <summary>
@@ -377,6 +399,8 @@ namespace MBI.Core
             MountEnhanced = false;
             MergeChargeSeconds = 0f;
             _jumpEnhanceRequested = false;
+            _robotBUnlockRequested = false;
+            _robotBUnlockCost = 0d;
             _enhanceRequested = false;
             _enhanceCost = 0d;
             KillsTowardGold = 0;

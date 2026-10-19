@@ -78,6 +78,12 @@ namespace MBI.Core
         public static bool ModuleTutorialActive;
 
         /// <summary>
+        /// **S4 — 로봇 B 해금 튜토리얼 막이 서 있다**(2026-10-19 사용자 확정 #173).
+        /// T3 · T4 처럼 매 프레임 다시 판단한다(<see cref="RobotBGate.TutorialActive"/> · 전투 러너가 쓴다).
+        /// </summary>
+        public static bool HighlightUnlockRobotB;
+
+        /// <summary>
         /// T4 대상 노드 칸 — **보드가 고르고 쓴다**(그 칸의 사실을 아는 것은 보드뿐이다).
         /// null 이면 고를 노드가 없다(그때 끝 조건은 「판의 아무 노드에나 모듈」).
         /// </summary>
@@ -209,6 +215,7 @@ namespace MBI.Core
             HighlightBuildMode = false;
             HighlightChallengeButton = false;
             ModuleTutorialActive = false;
+            HighlightUnlockRobotB = false;
             ModuleTargetCell = null;
             ModuleTargetFilled = false;
             ModuleTargetKnown = false;

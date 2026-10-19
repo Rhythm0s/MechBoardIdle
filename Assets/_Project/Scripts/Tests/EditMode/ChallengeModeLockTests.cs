@@ -43,13 +43,12 @@ namespace MBI.Tests
         }
 
         [Test]
-        public void 태그_원형은_S4_통과_전_S4_이하에서는_안_보인다()
+        public void 태그_원형은_해금_전에는_안_보인다()
         {
-            // 원형 셋을 그리는 문은 RobotBGate.IsUnlocked 하나다(#144 · #103).
-            Assert.IsFalse(RobotBGate.Unlocked(false, 1));
-            Assert.IsFalse(RobotBGate.Unlocked(false, 4));
-            Assert.IsTrue(RobotBGate.Unlocked(true, 1));
-            Assert.IsTrue(RobotBGate.Unlocked(false, 5), "심사자 S5·S6 점프는 해금(#103)이라 보인다");
+            // 원형 셋을 그리는 문은 RobotBGate.IsUnlocked 하나다(#144 · #103 → #173: 골드 해금 · 점프 S5·S6).
+            Assert.IsFalse(RobotBGate.Unlocked(purchased: false, jumpUnlocked: false));
+            Assert.IsTrue(RobotBGate.Unlocked(purchased: true, jumpUnlocked: false));
+            Assert.IsTrue(RobotBGate.Unlocked(purchased: false, jumpUnlocked: true), "심사자 S5·S6 점프는 해금(#103)이라 보인다");
         }
     }
 }

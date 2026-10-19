@@ -1726,6 +1726,12 @@ namespace MBI.Combat
                 stageNo,
                 StageLayerSignals.IsFarming,
                 TutorialSignals.ModuleTargetFilled);
+            // **S4 — 로봇 B 해금 튜토리얼 막**(사용자 확정 #173 · 2026-10-19). T3 · T4 와 같은 꼴 — 매 프레임 다시 판단한다.
+            //    골드가 모자라면 막을 안 깐다(단추만 흐림) · 해금하면 저절로 꺼진다.
+            TutorialSignals.HighlightUnlockRobotB = RobotBGate.TutorialActive(
+                IdleSignals.TutorialCleared, stageNo, StageLayerSignals.IsFarming,
+                RobotBGate.IsUnlocked, IdleSignals.WalletGold, BuildCost.RobotBGold);
+
             // 지급 알림 — 「S2 파밍 첫 진입 때 한 번만 · 복원으로 들어오면 안 뜸」(#138).
             if (IsTutorialStage) _moduleGrantNotice.Rearm();   // 「처음부터」 뒤 다음 T4 에서 다시 뜬다
             _moduleGrantNotice.Observe(TutorialSignals.ModuleTutorialActive,
@@ -3266,6 +3272,9 @@ namespace MBI.Combat
             //    보드 화면은 위에서 이미 돌아갔다(`BoardViewActive` → return) — 막을 안 깐다.
             ChallengeTutorialOverlay.Draw();
 
+            // **S4 로봇 B 해금 막**(#173) — T3 막과 같은 자리(OnGUI 끝)·같은 까닭. 구멍 = 태그 원형 자리(해금 단추).
+            ChallengeTutorialOverlay.DrawRobotBUnlock(TutorialSignals.HighlightUnlockRobotB);
+
             // **T4 막·문구·지급 알림**(#138) — T3 막과 같은 자리(OnGUI 끝)·같은 까닭이다.
             //    알림이 서 있는 동안은 막을 안 깐다 — 둘이 겹치면 알림이 어둠에 묻힌다.
             bool noticeUp = _moduleGrantNotice.IsVisible(Time.unscaledTime);
@@ -3354,7 +3363,13 @@ namespace MBI.Combat
             // ✅ **로봇 B 해금 뒤에만 그린다**(2026-10-15 사용자 확정 #144) — 「로봇 B」·「Auto」·「합체」
             //    원형 셋과 링 전부. 해금(S4 통과 또는 지금 판 > S4 · #103)되는 순간부터 그린다.
             //    🗑️ 구 「로봇 B 미해금」 표시 폐기 — 눌리지 않는 원형 셋이 화면 오른쪽을 차지했다.
-            if (!RobotBGate.IsUnlocked) return;
+            if (!RobotBGate.IsUnlocked)
+            {
+                // ✅ **S4 파밍부터 — 원형 셋 대신 「로봇 B 해금」 단추**(사용자 확정 #173 · 2026-10-19).
+                if (RobotBGate.ShowsUnlockButton(RobotBGate.CurrentStageNumber, StageLayerSignals.IsFarming, false))
+                    DrawRobotBUnlockButton();
+                return;
+            }
 
             // ⚠️ **날 픽셀 자리를 걷었다**(2026-09-11 · 플랜 §68-4 (A)).
             // 문서는 이 둘을 **원형 200**(기준 캔버스)으로 정했고 자리는 **부유 띠 오른쪽**이다.

@@ -67,6 +67,24 @@ namespace MBI.Combat
         }
 
         /// <summary>
+        /// **S4 — 「로봇 B 해금」 하나만 남기고 덮는 막 + 안내 문구** (2026-10-19 사용자 확정 #173).
+        /// T3 · T4 막 그대로다 — 구멍은 태그 원형 자리(해금 단추), 문구는 단추 **위**.
+        /// 켜고 끄는 판단은 <see cref="RobotBGate.TutorialActive"/>(러너가 신호로 씀)와 T3 와 같은 가림 규칙이 한다.
+        /// </summary>
+        public static void DrawRobotBUnlock(bool active)
+        {
+            if (!ChallengeTutorialOverlayRule.ShouldShow(
+                    active,
+                    TutorialSignals.BoardViewOpen,
+                    SettingsGate.IsOpen,
+                    MainMenuGate.IsOpen))
+                return;
+
+            Rect button = UiLayout.RoundButtonRect(0, Screen.width, Screen.height);
+            DrawFor(button, RobotBGate.TutorialPrompt, promptAbove: true);
+        }
+
+        /// <summary>
         /// **T4 지급 알림 한 장** — 「모듈 M·R을 받았습니다」(사용자 확정 #138).
         /// 화면 가운데에 판 하나. 막은 안 깐다(알림이지 강제가 아니다). 설정·메뉴·조립 화면에서는 안 띄운다.
         /// </summary>

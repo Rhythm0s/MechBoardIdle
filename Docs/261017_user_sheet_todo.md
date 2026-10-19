@@ -88,6 +88,19 @@
 | 3 | BALANCE_PARAM_DATA `heat` 8 · `heatc` 12 · LOGISTICS_DATA `heatGenerate` 8 · `heatThreshold` 12 | 행 남음 | 발열 축 폐기(09-02) | 행을 지우지 않는다(폐기 표기 자리) |
 | 4 | STAGE_DATA S1 `TID_Topic` | 벨트 연결 | S1 주제 = 전투(09-01 · 벨트는 튜토리얼 판) | 1번 표의 괄호 뗌과 별개다 — 글자 자체가 낡았다 |
 
+## 5b. ECONOMY_DATA — 새 행 6(2026-10-19 · #172 · #173 · #174 · CSV 임시 투입)
+
+시트에 **행이 없다** — 아래 여섯 줄을 시트 ECONOMY 탭 끝에 더한다(ID 5~10 · Confirmed 1). 자산 `EconomyConfig` · `balance_v4.json` `economy.spending` 거울은 이미 같은 값이다.
+
+| ID | FieldName | Value | Confirmed | 확정 |
+|---|---|---|---|---|
+| 5 | `nodeInstallScrapCost` | 20 | 1 | #172 노드 설치(종류 무관 · 벨트·병합기·분류기 0 · 환불 없음) |
+| 6 | `moduleInstallScrapCost` | 30 | 1 | #172 모듈 장착 |
+| 7 | `enhanceScrapCost` | 300 | 1 | #172 마운트 강화 = 재료 100 + 고철 300 |
+| 8 | `robotBUnlockGoldCost` | 50 | 1 | #173 로봇 B 해금(S4 파밍부터) |
+| 9 | `startingScrap` | 300 | 1 | #174 새 저장 · 처음부터 한 번 |
+| 10 | `startingGold` | 50 | 1 | #174 〃 |
+
 ## 6. 확인만 — `balance_v4.json` 주제 글자 거울(큐 ⓕ)
 
 `balance_v4.json` `stages[].topic` 여섯 = 「벨트 연결 · 모듈 배치 · 물류 재설계 · 마운트 강화 · 태그 학습 · 합체·버스트」 — **CSV `TID_Topic`과 같다** ✅(`6297399`).

@@ -50,6 +50,27 @@ namespace MBI.Data
         [Tooltip("자동 저장 주기(초). 웹빌드엔 원자적 쓰기가 없어 너무 잦으면 손상 위험만 커진다.")]
         public float autosaveIntervalSeconds = 30f;
 
+        // ── 소비 · 해금 · 초기 지급 (2026-10-19 사용자 확정 #172 · #173 · #174 · ECONOMY 표 5~10행) ──
+
+        [Header("소비 (#172) · 해금 (#173) · 초기 지급 (#174)")]
+        [Tooltip("노드 설치 고철(종류 무관). 벨트·병합기·분류기는 0. 떼기·지우기 환불 없음. #172 확정.")]
+        public int nodeInstallScrapCost = 20;
+
+        [Tooltip("모듈 장착 고철. 환불 없음. #172 확정.")]
+        public int moduleInstallScrapCost = 30;
+
+        [Tooltip("마운트 강화 고철 — 재료(s4Cost)와 **둘 다** 있어야 한다. #172 확정.")]
+        public int enhanceScrapCost = 300;
+
+        [Tooltip("로봇 B 해금 골드(S4 파밍부터 단추). #173 확정.")]
+        public int robotBUnlockGoldCost = 50;
+
+        [Tooltip("새 저장 · 「처음부터」 때 한 번 주는 고철. #174 확정.")]
+        public int startingScrap = 300;
+
+        [Tooltip("새 저장 · 「처음부터」 때 한 번 주는 골드. #174 확정.")]
+        public int startingGold = 50;
+
         /// <summary>확정 전까지는 파밍 수입이 계산되지 않는다는 사실을 감추지 않기 위한 표식.</summary>
         public bool HasConfirmedEconomy => scrapPerKillTbd > 0d && offlineCoefTbd > 0d;
     }

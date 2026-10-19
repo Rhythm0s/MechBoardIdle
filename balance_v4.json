@@ -819,6 +819,17 @@
     }
   ],
   "economy": {
+    "spending": {
+      "nodeInstallScrap": 20,
+      "moduleInstallScrap": 30,
+      "beltInstallScrap": 0,
+      "enhanceScrap": 300,
+      "robotBUnlockGold": 50,
+      "startingScrap": 300,
+      "startingGold": 50,
+      "refund": "none",
+      "note": "2026-10-19 사용자 확정 #172 · #173 · #174 — 원천 ECONOMY_DATA 5~10행(CSV 임시 투입 · xlsx 대기). 강화 = 재료 s4Cost + 고철 둘 다. 바로가기 프리셋은 비용 안 셈. 초기 지급은 새 저장 · 처음부터 때 한 번(오프라인 정산과 별개)."
+    },
     "enhMaterialSource": "clearRewardOnly",
     "scrapSource": "farming + challenge + offline",
     "twoCurrencySeparation": true,

@@ -26,6 +26,14 @@ namespace MBI.Core
             !enhanced && cost > 0d && material >= cost;
 
         /// <summary>
+        /// **재료 + 고철 둘 다**(사용자 확정 #172 · 2026-10-19) — 재료 조건 위에 고철 조건을 얹는다.
+        /// 설정 판 단추 · 마운트 팝오버 · 방치 런타임(실제 지출)이 **이 한 줄**을 지난다.
+        /// 고철 비용 0 이면 종전(재료만)과 같다.
+        /// </summary>
+        public static bool CanEnhance(bool enhanced, double material, double cost, double scrap, double scrapCost) =>
+            CanEnhance(enhanced, material, cost) && (scrapCost <= 0d || scrap >= scrapCost - 1e-9);
+
+        /// <summary>
         /// **바로가기 점프로 강화 표식을 켜는 판**(사용자 확정 #162 · 2026-10-16) — S4 부터.
         /// #156(마운트 만충)과 같은 결 · 심사자용 · 「그 판에 자연 진행으로 온 상태」 흉내.
         /// 재료는 안 건드린다 · S1~S3 점프는 안 켠다(켜진 표식을 끄지도 않는다) · 「처음부터」면 꺼진다.

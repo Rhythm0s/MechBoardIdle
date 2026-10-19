@@ -45,8 +45,12 @@ namespace MBI.Idle
             _autosave = new ResourceTicker(autosaveIntervalSeconds);
 
             // 파싱 실패·첫 실행은 둘 다 "기록 없음"으로 같게 다룬다(예외로 게임을 죽이지 않는다).
-            Data = _store.TryLoad(out SaveDataV1 loaded) ? loaded : new SaveDataV1();
+            bool hadSave = _store.TryLoad(out SaveDataV1 loaded);
+            Data = hadSave ? loaded : new SaveDataV1();
             Wallet = new CurrencyWallet(Data.scrap, Data.enhMaterial, Data.gold);
+            // #174 — 새 저장이면 초기 지급 한 번(옛 저장은 안 준다 · 저장 칸이 「줬다」를 든다).
+            if (!hadSave) GrantStarting();
+            BuildCost.Reset();   // 대기 지출 비움 — 값은 아래 PublishWallet 이 게시한다
             // #150 — 전투가 첫 판을 세우기 전에 계수를 알아야 한다(Awake · 튜토리얼 복원과 같은 자리)
             IdleSignals.MountEnhanced = Data.mountEnhanced;
             IdleSignals.MergeChargeSeconds = Data.mergeChargeSeconds;   // #155 — 첫 판이 서기 전에
@@ -58,7 +62,8 @@ namespace MBI.Idle
 
             // ⚠️ **로봇 B 해금도 저장에서 복원한다**(2026-10-13 · #84).
             //    튜토리얼 복원과 **같은 자리 같은 꼴**이다 — 둘 다 「깼는가」가 답이다.
-            RobotBGate.S4Cleared = Data.HasCleared(RobotBGate.UnlockStageId);
+            // ✅ #173 — 이제 답은 「골드로 샀는가」다(저장 칸). 🗑️ 구 「S4 통과 = 해금」 복원 폐기.
+            RobotBGate.Purchased = Data.robotBUnlocked;
 
             // ⚠️ **스테이지 목록의 해금도 같은 장부에서 온다**(2026-10-13 · 순서 5).
             //    위 둘과 같은 자리 같은 꼴이다 — 통과 기록 하나가 셋을 다 먹인다.
@@ -136,14 +141,33 @@ namespace MBI.Idle
                 Wallet.AddScrap(mScrap);
             }
 
+            // 설치 · 장착 고철(사용자 확정 #172) — 보드가 대기 지출에 적은 것을 여기서 뺀다(지갑을 만지는 유일한 자리).
+            //    ⚠️ 강화 판정보다 **먼저** — 같은 프레임에 놓고 강화하면 남은 고철로 재야 한다.
+            double buildSpend = BuildCost.DrainPendingScrap();
+            if (buildSpend > 0d && !Wallet.TrySpendScrap(buildSpend))
+                Wallet.TrySpendScrap(Wallet.Scrap);   // 대기 지출은 잔액을 넘지 않게 적히므로 닿지 않는 길(안전판)
+
             // 마운트 강화(2026-10-16 #150) — 재료를 쓰는 **유일한 자리**다(적립과 같은 규약).
             //    ⚠️ 표식을 세운 뒤 **바로 저장한다** — 자동저장을 기다리다 탭을 닫으면 재료만 사라진다.
+            // ✅ #172 — 재료 + 고철 **둘 다** 있어야 하고 둘 다 쓴다.
+            double enhScrap = economy != null ? economy.enhanceScrapCost : 0d;
             if (IdleSignals.TryDrainMountEnhance(out double enhCost)
-                && MountEnhanceRule.CanEnhance(Data.mountEnhanced, Wallet.EnhMaterial, enhCost)
+                && MountEnhanceRule.CanEnhance(Data.mountEnhanced, Wallet.EnhMaterial, enhCost, Wallet.Scrap, enhScrap)
                 && Wallet.TrySpendEnhMaterial(enhCost))
             {
+                if (enhScrap > 0d) Wallet.TrySpendScrap(enhScrap);   // 위 판정이 잔액을 봤다
                 Data.mountEnhanced = true;
                 IdleSignals.MountEnhanced = true;
+                Save();
+            }
+
+            // 로봇 B 해금(사용자 확정 #173) — 골드를 쓰는 **유일한 자리** · 바로 저장(강화와 같은 까닭).
+            if (IdleSignals.TryDrainRobotBUnlock(out double bGold)
+                && !Data.robotBUnlocked
+                && Wallet.TrySpendGold(bGold))
+            {
+                Data.robotBUnlocked = true;
+                RobotBGate.Purchased = true;
                 Save();
             }
 
@@ -170,11 +194,8 @@ namespace MBI.Idle
                 //    목록에서 아직 잠겨 있다. 저장에 쓴 **뒤** 사본을 갱신한다(원천은 저장이다).
                 IdleSignals.NoteClearedStage(clear.stageId);
 
-                // ⚠️ **깬 그 자리에서 B 를 연다**(2026-10-13 · #84). 다음 실행까지 기다리면
-                //    S4 를 깬 직후의 화면에서는 아직 잠겨 있다 — 깨자마자 열려야 말이 된다.
-                //    ⚠️ `MarkCleared` 가 거짓(이미 깬 판)이어도 다시 읽는다 — 저장이 참이면 참이다.
-                if (!RobotBGate.S4Cleared)
-                    RobotBGate.S4Cleared = Data.HasCleared(RobotBGate.UnlockStageId);
+                // 🗑️ 구 「깬 그 자리에서 B 를 연다」(#84) 폐기 — 사용자 확정 #173: S4 통과만으로는 안 열린다.
+                //    B 는 해금 단추(골드)로만 열린다(바로가기 S5·S6 점프는 예외 · #103).
             }
         }
 
@@ -209,6 +230,12 @@ namespace MBI.Idle
             //    적으려면 그 값이 필요한데, 전투가 `EconomyConfig` 를 직접 들면
             //    **같은 값을 두 자산에서 읽는 자리**가 생긴다. 규칙도 값도 여기 하나다.
             IdleSignals.ScrapPerKill = economy != null ? economy.scrapPerKillTbd : 0d;
+
+            // #172 · #173 — 소비 값도 여기서 게시한다(마리당 고철과 같은 까닭 · 화면이 자산을 따로 들지 않는다).
+            BuildCost.NodeScrap = economy != null ? economy.nodeInstallScrapCost : 0d;
+            BuildCost.ModuleScrap = economy != null ? economy.moduleInstallScrapCost : 0d;
+            BuildCost.EnhanceScrap = economy != null ? economy.enhanceScrapCost : 0d;
+            BuildCost.RobotBGold = economy != null ? economy.robotBUnlockGoldCost : 0d;
         }
 
         // 웹빌드에서 탭 전환·최소화가 여기로 온다. 종료(OnApplicationQuit)는 브라우저에서 보장되지
@@ -263,6 +290,23 @@ namespace MBI.Idle
             // 저장을 지웠으면 보드도 **둘 다** 같이 지운다
             foreach (MountOwner o in BoardOwners) IdleSignals.SetBoardState(o, null);
             Wallet = new CurrencyWallet();
+            GrantStarting();   // #174 — 「처음부터」도 새 저장이다
+            BuildCost.DrainPendingScrap();   // 지우기 전에 적힌 지출이 새 지갑에서 빠지지 않게
+        }
+
+        /// <summary>
+        /// **초기 지급** (사용자 확정 #174 · 2026-10-19) — 새 저장 · 「처음부터」 때 고철 · 골드를 **한 번** 준다.
+        /// 오프라인 정산과 안 섞인다(그 판의 지급액에 안 든다). 저장 칸이 「줬다」를 들어 두 번 주지 않는다.
+        /// </summary>
+        private void GrantStarting()
+        {
+            if (Data == null || Data.startingGrantGiven) return;
+            if (economy != null)
+            {
+                Wallet.AddScrap(economy.startingScrap);
+                Wallet.AddGold(economy.startingGold);
+            }
+            Data.startingGrantGiven = true;
         }
     }
 }

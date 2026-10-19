@@ -52,6 +52,12 @@ namespace MBI.Core
             /// 대상 노드만 열린다.
             /// </summary>
             PlaceModule,
+
+            /// <summary>
+            /// **S4 파밍 — 「로봇 B 해금」 하나만 밝다**(2026-10-19 사용자 확정 #173). T3 와 같은 꼴 —
+            /// 해금 단추 말고는 안 눌린다(조립 진입 · 도전 · 목록). 누르면(해금) 저절로 풀린다.
+            /// </summary>
+            UnlockRobotB,
         }
 
         /// <summary>막을 수 있는 조작들.</summary>
@@ -67,6 +73,9 @@ namespace MBI.Core
             // ⚠️ **팔레트 「모듈」 탭 하나**(2026-10-15 · T4). 다른 탭은 `PaletteOther` 가 든다 —
             //    T4 는 모듈 탭만 열어야 해서 따로 묻는다. 다른 국면에서는 `PaletteOther` 와 같은 답이다.
             ModuleTab,
+
+            /// <summary>로봇 B 해금 단추(#173).</summary>
+            UnlockRobotB,
         }
 
         /// <summary>
@@ -88,7 +97,8 @@ namespace MBI.Core
             // (2026-09-15 · 「이동 모드 버튼이 안 먹는다」).
             // 신호를 켜는 곳만 있고 끄는 곳이 없어 **들어간 뒤에도 그 국면에 머물렀고**,
             // 그 국면은 조립 버튼 하나만 허락하므로 **보드가 통째로 잠겼다.**
-            Resolve(TutorialSignals.HighlightChallengeButton,
+            Resolve(TutorialSignals.HighlightUnlockRobotB,
+                    TutorialSignals.HighlightChallengeButton,
                     TutorialSignals.ModuleTutorialActive,
                     TutorialSignals.BoardViewOpen,
                     TutorialSignals.HighlightBoardButton && !TutorialSignals.BoardViewOpen,
@@ -122,7 +132,17 @@ namespace MBI.Core
         /// </summary>
         public static Phase Resolve(bool urgeChallenge, bool urgeModule, bool boardViewOpen,
             bool urgeEnterBoard, bool urgeBuildMode, bool ghostWaiting, bool inBuildMode)
+            => Resolve(false, urgeChallenge, urgeModule, boardViewOpen,
+                       urgeEnterBoard, urgeBuildMode, ghostWaiting, inBuildMode);
+
+        /// <summary>
+        /// #173 — 맨 앞에 「로봇 B 해금」 국면을 얹은 판. 다른 국면과 겹치지 않는다(S4 파밍 · 튜토리얼 마침 뒤에만 선다).
+        /// </summary>
+        public static Phase Resolve(bool urgeUnlockRobotB, bool urgeChallenge, bool urgeModule, bool boardViewOpen,
+            bool urgeEnterBoard, bool urgeBuildMode, bool ghostWaiting, bool inBuildMode)
         {
+            if (urgeUnlockRobotB) return Phase.UnlockRobotB;
+
             // ⚠️ **T3 를 먼저 묻는다.** 그 국면은 앞 셋이 전부 끝난 **뒤**에만 서고
             //    (튜토리얼 전용 스테이지를 마쳐야 켜진다), 전투 화면의 일이라 겹치지 않는다.
             if (urgeChallenge) return Phase.Challenge;
@@ -201,6 +221,9 @@ namespace MBI.Core
                     return control == Control.MiniMap || control == Control.Zoom
                            || control == Control.ExitBoard;
 
+                case Phase.UnlockRobotB:
+                    // #173 — 해금 단추 하나만(T3 「도전 하나만」과 같은 결 · 「▲ 전투로」는 예외).
+                    return control == Control.UnlockRobotB || control == Control.ExitBoard;
                 case Phase.Challenge:
                     // ⚠️⚠️ **기획서 2장 그대로 잠근다**(2026-10-14 사용자 확정 #115 · 후보 ⓒ).
                     //

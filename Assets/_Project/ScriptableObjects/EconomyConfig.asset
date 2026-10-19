@@ -19,3 +19,9 @@ MonoBehaviour:
   goldPerAward: 5
   offlineCapHours: 36
   autosaveIntervalSeconds: 30
+  nodeInstallScrapCost: 20
+  moduleInstallScrapCost: 30
+  enhanceScrapCost: 300
+  robotBUnlockGoldCost: 50
+  startingScrap: 300
+  startingGold: 50
