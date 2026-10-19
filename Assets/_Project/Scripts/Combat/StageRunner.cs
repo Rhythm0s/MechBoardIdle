@@ -3435,8 +3435,9 @@ namespace MBI.Combat
             bool skillReady = robotBReady && (_sim.Tag.CanSkillWhileLocked || TagSystem.SkillReady(
                 _sim.Tag.Tag.CanTag, _sim.Tag.StandbyMount != null && _sim.Tag.StandbyMount.IsFull));
             // ⚠️ **밝기만으로는 사용자 눈에 안 보였다**(2026-09-16 육안 2차 ③) —
-            //    원형 버튼은 이미 밝은 판이라 1.45배가 묻힌다. **테두리를 같이 두른다.**
-            if (skillReady) DrawTagSkillRing(tagRect);
+            //    원형 버튼은 이미 밝은 판이라 1.45배가 묻힌다.
+            // 🗑️ **노란 네모 테두리(`DrawTagSkillRing`) 폐기**(사용자 확정 #185 · 2026-10-19) —
+            //    준비 표시는 아래 **적재 링의 색**이 맡는다(만충 + 스킬 조건 참 = 노랑).
 
             // ⚠️ **적재 링**(2026-09-18 설계 지시 · 「태그 원형(적재 링 40)」).
             //    대기 마운트가 얼마나 찼는지를 **원형 둘레**로 보인다 — 만충이 태그 스킬의
@@ -3447,26 +3448,18 @@ namespace MBI.Combat
             //    🗑️ 구 표시(원형 안 「쿨다운 2.6s」 글자)는 **버튼 글자로만** 남는다 —
             //    네모 판을 따로 띄우지 않는다.
             //
-            // ⚠️ **두 링이 한 둘레를 나눠 쓴다.** 같은 자리에 겹쳐 그리면 둘 다 안 읽힌다 —
-            //    적재는 **바깥 띠**, 쿨다운은 그 **안쪽 띠**다. 굵기로 자리를 가른다.
-            //    ⚠️ 굵기 비(0.6 / 0.6)와 색은 **가정**이다(UI 역기입 자리).
+            // ✅ **링은 하나 — 적재 링뿐**(사용자 확정 #185 · 2026-10-19).
+            //    🗑️ 구 「쿨다운 = 안쪽 주황 띠」(09-21 ⑦) 폐기 — 쿨다운은 **버튼 글자**(「쿨다운 n.ns」)로만 읽힌다.
+            //    ✅ **색이 뜻을 갖는다** — 하늘색 = 채우는 중(또는 만충이어도 쿨다운 중) · **노랑 = 지금 태그 스킬이 나간다**
+            //    (`skillReady` 그대로 = B 해금 · 대기 마운트 만충 · 쿨다운 0 · 합체 중은 `CanSkillWhileLocked`).
+            //    ⚠️ 노랑 = `TagSkillRingColor` 재사용(가정) · 굵기는 종전 0.6 그대로(구현 판단 · 가정 — 쿨다운 띠가 빠진 안쪽은 비워 둔다).
             float ringScale = UiLayout.Scale(Screen.height);
             float loadT = TagSkillRingThickness * 0.6f * ringScale;
 
             MountLoad standby = _sim.Tag.StandbyMount;
             if (standby != null && standby.Capacity > 0f)
                 DrawLoadRing(tagRect, standby.Total / standby.Capacity,
-                    new Color(0.45f, 0.85f, 1f, 0.9f), loadT);
-
-            // 쿨다운 — **남은 만큼**이 아니라 **돌아온 만큼**이 찬다. 「얼마나 기다려야
-            // 하나」보다 「언제 눌러도 되나」가 버튼에서 읽어야 할 것이다.
-            float cdLeft = _sim.Tag.Tag.CooldownRemaining;
-            if (cdLeft > 0f && TagSystem.CooldownSeconds > 0f)
-            {
-                float ready = 1f - Mathf.Clamp01(cdLeft / TagSystem.CooldownSeconds);
-                DrawLoadRing(Shrink(tagRect, loadT), ready,
-                    new Color(1f, 0.78f, 0.35f, 0.95f), loadT);
-            }
+                    skillReady ? TagSkillRingColor : TagLoadRingColor, loadT);
 
             Color tagPrev = GUI.color;
             if (skillReady) GUI.color = TagSkillReadyTint;
@@ -3623,6 +3616,9 @@ namespace MBI.Combat
         /// <summary>강조 테두리 색·굵기 — ⚠️ **가정**(UI 12장 역기입 자리).</summary>
         private static readonly Color TagSkillRingColor = new Color(1f, 0.82f, 0.25f, 0.95f);
 
+        /// <summary>적재 링 평상 색(하늘색) — #185 에서 이름을 붙임(값 그대로). ⚠️ 가정.</summary>
+        private static readonly Color TagLoadRingColor = new Color(0.45f, 0.85f, 1f, 0.9f);
+
         /// <summary>테두리 굵기(기준 캔버스 px). 얇으면 12.2mm 에서 사라진다.</summary>
         private const float TagSkillRingThickness = 10f;
 
@@ -3636,6 +3632,7 @@ namespace MBI.Combat
         /// 📌 색을 **하나만** 쓴다 — 조립 층의 빨강(못 쓴다)과 겹치지 않는 노랑 계열이고,
         /// 뜻은 「지금 누르면 더 좋다」 하나다.
         /// </summary>
+        // 🗑️ 폐기(#185) — 부르는 곳 0. 준비 표시는 적재 링 색이 맡는다. 지우지 않고 남긴다.
         private void DrawTagSkillRing(Rect r)
         {
             float t = Mathf.Max(2f, TagSkillRingThickness * UiLayout.Scale(Screen.height));
