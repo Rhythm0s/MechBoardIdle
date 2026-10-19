@@ -1944,6 +1944,63 @@ namespace MBI.EditorTools
             if (Application.isBatchMode) EditorApplication.Exit(0);
         }
 
+        /// <summary>두 로봇 파밍 — 장갑에 든 피해(어림 · 틱 단위 귀속: 태그 스킬 틱 / 합체 중 / A 나섬 / B 나섬).</summary>
+        internal static float ArmorDmgA, ArmorDmgB, ArmorDmgSkill, ArmorDmgMerge;
+
+        /// <summary>
+        /// **두 로봇 파밍 생존 훑기**(2026-10-19 · 사용자 「방어 유지하고 로봇 B 등장 이후」 · 표만).
+        /// 배치: <c>-executeMethod MBI.EditorTools.StageClearHarness.RunFarmTagBatch</c>
+        /// </summary>
+        public static void RunFarmTagBatch()
+        {
+            var m = AssetDatabase.LoadAssetAtPath<ModuleDefinition>($"{SoRoot}/Modules/Module_M.asset");
+            var sb = new StringBuilder();
+            sb.AppendLine("############ 두 로봇 파밍 생존 훑기 (2026-10-19 · 하네스 전용 · 자산 0) ############");
+            sb.AppendLine("판 = A·B 둘 · Auto 태그 · 강화 A·B ×1.45 · 마운트 A·B 가득 · 합체 만충 즉시 · 60초 · 리필 · 즉시 접근");
+            sb.AppendLine("칸 = 생존(HP 바닥) / 파괴 · 처치 · 장갑 처치 · 장갑 피해 몫(어림 · 틱 귀속 = 태그 스킬 / 합체 중 / A / B)");
+            sb.AppendLine();
+            string Row(string sid, string label, System.Action<BoardGrid> hook)
+            {
+                BoardHook = hook; Enhanced = true; FarmMode = true; AutoMerge = true;
+                AStartRatio = 1f; BStartRatio = 1f; MergeStartRatio = 0f;
+                RunTag(sid);
+                StageVerdict v = LastVerdict;
+                float tot = ArmorDmgA + ArmorDmgB + ArmorDmgSkill + ArmorDmgMerge;
+                string share = tot <= 0f ? "장갑 피해 0"
+                    : $"A {ArmorDmgA / tot * 100f:F0}% · B {ArmorDmgB / tot * 100f:F0}% · 합체 {ArmorDmgMerge / tot * 100f:F0}% · 태그 스킬 {ArmorDmgSkill / tot * 100f:F0}% (합 {tot:F0})";
+                string r = $"| {sid} | {label} | " + (v.result == CombatResult.LoseDead ? $"파괴 {v.seconds:F1}초" : $"**생존** · HP 바닥 {LastFarmMinHp:F0}")
+                    + $" · 처치 {LastFarmKills} · 장갑 처치 {LastArmorKills} | {share} |";
+                BoardHook = null; FarmMode = false; KnobReset();
+                return r;
+            }
+            try
+            {
+                sb.AppendLine("| 판 | 보드 | 결과 | 장갑 피해 몫 |");
+                sb.AppendLine("|---|---|---|---|");
+                foreach (string sid in new[] { "S5", "S6" })
+                {
+                    sb.AppendLine(Row(sid, "(a) 시작 보드 + M", g => g.GetAt(new Vector2Int(7, 8))?.TryAttachModule(m)));
+                    sb.AppendLine(Row(sid, "(b) 폭발탄 프리셋(#169)", g => PresetBoards.ApplyExplosive(g, NodeResolver(BasePropellantNeed))));
+                }
+                sb.AppendLine();
+                sb.AppendLine("## 참고 — #204 반영 판(A 단독 · 앞 탐침 그대로)");
+                sb.AppendLine("| 판 | 결과 |"); sb.AppendLine("|---|---|");
+                foreach (string sid in new[] { "S3", "S4" })
+                {
+                    BoardHook = g => g.GetAt(new Vector2Int(7, 8))?.TryAttachModule(m); Enhanced = true; FarmMode = true;
+                    Run(sid, preloadMount: true, propellantNeed: BasePropellantNeed, hpOverride: 0f);
+                    StageVerdict v = LastVerdict;
+                    sb.AppendLine($"| {sid} | " + (v.result == CombatResult.LoseDead ? $"파괴 {v.seconds:F1}초" : $"**생존** · HP 바닥 {LastFarmMinHp:F0}")
+                        + $" · 처치 {LastFarmKills} · 장갑 처치 {LastArmorKills} |");
+                    BoardHook = null; FarmMode = false; Enhanced = false;
+                }
+            }
+            finally { FarmMode = false; BoardHook = null; KnobReset(); }
+            System.IO.File.WriteAllText("Docs/261019_farm_tag.md", sb.ToString());
+            Debug.Log(sb.ToString());
+            if (Application.isBatchMode) EditorApplication.Exit(0);
+        }
+
         /// <summary>피해량 배수 — 하네스 전용(2026-10-16 피해량 축). `moduleMult` 한 칸에 곱한다(PerHit 의 곱 항 · 드론도 같은 항).</summary>
         internal static float DmgMult = 1f;
 
@@ -3197,6 +3254,8 @@ namespace MBI.EditorTools
 
             List<EnemySpawn> spawns = StageSpawnFactory.Build(stage, EnemyCatalog(), tuning);
             if (SpawnHook != null) spawns = SpawnHook(spawns);   // 2026-10-16 문턱 훑기(하네스 전용)
+            List<StageComposition> farmRosterT = null;           // 2026-10-19 두 로봇 파밍 훑기(하네스 전용)
+            if (FarmMode) { farmRosterT = FarmRoster(stage); spawns = new List<EnemySpawn>(); _farmSpawned = 0; _armorSpawned = 0; LastArmorFirstKill = -1f; }
             var sim = new CombatSimulation(setupA, setupB, mountA, mountB, spawns,
                 tuning.arenaRadiusTbd, stage.challengeTime, tuning.spawnCadenceTbd);
             sim.AutoTagEnabled = true;
@@ -3216,6 +3275,15 @@ namespace MBI.EditorTools
             sim.SpawnAllAtOnce = true;                         // 사용자 확정 #152 — 러너와 같은 문(도전 층 전원 스폰)
             sim.SetAggroRange(tuning.enemyAggroRangeTbd);      // 사용자 확정 #152 — 탐색 범위
             if (AggroOverride > 0f) sim.SetAggroRange(AggroOverride);   // 훑기 전용(하네스 · 자산 0)
+            var catalogT = EnemyCatalog();
+            if (FarmMode)
+            {
+                sim.Endless = true; sim.SuspendQueuedSpawns = true; sim.SpawnAllAtOnce = false;
+                sim.SetAggroRange(FarmAggro ? tuning.enemyAggroRangeTbd : 0f);
+                FarmRefill(sim, farmRosterT, catalogT, tuning);
+            }
+            float farmClockT = 0f, farmMinHpT = float.MaxValue;
+            ArmorDmgA = ArmorDmgB = ArmorDmgSkill = ArmorDmgMerge = 0f;
             if (tuning.spawnRingMinTbd > 0f && tuning.spawnRingMaxTbd > 0f)
                 sim.SetSpawnBand(tuning.spawnRingMinTbd, tuning.spawnRingMaxTbd);
 
@@ -3389,8 +3457,27 @@ namespace MBI.EditorTools
                 float knobS0 = mountB.AmountOf(MountItem.Drone), knobA0 = mountB.AmountOf(MountItem.DroneAoe);
                 if (knobMerging && KnobHalfSkill && sim.Tag != null) KnobTryHalfSkill(sim);
 
+                float armorHpBefore = 0f;
+                if (FarmMode) foreach (CombatEntity e in sim.Enemies) if (e.IsAlive && e.label == "장갑") armorHpBefore += e.hp;
+                bool aActiveTick = sim.ActiveRobotIndex == 0;
+                bool mergingTick = sim.Merge != null && sim.Merge.IsActive;
                 sim.Tick(Dt);
                 elapsed += Dt;
+                if (FarmMode)
+                {
+                    float armorHpAfter = 0f;
+                    foreach (CombatEntity e in sim.Enemies) if (e.label == "장갑" && e.IsAlive) armorHpAfter += e.hp;
+                    // 그 틱에 죽은 장갑은 남은 hp 를 모른다 — 죽기 직전 hp 를 앞 합에서 빼지 않으면 피해가 남는다(빼 둔다 · 어림).
+                    float lost = Mathf.Max(0f, armorHpBefore - armorHpAfter);
+                    if (sim.TagSkillResolvedThisTick) ArmorDmgSkill += lost;
+                    else if (mergingTick) ArmorDmgMerge += lost;
+                    else if (aActiveTick) ArmorDmgA += lost; else ArmorDmgB += lost;
+                    farmClockT += Dt;
+                    if (farmClockT >= stage.spawnInterval) { farmClockT = 0f; FarmRefill(sim, farmRosterT, catalogT, tuning); }
+                    if (sim.Robot != null && sim.Robot.hp < farmMinHpT) farmMinHpT = sim.Robot.hp;
+                    if (AutoMerge && sim.Merge != null && sim.Merge.IsReady) sim.TryMerge();
+                    if (elapsed >= FarmSeconds) break;
+                }
 
                 if (knobMerging)
                 {
@@ -3469,6 +3556,13 @@ namespace MBI.EditorTools
             LastStrikeLog = string.Join(" / ", strikeLog).Replace("    ", "");
             LastEnemyHpLeft = 0f;
             foreach (CombatEntity e in sim.Enemies) if (e.IsAlive) LastEnemyHpLeft += e.hp;
+            if (FarmMode)
+            {
+                LastFarmMinHp = farmMinHpT == float.MaxValue ? sim.Robot.hp : Mathf.Max(0f, farmMinHpT);
+                int aliveT = 0, armorAliveT = 0;
+                foreach (CombatEntity e in sim.Enemies) if (e.IsAlive) { aliveT++; if (e.label == "장갑") armorAliveT++; }
+                LastFarmKills = _farmSpawned - aliveT; LastArmorKills = _armorSpawned - armorAliveT;
+            }
             LastVerdict = new StageVerdict
             {
                 stageId = stageId, how = "두 로봇",

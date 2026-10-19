@@ -20,7 +20,7 @@ MonoBehaviour:
   powerModel: 1
   challengeTime: 60
   enhMaterialReward: 0
-  spawnCap: 18
+  spawnCap: 10
   spawnInterval: 10
   spawnConfirmed: 1
   composition:
@@ -39,11 +39,11 @@ MonoBehaviour:
   bossHp: 0
   farmComposition:
   - enemyKey: infantry
-    count: 15
+    count: 8
     hp: 30
     def: 5
   - enemyKey: artillery
-    count: 2
+    count: 1
     hp: 90
     def: 5
   - enemyKey: armor

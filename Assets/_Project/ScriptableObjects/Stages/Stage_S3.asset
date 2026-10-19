@@ -48,5 +48,5 @@ MonoBehaviour:
     def: 3
   - enemyKey: armor
     count: 1
-    hp: 600
+    hp: 300
     def: 3
