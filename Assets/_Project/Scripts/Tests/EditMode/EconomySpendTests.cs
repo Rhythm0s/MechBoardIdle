@@ -127,7 +127,7 @@ namespace MBI.Tests
             StringAssert.Contains("_selectedNode = -1;                          // #175 ⓔ", bc);
             StringAssert.Contains("SpawnSpendPop(cell, BuildCost.ModuleScrap);", bc);
             StringAssert.Contains("if (palette != null && palette.Count > 0 && _selectedNode < 0) return null;", bc);
-            StringAssert.Contains("DrawScrapShortBadge(row);", bc);                     // ⓑ 탭 줄 부족 아이콘
+            StringAssert.Contains("if (scrapShort) DrawScrapShortBadge(new Rect(row.xMax - badgeW, row.y, badgeW, row.height));", bc);                     // ⓑ 탭 줄 부족 아이콘
             StringAssert.Contains("GUI.enabled = wasEnabled && allowed && affordable;", bc);   // ⓑ 단추 Disable
             StringAssert.Contains("GUI.enabled = wasM && moduleAllowed && mAffordable;", bc);
             StringAssert.Contains("if (bTabUnlocks) IdleSignals.RequestRobotBUnlock(BuildCost.RobotBGold);", bc);

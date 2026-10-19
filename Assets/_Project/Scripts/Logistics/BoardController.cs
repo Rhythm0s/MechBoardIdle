@@ -3436,8 +3436,12 @@ namespace MBI.Logistics
             float m = Mathf.Max(2f, button.height * 0.04f);
             float lineH = st.CalcSize(new GUIContent("0")).y;
             // ✅ #175 ⓐ — 「고철 20」 글자 → 고철 아이콘 + 「20」(칩 줄 아이콘 재사용).
+            // ⚠️ 값 글자는 단추가 흐려도 **흐리지 않는다** — 흐린 단추 위 흐린 빨강은 안 보였다(8123 실측). 글자라 눌림은 없다.
+            bool wasEnabled = GUI.enabled;
+            GUI.enabled = true;
             UiIcons.DrawLine(new Rect(button.x + m, button.y + m, button.width - m * 2f, lineH), st,
                              null, UiIcons.Scrap, UiIcons.ScrapFallback, BuildCost.Amount(cost));
+            GUI.enabled = wasEnabled;
         }
 
         private static string ElementLabel(BeltElementKind e) =>
@@ -5221,7 +5225,12 @@ namespace MBI.Logistics
 
             var order = PaletteCategories.Order;
             float pad = 6f * UiLayout.Scale(Screen.height);
-            float w = (row.width - pad * (order.Length - 1)) / order.Length;
+            // #175 ⓑ — 고철 부족이면 줄 오른쪽 끝에 부족 아이콘 칸을 낸다(탭들이 그만큼 좁아진다).
+            //    🗑️ 첫 자리(줄 위 · 오른쪽 끝)는 「조립 모드」 판과 겹쳤다(8123 실측).
+            bool scrapShort = BuildCost.ScrapShortForNode(IdleSignals.WalletScrap, BuildCost.NodeScrap);
+            float badgeW = scrapShort ? row.height * 1.6f : 0f;
+            float tabsW = row.width - (scrapShort ? badgeW + pad : 0f);
+            float w = (tabsW - pad * (order.Length - 1)) / order.Length;
 
             var style = new GUIStyle(GUI.skin.button)
             {
@@ -5279,23 +5288,22 @@ namespace MBI.Logistics
             }
 
             GUI.enabled = was;
-            DrawScrapShortBadge(row);
+            if (scrapShort) DrawScrapShortBadge(new Rect(row.xMax - badgeW, row.y, badgeW, row.height));
         }
 
         /// <summary>
-        /// **탭 줄 「고철 부족」 아이콘**(사용자 확정 #175 ⓑ) — 노드 하나도 못 놓으면 탭 줄 오른쪽 끝 **위**에
+        /// **탭 줄 「고철 부족」 아이콘**(사용자 확정 #175 ⓑ) — 노드 하나도 못 놓으면 탭 줄 **오른쪽 끝 칸**에
         /// 고철 아이콘 + 빨간 「!」 판. 값은 안 적는다(ⓒ 가격은 단추에만). 판정은 `BuildCost.ScrapShortForNode` 하나.
         /// ⚠️ 자리 · 색 · 「!」 가정.
         /// </summary>
-        private void DrawScrapShortBadge(Rect row)
+        private void DrawScrapShortBadge(Rect slot)
         {
-            if (!BuildCost.ScrapShortForNode(IdleSignals.WalletScrap, BuildCost.NodeScrap)) return;
-            float sz = row.height * 0.8f;
-            var plate = new Rect(row.xMax - sz * 1.9f, row.y - sz - 4f, sz * 1.9f, sz);
+            float sz = slot.height;
+            var plate = slot;
             UiPlate.Draw(plate);
             UiBlockers.Add(plate);
             float icon = sz * 0.7f;
-            UiIcons.Draw(new Rect(plate.x + sz * 0.15f, plate.y + (sz - icon) * 0.5f, icon, icon),
+            UiIcons.Draw(new Rect(plate.x + sz * 0.1f, plate.y + (sz - icon) * 0.5f, icon, icon),
                          UiIcons.Scrap, UiIcons.ScrapFallback);
             var bang = new GUIStyle(GUI.skin.label)
             {
@@ -5305,7 +5313,7 @@ namespace MBI.Logistics
                 clipping = TextClipping.Overflow,
             };
             bang.normal.textColor = new Color(1f, 0.32f, 0.28f);
-            GUI.Label(new Rect(plate.x + sz * 0.9f, plate.y, sz * 0.9f, sz), "!", bang);
+            GUI.Label(new Rect(plate.x + sz * 0.8f, plate.y, sz * 0.7f, sz), "!", bang);
         }
 
         // ── #175 ⓓ 설치 값 떠오름 ────────────────────────────────────
