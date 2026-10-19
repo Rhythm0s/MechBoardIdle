@@ -37,8 +37,8 @@ namespace MBI.Tests
             Assert.IsTrue(TutorialPauseRule.ShouldPause(false, false, true));
             Assert.IsFalse(TutorialPauseRule.ShouldPause(false, false, false));
             string sr = System.IO.File.ReadAllText("Assets/_Project/Scripts/Combat/StageRunner.cs");
-            StringAssert.Contains("if (tutorialPause) goto TutorialSignalsUpdate;", sr);
-            Assert.Less(sr.IndexOf("if (tutorialPause) goto TutorialSignalsUpdate;"), sr.IndexOf("_sim.Tick(Time.deltaTime);"));
+            StringAssert.Contains("goto TutorialSignalsUpdate;", sr);
+            Assert.Less(sr.IndexOf("goto TutorialSignalsUpdate;"), sr.IndexOf("_sim.Tick(Time.deltaTime);"));
             Assert.Less(sr.IndexOf("TutorialSignalsUpdate:"), sr.IndexOf("TutorialSignals.HighlightChallengeButton = ChallengeTutorialRule.IsActive("));
         }
 

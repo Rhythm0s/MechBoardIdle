@@ -1478,7 +1478,12 @@ namespace MBI.Combat
             bool tutorialPause = TutorialPauseRule.ShouldPause(TutorialSignals.HighlightChallengeButton,
                 TutorialSignals.HighlightEnhanceMount, TutorialSignals.HighlightEnhanceMountB);
             bool running = _sim.Result == CombatResult.InProgress && !tutorialPause;
-            if (tutorialPause) goto TutorialSignalsUpdate;
+            if (tutorialPause)
+            {
+                // ⚠️ 전투력 표시는 계속 산다 — `RefreshFireRate` 를 건너뛰면 `_output` 이 판 시작의 명목값(예: 390)에 멈췄다(8123 실측).
+                _output = LogisticsOutputBridge.Output;
+                goto TutorialSignalsUpdate;
+            }
 
             if (running)
             {
