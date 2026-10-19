@@ -144,6 +144,11 @@ namespace MBI.Tests
             StringAssert.Contains("if (on) DrawSelectedOutline(eRect);", bc);
             StringAssert.Contains("if (on) DrawSelectedOutline(mRect);", bc);
             StringAssert.Contains("var nStyle = OneLineStyle(costStyle, palette[i].displayName, rect.width);", bc);
+            // #178 — 회피 눈금 바 왼쪽 부스터 아이콘(그림 없으면 눈금만)
+            string hud = System.IO.File.ReadAllText("Assets/_Project/Scripts/Combat/StageRunner.Hud.cs");
+            StringAssert.Contains("if (UiIcons.Booster != null)", hud);
+            StringAssert.Contains("HudBars.Ticks(new Rect(tickX, y + 4f * sc, tickW, tickH),", hud);
+            StringAssert.Contains("if (art != null) UiIcons.Booster = art.NodeSprite(NodeType.Booster);", bc);
             // #177 — B 탭 골드 아이콘
             StringAssert.Contains("RobotBGate.TabPrefix, UiIcons.Gold,", bc);
 

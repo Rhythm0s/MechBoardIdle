@@ -776,6 +776,8 @@ namespace MBI.Logistics
 
         private void Awake()
         {
+            // #178 — 회피 눈금 바 아이콘 = 부스터 노드 그림(같은 그림 세트 · 새 자산 없음).
+            if (art != null) UiIcons.Booster = art.NodeSprite(NodeType.Booster);
             if (config == null)
             {
                 Debug.LogError("[MBI] BoardController: BoardConfig 미할당 — 격자 생성 불가.");

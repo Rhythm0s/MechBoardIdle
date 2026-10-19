@@ -709,8 +709,21 @@ namespace MBI.Combat
             // 회피 눈금 — 글자가 아니라 눈금이다(설계 지시 「회피 눈금 8」).
             DodgeSystem d = _sim.Dodge;
             float tickW = Mathf.Min(300f * sc, w);
-            HudBars.Ticks(new Rect(sp.x - tickW * 0.5f, y + 4f * sc, tickW,
-                                   Mathf.Max(HudBars.BarHeight, HudBars.BarHeight * sc)),
+            float tickH = Mathf.Max(HudBars.BarHeight, HudBars.BarHeight * sc);
+            float tickX = sp.x - tickW * 0.5f;
+            // ✅ **#178 — 눈금 바 왼쪽에 부스터 아이콘**(부스터 노드 그림 재사용 · 부스터 0대여도 둠 ⚠️ 가정).
+            //    크기 = 눈금 높이의 2배(⚠️ 가정 — 눈금 높이 그대로는 그림이 안 읽힘) · 바는 아이콘 폭 + 틈만큼 오른쪽으로 ·
+            //    아이콘 + 바 전체가 종전 폭(300×sc) 안. 그림이 없으면 종전처럼 눈금만(폴백).
+            if (UiIcons.Booster != null)
+            {
+                float icon = tickH * 2f;
+                float gap = 3f * sc;
+                UiIcons.Draw(new Rect(tickX, y + 4f * sc + (tickH - icon) * 0.5f, icon, icon),
+                             UiIcons.Booster, Color.white);
+                tickX += icon + gap;
+                tickW -= icon + gap;
+            }
+            HudBars.Ticks(new Rect(tickX, y + 4f * sc, tickW, tickH),
                           d.Stacks, d.Capacity, d.IsInvincible);
         }
 

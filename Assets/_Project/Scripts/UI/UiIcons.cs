@@ -17,6 +17,12 @@ namespace MBI.UI
         /// <summary>골드 아이콘 — 러너가 건다.</summary>
         public static Sprite Gold;
 
+        /// <summary>
+        /// 부스터 노드 그림 — 회피 눈금 바 왼쪽 아이콘(사용자 확정 #178 · `node_booster` 재사용).
+        /// 원천은 `BoardArtSet.NodeSprite(Booster)` — 보드가 깨어날 때 건다(전투는 보드 그림 세트를 모른다).
+        /// </summary>
+        public static Sprite Booster;
+
         /// <summary>고철 폴백 색(그림이 없을 때) — 칩 줄 고철 글자와 같은 결. ⚠️ 가정.</summary>
         public static readonly Color ScrapFallback = new Color(0.78f, 0.8f, 0.86f);
 
