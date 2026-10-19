@@ -606,6 +606,27 @@ namespace MBI.Core
         /// <summary>드론 사출대(진단·HUD용).</summary>
         public DroneBay Drones_Bay => Act.bay;
 
+        /// <summary>
+        /// ✅ **결함 ④(2026-10-19 사용자 육안 · S4 도전 태그 뒤 B 가 멈춤)** — 지금 나선 로봇이 **칠 수단이 있는가**.
+        /// 본체 발사 줄(초당 발사 &gt; 0) · 마운트 드론 재고 · 필드 드론 중 하나라도 있으면 참. 합체 중이면 참.
+        /// 거짓이면 자동 조종이 추격 정지(#83)를 끄고 걸어간다(`AutoPilotContext.cannotFire`).
+        /// </summary>
+        public bool ActiveCanDamage
+        {
+            get
+            {
+                if (Merge != null && Merge.IsActive) return true;
+                RobotSide s = Act;
+                if (s == null) return false;
+                if (s.setup.lines != null)
+                    for (int i = 0; i < s.setup.lines.Count; i++)
+                        if (s.setup.lines[i].shotsPerSec > 0f) return true;
+                if (s.drones.Count > 0) return true;
+                return s.mount != null
+                       && s.mount.AmountOf(MountItem.Drone) + s.mount.AmountOf(MountItem.DroneAoe) > 0f;
+            }
+        }
+
         // ---- 회피(부스터 노드) ----
 
         /// <summary>나가 있는 로봇의 회피. HUD는 HP 바 옆에 이 스택을 그린다.</summary>

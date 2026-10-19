@@ -88,6 +88,24 @@ namespace MBI.Tests
             Assert.IsFalse(sim.TagSkillResolvedThisTick, "태그 스킬 고리가 프레임마다 다시 지어지던 자리");
         }
 
+        /// <summary>결함 ④ — 칠 수단 판정: 본체 발사 줄이 있으면 참 · 줄 · 드론 재고 · 필드 드론이 모두 없으면 거짓.</summary>
+        [Test]
+        public void ActiveCanDamage_FollowsFireLines()
+        {
+            var spawns = new List<EnemySpawn>
+            {
+                new EnemySpawn { label = "표적", hp = 100f, def = 0f, atk = 0f,
+                    moveSpeed = 0f, attackRange = 0.5f, attackInterval = 1f },
+            };
+            var armed = new CombatSimulation(Robot(1000f), spawns, arenaRadius: 3f, challengeTime: 120f, spawnCadence: 0f);
+            Assert.IsTrue(armed.ActiveCanDamage);
+
+            RobotSetup bare = Robot(1000f);
+            bare.lines = new List<AmmoLine>();
+            var unarmed = new CombatSimulation(bare, spawns, arenaRadius: 3f, challengeTime: 120f, spawnCadence: 0f);
+            Assert.IsFalse(unarmed.ActiveCanDamage, "본체 줄 0 · 드론 0 = 칠 수 없다 → 자동 조종이 걸어가야 한다");
+        }
+
         [Test]
         public void LoseDead_WhenRobotHpDepleted()
         {

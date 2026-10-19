@@ -1616,6 +1616,7 @@ namespace MBI.Combat
                         // 사거리 안이 이 수를 넘으면 제자리 — 이하면 가장 가까운 무리로 간다
                         // (2026-09-15 사용자 확정 · 가정 3).
                         holdWhenMoreThan = tuning.autoPilotHoldWhenMoreThanTbd,
+                        cannotFire = !_sim.ActiveCanDamage,   // 결함 ④ (b) — 칠 수단이 없으면 걸어가 깨운다
                         dt = Time.deltaTime,
                     };
                     _sim.Robot.position = AutoPilotPolicy.NextPosition(ctx);

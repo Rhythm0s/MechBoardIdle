@@ -29,6 +29,14 @@ namespace MBI.Core
         /// 시험 스물이 이 구조체를 만들므로 **0 을 종전으로 두어야** 안 건드린 시험이 안 깨진다.
         /// </summary>
         public int holdWhenMoreThan;
+
+        /// <summary>
+        /// ✅ **결함 ④ (b)**(2026-10-19 · 플랜 판단 ⚠️ · 사용자 판정 자리 = (a) 깬 적만 센다 / (c) 반경 정합).
+        /// 참이면 지금 나선 로봇이 **칠 수 없다**(본체 발사 줄 0 · 드론 재고 0 · 필드 드론 0) — 추격 정지(#83)를 끄고
+        /// **가장 가까운 적에게** 걷는다. 도전 층 잠든 적(#153 · 깨움 6)은 다가가야 깬다. 쏠 수 있게 되면 종전 규칙.
+        /// 기본 거짓 = 종전(시험 · 하네스 불변).
+        /// </summary>
+        public bool cannotFire;
     }
 
     /// <summary>
@@ -124,6 +132,13 @@ namespace MBI.Core
 
             CombatEntity nearest = NearestLiving(ctx.robotPos, ctx.enemies, out float dist);
             if (nearest == null) return ctx.robotPos;          // 적 없음 → 가만히(원점 복귀 없음)
+
+            // ✅ 결함 ④ (b) — 칠 수 없으면 서 있을 까닭이 없다 → 가장 가까운 적에게 걷는다(잠든 적을 깨우러).
+            if (ctx.cannotFire)
+            {
+                if ((nearest.position - ctx.robotPos).sqrMagnitude <= 1e-8f) return ctx.robotPos;
+                return GridMovement.Step(ctx.robotPos, nearest.position, step);
+            }
 
             // **사거리 안에 충분히 많으면 제자리**에서 쏜다.
             if (CountWithin(ctx.robotPos, ctx.enemies, ctx.attackRange) > ctx.holdWhenMoreThan)

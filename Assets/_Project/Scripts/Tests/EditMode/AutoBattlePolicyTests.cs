@@ -42,6 +42,27 @@ namespace MBI.Tests
             Assert.AreEqual(Vector2.zero, next, "적이 코앞이어도 물러나지 않는다");
         }
 
+        /// <summary>결함 ④ (b) — 칠 수단이 없으면(B · 드론 0) 사거리 안이어도 가장 가까운 적에게 걷는다(잠든 적을 깨우러).</summary>
+        [Test]
+        public void CannotFire_WalksTowardNearest_EvenInRange()
+        {
+            var enemies = new List<CombatEntity> { Enemy(2f, 0f) }; // 사거리 3 안
+            var ctx = Ctx(Vector2.zero, enemies);
+            ctx.cannotFire = true;
+
+            Vector2 next = AutoPilotPolicy.NextPosition(ctx);
+
+            Assert.Greater(next.x, 0f, "서 있으면 잠든 적이 영영 안 온다(도전 층 · #153)");
+        }
+
+        /// <summary>결함 ④ (b) — 칠 수 있으면 종전 규칙 그대로(A 거동 · 하네스 불변).</summary>
+        [Test]
+        public void CanFire_DefaultFalse_KeepsHoldRule()
+        {
+            var enemies = new List<CombatEntity> { Enemy(2f, 0f) };
+            Assert.AreEqual(Vector2.zero, AutoPilotPolicy.NextPosition(Ctx(Vector2.zero, enemies)));
+        }
+
         /// <summary>사거리 밖이면 최근접 적을 향해 **다가간다.**</summary>
         [Test]
         public void OutOfRange_ApproachesNearestEnemy()
