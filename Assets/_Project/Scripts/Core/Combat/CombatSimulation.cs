@@ -611,6 +611,19 @@ namespace MBI.Core
         /// 본체 발사 줄(초당 발사 &gt; 0) · 마운트 드론 재고 · 필드 드론 중 하나라도 있으면 참. 합체 중이면 참.
         /// 거짓이면 자동 조종이 추격 정지(#83)를 끄고 걸어간다(`AutoPilotContext.cannotFire`).
         /// </summary>
+        /// <summary>결함 ④ — 지금 나선 로봇의 드론 수단(마운트 드론 재고 · 필드 드론)이 있는가.</summary>
+        public bool ActiveHasDrones
+        {
+            get
+            {
+                RobotSide s = Act;
+                if (s == null) return false;
+                if (s.drones.Count > 0) return true;
+                return s.mount != null
+                       && s.mount.AmountOf(MountItem.Drone) + s.mount.AmountOf(MountItem.DroneAoe) > 0f;
+            }
+        }
+
         public bool ActiveCanDamage
         {
             get
@@ -618,9 +631,11 @@ namespace MBI.Core
                 if (Merge != null && Merge.IsActive) return true;
                 RobotSide s = Act;
                 if (s == null) return false;
+                // ⚠️ 줄만 보면 안 된다 — `SetFireLines` 는 나선 쪽에 A 의 배분을 쓰므로 B 도 줄을 「가진다」(8133 2fff44d 실측:
+                //    B 가 「칠 수 있음」으로 읽혀 그대로 멈췄다). **그 탄종을 실제로 한 발 쏠 수 있는 줄**만 센다(ConsumeRound 와 같은 곳).
                 if (s.setup.lines != null)
                     for (int i = 0; i < s.setup.lines.Count; i++)
-                        if (s.setup.lines[i].shotsPerSec > 0f) return true;
+                        if (s.setup.lines[i].shotsPerSec > 0f && HasRound(s, s.setup.lines[i].kind)) return true;
                 if (s.drones.Count > 0) return true;
                 return s.mount != null
                        && s.mount.AmountOf(MountItem.Drone) + s.mount.AmountOf(MountItem.DroneAoe) > 0f;
@@ -2498,6 +2513,14 @@ namespace MBI.Core
 
         // 한 발 처리: 히트 패턴 해석 → 판정식 적용 → 연출 이벤트.
         /// <summary>한 발 소비. 마운트가 있으면 마운트에서, 없으면 창고에서 뺀다.</summary>
+        /// <summary>결함 ④ — 한 발을 쏠 탄이 있는가(소비 없이 · `ConsumeRound` 와 같은 자리를 본다).</summary>
+        private static bool HasRound(RobotSide side, AmmoKind kind)
+        {
+            if (side.mount != null && side.mount.SlotCount > 0)
+                return side.mount.AmountOf(MountItemMap.From(kind)) >= 1f;
+            return side.ammo != null && side.ammo.StockOf(kind) >= 1f;
+        }
+
         private static bool ConsumeRound(RobotSide side, AmmoKind kind)
         {
             if (side.mount != null && side.mount.SlotCount > 0)

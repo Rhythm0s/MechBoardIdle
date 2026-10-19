@@ -1616,7 +1616,9 @@ namespace MBI.Combat
                         // 사거리 안이 이 수를 넘으면 제자리 — 이하면 가장 가까운 무리로 간다
                         // (2026-09-15 사용자 확정 · 가정 3).
                         holdWhenMoreThan = tuning.autoPilotHoldWhenMoreThanTbd,
-                        cannotFire = !_sim.ActiveCanDamage,   // 결함 ④ (b) — 칠 수단이 없으면 걸어가 깨운다
+                        // 결함 ④ (b) — **B 혼자 나섰고**(본체 무기 없음) 드론 재고 · 필드 드론이 0 이면 걸어가 깨운다.
+                        //    ⚠️ A 는 안 건드린다(본체 탄이 잠깐 비어도 종전대로 제자리) — 플랜 「A 거동 · 하네스 불변」.
+                        cannotFire = _sim.ActiveRobotIndex == 1 && !IsMerged && !_sim.ActiveHasDrones,
                         dt = Time.deltaTime,
                     };
                     _sim.Robot.position = AutoPilotPolicy.NextPosition(ctx);
