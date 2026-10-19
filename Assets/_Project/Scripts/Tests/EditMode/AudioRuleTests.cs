@@ -97,6 +97,10 @@ namespace MBI.Tests
             Assert.AreEqual(MusicPhase.Battle, MusicPhaseRule.Of(StageReqType.Band));
             Assert.AreEqual(MusicPhase.Battle, MusicPhaseRule.Of(StageReqType.Formula),
                 "S5는 태그 필연이지 보스전이 아니다");
+            // #192 — S6 파밍 층은 기본 곡 · 도전 층만 보스 곡
+            Assert.AreEqual(MusicPhase.Battle, MusicPhaseRule.Of(StageReqType.Budget, true));
+            Assert.AreEqual(MusicPhase.Boss, MusicPhaseRule.Of(StageReqType.Budget, false));
+            Assert.AreEqual(MusicPhase.Battle, MusicPhaseRule.Of(StageReqType.Fixed, false));
         }
 
         [Test]

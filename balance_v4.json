@@ -618,7 +618,7 @@
     },
     {
       "id": "S3",
-      "topic": "물류 재설계",
+      "topic": "마운트 강화",
       "reqType": "fixed",
       "req": 126,
       "reqConfirmed": true,
@@ -696,7 +696,7 @@
     },
     {
       "id": "S4",
-      "topic": "마운트 강화",
+      "topic": "로봇 B 해금 · 합체",
       "reqType": "fixed",
       "req": 183,
       "reqConfirmed": true,
@@ -774,7 +774,7 @@
     },
     {
       "id": "S5",
-      "topic": "태그 학습",
+      "topic": "폭발탄",
       "reqType": "formula",
       "reqConfirmed": true,
       "challengeTime": 60,
@@ -796,7 +796,7 @@
     },
     {
       "id": "S6",
-      "topic": "합체·버스트",
+      "topic": "자유 플레이 · 보스",
       "reqType": "budget",
       "reqConfirmed": true,
       "challengeTime": 60,
@@ -856,7 +856,7 @@
     }
   },
   "enhance": {
-    "s4Cost": 100,
+    "s4Cost": 50,
     "s3BreakRetired": "폐기 (260910_W02 2-2) — 구 값 114. 돌파 타깃 +10% 규칙 자체가 없어졌다. 역산이 이미 요구치와 도달치 사이에 간격을 만드는데 거기에 +10% 를 또 얹으면 타깃이 도달치의 99% 가 되어 남는 여유가 반올림 잔여와 구분되지 않았다. 턱걸이를 막는 장치는 이제 상수 0.9 하나이며, 돌파 체감이 부족하면 그 상수를 올린다. 구 145 는 그 전에 이미 폐기됐다",
     "s4BandRetired": "폐기 (260910_W02 2-1) — 구 값 [186, 215]. S4 요구치는 stages[S4] 의 reqType fixed · req 183 으로 옮겼다",
     "enhBand": [
@@ -868,7 +868,8 @@
     "check7": {
       "mode": "exact",
       "tolerance": 1,
-      "target": "Σ(S1..S3 enhMaterialReward) == s4Cost (±tolerance)",
+      "target": "Σ(S1..S3 enhMaterialReward) == s4Cost × 2 (A·B 마운트 각 1회 · ±tolerance)",
+      "note196": "2026-10-19 사용자 확정 #196 — s4Cost 100 → 50(A·B 각 50 · 고철 300 유지 · 보상 30/33/37 그대로). S3 파밍 진입 63 ≥ 50 → A 강화(#188) · 남은 13 + S3 37 = 50 → S6 B 강화(#195). 원천 ENHANCE_DATA 4행 CSV 임시 투입 · xlsx 대기",
       "rationale": "A안 닫힌 곡선: 잉여=0. 보상량 30/33/37은 역산 placeholder — 검증 대장 미기입"
     }
   },

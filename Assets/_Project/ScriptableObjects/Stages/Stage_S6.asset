@@ -13,7 +13,7 @@ MonoBehaviour:
   m_Name: Stage_S6
   m_EditorClassIdentifier: MBI.Data::MBI.Data.StageDefinition
   stageId: S6
-  topic: "\uD569\uCCB4\xB7\uBC84\uC2A4\uD2B8"
+  topic: "\uC790\uC720 \uD50C\uB808\uC774 \u00B7 \uBCF4\uC2A4"
   reqType: 3
   req: 0
   reqBand: {x: 0, y: 0}

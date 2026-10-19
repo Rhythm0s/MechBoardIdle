@@ -266,7 +266,8 @@ namespace MBI.Combat
         private void PushMusicPhase()
         {
             if (stage == null) return;
-            AudioSignals.Phase = MusicPhaseRule.Of(stage.reqType);
+            // #192 — 층을 같이 본다(S6 파밍 = 기본 곡 · 도전 층만 보스 곡). 매 프레임 불려도 국면이 바뀔 때만 곡이 갈린다.
+            AudioSignals.Phase = MusicPhaseRule.Of(stage.reqType, StageLayerSignals.IsFarming);
         }
 
         // ── 전투 배경 (2026-09-09 배선) ────────────────────────────────────────────
@@ -1690,6 +1691,7 @@ namespace MBI.Combat
 
             TickFiredRates(Time.deltaTime);
             UpdateAmmoOutView();   // 지속 상태 — 한 번 만들고 껐다 켠다(`260909_W01` 3장이 (가)를 확정)
+            PushMusicPhase();      // #192 — 파밍 ↔ 도전 전환 때 곡이 갈리게(종전엔 판이 설 때만 불렸다)
             PublishSupplySignals();
 
             // ⚠️⚠️ **전투 그림은 전투 층에 둔다**(2026-09-21 사용자 육안 ③).
@@ -2286,14 +2288,17 @@ namespace MBI.Combat
             if (r.width <= 1f || r.height <= 1f) return;
             UiBlockers.Add(r);
 
-            const string label = "도전";
+            // ✅ **#193 — 통과한 판은 「통과함」으로 흐림**(사용자 확정 · 2026-10-19). 파밍은 그대로 · 도전만 막는다.
+            bool cleared = stage != null && IdleSignals.ClearedStageIds.Contains(stage.stageId);
+            string label = ClearedStageRule.ButtonLabel(cleared);
             GUIStyle st = HudButtonStyle();
             if (st.CalcSize(new GUIContent(label)).x > r.width + 0.5f)
                 UiText.FitOneLine(st, label, r.width);   // 창이 아주 좁아 칸이 깎였을 때만
 
             // ✅ **T4 동안에는 잠근다**(2026-10-15 사용자 확정 #138 「잠금 = T3 와 같게」).
             //    T3 는 이 단추가 가리키는 단추라 늘 열려 있었다 — 그래서 이 문이 지금까지 없었다.
-            bool allowed = TutorialGate.Allows(TutorialGate.Control.EnterChallenge);
+            bool allowed = TutorialGate.Allows(TutorialGate.Control.EnterChallenge)
+                           && ClearedStageRule.CanChallenge(cleared);
             bool wasEnabled = GUI.enabled;
             // ⚠️ 오프라인 보상 판이 떠 있으면 누름을 넘긴다(#142 b) — 판이 이 단추 **뒤에** 그려지므로
             //    (IMGUI 는 먼저 그린 쪽이 누름을 가져간다) 켜 두면 판 위를 눌러도 이 단추가 먹는다.
@@ -2309,7 +2314,7 @@ namespace MBI.Combat
 
             bool hit = UiSkin.Button(r, label, st);
             GUI.color = prevColor;
-            if (!allowed) UiSkin.DrawLockVeil(r);
+            if (!allowed && !cleared) UiSkin.DrawLockVeil(r);   // 통과함은 흐림(GUI.enabled)만 — 잠금 막과 뜻이 다르다
             GUI.enabled = wasEnabled;
             if (hit && allowed) RequestChallenge();   // 2026-10-16 사용자 직접 지시 ③ — 들어가기 전 안내 창
         }
@@ -2816,9 +2821,15 @@ namespace MBI.Combat
             if (_sim.Result != CombatResult.Win) return;
 
             _clearReported = true;
+            // #194 — 이번이 최초 통과인가는 **보고 전** 통과 기록으로 가른다(저장은 보고를 받아 다음 틀에 쓴다).
+            _clearRewardLine = ClearedStageRule.RewardLine(
+                !IdleSignals.ClearedStageIds.Contains(stage.stageId), stage.enhMaterialReward);
             IdleSignals.ReportClear(stage.stageId, stage.enhMaterialReward);
             Debug.Log($"[MBI] 도전 통과 — {stage.stageId} 보고(해금·보상).");
         }
+
+        /// <summary>#194 — 이번 결과 화면의 보상 한 줄(최초 통과 · 보상 &gt; 0 일 때만). 판이 새로 서면 비운다.</summary>
+        private string _clearRewardLine;
 
         /// <summary>다음 보충까지 남은 초 — 화면이 「리젠 mm:ss」로 읽는다. 바퀴가 없으면 -1.</summary>
         public float FarmSecondsToRefill => _farm != null ? _farm.SecondsToRefill : -1f;
@@ -2973,6 +2984,7 @@ namespace MBI.Combat
             _ready = false;
             // ⚠️ 통과 보고 깃발을 내린다 — 안 내리면 다시 도전해도 보고가 안 나간다.
             _clearReported = false;
+            _clearRewardLine = null;   // #194
             foreach (KeyValuePair<CombatEntity, CombatEntityView> kv in _enemyViews)
                 if (kv.Value != null) Destroy(kv.Value.gameObject);
             _enemyViews.Clear();
@@ -3151,7 +3163,8 @@ namespace MBI.Combat
                 var labels = new List<string>();
                 if (layered)
                 {
-                    labels.Add("다시 도전");
+                    // ✅ #193 — 승리면 [다시 도전] 숨김(통과한 판은 다시 도전 안 함) · 실패면 그대로.
+                    if (ClearedStageRule.ShowsRetry(won)) labels.Add("다시 도전");
                     labels.Add("스테이지로");
                     if (won && NextStageOf(stage) != null) labels.Add("다음 스테이지로");
                 }
@@ -3219,6 +3232,27 @@ namespace MBI.Combat
                                                         btnRows.Count),
                           resultText, big);
 
+                // ✅ **#194 — 최초 통과 보상 한 줄 「강화 재료 +N」**(사용자 지시 · ⚠️ 꼴 가정 = 상자 바로 위 판 한 장).
+                //    상자 안에 줄을 더하면 위 「글자에서 낸 상자」 셈이 다시 흔들린다 — 밖에 따로 앉힌다.
+                if (won && _clearRewardLine != null)
+                {
+                    float rsc = UiLayout.Scale(Screen.height);
+                    var rst = new GUIStyle(GUI.skin.label)
+                    {
+                        fontSize = UiLayout.EnterBoardFontSize(Screen.width, Screen.height),
+                        alignment = TextAnchor.MiddleCenter,
+                        wordWrap = false,
+                        clipping = TextClipping.Overflow,
+                        normal = { textColor = new Color(1f, 0.9f, 0.45f) },
+                    };
+                    Vector2 rsz = rst.CalcSize(new GUIContent(_clearRewardLine));
+                    float rpad = UiPlate.Pad + 6f * rsc;
+                    var rplate = new Rect(box.center.x - rsz.x * 0.5f - rpad, box.y - 10f * rsc - rsz.y - rpad * 2f,
+                                          rsz.x + rpad * 2f, rsz.y + rpad * 2f);
+                    UiPlate.Draw(rplate);
+                    GUI.Label(new Rect(rplate.x + rpad, rplate.y + rpad, rsz.x, rsz.y), _clearRewardLine, rst);
+                }
+
                 // ✅ **결과 화면 셋**(2026-10-13 사용자 확정 #111 · 기획서 7장).
                 //
                 // 통과 — [다시 도전] [스테이지로] [다음 스테이지로]
@@ -3253,8 +3287,9 @@ namespace MBI.Combat
                     if (!UiSkin.Button(r, labels[i], bs)) continue;
 
                     if (!layered) { Restart(); break; }
-                    if (i == 0) { RequestChallenge(); break; }   // 「다시 도전」도 안내를 거친다(지시 ③)
-                    if (i == 1) { ReturnToFarm(); break; }
+                    // #193 — 단추가 빠질 수 있어 차례가 아니라 **글자**로 가른다.
+                    if (labels[i] == "다시 도전") { RequestChallenge(); break; }   // 「다시 도전」도 안내를 거친다(지시 ③)
+                    if (labels[i] == "스테이지로") { ReturnToFarm(); break; }
 
                     StageDefinition next = NextStageOf(stage);
                     if (next != null) LoadStage(next);   // 다음 판도 파밍부터 선다

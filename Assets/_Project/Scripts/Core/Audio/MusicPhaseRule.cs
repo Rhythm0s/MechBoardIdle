@@ -16,6 +16,13 @@ namespace MBI.Core.Audio
             => reqType == StageReqType.Budget ? MusicPhase.Boss : MusicPhase.Battle;
 
         /// <summary>
+        /// **층까지 보는 판**(사용자 확정 #192 · 2026-10-19) — S6 이라도 **파밍 층은 기본 곡**, 보스 곡은 **도전 층만**.
+        /// 파밍 ↔ 도전 전환 때 국면이 바뀌어 곡이 갈린다(<see cref="NeedsSwap"/>).
+        /// </summary>
+        public static MusicPhase Of(StageReqType reqType, bool isFarming)
+            => isFarming ? MusicPhase.Battle : Of(reqType);
+
+        /// <summary>
         /// 곡을 갈아야 하는가. **국면이 바뀔 때만 참이다.**
         ///
         /// ⚠️ 화면이 바뀌었다고 갈지 않는다 — 조립 화면으로 들어가도 **이어서 재생한다**

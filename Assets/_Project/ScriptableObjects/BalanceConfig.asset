@@ -19,7 +19,7 @@ MonoBehaviour:
   enhBandX: 1.3
   enhBandY: 1.5
   snapBand: 0.08
-  s4Cost: 100
+  s4Cost: 50
   challengeTime: 120
   storeCapacity: 40
   mountStackLimit: 10

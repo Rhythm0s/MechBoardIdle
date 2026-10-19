@@ -30,7 +30,8 @@ namespace MBI.Tests
         {
             string src = System.IO.File.ReadAllText("Assets/_Project/Scripts/Combat/StageRunner.cs");
             StringAssert.Contains("if (hit && allowed) RequestChallenge();", src, "「도전」이 안내 없이 바로 들어간다");
-            StringAssert.Contains("if (i == 0) { RequestChallenge(); break; }", src, "「다시 도전」이 안내 없이 바로 들어간다");
+            StringAssert.Contains("if (labels[i] == \"다시 도전\") { RequestChallenge(); break; }", src,   // #193 — 글자로 가른다
+                "「다시 도전」이 안내 없이 바로 들어간다");
             StringAssert.Contains("ChallengeEntryNotice.Confirm, btn)) EnterChallenge();", src);
             // 지시 ② — 판을 다시 세워도 마운트를 새로 만들지 않는다(있으면 그것을 쓴다)
             StringAssert.Contains("_mountA ?? (_mountA = new MountLoad(", src);
