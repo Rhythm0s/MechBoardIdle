@@ -1757,6 +1757,15 @@ namespace MBI.Combat
                 IdleSignals.TutorialCleared, stageNo, StageLayerSignals.IsFarming, RobotBGate.IsUnlocked,
                 IdleSignals.MountEnhancedB, IdleSignals.WalletEnhMaterial, EnhanceCost,
                 IdleSignals.WalletScrap, BuildCost.EnhanceScrap);
+            // **S5 — 폭발탄 튜토리얼**(사용자 확정 #190). 걸음은 보드가 A 판에서 읽어 쓴다 · 끝나면(다섯 칸) 저절로 꺼진다.
+            TutorialSignals.ExplosiveActive = ExplosiveTutorialRule.IsActive(
+                IdleSignals.TutorialCleared, stageNo, StageLayerSignals.IsFarming, TutorialSignals.ExplosiveStep,
+                TutorialSignals.ExplosiveNeedsScrap, IdleSignals.WalletScrap, BuildCost.NodeScrap);
+            if (stageNo != StageMapName.NumberOf(ExplosiveTutorialRule.StageId)) _explosiveNotice.Rearm();   // S5 를 떠나면 다음 S5 진입에 다시
+            _explosiveNotice.Observe(TutorialSignals.ExplosiveActive, true, Time.unscaledTime);
+            if (SettingsGate.IsOpen || TutorialSignals.BoardViewOpen || MainMenuGate.IsOpen)
+                _explosiveNotice.Hold(Time.unscaledDeltaTime);
+
             TutorialSignals.HighlightEnhanceMount = MountEnhanceRule.TutorialActive(
                 IdleSignals.TutorialCleared, stageNo, StageLayerSignals.IsFarming,   // #188 — B 해금 조건 걷음 · S3
                 IdleSignals.MountEnhanced, IdleSignals.WalletEnhMaterial, EnhanceCost,
@@ -2348,6 +2357,9 @@ namespace MBI.Combat
 
         /// <summary>T4 지급 알림 — 세션 안 「상태가 바뀌는 순간」만 센다(#138 · 저장 안 함).</summary>
         private readonly ModuleGrantNotice _moduleGrantNotice = new ModuleGrantNotice();
+
+        /// <summary>#190 — S5 파밍 첫 진입 알림 「복합 가공소가 열렸습니다」(T4 알림과 같은 꼴 · 저장 안 함).</summary>
+        private readonly ModuleGrantNotice _explosiveNotice = new ModuleGrantNotice();
 
         /// <summary>
         /// 「도전」 단추의 글자 꼴 — 지금 창에서 그 단추가 실제로 쓰는 값.
@@ -3350,6 +3362,11 @@ namespace MBI.Combat
             bool noticeUp = _moduleGrantNotice.IsVisible(Time.unscaledTime);
             ChallengeTutorialOverlay.DrawModule(TutorialSignals.ModuleTutorialActive && !noticeUp);
             if (ChallengeTutorialOverlay.DrawGrantNotice(noticeUp)) _moduleGrantNotice.Dismiss();
+
+            // **S5 폭발탄 막 · 알림**(#190) — T4 와 같은 결(알림이 서 있는 동안은 막을 안 깐다).
+            bool xNoticeUp = _explosiveNotice.IsVisible(Time.unscaledTime);
+            ChallengeTutorialOverlay.DrawExplosive(TutorialSignals.ExplosiveActive && !xNoticeUp);
+            if (ChallengeTutorialOverlay.DrawGrantNotice(xNoticeUp, ExplosiveTutorialRule.GrantNotice)) _explosiveNotice.Dismiss();
 
             // ✅ **오프라인 보상 판 = HUD 맨 위**(#142 b · CID_102) — 배지 카드·막 위에 앉는다.
             HudTopLayer.DrawAll();

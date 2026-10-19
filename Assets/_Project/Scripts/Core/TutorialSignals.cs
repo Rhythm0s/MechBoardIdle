@@ -99,6 +99,18 @@ namespace MBI.Core
         public static bool HighlightEnhanceMountB;
 
         /// <summary>
+        /// **S5 폭발탄 튜토리얼 — 지금 걸음**(사용자 확정 #190). **보드가 A 판에서 읽어 쓴다**(그 칸의 사실을 아는 것은 보드뿐).
+        /// 아직 안 알렸으면 None — 그때는 안내를 안 띄운다(「모름」을 「안 함」으로 읽지 않는다).
+        /// </summary>
+        public static ExplosiveTutorialRule.Step ExplosiveStep;
+
+        /// <summary>#190 — 지금 걸음이 노드 설치비(고철)를 쓰는가. 보드가 쓴다.</summary>
+        public static bool ExplosiveNeedsScrap;
+
+        /// <summary>#190 — 폭발탄 안내가 서 있다(전투 러너가 매 프레임 쓴다).</summary>
+        public static bool ExplosiveActive;
+
+        /// <summary>
         /// T4 대상 노드 칸 — **보드가 고르고 쓴다**(그 칸의 사실을 아는 것은 보드뿐이다).
         /// null 이면 고를 노드가 없다(그때 끝 조건은 「판의 아무 노드에나 모듈」).
         /// </summary>
@@ -234,6 +246,9 @@ namespace MBI.Core
             HighlightEnhanceMount = false;
             HighlightMergeButton = false;
             HighlightEnhanceMountB = false;
+            ExplosiveStep = ExplosiveTutorialRule.Step.None;
+            ExplosiveNeedsScrap = false;
+            ExplosiveActive = false;
             ModuleTargetCell = null;
             ModuleTargetFilled = false;
             ModuleTargetKnown = false;

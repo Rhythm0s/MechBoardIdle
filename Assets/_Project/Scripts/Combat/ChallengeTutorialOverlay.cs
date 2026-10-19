@@ -104,6 +104,20 @@ namespace MBI.Combat
             DrawFor(button, prompt, promptAbove: true);
         }
 
+        /// <summary>**S5 폭발탄 ① — 「▼ 조립」 하나만 남기고 덮는 막 + 문구**(사용자 확정 #190 · T4 ① 막 그대로).</summary>
+        public static void DrawExplosive(bool active)
+        {
+            if (!ChallengeTutorialOverlayRule.ShouldShow(
+                    active,
+                    TutorialSignals.BoardViewOpen,
+                    SettingsGate.IsOpen,
+                    MainMenuGate.IsOpen))
+                return;
+
+            Rect button = UiLayout.EnterBoardRect(Screen.width, Screen.height);
+            DrawFor(button, ExplosiveTutorialRule.CombatPrompt, promptAbove: true);
+        }
+
         /// <summary>
         /// **S4 — 합체 원형 하나만 남기고 덮는 막 + 문구** (2026-10-19 사용자 확정 #189).
         /// 해금 막과 같은 꼴 — 구멍 = 합체 원형 자리(펄스 전 기본 칸) · 문구는 단추 **위**.
@@ -126,7 +140,10 @@ namespace MBI.Combat
         /// 화면 가운데에 판 하나. 막은 안 깐다(알림이지 강제가 아니다). 설정·메뉴·조립 화면에서는 안 띄운다.
         /// </summary>
         /// <returns>판을 탭했으면 참(부르는 쪽이 닫는다 · 「탭하거나 n초」).</returns>
-        public static bool DrawGrantNotice(bool visible)
+        public static bool DrawGrantNotice(bool visible) => DrawGrantNotice(visible, ModuleTutorialRule.GrantNotice);
+
+        /// <summary>#190 — 같은 알림 판에 다른 문안(S5 「복합 가공소가 열렸습니다」).</summary>
+        public static bool DrawGrantNotice(bool visible, string text)
         {
             if (!visible || TutorialSignals.BoardViewOpen || SettingsGate.IsOpen || MainMenuGate.IsOpen)
                 return false;
@@ -134,7 +151,6 @@ namespace MBI.Combat
             UiSkin.Apply();
             float sc = UiLayout.Scale(Screen.height);
             GUIStyle style = PromptStyle();
-            string text = ModuleTutorialRule.GrantNotice;
             float pad = UiPlate.Pad + 8f * sc;
             Vector2 size = FitText(style, text, pad, out float textH);
             var plate = new Rect((Screen.width - size.x) * 0.5f, (Screen.height - size.y) * 0.5f,

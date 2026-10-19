@@ -77,6 +77,15 @@ namespace MBI.Core
             /// 합체 말고는 안 눌린다(태그 · 도전 · 목록 · 조립 진입) · 「▲ 전투로」 예외. 합체하면 저절로 풀린다.
             /// </summary>
             Merge,
+
+            /// <summary>**S5 폭발탄 ① 전투 화면: 「▼ 조립」 하나만**(사용자 확정 #190 · T4 ① 과 같은 꼴).</summary>
+            Explosive,
+
+            /// <summary>
+            /// **S5 폭발탄 ② 보드 화면: 가리키는 칸 하나**(#190). 팔레트는 그 걸음의 단추만(보드가 거른다) ·
+            /// 지우기는 닫는다(대상 칸은 탭 한 번에 덮어쓴다) · 모드 · 줌 · 미니맵 · 「▲ 전투로」는 연다.
+            /// </summary>
+            ExplosiveBoard,
         }
 
         /// <summary>막을 수 있는 조작들.</summary>
@@ -122,6 +131,9 @@ namespace MBI.Core
         public static Phase Current =>
             // #189 — 합체 강제는 도전 층의 일이라 다른 국면과 안 겹친다. 맨 앞에서 묻는다.
             TutorialSignals.HighlightMergeButton ? Phase.Merge :
+            // #190 — S5 폭발탄. A 판의 일이라 보드에서는 A 판을 볼 때만 잡는다.
+            TutorialSignals.ExplosiveActive && !TutorialSignals.BoardViewOpen ? Phase.Explosive :
+            TutorialSignals.ExplosiveActive && TutorialSignals.BoardViewIsTutorialBoard ? Phase.ExplosiveBoard :
             // ⚠️ **보드가 이미 열려 있으면 「들어가라」 국면이 아니다**
             // (2026-09-15 · 「이동 모드 버튼이 안 먹는다」).
             // 신호를 켜는 곳만 있고 끄는 곳이 없어 **들어간 뒤에도 그 국면에 머물렀고**,
@@ -266,6 +278,16 @@ namespace MBI.Core
                     return control == Control.MiniMap || control == Control.Zoom
                            || control == Control.ExitBoard;
 
+                case Phase.Explosive:
+                    // #190 ① — T4 ① 과 같게(「▼ 조립」 하나 · 「▲ 전투로」 예외).
+                    return control == Control.EnterBoard || control == Control.ExitBoard;
+
+                case Phase.ExplosiveBoard:
+                    // #190 ② — 노드 · 벨트 요소 단추는 열되 보드가 그 걸음 것만 남긴다(`ExplosiveTutorialRule.AllowsNode`).
+                    return control == Control.PaletteOther || control == Control.BeltElement
+                           || control == Control.ModeToggle || control == Control.ExitBoard
+                           || control == Control.Zoom || control == Control.MiniMap;
+
                 case Phase.Merge:
                     // #189 — 합체 하나만(T3 「도전 하나만」과 같은 결 · 「▲ 전투로」 예외).
                     return control == Control.Merge || control == Control.ExitBoard;
@@ -322,7 +344,7 @@ namespace MBI.Core
         /// </summary>
         public static bool AllowsBoardTap =>
             Current == Phase.None || Current == Phase.PlaceNode || Current == Phase.PlaceModule
-            || Current == Phase.EnhanceMountBoard;
+            || Current == Phase.EnhanceMountBoard || Current == Phase.ExplosiveBoard;
 
         /// <summary>
         /// **팔레트 노드 단추를 잠그는가**(사용자 확정 #183 · 2026-10-19) — 튜토리얼 전용 판(T1) 동안 **전부.**

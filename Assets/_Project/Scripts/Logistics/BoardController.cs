@@ -1905,6 +1905,19 @@ namespace MBI.Logistics
                 : null;
             // ✅ **#182 ② — A 마운트 칸 (1,4)만 남기고 덮는다**(사용자 확정 · T1 막 재사용).
             //    화면 밖이면 국면에 들어설 때 한 번 시야를 그 칸으로 옮긴다(그 뒤 끄는 것은 손 그대로).
+            // #190 — S5 폭발탄 걸음을 A 판에서 읽어 게시한다(보드가 닫혀 있어도 — 전투 러너가 막을 정한다).
+            PublishExplosiveStep();
+            if (!target.HasValue && _editing == TutorialBoardOwner
+                && TutorialGate.Current == TutorialGate.Phase.ExplosiveBoard)
+            {
+                Vector2Int xc = ExplosiveTutorialRule.CellOf(TutorialSignals.ExplosiveStep);
+                if (!_explosiveFocusDone) { FocusCell(xc); _explosiveFocusDone = true; }
+                RefreshTutorialDim(xc);
+                RefreshTutorialGhost(_grid.GetAt(xc) == null && _grid.GetBeltAt(xc) == null ? (Vector2Int?)xc : null);
+                return;
+            }
+            _explosiveFocusDone = false;
+
             // #195 — B 안내면 B 판으로 한 번 넘긴다(조립 진입 때 탭이 싸우는 로봇을 따라가므로 · ⚠️ 구현 판단 = 「B 보드 탭」 손 대신).
             if (TutorialSignals.HighlightEnhanceMountB && !TutorialSignals.HighlightEnhanceMount
                 && GameLayerController.BoardViewActive && _editing != MountOwner.RobotB && !_enhanceBSwitched)
@@ -1968,6 +1981,85 @@ namespace MBI.Logistics
                 foreach (MountPort p in PartLayout.MountPortsFor(EnhanceOwner)) return p.cell;
                 return new Vector2Int(1, 4);
             }
+        }
+
+        /// <summary>#190 — 이번 국면에 시야를 이미 옮겼는가.</summary>
+        private bool _explosiveFocusDone;
+
+        /// <summary>
+        /// #190 — A 판 다섯 칸을 읽어 폭발탄 걸음을 게시한다(`ExplosiveTutorialRule.Next`).
+        /// </summary>
+        private void PublishExplosiveStep()
+        {
+            BoardGrid g = _boards != null ? _boards[Index(MountOwner.RobotA)] : null;
+            if (g == null) return;
+            NodeInstance conv = g.GetAt(ExplosiveTutorialRule.ConverterCell);
+            bool c1 = conv != null && conv.Definition != null && conv.Definition.type == NodeType.Processing
+                      && conv.SelectedRecipe == RecipeKind.PowerMaterial;
+            bool c2 = g.GetAt(ExplosiveTutorialRule.BeltCell) == null && g.GetBeltAt(ExplosiveTutorialRule.BeltCell) != null;
+            BeltInstance sb = g.GetBeltAt(ExplosiveTutorialRule.SorterCell);
+            bool c3 = g.GetAt(ExplosiveTutorialRule.SorterCell) == null && sb != null && sb.Element == BeltElementKind.Sorter;
+            NodeInstance cx = g.GetAt(ExplosiveTutorialRule.ComplexCell);
+            bool isComplex = cx != null && cx.Definition != null && cx.Definition.type == NodeType.MunitionsComplex;
+            bool c4 = isComplex && cx.Rotation == ExplosiveTutorialRule.ComplexRotation;
+            bool c5 = isComplex && cx.SelectedRecipe == RecipeKind.ExplosiveAmmo;
+            ExplosiveTutorialRule.Step step = ExplosiveTutorialRule.Next(c1, c2, c3, c4, c5);
+            TutorialSignals.ExplosiveStep = step;
+            TutorialSignals.ExplosiveNeedsScrap = ExplosiveTutorialRule.NeedsNodeScrap(step, isComplex);
+            _explosiveComplexWrongTurn = step == ExplosiveTutorialRule.Step.Complex && isComplex;
+        }
+
+        /// <summary>#190 — ④ 걸음인데 복합 가공소는 섰고 돌림만 틀렸다(안내 문안이 갈린다).</summary>
+        private bool _explosiveComplexWrongTurn;
+
+        /// <summary>
+        /// #190 — **가리키는 칸 하나를 덮어쓴다**(탭 한 번 · 이웃 칸은 안 건드린다). 벨트 = 무료 ·
+        /// 분류기 = 무료 · 복합 가공소 = 노드 설치비(고철) · 90° 로 선다. 덮인 것은 환불 없음(종전 규칙).
+        /// </summary>
+        private bool ExplosiveReplace(ExplosiveTutorialRule.Step step, Vector2Int cell)
+        {
+            BoardGrid g = _grid;
+            if (g == null) return false;
+            bool ok = false;
+            switch (step)
+            {
+                case ExplosiveTutorialRule.Step.Belt:
+                    ClearCell(g, cell);
+                    ok = g.TryPlaceBelt(cell, PortFace.West, PortFace.East, FlowKind.None, out _);
+                    break;
+                case ExplosiveTutorialRule.Step.Sorter:
+                    if (_elementMode != BeltElementKind.Sorter) return false;
+                    ClearCell(g, cell);
+                    ok = g.TryPlaceBeltElement(cell, BeltElementKind.Sorter,
+                        new[] { PortFace.West }, new[] { PortFace.South, PortFace.East }, FlowKind.None, out _);
+                    _elementMode = null;
+                    break;
+                case ExplosiveTutorialRule.Step.Complex:
+                    NodeDefinition def = CurrentNode();
+                    if (def == null || def.type != NodeType.MunitionsComplex) return false;
+                    if (!BuildCost.CanAffordScrap(BuildCost.NodeScrap)) return false;
+                    ClearCell(g, cell);
+                    if (g.TryPlace(cell, def, out NodeInstance placed))
+                    {
+                        placed.Rotation = ExplosiveTutorialRule.ComplexRotation;
+                        BuildCost.TryReserveScrap(BuildCost.NodeScrap);
+                        SpawnSpendPop(cell, BuildCost.NodeScrap);
+                        _selectedNode = -1;
+                        ok = true;
+                    }
+                    break;
+            }
+            if (!ok) return false;
+            ResolveFlow(g, _flows[Index(_editing)]);
+            RespawnMarkersFromGrid();
+            RefreshConnections();
+            return true;
+        }
+
+        private static void ClearCell(BoardGrid g, Vector2Int c)
+        {
+            if (g.GetAt(c) != null) g.TryRemove(c);
+            if (g.GetBeltAt(c) != null) g.TryRemoveBelt(c);
         }
 
         /// <summary>#195 — 강화 안내가 가리키는 판의 주인(A 안내 우선 · 둘은 다른 판(S3 · S6)이라 안 겹친다).</summary>
@@ -2183,6 +2275,19 @@ namespace MBI.Logistics
         /// </summary>
         private void DrawGhostHint(Camera cam, GUIStyle style, float fontScale)
         {
+            // ✅ **#190 ② — 폭발탄 걸음 안내**(⚠️ 문안 가정 · T4 ② 판 재사용).
+            if (_editing == TutorialBoardOwner
+                && TutorialGate.Current == TutorialGate.Phase.ExplosiveBoard
+                && !PopoverOpen)
+            {
+                ExplosiveTutorialRule.Step xs = TutorialSignals.ExplosiveStep;
+                string xt = _explosiveComplexWrongTurn
+                    ? "복합 가공소를 탭해 「90도 돌리기」를 누르세요"
+                    : ExplosiveTutorialRule.Hint(xs, false);
+                if (xt != null) DrawModuleGhostHint(cam, style, fontScale, ExplosiveTutorialRule.CellOf(xs), xt);
+                return;
+            }
+
             // ✅ **#182 ② — 마운트 칸 위 안내**(⚠️ 문안 가정 · T4 ② 판 재사용).
             if (_editing == EnhanceOwner
                 && TutorialGate.Current == TutorialGate.Phase.EnhanceMountBoard
@@ -2909,6 +3014,24 @@ namespace MBI.Logistics
             //    대상 노드 탭 = 붙이기 · 다른 노드 탭 = 들여다보기(고르기) · 그 밖(빈 칸 탭·끌기·지우기)은
             //    아무 일 없음. 붙이라고 해 놓고 노드·벨트를 놓을 수 있으면 「지금 할 일」이 둘이 된다.
             //    대상이 없으면(지웠다) 아무 노드에나 붙는다 — 끝 조건이 그렇게 받는다.
+            // ✅ **#190 ② — 가리키는 칸 탭 = 덮어쓰기 · 노드 탭 = 들여다보기(조합표 · 돌리기)** · 그 밖은 아무 일 없음.
+            if (TutorialGate.Current == TutorialGate.Phase.ExplosiveBoard)
+            {
+                if (_dragCells.Count == 1)
+                {
+                    Vector2Int tap = _dragCells[0];
+                    ExplosiveTutorialRule.Step xs = TutorialSignals.ExplosiveStep;
+                    bool target = tap == ExplosiveTutorialRule.CellOf(xs);
+                    bool replaceStep = xs == ExplosiveTutorialRule.Step.Belt || xs == ExplosiveTutorialRule.Step.Sorter
+                                       || (xs == ExplosiveTutorialRule.Step.Complex && !_explosiveComplexWrongTurn);
+                    if (target && replaceStep && ExplosiveReplace(xs, tap)) { }
+                    else if (_grid.IsOccupied(tap)) Select(tap);
+                    else if (PopoverOpen) Deselect();
+                }
+                _dragCells.Clear();
+                return;
+            }
+
             // ✅ **#182 ② — 마운트 칸 탭만 받는다**(사용자 확정). 마운트 칸 = 팝오버(벨트 유무 무관) ·
             //    노드 탭 = 들여다보기 · 그 밖(빈 칸 탭 · 끌기 · 지우기)은 아무 일 없음.
             if (TutorialGate.Current == TutorialGate.Phase.EnhanceMountBoard)
@@ -4000,6 +4123,9 @@ namespace MBI.Logistics
                 //    🗑️ 구 「기초 가공소만 `PaletteMunitions` 로 따로 묻기」 — 고스트가 노드였던 때의 잔재.
                 //    고스트를 채운 뒤(국면 None)에도 전용 판이면 잠근다 — 노드를 놓아 전용 판을 갇히게 하던 자리(S-3).
                 bool allowed = !TutorialGate.LocksPaletteNodes(StageLayerSignals.IsTutorialStage);
+                // #190 — 폭발탄 걸음 동안은 그 걸음의 노드(복합 가공소) 하나만.
+                if (allowed && TutorialGate.Current == TutorialGate.Phase.ExplosiveBoard)
+                    allowed = ExplosiveTutorialRule.AllowsNode(TutorialSignals.ExplosiveStep, palette[i].type);
                 if (!allowed && i == _selectedNode) _selectedNode = -1;   // 잠긴 단추가 고른 채로 남지 않게
                 bool wasEnabled = GUI.enabled;
                 // #172 — 고철이 모자라면 흐림(안 골라진다 · 놓기도 `Place` 가 다시 막는다).
@@ -4046,7 +4172,10 @@ namespace MBI.Logistics
                 var eRect = new Rect(bx, 0f, side, side);
                 bool on = _elementMode == e;
                 bool wasE = GUI.enabled;
-                GUI.enabled = wasE && elementAllowed;
+                // #190 — 폭발탄 걸음 동안은 그 걸음의 요소(분류기) 하나만.
+                bool eAllowed = elementAllowed && (TutorialGate.Current != TutorialGate.Phase.ExplosiveBoard
+                                                   || ExplosiveTutorialRule.AllowsElement(TutorialSignals.ExplosiveStep, e));
+                GUI.enabled = wasE && eAllowed;
 
                 // 강제 버튼(튜토리얼 기획서 2장) — 지금 놓아야 할 것을 빛나게 한다.
                 // 고스트는 **자리**만 말하므로, 무엇을 놓을지 모르면 자리를 알아도 막힌다.
@@ -4079,7 +4208,7 @@ namespace MBI.Logistics
                     _elementMode = on ? (BeltElementKind?)null : e;
                     _selectedModule = -1;
                 }
-                if (!elementAllowed) UiSkin.DrawLockVeil(eRect);
+                if (!eAllowed) UiSkin.DrawLockVeil(eRect);
                 GUI.enabled = wasE;
                 bx += step;
             }
