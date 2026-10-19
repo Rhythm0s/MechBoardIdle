@@ -986,8 +986,10 @@ namespace MBI.Combat
 
         /// <summary>
         /// **「로봇 B 해금」 원형 단추**(사용자 확정 #173 · 2026-10-19 · 보충: 골드 아이콘 + 값).
-        /// 자리 = 태그 원형(원형 셋 대신). 윗줄 「로봇 B 해금」 · 아랫줄 골드 아이콘(칩 줄의 `icon_gold` 재사용) + 「50」.
-        /// 골드가 모자라면 흐림. 누르면 해금 요청 — 골드를 쓰는 것은 방치 런타임이다.
+        /// 자리 = 태그 원형(원형 셋 대신). 원 안 = 「로봇 B / 해금」 두 줄 · 원 **아래** = 골드 아이콘(칩 줄의 `icon_gold` 재사용) + 「50」
+        /// (해금 뒤 「Auto」 칩이 서는 자리 — 미해금이면 비어 있다). 골드가 모자라면 흐림.
+        /// 누르면 해금 요청 — 골드를 쓰는 것은 방치 런타임이다.
+        /// ⚠️ 구현 판단 — 한 줄 「로봇 B 해금」 + 원 안 값 줄은 원 안 정사각에 안 들었다(8123 실측 · 「로봇」만 보임).
         /// </summary>
         private void DrawRobotBUnlockButton()
         {
@@ -995,37 +997,44 @@ namespace MBI.Combat
             double cost = BuildCost.RobotBGold;
             bool can = RobotBGate.CanUnlock(IdleSignals.WalletGold, cost)
                        && TutorialGate.Allows(TutorialGate.Control.UnlockRobotB);
+            float sc = UiLayout.Scale(Screen.height);
 
             var round = UiSkin.RoundStyle(GUI.skin.button);
-            round.fontSize = KoreanFont.Snap(Mathf.Max(10, Mathf.RoundToInt(r.height * 0.13f)));
-            round.wordWrap = true;
-            round.alignment = TextAnchor.UpperCenter;
+            round.fontSize = KoreanFont.Snap(Mathf.Max(10, Mathf.RoundToInt(r.height * 0.15f)));
+            round.wordWrap = false;
+            round.alignment = TextAnchor.MiddleCenter;
+            round.clipping = TextClipping.Overflow;
             int inset = Mathf.RoundToInt(r.height * (1f - 0.70710678f) * 0.5f);
-            // 윗줄만 단추 글자로 · 아랫줄(아이콘 + 값)은 따로 그린다 — 원 안 정사각의 위 절반에 앉힌다.
-            round.padding = new RectOffset(inset, inset, inset + Mathf.RoundToInt(r.height * 0.08f), inset);
+            round.padding = new RectOffset(inset, inset, inset, inset);
             UiBlockers.Add(r);
 
             bool was = GUI.enabled;
             GUI.enabled = was && can;
-            if (UiSkin.Button(r, RobotBGate.ButtonLabel, round) && can)
+            if (UiSkin.Button(r, RobotBGate.ButtonLabelInCircle, round) && can)
                 IdleSignals.RequestRobotBUnlock(cost);
 
-            // 아랫줄 — 골드 아이콘 + 값. 흐린 단추면 같이 흐린다(GUI.enabled 가 글자를 흐리게 그린다).
+            // ── 값 줄 — 원 아래 판 하나에 골드 아이콘 + 값 ──
             var num = new GUIStyle(GUI.skin.label)
             {
-                fontSize = round.fontSize,
+                fontSize = KoreanFont.Snap(Mathf.Max(10, Mathf.RoundToInt(r.height * 0.15f))),
                 fontStyle = FontStyle.Bold,
                 alignment = TextAnchor.MiddleLeft,
                 clipping = TextClipping.Overflow,
+                wordWrap = false,
             };
             num.normal.textColor = GoldColor;
             string costText = ((int)System.Math.Floor(cost + 1e-6)).ToString();
+            UiText.Prebake(num, costText);
             Vector2 tsz = num.CalcSize(new GUIContent(costText));
-            float icon = tsz.y * 0.9f;
-            float gap = 4f * UiLayout.Scale(Screen.height);
-            float rowW = icon + gap + tsz.x;
-            float rowY = r.center.y + r.height * 0.06f;
-            var iconRect = new Rect(r.center.x - rowW * 0.5f, rowY + (tsz.y - icon) * 0.5f, icon, icon);
+            float icon = tsz.y * 0.85f;
+            float gap = 4f * sc;
+            float pad = UiPlate.Pad + 2f * sc;
+            float rowW = icon + gap + tsz.x + pad * 2f;
+            float rowH = tsz.y + pad;
+            var plate = new Rect(r.center.x - rowW * 0.5f, r.yMax + 4f * sc, rowW, rowH);
+            UiPlate.Draw(plate);
+            UiBlockers.Add(plate);
+            var iconRect = new Rect(plate.x + pad, plate.y + (rowH - icon) * 0.5f, icon, icon);
 
             Color prev = GUI.color;
             if (!can) GUI.color = new Color(prev.r, prev.g, prev.b, prev.a * 0.5f);
@@ -1039,7 +1048,7 @@ namespace MBI.Combat
                 GUI.DrawTexture(iconRect, PlaceholderSprite.SoftDisc().texture, ScaleMode.ScaleToFit);
                 GUI.color = c;
             }
-            GUI.Label(new Rect(iconRect.xMax + gap, rowY, tsz.x + 2f, tsz.y), costText, num);
+            GUI.Label(new Rect(iconRect.xMax + gap, plate.y, tsz.x + 2f, rowH), costText, num);
             GUI.color = prev;
             GUI.enabled = was;
         }

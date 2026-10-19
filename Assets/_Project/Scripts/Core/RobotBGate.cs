@@ -44,6 +44,12 @@ namespace MBI.Core
         /// <summary>단추 글자 — ⚠️ 가정(#173). 값(골드 n)은 아이콘과 함께 따로 그린다.</summary>
         public const string ButtonLabel = "로봇 B 해금";
 
+        /// <summary>
+        /// 원형 안에 그리는 글자 — 두 줄(「로봇 B」 / 「해금」). 한 줄은 원 안 정사각에 안 든다
+        /// (800×600 · 576×1024 둘 다 바닥 글자 16 에서도 넘침 · 8123 실측). 값 줄(골드 아이콘 + n)은 원 **아래**.
+        /// </summary>
+        public const string ButtonLabelInCircle = "로봇 B\n해금";
+
         /// <summary>S4 파밍 첫 진입 막 문구 — ⚠️ 가정(#173).</summary>
         public const string TutorialPrompt = "골드로 로봇 B를 해금해보세요";
 
