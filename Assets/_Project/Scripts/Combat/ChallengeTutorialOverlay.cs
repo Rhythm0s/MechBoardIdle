@@ -85,6 +85,23 @@ namespace MBI.Combat
         }
 
         /// <summary>
+        /// **S4 — 강화 안내 ① 「▼ 조립」 하나만 남기고 덮는 막 + 문구** (2026-10-19 사용자 확정 #182).
+        /// T4 ① 막 그대로다 — 구멍 = 「▼ 조립」 · 문구는 단추 **위**. 조립 화면 · 설정 · 메뉴에서는 안 깐다.
+        /// </summary>
+        public static void DrawEnhanceMount(bool active)
+        {
+            if (!ChallengeTutorialOverlayRule.ShouldShow(
+                    active,
+                    TutorialSignals.BoardViewOpen,
+                    SettingsGate.IsOpen,
+                    MainMenuGate.IsOpen))
+                return;
+
+            Rect button = UiLayout.EnterBoardRect(Screen.width, Screen.height);
+            DrawFor(button, MountEnhanceRule.CombatPrompt, promptAbove: true);
+        }
+
+        /// <summary>
         /// **T4 지급 알림 한 장** — 「모듈 M·R을 받았습니다」(사용자 확정 #138).
         /// 화면 가운데에 판 하나. 막은 안 깐다(알림이지 강제가 아니다). 설정·메뉴·조립 화면에서는 안 띄운다.
         /// </summary>

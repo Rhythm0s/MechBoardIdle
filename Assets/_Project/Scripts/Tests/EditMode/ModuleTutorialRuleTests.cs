@@ -48,7 +48,7 @@ namespace MBI.Tests
         public void 문안은_사용자_확정_글자_그대로다()
         {
             // #147 — 글자 기호 M/R 대신 「생산량·생산속도 모듈」.
-            Assert.AreEqual("생산량·생산속도 모듈을 받았습니다", ModuleTutorialRule.GrantNotice);
+            Assert.AreEqual("생산량·생산속도 모듈이 열렸습니다", ModuleTutorialRule.GrantNotice);   // #184
             Assert.AreEqual("조립 버튼을 눌러 모듈을 붙여보세요", ModuleTutorialRule.CombatPrompt);
             Assert.AreEqual("모듈 탭에서 생산량 또는 생산속도 모듈을 고른 뒤 이 노드를 탭하세요", ModuleTutorialRule.GhostHint);
         }

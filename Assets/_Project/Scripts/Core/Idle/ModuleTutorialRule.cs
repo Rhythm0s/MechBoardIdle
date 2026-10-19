@@ -20,8 +20,9 @@ namespace MBI.Core
         /// <summary>T4 가 붙잡는 판 — S2 다(기획서 4장 「무대 = S2 모듈 배치」).</summary>
         public const int StageNumber = 2;
 
-        /// <summary>지급 알림 — **사용자 확정 #138 · 구현 가정 아님.** 고치지 않는다.</summary>
-        public const string GrantNotice = "생산량·생산속도 모듈을 받았습니다";
+        /// <summary>지급 알림 — **사용자 확정 #184(2026-10-19) · 구현 가정 아님.** 고치지 않는다.</summary>
+        public const string GrantNotice = "생산량·생산속도 모듈이 열렸습니다";
+        // 🗑️ 구 「생산량·생산속도 모듈을 받았습니다」(#147) 폐기 — 사용자 확정 #184 「…모듈이 열렸습니다」.
         // 🗑️ 구 「모듈 M·R을 받았습니다」 폐기(2026-10-15 사용자 확정 #147 「생산량, 생산속도 모듈이라고 바꾸자」).
 
         /// <summary>전투 화면 안내 — **사용자 확정 #138 · 구현 가정 아님.** 고치지 않는다.</summary>

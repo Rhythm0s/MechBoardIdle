@@ -84,6 +84,12 @@ namespace MBI.Core
         public static bool HighlightUnlockRobotB;
 
         /// <summary>
+        /// **S4 — 마운트 강화 안내 막이 서 있다**(2026-10-19 사용자 확정 #182).
+        /// 로봇 B 해금 막과 같은 꼴 — 매 프레임 다시 판단한다(<see cref="MountEnhanceRule.TutorialActive"/> · 전투 러너가 쓴다).
+        /// </summary>
+        public static bool HighlightEnhanceMount;
+
+        /// <summary>
         /// T4 대상 노드 칸 — **보드가 고르고 쓴다**(그 칸의 사실을 아는 것은 보드뿐이다).
         /// null 이면 고를 노드가 없다(그때 끝 조건은 「판의 아무 노드에나 모듈」).
         /// </summary>
@@ -216,6 +222,7 @@ namespace MBI.Core
             HighlightChallengeButton = false;
             ModuleTutorialActive = false;
             HighlightUnlockRobotB = false;
+            HighlightEnhanceMount = false;
             ModuleTargetCell = null;
             ModuleTargetFilled = false;
             ModuleTargetKnown = false;

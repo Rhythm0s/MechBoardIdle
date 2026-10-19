@@ -1735,6 +1735,12 @@ namespace MBI.Combat
             TutorialSignals.HighlightUnlockRobotB = RobotBGate.TutorialActive(
                 IdleSignals.TutorialCleared, stageNo, StageLayerSignals.IsFarming,
                 RobotBGate.IsUnlocked, IdleSignals.WalletGold, BuildCost.RobotBGold);
+            // **S4 — 마운트 강화 안내**(사용자 확정 #182 · 2026-10-19). 해금 막과 같은 꼴 — 매 프레임 다시 판단한다.
+            //    재료 · 고철이 모자라면 안 깐다 · 강화하면(표식) 저절로 꺼진다 · 바로가기 S4+ 점프는 #162 로 표식이 켜져 안 선다.
+            TutorialSignals.HighlightEnhanceMount = MountEnhanceRule.TutorialActive(
+                IdleSignals.TutorialCleared, stageNo, StageLayerSignals.IsFarming, RobotBGate.IsUnlocked,
+                IdleSignals.MountEnhanced, IdleSignals.WalletEnhMaterial, EnhanceCost,
+                IdleSignals.WalletScrap, BuildCost.EnhanceScrap);
 
             // 지급 알림 — 「S2 파밍 첫 진입 때 한 번만 · 복원으로 들어오면 안 뜸」(#138).
             if (IsTutorialStage) _moduleGrantNotice.Rearm();   // 「처음부터」 뒤 다음 T4 에서 다시 뜬다
@@ -3278,6 +3284,9 @@ namespace MBI.Combat
 
             // **S4 로봇 B 해금 막**(#173) — T3 막과 같은 자리(OnGUI 끝)·같은 까닭. 구멍 = 태그 원형 자리(해금 단추).
             ChallengeTutorialOverlay.DrawRobotBUnlock(TutorialSignals.HighlightUnlockRobotB);
+
+            // **S4 강화 안내 막 ①**(#182) — 같은 자리 · 같은 까닭. 구멍 = 「▼ 조립」.
+            ChallengeTutorialOverlay.DrawEnhanceMount(TutorialSignals.HighlightEnhanceMount);
 
             // **T4 막·문구·지급 알림**(#138) — T3 막과 같은 자리(OnGUI 끝)·같은 까닭이다.
             //    알림이 서 있는 동안은 막을 안 깐다 — 둘이 겹치면 알림이 어둠에 묻힌다.

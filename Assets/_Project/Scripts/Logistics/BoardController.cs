@@ -1903,6 +1903,19 @@ namespace MBI.Logistics
             Vector2Int? target = _editing == TutorialBoardOwner
                 ? TutorialSignals.GhostCell
                 : null;
+            // ✅ **#182 ② — A 마운트 칸 (1,4)만 남기고 덮는다**(사용자 확정 · T1 막 재사용).
+            //    화면 밖이면 국면에 들어설 때 한 번 시야를 그 칸으로 옮긴다(그 뒤 끄는 것은 손 그대로).
+            if (!target.HasValue && _editing == TutorialBoardOwner
+                && TutorialGate.Current == TutorialGate.Phase.EnhanceMountBoard)
+            {
+                Vector2Int mc = EnhanceTutorialCell;
+                if (!_enhanceFocusDone) { FocusCell(mc); _enhanceFocusDone = true; }
+                RefreshTutorialDim(mc);
+                RefreshTutorialGhost(null);
+                return;
+            }
+            _enhanceFocusDone = false;
+
             if (!target.HasValue)
             {
                 // ✅ **T4 ② — 대상 노드 칸만 남기고 덮는다**(2026-10-15 사용자 확정 #138 「T1 막 재사용」).
@@ -1937,6 +1950,41 @@ namespace MBI.Logistics
         /// 비켜 주는 것은 둘이다 — **고스트 칸**과 **거기 닿는 벨트 칸**.
         /// 벨트 끝을 같이 비켜 주지 않으면 「어디로 이어지는 자리인지」가 안 보인다.
         /// </summary>
+        /// <summary>#182 — 강화 안내가 가리키는 칸 = A 마운트 포트 칸(`PartLayout.MountPortsFor(A)` 첫 포트 · (1,4)).</summary>
+        private static Vector2Int EnhanceTutorialCell
+        {
+            get
+            {
+                foreach (MountPort p in PartLayout.MountPortsFor(MountOwner.RobotA)) return p.cell;
+                return new Vector2Int(1, 4);
+            }
+        }
+
+        /// <summary>#182 — 이번 국면에 시야를 이미 옮겼는가(국면을 벗어나면 내린다).</summary>
+        private bool _enhanceFocusDone;
+
+        /// <summary>
+        /// #182 — 칸이 보드 띠 안(한 칸 여유)에 안 보이면 그 칸이 띠 가운데에 오도록 민다. 범위는 `BoardPan` 이 조인다.
+        /// </summary>
+        private void FocusCell(Vector2Int cell)
+        {
+            if (_pan == null || _grid == null) return;
+            Camera cam = boardCamera != null ? boardCamera : Camera.main;
+            if (cam == null) return;
+            Rect band = UiLayout.BandRect(UiLayout.Band.Board, Screen.width, Screen.height);
+            Vector3 sp = cam.WorldToScreenPoint(CellWorld(cell));
+            Vector3 edge = cam.WorldToScreenPoint(CellWorld(cell) + new Vector3(config.cellSize, 0f, 0f));
+            float cellPx = Mathf.Abs(edge.x - sp.x);
+            float gx = sp.x, gy = Screen.height - sp.y;
+            bool visible = gx >= band.x + cellPx && gx <= band.xMax - cellPx
+                        && gy >= band.y + cellPx && gy <= band.yMax - cellPx;
+            if (visible) return;
+            Vector3 centerWorld = cam.ScreenToWorldPoint(new Vector3(band.center.x, Screen.height - band.center.y, -cam.transform.position.z));
+            Vector3 delta = centerWorld - CellWorld(cell);
+            _pan.Offset = _pan.Offset + new Vector2(delta.x, delta.y);
+            ApplyPan();
+        }
+
         private void RefreshTutorialDim(Vector2Int? ghost)
         {
             var want = new HashSet<Vector2Int>();
@@ -2117,6 +2165,15 @@ namespace MBI.Logistics
         /// </summary>
         private void DrawGhostHint(Camera cam, GUIStyle style, float fontScale)
         {
+            // ✅ **#182 ② — 마운트 칸 위 안내**(⚠️ 문안 가정 · T4 ② 판 재사용).
+            if (_editing == TutorialBoardOwner
+                && TutorialGate.Current == TutorialGate.Phase.EnhanceMountBoard
+                && !_mountCell.HasValue)   // 팝오버가 열리면 판을 걷는다(팝오버와 겹치지 않게)
+            {
+                DrawModuleGhostHint(cam, style, fontScale, EnhanceTutorialCell, MountEnhanceRule.BoardHint);
+                return;
+            }
+
             // ✅ **T4 ② — 대상 노드 위 안내**(2026-10-15 사용자 확정 #138 · 문안 확정).
             if (_editing == TutorialBoardOwner
                 && TutorialGate.Current == TutorialGate.Phase.PlaceModule
@@ -2228,6 +2285,10 @@ namespace MBI.Logistics
         /// 화면 밖으로 안 나가게 민다.
         /// </summary>
         private void DrawModuleGhostHint(Camera cam, GUIStyle style, float fontScale, Vector2Int cell)
+            => DrawModuleGhostHint(cam, style, fontScale, cell, ModuleTutorialRule.GhostHint);
+
+        /// <summary>#182 — 같은 판에 다른 문안(마운트 강화 안내).</summary>
+        private void DrawModuleGhostHint(Camera cam, GUIStyle style, float fontScale, Vector2Int cell, string text)
         {
             Vector3 c = CellWorld(cell);
             Vector3 top = new Vector3(c.x, c.y + config.cellSize * 0.5f, 0f);
@@ -2249,7 +2310,6 @@ namespace MBI.Logistics
             st.fontSize = KoreanFont.Snap(Mathf.Max(10, Mathf.Min(byCell, Mathf.RoundToInt(28f * fontScale))));
             st.normal.textColor = Color.white;
 
-            string text = ModuleTutorialRule.GhostHint;
             float pad = UiPlate.Pad;
             float maxW = Screen.width - 24f;
             float textW = st.CalcSize(new GUIContent(text)).x;
@@ -2830,6 +2890,21 @@ namespace MBI.Logistics
             //    대상 노드 탭 = 붙이기 · 다른 노드 탭 = 들여다보기(고르기) · 그 밖(빈 칸 탭·끌기·지우기)은
             //    아무 일 없음. 붙이라고 해 놓고 노드·벨트를 놓을 수 있으면 「지금 할 일」이 둘이 된다.
             //    대상이 없으면(지웠다) 아무 노드에나 붙는다 — 끝 조건이 그렇게 받는다.
+            // ✅ **#182 ② — 마운트 칸 탭만 받는다**(사용자 확정). 마운트 칸 = 팝오버(벨트 유무 무관) ·
+            //    노드 탭 = 들여다보기 · 그 밖(빈 칸 탭 · 끌기 · 지우기)은 아무 일 없음.
+            if (TutorialGate.Current == TutorialGate.Phase.EnhanceMountBoard)
+            {
+                if (_dragCells.Count == 1)
+                {
+                    Vector2Int tap = _dragCells[0];
+                    if (MountPopover.IsMountCell(tap, _editing) && !_grid.IsOccupied(tap)) OpenMountPopover(tap);
+                    else if (_grid.IsOccupied(tap)) Select(tap);
+                    else if (PopoverOpen) Deselect();
+                }
+                _dragCells.Clear();
+                return;
+            }
+
             if (TutorialGate.Current == TutorialGate.Phase.PlaceModule)
             {
                 if (_dragCells.Count == 1)
@@ -3902,9 +3977,11 @@ namespace MBI.Logistics
                 // ⚠️ **국면이 허용하는 것만 켠다**(2026-09-11 · 플랜 §71-16 ④).
                 // 종전에는 「고스트가 떠 있으면 기초 가공소만」이었는데, 그 앞 두 국면
                 // (조립 진입 · 모드 바꾸기)에서는 팔레트가 **전부 켜져 있었다.**
-                bool allowed = palette[i].type == NodeType.MunitionsBasic
-                    ? TutorialGate.Allows(TutorialGate.Control.PaletteMunitions)
-                    : TutorialGate.Allows(TutorialGate.Control.PaletteOther);
+                // ✅ **#183 — 튜토리얼 전용 판(T1) 동안 노드 단추 전부 잠금**(사용자 확정 · 2026-10-19).
+                //    🗑️ 구 「기초 가공소만 `PaletteMunitions` 로 따로 묻기」 — 고스트가 노드였던 때의 잔재.
+                //    고스트를 채운 뒤(국면 None)에도 전용 판이면 잠근다 — 노드를 놓아 전용 판을 갇히게 하던 자리(S-3).
+                bool allowed = !TutorialGate.LocksPaletteNodes(StageLayerSignals.IsTutorialStage);
+                if (!allowed && i == _selectedNode) _selectedNode = -1;   // 잠긴 단추가 고른 채로 남지 않게
                 bool wasEnabled = GUI.enabled;
                 // #172 — 고철이 모자라면 흐림(안 골라진다 · 놓기도 `Place` 가 다시 막는다).
                 bool affordable = BuildCost.CanAffordScrap(BuildCost.NodeScrap);

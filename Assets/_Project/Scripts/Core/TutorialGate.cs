@@ -58,12 +58,27 @@ namespace MBI.Core
             /// 해금 단추 말고는 안 눌린다(조립 진입 · 도전 · 목록). 누르면(해금) 저절로 풀린다.
             /// </summary>
             UnlockRobotB,
+
+            /// <summary>
+            /// **S4 파밍 — 강화 안내 ① 전투 화면: 「▼ 조립」 하나만**(2026-10-19 사용자 확정 #182).
+            /// T4 ① 과 같은 꼴 — 「도전」·「스테이지」를 닫는다(「▲ 전투로」 예외).
+            /// </summary>
+            EnhanceMount,
+
+            /// <summary>
+            /// **S4 파밍 — 강화 안내 ② 보드 화면: A 마운트 칸 (1,4)**(#182 · T1 막 재사용).
+            /// 팔레트 · 지우기는 닫고 모드 단추 · 줌 · 미니맵 · 「▲ 전투로」는 연다(마운트 탭은 이동 모드 팝오버로도 된다 #148).
+            /// 보드 탭은 마운트 칸 팝오버만 연다(`BoardController.OnPressEnd`). 강화하면(표식) 저절로 풀린다.
+            /// </summary>
+            EnhanceMountBoard,
         }
 
         /// <summary>막을 수 있는 조작들.</summary>
         public enum Control
         {
             EnterBoard, ExitBoard, ModeToggle,
+            // 🗑️ `PaletteMunitions` — 고스트가 노드였던 때의 「기초 가공소 하나만」 잔재. 팔레트는 더 이상 이것을
+            //    묻지 않는다(사용자 확정 #183 · 노드 단추는 모두 `PaletteOther`). 지우지 않고 남긴다(폐기 표기).
             PaletteMunitions, PaletteOther, BeltElement, Module, Remove,
             Zoom, MiniMap,
 
@@ -97,7 +112,8 @@ namespace MBI.Core
             // (2026-09-15 · 「이동 모드 버튼이 안 먹는다」).
             // 신호를 켜는 곳만 있고 끄는 곳이 없어 **들어간 뒤에도 그 국면에 머물렀고**,
             // 그 국면은 조립 버튼 하나만 허락하므로 **보드가 통째로 잠겼다.**
-            Resolve(TutorialSignals.HighlightUnlockRobotB,
+            Resolve(TutorialSignals.HighlightEnhanceMount && TutorialSignals.BoardViewIsTutorialBoard,
+                    TutorialSignals.HighlightUnlockRobotB,
                     TutorialSignals.HighlightChallengeButton,
                     TutorialSignals.ModuleTutorialActive,
                     TutorialSignals.BoardViewOpen,
@@ -140,7 +156,18 @@ namespace MBI.Core
         /// </summary>
         public static Phase Resolve(bool urgeUnlockRobotB, bool urgeChallenge, bool urgeModule, bool boardViewOpen,
             bool urgeEnterBoard, bool urgeBuildMode, bool ghostWaiting, bool inBuildMode)
+            => Resolve(false, urgeUnlockRobotB, urgeChallenge, urgeModule, boardViewOpen,
+                       urgeEnterBoard, urgeBuildMode, ghostWaiting, inBuildMode);
+
+        /// <summary>
+        /// #182 — 맨 앞에 「마운트 강화」 국면을 얹은 판. 해금 막과 겹치지 않는다(해금 **뒤**에만 선다).
+        /// 조립 화면이 닫혔으면 「들어가라」(전투 화면), 열렸으면 「마운트를 탭하라」(보드 화면).
+        /// ⚠️ 부르는 쪽이 「A 판을 보고 있다」를 같이 넣는다 — B 판에서는 안 잡는다(구멍이 A 판에 있다).
+        /// </summary>
+        public static Phase Resolve(bool urgeEnhanceMount, bool urgeUnlockRobotB, bool urgeChallenge, bool urgeModule,
+            bool boardViewOpen, bool urgeEnterBoard, bool urgeBuildMode, bool ghostWaiting, bool inBuildMode)
         {
+            if (urgeEnhanceMount) return boardViewOpen ? Phase.EnhanceMountBoard : Phase.EnhanceMount;
             if (urgeUnlockRobotB) return Phase.UnlockRobotB;
 
             // ⚠️ **T3 를 먼저 묻는다.** 그 국면은 앞 셋이 전부 끝난 **뒤**에만 서고
@@ -221,6 +248,16 @@ namespace MBI.Core
                     return control == Control.MiniMap || control == Control.Zoom
                            || control == Control.ExitBoard;
 
+                case Phase.EnhanceMount:
+                    // #182 ① — T4 ① 과 같게 잠근다(「▼ 조립」 하나 · 「▲ 전투로」 예외).
+                    return control == Control.EnterBoard || control == Control.ExitBoard;
+
+                case Phase.EnhanceMountBoard:
+                    // #182 ② — 팔레트(노드 · 모듈 · 벨트 요소) · 지우기는 닫는다(「지금 할 일」은 마운트 탭 하나).
+                    //    모드 단추는 연다 — 이동 모드 탭으로도 마운트 팝오버가 열리고(#148), 바꿔 버렸으면 돌아올 길이 있어야 한다.
+                    return control == Control.ModeToggle || control == Control.ExitBoard
+                           || control == Control.Zoom || control == Control.MiniMap;
+
                 case Phase.UnlockRobotB:
                     // #173 — 해금 단추 하나만(T3 「도전 하나만」과 같은 결 · 「▲ 전투로」는 예외).
                     return control == Control.UnlockRobotB || control == Control.ExitBoard;
@@ -262,6 +299,19 @@ namespace MBI.Core
         /// 보드를 눌러도 아무 일이 없어야 「지금 할 일은 저것 하나」가 선다.
         /// </summary>
         public static bool AllowsBoardTap =>
-            Current == Phase.None || Current == Phase.PlaceNode || Current == Phase.PlaceModule;
+            Current == Phase.None || Current == Phase.PlaceNode || Current == Phase.PlaceModule
+            || Current == Phase.EnhanceMountBoard;
+
+        /// <summary>
+        /// **팔레트 노드 단추를 잠그는가**(사용자 확정 #183 · 2026-10-19) — 튜토리얼 전용 판(T1) 동안 **전부.**
+        /// 고스트 칸은 벨트 드래그로만 채운다. 🗑️ 구 「기초 가공소 하나만 열기」(`PaletteMunitions`) 폐기.
+        /// 전용 판 밖에서는 국면 규칙(`PaletteOther`)이 정한다. 모듈 · 벨트 요소 단추는 이 규칙 밖(종전대로).
+        /// </summary>
+        public static bool LocksPaletteNodes(bool isTutorialStage) =>
+            isTutorialStage || !Allows(Control.PaletteOther);
+
+        /// <summary>국면을 직접 주고 묻는다(시험용).</summary>
+        public static bool LocksPaletteNodes(Phase phase, bool isTutorialStage) =>
+            isTutorialStage || !Allows(phase, Control.PaletteOther);
     }
 }
