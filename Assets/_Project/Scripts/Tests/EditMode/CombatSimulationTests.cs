@@ -70,6 +70,24 @@ namespace MBI.Tests
             Assert.Greater(sim.Robot.hp, 0f, "로봇 생존");
         }
 
+        /// <summary>결함 ⑤ — 끝난 판에 Tick 을 더 불러도 마지막 틱 사건(발사 · 태그 스킬)이 다시 안 읽힌다.</summary>
+        [Test]
+        public void AfterWin_TickClearsThisTickEvents()
+        {
+            var spawns = new List<EnemySpawn>
+            {
+                new EnemySpawn { label = "표적", hp = 100f, def = 0f, atk = 0f,
+                    moveSpeed = 0f, attackRange = 0.5f, attackInterval = 1f },
+            };
+            var sim = new CombatSimulation(Robot(1000f), spawns, arenaRadius: 3f, challengeTime: 120f, spawnCadence: 0f);
+            Run(sim, 2f);
+            Assert.AreEqual(CombatResult.Win, sim.Result);
+
+            sim.Tick(0.1f);   // 러너는 승리 뒤에도 매 프레임 부른다
+            Assert.AreEqual(0, sim.ShotsThisTick.Count, "끝난 판에 발사 사건이 남으면 연출이 프레임마다 다시 난다");
+            Assert.IsFalse(sim.TagSkillResolvedThisTick, "태그 스킬 고리가 프레임마다 다시 지어지던 자리");
+        }
+
         [Test]
         public void LoseDead_WhenRobotHpDepleted()
         {

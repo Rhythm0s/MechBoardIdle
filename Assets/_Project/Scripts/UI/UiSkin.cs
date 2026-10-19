@@ -287,6 +287,25 @@ namespace MBI.UI
 
         private static GUIStyle _plateStyle;
 
+        /// <summary>
+        /// ✅ **#210 — 튜토리얼 「누를 곳」 테두리**(2026-10-19 사용자 확정 · 「어디를 누르라는지 안 보임」).
+        /// 그림은 팔레트 고른 단추 테두리(#176)와 같다 — 밝은 노랑 네 변 · 두께 = 높이의 4%(바닥 2px).
+        /// ⚠️ 펄스 없이 테두리만(플랜 가정) · 색 · 두께 가정(#176 그대로).
+        /// </summary>
+        public static readonly Color TutorialOutlineColor = new Color(1f, 0.9f, 0.4f, 1f);
+
+        public static void DrawTutorialOutline(Rect r)
+        {
+            float t = Mathf.Max(2f, r.height * 0.04f);
+            Color prev = GUI.color;
+            GUI.color = TutorialOutlineColor;
+            GUI.DrawTexture(new Rect(r.x, r.y, r.width, t), Texture2D.whiteTexture);
+            GUI.DrawTexture(new Rect(r.x, r.yMax - t, r.width, t), Texture2D.whiteTexture);
+            GUI.DrawTexture(new Rect(r.x, r.y, t, r.height), Texture2D.whiteTexture);
+            GUI.DrawTexture(new Rect(r.xMax - t, r.y, t, r.height), Texture2D.whiteTexture);
+            GUI.color = prev;
+        }
+
         public static void DrawLockVeil(Rect rect)
         {
             Color prev = GUI.color;

@@ -1026,6 +1026,7 @@ namespace MBI.Combat
             GUI.enabled = was && can;
             if (UiSkin.Button(r, RobotBGate.ButtonLabelInCircle, round) && can)
                 IdleSignals.RequestRobotBUnlock(cost);
+            if (TutorialSignals.HighlightUnlockRobotB) UiSkin.DrawTutorialOutline(r);   // #210 — S4 해금 막
 
             // ── 값 줄 — 원 아래 판 하나에 골드 아이콘 + 값 ──
             var num = new GUIStyle(GUI.skin.label)

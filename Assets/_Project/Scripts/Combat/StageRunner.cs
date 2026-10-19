@@ -1200,6 +1200,22 @@ namespace MBI.Combat
         /// **여기서 판정하지 않는다** — 0인지 아닌지는 <see cref="SupplyStopRules"/>가 가른다.
         /// 다리에서 나누면 두 화면이 서로 다른 기준을 갖게 된다.
         /// </summary>
+        /// <summary>
+        /// ✅ **결함 ①(2026-10-19 사용자 육안 · 바닥 안 덮임 — 하단 띠 · S3 막 중 왼쪽 넓은 구역)**.
+        /// 바닥 따라가기가 `Update` 안 #203/#207 정지 `goto` 가 건너뛰는 자리에 있었다 — 정지 중에도
+        /// 레이어 컨트롤러는 카메라를 계속 옮겨(판이 새로 서 로봇이 원점으로 → 카메라가 미끄러짐) 땅만 옛 자리에 남았다.
+        /// 📌 바닥은 **카메라가 움직인 뒤**(`LateUpdate`)에 따라간다 — 정지 · 메뉴 · 설정과 무관하고, 한 프레임 늦음도 없다.
+        /// 카메라 초점도 정지 중에 낸다(판이 새로 서면 로봇 자리로 가야 한다).
+        /// </summary>
+        private void LateUpdate()
+        {
+            if (_sim == null) return;
+            GameViewSignals.HasCombatFocus = _sim.Robot != null;
+            if (GameViewSignals.HasCombatFocus) GameViewSignals.CombatFocus = _sim.Robot.position;
+            if (BackgroundNeedsRebuild()) BuildBackground();
+            UpdateBackgroundOffset();
+        }
+
         private void PublishSupplySignals()
         {
             // ⚠️ **카메라가 비출 자리를 같이 낸다**(2026-09-15 사용자 확정 · 육안 ⑥ · UI 9-5).
@@ -1485,6 +1501,10 @@ namespace MBI.Combat
             {
                 // ⚠️ 전투력 표시는 계속 산다 — `RefreshFireRate` 를 건너뛰면 `_output` 이 판 시작의 명목값(예: 390)에 멈췄다(8123 실측).
                 //    실제 출력(`Output`)은 정지 중 마운트가 안 비어 도착이 0 → 0 으로 떨어진다(8123 실측) — 그래서 **보드 예상 출력**을 쓴다(⚠️ 구현 판단).
+                // ✅ **결함 ③(10-19 사용자 육안 · 「화력 0 → 0」)** — 발사 줄 배분은 정지 중에도 한다(틱이 아니라 설정이다).
+                //    #207 확장으로 도전 S4 합체 막이 판이 서자마자 정지를 걸어 `RefreshFireRate` 가 한 번도 안 돌았고,
+                //    발사 줄이 빈 채 합체 → 스냅샷 0. 배분 뒤 표시값만 보드 예상 출력으로 덮는다(아래 줄).
+                RefreshFireRate();
                 _output = LogisticsOutputBridge.Expected;
                 goto TutorialSignalsUpdate;
             }
@@ -1624,9 +1644,7 @@ namespace MBI.Combat
             // 스폰 링도 같은 이유로 밖에서 넣는다 — **화면 밖 가장자리**다(§71-28 2).
             SetSpawnRingFromCamera();
 
-            // 바닥 — 스테이지나 창이 바뀌었으면 다시 깔고, 아니면 밀기만 한다.
-            if (BackgroundNeedsRebuild()) BuildBackground();
-            UpdateBackgroundOffset();
+            // 🗑️ 바닥 갱신은 `LateUpdate` 로 옮겼다(결함 ① · 아래 주석).
 
             // 태그 스킬이 터지는 자리도 밖에서 넣는다 — **진입 클립이 다 도는 초**다
             // (260908_W06 2장 · (가) 0.75초). 새 상수를 만들지 않고 이미 있는 클립 초를 그대로 쓴다.
@@ -2354,6 +2372,7 @@ namespace MBI.Combat
 
             bool hit = UiSkin.Button(r, label, st);
             GUI.color = prevColor;
+            if (TutorialSignals.HighlightChallengeButton) UiSkin.DrawTutorialOutline(r);   // #210 — S1 T3
             if (!allowed && !cleared) UiSkin.DrawLockVeil(r);   // 통과함은 흐림(GUI.enabled)만 — 잠금 막과 뜻이 다르다
             GUI.enabled = wasEnabled;
             if (hit && allowed) RequestChallenge();   // 2026-10-16 사용자 직접 지시 ③ — 들어가기 전 안내 창
@@ -3610,6 +3629,7 @@ namespace MBI.Combat
                           && TutorialGate.Allows(TutorialGate.Control.Merge);   // #189 — 다른 강제 국면에서는 기다린다
             // **합체 원형 펄스**(사용자 확정 #160) — 도전 층에서 만충이면 누를 때까지 커졌다 작아졌다 한다.
             if (MergePulseOn) mergeRect = MergeRushRule.Scaled(mergeRect, MergeRushRule.PulseScale(Time.unscaledTime));
+            if (TutorialSignals.HighlightMergeButton) UiSkin.DrawTutorialOutline(mergeRect);   // #210 — S4 합체 막
             if (UiSkin.Button(mergeRect, MergeButtonLabel(), round) && _sim.TryMerge())
             {
                 // 발동에 **성공했을 때만** 튼다. 실패한 버튼에 연출이 붙으면 안 된 일이 된 것처럼 보인다.

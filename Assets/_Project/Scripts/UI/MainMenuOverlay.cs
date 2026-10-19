@@ -115,6 +115,10 @@ namespace MBI.UI
                 line, notice);
         }
 
+        /// <summary>#212 — 메인 메뉴 소리 안내 문구(사용자 문구 그대로).</summary>
+        public const string SoundAutoplayNotice =
+            "플레이 시, BGM 및 사운드가 자동 재생이 진행되니, 이 점 유의해주시면 감사하겠습니다.";
+
         private void DrawButtons()
         {
             var style = new GUIStyle(GUI.skin.button) { fontSize = KoreanFont.Snap(Mathf.RoundToInt(S(48f))) };
@@ -124,7 +128,19 @@ namespace MBI.UI
             float step = h + S(ButtonGap);
 
             if (UiSkin.Button(new Rect(x, y, S(ButtonW), h), "게임 시작", style)) StartGame();
-            y += step;
+            y += h + S(ButtonGap) * 0.5f;
+
+            // ✅ **#212 — 소리 자동 재생 안내**(2026-10-19 사용자 확정 · 문구 그대로).
+            //    ⚠️ 자리 = 「게임 시작」 바로 아래 한 줄 · 작은 글자(사다리 바닥) — 플랜 권고 · 사용자 확인 전(바꾸기 쉽게 상수 하나).
+            var soundNote = new GUIStyle(GUI.skin.label)
+            {
+                alignment = TextAnchor.UpperCenter,
+                fontSize = KoreanFont.MinSize,
+                wordWrap = true
+            };
+            float noteH = Mathf.Max(S(80f), soundNote.CalcHeight(new GUIContent(SoundAutoplayNotice), S(ButtonW)));
+            GUI.Label(new Rect(x, y, S(ButtonW), noteH), SoundAutoplayNotice, soundNote);
+            y += noteH + S(ButtonGap) * 0.5f;
 
             // ⚠️ **「볼륨」 버튼을 걷었다**(2026-09-15 사용자 확정 · 하단 개편 ⑨).
             //

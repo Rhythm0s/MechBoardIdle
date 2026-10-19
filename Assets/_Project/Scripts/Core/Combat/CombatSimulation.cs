@@ -1544,7 +1544,20 @@ namespace MBI.Core
         /// <summary>경계 원주에 균등 각도로 배치(결정론적, 난수 0).</summary>
         public void Tick(float dt)
         {
-            if (Result != CombatResult.InProgress || dt <= 0f) return;
+            // ✅ **결함 ⑤(2026-10-19 사용자 육안 · S6 보스를 태그 스킬로 처치 → 초록 고리가 화면을 덮음)**:
+            //    끝난 판에서 이른 반환 **전에** 「이번 틱」 사건을 비운다. 종전엔 그대로 빠져
+            //    마지막 틱의 `TagSkillResolvedThisTick` · 발사 목록이 남았고, 러너가 매 프레임 읽어
+            //    **고리 파동을 프레임마다 새로 지었다**(누적). 판정은 안 바뀐다 — 끝난 판에 사건은 없다.
+            if (Result != CombatResult.InProgress)
+            {
+                _shots.Clear();
+                _droneLaunches.Clear();
+                _droneExpiries.Clear();
+                KillsThisTick = 0;
+                TagSkillResolvedThisTick = false;
+                return;
+            }
+            if (dt <= 0f) return;
 
             _shots.Clear();
             _droneLaunches.Clear();

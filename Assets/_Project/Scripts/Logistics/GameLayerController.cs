@@ -264,6 +264,11 @@ namespace MBI.Logistics
 
                 if (UiSkin.Button(rect, "▼ 조립 (물류 보드)", style)) _boardView = true;
                 GUI.color = prev;
+                // ✅ #210 — 조립으로 들어가라는 국면 전부(T1 · T4 ① · S3/S6 강화 · S5 폭발탄)에 「누를 곳」 테두리.
+                TutorialGate.Phase ph = TutorialGate.Current;
+                if (TutorialSignals.HighlightBoardButton || ph == TutorialGate.Phase.ModuleEnterBoard
+                    || ph == TutorialGate.Phase.EnhanceMount || ph == TutorialGate.Phase.Explosive)
+                    UiSkin.DrawTutorialOutline(rect);
             }
             else
             {

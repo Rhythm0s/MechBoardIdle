@@ -2311,6 +2311,7 @@ namespace MBI.Logistics
                 string xt = _explosiveComplexWrongTurn
                     ? "복합 가공소를 탭해 「90도 돌리기」를 누르세요"
                     : ExplosiveTutorialRule.Hint(xs, false);
+                if (xt != null) DrawCellOutline(cam, ExplosiveTutorialRule.CellOf(xs));   // #210
                 if (xt != null) DrawModuleGhostHint(cam, style, fontScale, ExplosiveTutorialRule.CellOf(xs), xt);
                 return;
             }
@@ -2320,6 +2321,7 @@ namespace MBI.Logistics
                 && TutorialGate.Current == TutorialGate.Phase.EnhanceMountBoard
                 && !_mountCell.HasValue)   // 팝오버가 열리면 판을 걷는다(팝오버와 겹치지 않게)
             {
+                DrawCellOutline(cam, EnhanceTutorialCell);   // #210
                 DrawModuleGhostHint(cam, style, fontScale, EnhanceTutorialCell,
                     EnhanceOwner == MountOwner.RobotB ? MountEnhanceRule.BoardHintB : MountEnhanceRule.BoardHint);
                 return;
@@ -2330,12 +2332,14 @@ namespace MBI.Logistics
                 && TutorialGate.Current == TutorialGate.Phase.PlaceModule
                 && TutorialSignals.ModuleTargetCell.HasValue)
             {
+                DrawCellOutline(cam, TutorialSignals.ModuleTargetCell.Value);   // #210
                 DrawModuleGhostHint(cam, style, fontScale, TutorialSignals.ModuleTargetCell.Value);
                 return;
             }
 
             Vector2Int? cell = TutorialSignals.GhostCell;
             if (!cell.HasValue) return;
+            if (!TutorialSignals.GhostCellFilled && TutorialSignals.BoardViewIsTutorialBoard) DrawCellOutline(cam, cell.Value);   // #210 — T1 빈 칸
 
             // ⚠️⚠️ **채운 뒤에도 한 번 더 말한다**(2026-09-16 사용자 확정 · 플랜 §74-17 ④).
             //
@@ -2437,6 +2441,23 @@ namespace MBI.Logistics
         /// </summary>
         private void DrawModuleGhostHint(Camera cam, GUIStyle style, float fontScale, Vector2Int cell)
             => DrawModuleGhostHint(cam, style, fontScale, cell, ModuleTutorialRule.GhostHint);
+
+        /// <summary>
+        /// ✅ #210 — 보드 칸 하나를 화면에 투영해 「누를 곳」 테두리를 두른다(매 프레임 다시 잼 · 보드를 끌면 따라온다).
+        /// </summary>
+        private void DrawCellOutline(Camera cam, Vector2Int cell)
+        {
+            if (cam == null) return;
+            Vector3 c = CellWorld(cell);
+            float half = config.cellSize * 0.5f;
+            Vector3 a = cam.WorldToScreenPoint(new Vector3(c.x - half, c.y + half, 0f));
+            Vector3 b = cam.WorldToScreenPoint(new Vector3(c.x + half, c.y - half, 0f));
+            if (a.z <= 0f || b.z <= 0f) return;
+            var r = Rect.MinMaxRect(Mathf.Min(a.x, b.x), Screen.height - Mathf.Max(a.y, b.y),
+                                    Mathf.Max(a.x, b.x), Screen.height - Mathf.Min(a.y, b.y));
+            if (r.width < 4f) return;
+            UiSkin.DrawTutorialOutline(r);
+        }
 
         /// <summary>#182 — 같은 판에 다른 문안(마운트 강화 안내).</summary>
         private void DrawModuleGhostHint(Camera cam, GUIStyle style, float fontScale, Vector2Int cell, string text)
@@ -4036,7 +4057,11 @@ namespace MBI.Logistics
             float pad = 12f * sc;
             // ⚠️ **216 은 띠가 허락하는 최대다**(2026-09-15 사용자 확정 C안 · 육안 6차 ⑥).
             // 부유 띠 312 − 탭 줄 96 = 216. 띠보다 커질 수는 없으므로 아래 `Min` 은 남긴다.
-            float side = Mathf.Min(UiLayout.PaletteButtonSize * sc, band.height - pad * 2f);
+            // ✅ **#211 — 세로 휠 제거**(2026-10-19 사용자 육안). 종전 변 = 보이는 높이 전부라 가로 스크롤바(몇 px)를
+            //    더하면 내용이 높이를 넘어 **세로 스크롤바가 섰다**. 가로 바 높이를 미리 빼 한 줄이 꼭 든다(값 0).
+            float hBar = GUI.skin != null && GUI.skin.horizontalScrollbar != null
+                ? GUI.skin.horizontalScrollbar.fixedHeight + GUI.skin.horizontalScrollbar.margin.vertical : 16f;
+            float side = Mathf.Min(UiLayout.PaletteButtonSize * sc, band.height - pad * 2f - hBar);
 
             var style = new GUIStyle(GUI.skin.button)
             {
@@ -4130,7 +4155,9 @@ namespace MBI.Logistics
             //    받은 말이 「선택」까지라 거기까지만 연다.
             GUI.enabled = true;
 
-            _paletteScroll = GUI.BeginScrollView(view, _paletteScroll, content, true, false);
+            // #211 — 세로 막대는 아예 안 그린다(GUIStyle.none) · 가로만.
+            _paletteScroll = GUI.BeginScrollView(view, _paletteScroll, content, true, false,
+                GUI.skin.horizontalScrollbar, GUIStyle.none);
             float bx = 0f;
 
             for (int i = 0; i < palette.Count; i++)
@@ -4172,6 +4199,10 @@ namespace MBI.Logistics
                 }
                 DrawPaletteThumb(rect, palette[i]);
                 if (sel) DrawSelectedOutline(rect);
+                else if (TutorialGate.Current == TutorialGate.Phase.ExplosiveBoard
+                         && TutorialSignals.ExplosiveStep == ExplosiveTutorialRule.Step.Complex
+                         && ExplosiveTutorialRule.AllowsNode(TutorialSignals.ExplosiveStep, palette[i].type))
+                    UiSkin.DrawTutorialOutline(rect);   // #210 — 복합 가공소 단추
 
                 // ⚠️ **어둠막은 버튼 뒤에 그린다**(2026-09-11 재육안 · IMGUI 는 뒤에 그리는
                 // 쪽이 위로 온다). 앞에 그렸더니 **버튼이 제 바탕으로 덮어** 막이 한 번도
@@ -4231,6 +4262,11 @@ namespace MBI.Logistics
                 GUI.color = prevCol;
 
                 if (on) DrawSelectedOutline(eRect);
+                else if ((TutorialSignals.HighlightMerger && e == BeltElementKind.Merger)
+                         || (TutorialGate.Current == TutorialGate.Phase.ExplosiveBoard
+                             && TutorialSignals.ExplosiveStep == ExplosiveTutorialRule.Step.Sorter
+                             && e == BeltElementKind.Sorter))
+                    UiSkin.DrawTutorialOutline(eRect);   // #210
                 if (pressed)
                 {
                     _elementMode = on ? (BeltElementKind?)null : e;
@@ -4275,6 +4311,8 @@ namespace MBI.Logistics
                     }
                     DrawPaletteModuleThumb(mRect, modulePalette[m]);
                     if (on) DrawSelectedOutline(mRect);
+                    else if (_selectedModule < 0 && TutorialGate.Current == TutorialGate.Phase.PlaceModule)
+                        UiSkin.DrawTutorialOutline(mRect);   // #210 — T4 고를 단추
                     if (!moduleAllowed) UiSkin.DrawLockVeil(mRect);
                     GUI.enabled = wasM;
                     bx += step;
@@ -5085,6 +5123,8 @@ namespace MBI.Logistics
             bool wasEdit = GUI.enabled;
             GUI.enabled = wasEdit && editOk;
             bool rotHit = canRotate && UiSkin.Button(new Rect(x, y, rotBtnW, titleH), rotLabel, oneLine);
+            if (canRotate && _explosiveComplexWrongTurn && TutorialGate.Current == TutorialGate.Phase.ExplosiveBoard)
+                UiSkin.DrawTutorialOutline(new Rect(x, y, rotBtnW, titleH));   // #210
             GUI.enabled = wasEdit;
             if (rotHit && editOk)
             {
@@ -5181,6 +5221,11 @@ namespace MBI.Logistics
                 if (UiSkin.Button(rect, (r.kind == current ? "● " : "") + r.displayName, style) && editOk
                     && inst.SelectRecipe(r.kind))
                     RefreshConnections(); // 산출이 바뀌면 하류 벨트가 나르는 것도 바뀐다
+                // #210 — 폭발탄 걸음 ① 「발전재료」 · ⑤ 「폭발탄」 행
+                if (r.kind != current && TutorialGate.Current == TutorialGate.Phase.ExplosiveBoard
+                    && ((TutorialSignals.ExplosiveStep == ExplosiveTutorialRule.Step.PowerMaterial && r.kind == RecipeKind.PowerMaterial)
+                        || (TutorialSignals.ExplosiveStep == ExplosiveTutorialRule.Step.ExplosiveRecipe && r.kind == RecipeKind.ExplosiveAmmo)))
+                    UiSkin.DrawTutorialOutline(rect);
 
                 y += candH[ci] + pad;
             }
@@ -5557,6 +5602,38 @@ namespace MBI.Logistics
         ///
         /// ⚠️ **글자 크기·탭 높이는 가정이다**(설계 역기입 목록).
         /// </summary>
+        /// <summary>
+        /// ✅ #210 — 지금 튜토리얼이 누르라는 단추가 **지금 탭에 안 보이면** 그 단추를 보여 주는 탭(전체 제외). 없으면 null.
+        /// T4 = 모듈 · 폭발탄 ③ = 분류기가 보이는 탭 · ④ = 복합 가공소가 보이는 탭.
+        /// </summary>
+        private PaletteCategory? TutorialTargetTab()
+        {
+            if (TutorialGate.Current == TutorialGate.Phase.PlaceModule)
+                return PaletteCategories.ShowsModule(_tab) ? (PaletteCategory?)null : PaletteCategory.Module;
+            if (TutorialGate.Current != TutorialGate.Phase.ExplosiveBoard) return null;
+            var step = TutorialSignals.ExplosiveStep;
+            foreach (PaletteCategory c in PaletteCategories.Order)
+            {
+                if (c == PaletteCategory.All) continue;
+                if (step == ExplosiveTutorialRule.Step.Sorter)
+                {
+                    if (PaletteCategories.ShowsBeltElement(_tab)) return null;
+                    if (PaletteCategories.ShowsBeltElement(c)) return c;
+                }
+                else if (step == ExplosiveTutorialRule.Step.Complex && palette != null)
+                {
+                    foreach (NodeDefinition d in palette)
+                    {
+                        if (d == null || !ExplosiveTutorialRule.AllowsNode(step, d.type)) continue;
+                        if (PaletteCategories.Shows(_tab, d)) return null;
+                        if (PaletteCategories.Shows(c, d)) return c;
+                    }
+                }
+                else return null;
+            }
+            return null;
+        }
+
         private void DrawCategoryTabs()
         {
             Rect row = UiLayout.CategoryTabRect(Screen.width, Screen.height);
@@ -5625,6 +5702,7 @@ namespace MBI.Logistics
                 }
                 GUI.color = prevTab;
                 if (!tabAllowed) UiSkin.DrawLockVeil(rect);
+                if (!on && order[i] == TutorialTargetTab()) UiSkin.DrawTutorialOutline(rect);   // #210 — 열어야 할 탭
             }
 
             GUI.enabled = was;
@@ -6175,6 +6253,8 @@ namespace MBI.Logistics
             bool was = GUI.enabled;
             GUI.enabled = was && MountPopover.ButtonEnabled(editOk, enhanced, material, cost,
                                                             IdleSignals.WalletScrap, BuildCost.EnhanceScrap);
+            if (!enhanced && TutorialGate.Current == TutorialGate.Phase.EnhanceMountBoard)
+                UiSkin.DrawTutorialOutline(new Rect(x, y, w, btnH));   // #210 — 강화 단추
             if (UiSkin.Button(new Rect(x, y, w, btnH), label, style))
             {
                 if (owner == MountOwner.RobotB) IdleSignals.RequestMountEnhanceB(cost);   // #195
