@@ -1481,7 +1481,8 @@ namespace MBI.Combat
             if (tutorialPause)
             {
                 // ⚠️ 전투력 표시는 계속 산다 — `RefreshFireRate` 를 건너뛰면 `_output` 이 판 시작의 명목값(예: 390)에 멈췄다(8123 실측).
-                _output = LogisticsOutputBridge.Output;
+                //    실제 출력(`Output`)은 정지 중 마운트가 안 비어 도착이 0 → 0 으로 떨어진다(8123 실측) — 그래서 **보드 예상 출력**을 쓴다(⚠️ 구현 판단).
+                _output = LogisticsOutputBridge.Expected;
                 goto TutorialSignalsUpdate;
             }
 
