@@ -64,7 +64,7 @@ namespace MBI.Logistics
         /// <summary>팔레트 버튼 안쪽 여백 — 그림이 테두리와 글자에 안 닿게.</summary>
         private const float PaletteThumbPad = 4f;
 
-        private int _selectedNode; // 팔레트에서 선택된 노드 인덱스
+        private int _selectedNode = -1; // 팔레트에서 선택된 노드 인덱스 — -1 = 안 고름(#175 ⓔ · ⓕ)
 
         // 🗑️ **`_placeRotation` 폐기**(2026-09-18 사용자 리허설 ⑩) — 놓기 전 회전 버튼을
         //    걷으면서 들고 있을 것이 없어졌다. 회전은 놓은 뒤 팝오버가 든다.
@@ -3308,6 +3308,9 @@ namespace MBI.Logistics
         /// </summary>
         private NodeDefinition CurrentNode()
         {
+            // ✅ **고른 것이 없으면 놓을 것도 없다**(사용자 확정 #175 ⓔ · ⓕ — 놓으면 풀리고 · 다시 누르면 풀린다).
+            //    🗑️ 구 「안 골랐으면 첫 칸(변환기)으로 내린다」 — 빈 칸 탭이 고르지도 않은 노드를 놓았다.
+            if (palette != null && palette.Count > 0 && _selectedNode < 0) return null;
             if (palette != null && palette.Count > 0)
             {
                 NodeDefinition picked = palette[Mathf.Clamp(_selectedNode, 0, palette.Count - 1)];
@@ -3323,6 +3326,7 @@ namespace MBI.Logistics
         private void Place(Vector2Int cell)
         {
             NodeDefinition node = CurrentNode();
+            if (node == null && palette != null && palette.Count > 0) return;   // #175 — 안 골랐다(경고 아님)
             if (node == null)
             {
                 Debug.LogWarning("[MBI] BoardController: 배치할 노드 없음(팔레트/placeTarget 미할당).");
@@ -3333,6 +3337,8 @@ namespace MBI.Logistics
             if (!BuildCost.CanAffordScrap(BuildCost.NodeScrap)) return;
             if (!_grid.TryPlace(cell, node, out _)) return;
             BuildCost.TryReserveScrap(BuildCost.NodeScrap);
+            SpawnSpendPop(cell, BuildCost.NodeScrap);   // #175 ⓓ — 놓인 칸 위로 「-20」
+            _selectedNode = -1;                          // #175 ⓔ — 한 번 놓으면 고르기가 풀린다(연속 설치는 다시 고름)
 
             // 🗑️ **미리 돌려 두는 길 폐기**(2026-09-18 ⑩) — 팔레트 버튼이 없어졌다.
             //    놓은 뒤 팝오버의 「90도 돌리기」가 그 일을 한다.
@@ -3400,6 +3406,7 @@ namespace MBI.Logistics
             }
 
             BuildCost.TryReserveScrap(BuildCost.ModuleScrap);   // #172 — 붙은 뒤에 적는다 · 떼도 환불 없음
+            SpawnSpendPop(cell, BuildCost.ModuleScrap);          // #175 ⓓ — 붙은 칸 위로 「-30」
 
             // 붙는 순간 전력 수요가 바뀐다 — 다시 안 돌리면 변수 패널이 옛 수요를 든 채로 남는다.
             RefreshConnections();
@@ -3425,9 +3432,12 @@ namespace MBI.Logistics
                 wordWrap = false,
             };
             st.normal.textColor = affordable ? new Color(0.95f, 0.92f, 0.8f) : new Color(1f, 0.32f, 0.28f);
+            st.alignment = TextAnchor.MiddleLeft;
             float m = Mathf.Max(2f, button.height * 0.04f);
-            GUI.Label(new Rect(button.x + m, button.y + m, button.width - m * 2f, button.height * 0.3f),
-                      BuildCost.ScrapLabel(cost), st);
+            float lineH = st.CalcSize(new GUIContent("0")).y;
+            // ✅ #175 ⓐ — 「고철 20」 글자 → 고철 아이콘 + 「20」(칩 줄 아이콘 재사용).
+            UiIcons.DrawLine(new Rect(button.x + m, button.y + m, button.width - m * 2f, lineH), st,
+                             null, UiIcons.Scrap, UiIcons.ScrapFallback, BuildCost.Amount(cost));
         }
 
         private static string ElementLabel(BeltElementKind e) =>
@@ -3846,7 +3856,8 @@ namespace MBI.Logistics
                 bool sel = i == _selectedNode;
                 if (UiSkin.Button(rect, (sel ? "● " : "") + palette[i].displayName, style))
                 {
-                    _selectedNode = i;
+                    // ✅ **고른 단추를 다시 누르면 풀린다**(사용자 확정 #175 ⓕ · 모듈 단추와 같은 토글).
+                    _selectedNode = sel ? -1 : i;
                     _elementMode = null;
                     _selectedModule = -1;
                 }
@@ -4002,6 +4013,7 @@ namespace MBI.Logistics
 
             DrawRecipePanel();
             DrawMountPanel();   // #171 — 노드 팝오버와 동시에 안 선다(둘 중 하나만 그려진다)
+            DrawSpendPops();    // #175 ⓓ — 설치 값 떠오름
 
             // ⚠️ **모드 막대를 걷었다**(2026-09-15 · 하단 개편 ④). 자리는 보드 우측 하단
             // 판으로 옮겼고(`DrawModePlate`), 그 판은 팔레트보다 **먼저** 그린다 —
@@ -4680,7 +4692,7 @@ namespace MBI.Logistics
             float titleH = Tall(head, title, w - titleX, h);
             float stateH = Tall(body, stateLine, w, row);
             float powerH = Tall(body, powerLine, w, row);
-            float costH = costLine != null ? Tall(body, costLine, w, row) : 0f;
+            float costH = costLine != null ? row : 0f;   // #175 — 아이콘 줄은 한 줄로 그린다
             float modLabelW = Mathf.Max(1f, w - delW - inner);
             var moduleH = new List<float>();
             foreach (string t in moduleTexts) moduleH.Add(Tall(body, t, modLabelW, mh));
@@ -4792,7 +4804,9 @@ namespace MBI.Logistics
             y += powerH;
             if (costLine != null)
             {
-                GUI.Label(new Rect(x, y, w, costH), costLine, body);
+                // #175 ⓐ — 「설치 비용 [고철 아이콘] 20 · 환불 없음」
+                UiIcons.DrawLine(new Rect(x, y, w, row), body, BuildCost.NodeInstallPrefix, UiIcons.Scrap,
+                                 UiIcons.ScrapFallback, BuildCost.NodeInstallSuffix(BuildCost.NodeScrap));
                 y += costH;
             }
 
@@ -5130,7 +5144,12 @@ namespace MBI.Logistics
             //    열리는지**를 글자가 말한다.
             //    ⚠️ 문구는 가정이다(설계 역기입 자리). 판정은 `RobotBGate` 하나가 낸다.
             bool bOpen = RobotBGate.IsUnlocked;
-            var labels = new[] { "로봇 A", bOpen ? "로봇 B" : "로봇 B · 잠김" };
+            // ✅ **잠긴 B 탭이 여는 길을 말하고, 열 수 있으면 누르면 연다**(2026-10-19 · #175 덧 결함 「로봇 B 해금이 안 됨」).
+            //    🗑️ 구 「로봇 B · 잠김」 — 길이 안 보였다. 해금 규칙 · 조건은 `RobotBGate` 하나(전투 화면 단추와 같은 문).
+            bool bTabUnlocks = RobotBGate.TabUnlocks(bOpen, RobotBGate.CurrentStageNumber, StageLayerSignals.IsFarming,
+                                                     IdleSignals.WalletGold, BuildCost.RobotBGold);
+            var labels = new[] { "로봇 A", RobotBGate.TabLabel(bOpen, RobotBGate.CurrentStageNumber,
+                                                                 StageLayerSignals.IsFarming, BuildCost.RobotBGold) };
 
             // 탭 줄과 **같은 잠금**을 쓴다 — 팔레트가 잠긴 동안 여기만 살아 있으면
             // 「눌러도 아무 일 없는 버튼」이 둘 생긴다.
@@ -5141,7 +5160,7 @@ namespace MBI.Logistics
             {
                 // ⚠️ **B 만 따로 더 잠근다** — 튜토리얼 잠금과 해금 잠금은 **다른 문**이고,
                 //    둘을 한 변수로 묶으면 튜토리얼이 끝나는 순간 B 까지 같이 열린다.
-                GUI.enabled = was && allowed && (i == 0 || bOpen);
+                GUI.enabled = was && allowed && (i == 0 || bOpen || bTabUnlocks);
 
                 Rect r = UiLayout.RobotTabRect(i == 1, Screen.width, Screen.height);
                 if (r.width <= 0f || r.height <= 0f) continue;
@@ -5175,7 +5194,11 @@ namespace MBI.Logistics
                 //    심사자 S1 점프 뒤 「로봇 탭 → RobotB · 판 노드 9 · 벨트 8」 —
                 //    **탭도 그림도 먹는다.** 튜토리얼 화면에서 안 눌린 것은 결함이 아니라
                 //    잠금이다(튜토리얼은 A 판만 가르치므로 탭 줄과 같은 문에 걸려 있다).
-                if (hit) SetEditing(owners[i]);
+                if (hit && i == 1 && !bOpen)
+                {
+                    if (bTabUnlocks) IdleSignals.RequestRobotBUnlock(BuildCost.RobotBGold);   // 골드를 쓰는 것은 방치 런타임
+                }
+                else if (hit) SetEditing(owners[i]);
             }
 
             GUI.enabled = was;
@@ -5256,6 +5279,83 @@ namespace MBI.Logistics
             }
 
             GUI.enabled = was;
+            DrawScrapShortBadge(row);
+        }
+
+        /// <summary>
+        /// **탭 줄 「고철 부족」 아이콘**(사용자 확정 #175 ⓑ) — 노드 하나도 못 놓으면 탭 줄 오른쪽 끝 **위**에
+        /// 고철 아이콘 + 빨간 「!」 판. 값은 안 적는다(ⓒ 가격은 단추에만). 판정은 `BuildCost.ScrapShortForNode` 하나.
+        /// ⚠️ 자리 · 색 · 「!」 가정.
+        /// </summary>
+        private void DrawScrapShortBadge(Rect row)
+        {
+            if (!BuildCost.ScrapShortForNode(IdleSignals.WalletScrap, BuildCost.NodeScrap)) return;
+            float sz = row.height * 0.8f;
+            var plate = new Rect(row.xMax - sz * 1.9f, row.y - sz - 4f, sz * 1.9f, sz);
+            UiPlate.Draw(plate);
+            UiBlockers.Add(plate);
+            float icon = sz * 0.7f;
+            UiIcons.Draw(new Rect(plate.x + sz * 0.15f, plate.y + (sz - icon) * 0.5f, icon, icon),
+                         UiIcons.Scrap, UiIcons.ScrapFallback);
+            var bang = new GUIStyle(GUI.skin.label)
+            {
+                fontSize = KoreanFont.Snap(Mathf.Max(9, Mathf.RoundToInt(sz * 0.6f))),
+                fontStyle = FontStyle.Bold,
+                alignment = TextAnchor.MiddleCenter,
+                clipping = TextClipping.Overflow,
+            };
+            bang.normal.textColor = new Color(1f, 0.32f, 0.28f);
+            GUI.Label(new Rect(plate.x + sz * 0.9f, plate.y, sz * 0.9f, sz), "!", bang);
+        }
+
+        // ── #175 ⓓ 설치 값 떠오름 ────────────────────────────────────
+
+        private struct SpendPop { public Vector2Int cell; public string text; public float born; }
+        private readonly List<SpendPop> _spendPops = new List<SpendPop>();
+
+        /// <summary>떠오르는 시간(초). 처치 「고철 +2」와 같은 결. ⚠️ 가정.</summary>
+        private const float SpendPopSeconds = 1.2f;
+
+        /// <summary>놓인 · 붙은 칸 위로 「-20」/「-30」을 띄운다(비용 0 이면 안 띄움).</summary>
+        private void SpawnSpendPop(Vector2Int cell, double cost)
+        {
+            if (cost <= 0d) return;
+            _spendPops.Add(new SpendPop { cell = cell, text = BuildCost.SpendPopText(cost), born = Time.unscaledTime });
+        }
+
+        /// <summary>떠오름을 그린다 — 칸의 월드 좌표를 매 프레임 화면으로 옮긴다(스크롤 · 배율을 따라간다).</summary>
+        private void DrawSpendPops()
+        {
+            if (_spendPops.Count == 0 || _grid == null) return;
+            Camera cam = boardCamera != null ? boardCamera : Camera.main;
+            if (cam == null) return;
+            float sc = UiLayout.Scale(Screen.height);
+            var st = new GUIStyle(GUI.skin.label)
+            {
+                fontSize = KoreanFont.Snap(Mathf.Max(10, Mathf.RoundToInt(sc * 44f))),
+                fontStyle = FontStyle.Bold,
+                alignment = TextAnchor.MiddleLeft,
+                clipping = TextClipping.Overflow,
+                wordWrap = false,
+            };
+            st.normal.textColor = new Color(1f, 0.55f, 0.35f);   // ⚠️ 색 가정 — 처치 고철(흰끼)과 갈리는 주황
+            for (int i = _spendPops.Count - 1; i >= 0; i--)
+            {
+                SpendPop p = _spendPops[i];
+                float t = (Time.unscaledTime - p.born) / SpendPopSeconds;
+                if (t >= 1f) { _spendPops.RemoveAt(i); continue; }
+                Vector3 sp = cam.WorldToScreenPoint(CellWorld(p.cell));
+                if (sp.z <= 0f) continue;
+                float rise = t * 150f * sc;
+                var pos = new Vector2(sp.x, Screen.height - sp.y - rise);
+                float w = UiIcons.Measure(st, null, p.text);
+                float h = st.CalcSize(new GUIContent(p.text)).y;
+                Color prev = GUI.color;
+                GUI.color = new Color(prev.r, prev.g, prev.b, prev.a * (1f - t));
+                UiIcons.DrawLine(new Rect(pos.x - w * 0.5f, pos.y - h * 0.5f, w, h), st, null,
+                                 UiIcons.Scrap, UiIcons.ScrapFallback, p.text);
+                GUI.color = prev;
+            }
         }
 
         /// <summary>
@@ -5692,7 +5792,8 @@ namespace MBI.Logistics
             float row = Mathf.Max(hDesign * 0.62f, body.CalcSize(new GUIContent("적재")).y);
             float titleH = Tall(head, title, row);
             float loadH = Tall(body, load, row);
-            float matH = Tall(body, mat, row);
+            bool matIcon = BuildCost.EnhanceScrap > 0d;   // #175 ⓐ — 고철 쪽은 아이콘 + 값(한 줄)
+            float matH = matIcon ? row : Tall(body, mat, row);
             float btnH = Tall(style, label, h);
 
             float total = inner * 2f + titleH + pad + loadH + matH + pad + btnH;
@@ -5707,7 +5808,13 @@ namespace MBI.Logistics
 
             GUI.Label(new Rect(x, y, w, titleH), title, head); y += titleH + pad;
             GUI.Label(new Rect(x, y, w, loadH), load, body); y += loadH;
-            GUI.Label(new Rect(x, y, w, matH), mat, body); y += matH + pad;
+            if (matIcon)
+                UiIcons.DrawLine(new Rect(x, y, w, matH), body, MountPopover.MaterialPrefix(material, cost),
+                                 UiIcons.Scrap, UiIcons.ScrapFallback,
+                                 MountPopover.ScrapSuffix(IdleSignals.WalletScrap, BuildCost.EnhanceScrap));
+            else
+                GUI.Label(new Rect(x, y, w, matH), mat, body);
+            y += matH + pad;
 
             bool was = GUI.enabled;
             GUI.enabled = was && MountPopover.ButtonEnabled(editOk, enhanced, material, cost,

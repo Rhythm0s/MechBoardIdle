@@ -65,6 +65,23 @@ namespace MBI.Core
         /// <summary>노드 팝오버 비용 줄 — 「설치 비용 고철 20 · 환불 없음」. ⚠️ 가정.</summary>
         public static string NodeInstallLine(double cost) => $"설치 비용 고철 {Floor(cost)} · 환불 없음";
 
+        // ── #175 ⓐ 아이콘 꼴 — 「고철」 글자 대신 고철 아이콘 + 값 · 글자는 아이콘 앞뒤 조각만 든다 ──
+
+        /// <summary>값 글자 — 아이콘 뒤에 붙는 「20」.</summary>
+        public static string Amount(double cost) => Floor(cost).ToString();
+
+        /// <summary>노드 팝오버 비용 줄 앞 조각 — 「설치 비용 」(뒤에 아이콘). ⚠️ 가정.</summary>
+        public const string NodeInstallPrefix = "설치 비용 ";
+
+        /// <summary>노드 팝오버 비용 줄 뒤 조각 — 「20 · 환불 없음」(아이콘 뒤). ⚠️ 가정.</summary>
+        public static string NodeInstallSuffix(double cost) => $"{Floor(cost)} · 환불 없음";
+
+        /// <summary>
+        /// **설치한 칸에서 떠오르는 값**(#175 ⓓ) — 「-20」. 처치 「고철 +2」와 같은 꼴(부호 + 값).
+        /// ⚠️ 빼기는 아스키 「-」 — 글꼴 아틀라스에 「−」(U+2212)가 없을 수 있다.
+        /// </summary>
+        public static string SpendPopText(double cost) => "-" + Floor(cost);
+
         /// <summary>하단 상태 띠 한 줄 — 노드 하나도 못 놓을 때. ⚠️ 가정.</summary>
         public const string ScrapShortLine = "고철 부족";
 

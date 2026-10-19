@@ -230,6 +230,10 @@ namespace MBI.Combat
             //    이 OnGUI 보다 **먼저** 그려져 HUD 가 막 위에 남았다 — 이제 `OnGUI` 끝에서
             //    `ChallengeTutorialOverlay.Draw()` 를 직접 부른다.
 
+            // #175 ⓐ — 보드(로직스)가 쓸 재화 아이콘을 건다(칩 줄과 같은 그림 · 그림 하나를 두 곳이 따로 들지 않는다).
+            UiIcons.Scrap = tuning.iconScrapSprite;
+            UiIcons.Gold = tuning.iconGoldSprite;
+
             BuildBackground(); // 바닥 그림 — 원반보다 아래(-40). 스테이지가 바뀌면 다시 깐다.
 
             // ⚠️ **메인 메뉴가 떠 있으면 여기서 시작하지 않는다**(2026-09-10 · 플랜 §66-10).

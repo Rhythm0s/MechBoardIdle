@@ -74,6 +74,25 @@ namespace MBI.Core
             && stageNumber == StageMapName.NumberOf(UnlockStageId)
             && CanUnlock(gold, cost);
 
+        // ── 조립 화면 로봇 탭 (#175 덧 결함 · 2026-10-19) ─────────────────
+
+        /// <summary>
+        /// **잠긴 B 탭 글자 — 어떻게 여는지를 말한다.** 🗑️ 구 「로봇 B · 잠김」 — 무엇을 하면 열리는지 없이 잠김만 말해,
+        /// 사용자가 「해금이 안 된다」로 읽었다(8131 · 12:xx 육안). 해금 단추는 전투 화면(S4 파밍부터)에만 있었다.
+        /// · 열림 → 「로봇 B」 · S4 파밍부터(미해금) → 「로봇 B · 골드 n」(탭 = 해금) · 그 전 → 「로봇 B · S4 해금」. ⚠️ 문구 가정.
+        /// </summary>
+        public static string TabLabel(bool unlocked, int stageNumber, bool isFarming, double cost)
+        {
+            if (unlocked) return "로봇 B";
+            if (ShowsUnlockButton(stageNumber, isFarming, false))
+                return "로봇 B · 골드 " + (cost <= 0d ? 0 : (int)System.Math.Floor(cost + 1e-6));
+            return "로봇 B · " + UnlockStageId + " 해금";
+        }
+
+        /// <summary>잠긴 B 탭을 누르면 해금 요청이 나가는가 — 전투 화면 단추와 같은 조건(S4 파밍부터 · 골드 충분).</summary>
+        public static bool TabUnlocks(bool unlocked, int stageNumber, bool isFarming, double gold, double cost) =>
+            !unlocked && ShowsUnlockButton(stageNumber, isFarming, false) && CanUnlock(gold, cost);
+
         /// <summary>처음 상태로. 저장 초기화와 시험이 쓴다.</summary>
         public static void Reset()
         {

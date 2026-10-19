@@ -57,6 +57,13 @@ namespace MBI.Core
         /// <summary>
         /// 재료 + 고철 줄 — 「강화 재료 n/100 · 고철 n/300」(#172 보충 · 둘 다 한 줄). 고철 비용 0 이면 재료만. ⚠️ 가정.
         /// </summary>
+        /// <summary>#175 ⓐ 아이콘 꼴 앞 조각 — 「강화 재료 n/100 · 」(뒤에 고철 아이콘).</summary>
+        public static string MaterialPrefix(double material, double cost) => MaterialLine(material, cost) + " · ";
+
+        /// <summary>#175 ⓐ 아이콘 꼴 뒤 조각 — 「250/300」(고철 아이콘 뒤).</summary>
+        public static string ScrapSuffix(double scrap, double scrapCost) =>
+            $"{Floor((float)scrap)}/{Floor((float)scrapCost)}";
+
         public static string MaterialLine(double material, double cost, double scrap, double scrapCost) =>
             scrapCost <= 0d ? MaterialLine(material, cost)
                 : MaterialLine(material, cost) + $" · 고철 {Floor((float)scrap)}/{Floor((float)scrapCost)}";

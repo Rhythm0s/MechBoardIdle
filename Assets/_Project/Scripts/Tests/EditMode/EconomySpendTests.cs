@@ -89,6 +89,54 @@ namespace MBI.Tests
             Assert.IsFalse(d.startingGrantGiven);
         }
 
+        // ── #175 (2026-10-19 사용자 확정) ──────────────────────────────
+
+        [Test]
+        public void 아이콘_꼴_글자_조각과_떠오름()
+        {
+            Assert.AreEqual("20", BuildCost.Amount(20d));
+            Assert.AreEqual("설치 비용 ", BuildCost.NodeInstallPrefix);
+            Assert.AreEqual("20 · 환불 없음", BuildCost.NodeInstallSuffix(20d));
+            Assert.AreEqual("-20", BuildCost.SpendPopText(20d));
+            Assert.AreEqual("-30", BuildCost.SpendPopText(30d));
+            Assert.AreEqual("강화 재료 100/100 · ", MountPopover.MaterialPrefix(100d, 100d));
+            Assert.AreEqual("250/300", MountPopover.ScrapSuffix(250d, 300d));
+        }
+
+        [Test]
+        public void 잠긴_B_탭은_여는_길을_말하고_열_수_있으면_누르면_연다()
+        {
+            Assert.AreEqual("로봇 B", RobotBGate.TabLabel(true, 1, true, 50d));
+            Assert.AreEqual("로봇 B · S4 해금", RobotBGate.TabLabel(false, 3, true, 50d));
+            Assert.AreEqual("로봇 B · 골드 50", RobotBGate.TabLabel(false, 4, true, 50d));
+            Assert.AreEqual("로봇 B · S4 해금", RobotBGate.TabLabel(false, 4, false, 50d), "도전 층은 단추와 같이 안 연다");
+            Assert.IsTrue(RobotBGate.TabUnlocks(false, 4, true, 50d, 50d));
+            Assert.IsFalse(RobotBGate.TabUnlocks(false, 4, true, 49d, 50d), "골드 부족");
+            Assert.IsFalse(RobotBGate.TabUnlocks(false, 3, true, 50d, 50d), "S4 전");
+            Assert.IsFalse(RobotBGate.TabUnlocks(true, 4, true, 50d, 50d), "이미 열림");
+        }
+
+        [Test]
+        public void 팔레트_고르기_토글_놓으면_풀림_안_골랐으면_안_놓임_배선_고정()
+        {
+            string bc = System.IO.File.ReadAllText("Assets/_Project/Scripts/Logistics/BoardController.cs");
+            StringAssert.Contains("private int _selectedNode = -1;", bc);
+            StringAssert.Contains("_selectedNode = sel ? -1 : i;", bc);                 // ⓕ 재탭 = 해제
+            StringAssert.Contains("_selectedModule = on ? -1 : m;", bc);                // ⓕ 모듈도 토글(종전 그대로)
+            StringAssert.Contains("SpawnSpendPop(cell, BuildCost.NodeScrap);   // #175 ⓓ", bc);
+            StringAssert.Contains("_selectedNode = -1;                          // #175 ⓔ", bc);
+            StringAssert.Contains("SpawnSpendPop(cell, BuildCost.ModuleScrap);", bc);
+            StringAssert.Contains("if (palette != null && palette.Count > 0 && _selectedNode < 0) return null;", bc);
+            StringAssert.Contains("DrawScrapShortBadge(row);", bc);                     // ⓑ 탭 줄 부족 아이콘
+            StringAssert.Contains("GUI.enabled = wasEnabled && allowed && affordable;", bc);   // ⓑ 단추 Disable
+            StringAssert.Contains("GUI.enabled = wasM && moduleAllowed && mAffordable;", bc);
+            StringAssert.Contains("if (bTabUnlocks) IdleSignals.RequestRobotBUnlock(BuildCost.RobotBGold);", bc);
+            StringAssert.Contains("UiIcons.Scrap, UiIcons.ScrapFallback, BuildCost.Amount(cost));", bc);   // ⓐ 팔레트
+
+            string sr = System.IO.File.ReadAllText("Assets/_Project/Scripts/Combat/StageRunner.cs");
+            StringAssert.Contains("UiIcons.Scrap = tuning.iconScrapSprite;", sr);
+        }
+
         /// <summary>지갑을 만지는 자리 · 비용을 무는 자리 · 해금 · 초기 지급 배선을 고정한다.</summary>
         [Test]
         public void 배선_소스_고정()
@@ -99,7 +147,8 @@ namespace MBI.Tests
             StringAssert.Contains("BuildCost.TryReserveScrap(BuildCost.ModuleScrap);", bc);
             StringAssert.Contains("DrawPaletteCost(rect, BuildCost.NodeScrap, affordable);", bc);
             StringAssert.Contains("DrawPaletteCost(mRect, BuildCost.ModuleScrap, mAffordable);", bc);
-            StringAssert.Contains("BuildCost.NodeInstallLine(BuildCost.NodeScrap)", bc);
+            StringAssert.Contains("BuildCost.NodeInstallLine(BuildCost.NodeScrap)", bc);   // 폭 재기용 글자(그리는 것은 아이콘 줄)
+            StringAssert.Contains("BuildCost.NodeInstallPrefix, UiIcons.Scrap,", bc);
 
             string ir = System.IO.File.ReadAllText("Assets/_Project/Scripts/Idle/IdleRuntime.cs");
             StringAssert.Contains("double buildSpend = BuildCost.DrainPendingScrap();", ir);
