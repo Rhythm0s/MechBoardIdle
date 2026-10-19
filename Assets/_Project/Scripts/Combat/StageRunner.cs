@@ -1475,8 +1475,11 @@ namespace MBI.Combat
 
             // ✅ **#203 — 튜토리얼 막(S1 T3 · S3 강화 · S6 B 강화) 동안 전투 시뮬 정지**(사용자 확정 · `TutorialPauseRule`).
             //    지난 프레임의 막 신호로 판단한다(신호는 아래 「T3」 자리에서 매 프레임 다시 낸다 — 거기는 정지 중에도 돈다).
+            // ✅ #207 확장(사용자 23:4x 「규칙 통일」) — T4 · S4 해금 · S5 폭발탄 · 도전 층 S4 합체 막도 정지.
             bool tutorialPause = TutorialPauseRule.ShouldPause(TutorialSignals.HighlightChallengeButton,
-                TutorialSignals.HighlightEnhanceMount, TutorialSignals.HighlightEnhanceMountB);
+                TutorialSignals.ModuleTutorialActive, TutorialSignals.HighlightUnlockRobotB,
+                TutorialSignals.HighlightEnhanceMount, TutorialSignals.ExplosiveActive,
+                TutorialSignals.HighlightEnhanceMountB, TutorialSignals.HighlightMergeButton);
             bool running = _sim.Result == CombatResult.InProgress && !tutorialPause;
             if (tutorialPause)
             {
@@ -2937,14 +2940,31 @@ namespace MBI.Combat
             //    위쪽 이른 반환(표가 비었다)으로 빠진 판은 적히지 않는다.
             StageLayerSignals.FarmStageId = stage.stageId;
 
-            // 첫 바퀴를 **바로** 채운다 — 기다리게 하면 들어선 화면이 텅 비어 있다.
-            RefillFarm();
+            // ✅ **#206 · #207 — 첫 묶음은 미룬다**(사용자 확정 · `FarmFirstSpawnRule`). 막(#203 정지)이 서면
+            //    `TickFarmLayer` 가 안 돌아 첫 묶음 · 리필 시계가 함께 멈추고, 막이 걷힌 뒤 ×1.3 띠로 선다.
+            //    🗑️ 구 「첫 바퀴를 바로 채운다」 — 막 동안 적이 깔려 DIM 밑에서 교대 · 전투가 남았다.
+            _farmFirstPending = true;
+            _farmFirstFrames = 0;
         }
+
+        /// <summary>#206 — 첫 묶음을 아직 안 냈는가 · 판이 선 뒤 정지 아닌 프레임 수.</summary>
+        private bool _farmFirstPending;
+        private int _farmFirstFrames;
 
         /// <summary>한 틱 — 보충·시급·부서짐을 본다.</summary>
         private void TickFarmLayer(float dt, int kills, double scrap)
         {
             if (_farm == null || !StageLayerSignals.IsFarming || _sim == null) return;
+
+            // #206 · #207 — 첫 묶음 전에는 리필 시계를 안 돌린다(정지 중엔 이 함수 자체가 안 불린다).
+            if (_farmFirstPending)
+            {
+                _farmFirstFrames++;
+                if (!FarmFirstSpawnRule.ShouldSpawnFirst(true, false, _farmFirstFrames)) return;
+                _farmFirstPending = false;
+                RefillFarm(firstBand: true);
+                return;
+            }
 
             // 부서졌으면 세는 것을 멈추고 돌아갈 채비를 한다.
             if (_farmRespawnLeft > 0f)
@@ -2972,7 +2992,7 @@ namespace MBI.Combat
         }
 
         /// <summary>정원까지 채운다 — 무엇을 몇 마리 넣을지는 <c>FarmRefillRule</c> 이 정한다.</summary>
-        private void RefillFarm()
+        private void RefillFarm(bool firstBand = false)
         {
             if (_sim == null || stage == null || stage.farmComposition == null) return;
 
@@ -2997,6 +3017,16 @@ namespace MBI.Combat
                 for (int i = 0; i < r.count; i++)
                     batch.Add(StageSpawnFactory.FarmSpawn(r.entry, enemyCatalog, tuning, RegisterEnemyArt));   // #170
 
+            // ✅ #206 — 첫 묶음만 띠 ×1.3 · 내고 나서 바로 되돌린다(리필은 지금 띠 그대로).
+            if (firstBand)
+            {
+                float min = _sim.SpawnRingRadius, max = _sim.SpawnRingMax;
+                (float fmin, float fmax) = FarmFirstSpawnRule.FirstBand(min, max);
+                _sim.SetSpawnBand(fmin, fmax);
+                _sim.SpawnBatch(batch);
+                _sim.SetSpawnBand(min, max);
+                return;
+            }
             _sim.SpawnBatch(batch);
         }
 

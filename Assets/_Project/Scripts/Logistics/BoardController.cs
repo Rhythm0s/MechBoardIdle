@@ -1212,7 +1212,19 @@ namespace MBI.Logistics
             // 종전엔 재입장할 때마다 **시작 보드를 다시 깔았다.** 플레이어가 늘린 판이
             // 통째로 사라졌고, 이 파일의 아래쪽 주석이 그것을 「진짜 구멍」이라고 적어 둔
             // 그 자리다. 이제 메운다.
-            if (TryRestoreSavedBoard(grid)) return;
+            if (TryRestoreSavedBoard(grid))
+            {
+                // ✅ **#209 — 옛 저장 자동 복구**(사용자 확정 · 플랜 추천). #197 전 저장은 B 판을 연 뒤 A 칸이
+                //    시작 보드로 덮여 **운반로 칸 (6,5) 가 빈 채** 저장됐다(HUD 전투력 0 · 「처음부터」만 답이었다).
+                //    튜토리얼을 마쳤고 그 칸이 비었으면 불러올 때 채운다. ⚠️ 손으로 그 칸을 지운 판도 채워진다(가정 · 같은 칸 하나).
+                if (SaveRepairRule.ShouldFillAfterRestore(grid.Owner, IdleSignals.TutorialCleared,
+                        !grid.HasBelt(StartingBoard.FillsEmptySlot.cell) && !grid.IsOccupied(StartingBoard.FillsEmptySlot.cell)))
+                {
+                    PlaceTutorialFill(grid);
+                    Debug.Log("[MBI] #209 옛 저장 복구 — A 판 운반로 칸을 채웠다.");
+                }
+                return;
+            }
 
             // ⚠️⚠️ **씬에 적힌 시작 배치는 로봇 A 의 것이다.** B 의 시작 보드는 코드가 든다
             //    (`StartingBoardB`) — 씬 목록이 하나뿐이라 둘을 못 담는다.
@@ -3637,6 +3649,7 @@ namespace MBI.Logistics
 
             BuildCost.TryReserveScrap(BuildCost.ModuleScrap);   // #172 — 붙은 뒤에 적는다 · 떼도 환불 없음
             SpawnSpendPop(cell, BuildCost.ModuleScrap);          // #175 ⓓ — 붙은 칸 위로 「-30」
+            _selectedModule = -1;                                // ✅ #209 — 모듈도 한 번 붙이면 고르기가 풀린다(노드 #175 ⓔ 와 같게)
 
             // 붙는 순간 전력 수요가 바뀐다 — 다시 안 돌리면 변수 패널이 옛 수요를 든 채로 남는다.
             RefreshConnections();
