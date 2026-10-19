@@ -5571,7 +5571,9 @@ namespace MBI.Logistics
         /// (2026-10-14 · 위 `ApplyZoom` 폐기 표기 참고).</summary>
         private float _baseOrtho = -1f;
 
-        private const float ZoomMin = 1f, ZoomMax = 2.5f, ZoomStep = 0.25f;
+        // ✅ **#181(사용자 10-19 「줌아웃을 지금보다 1.5배 더 · 지금 최대가 너무 좁다」)** — 하한 1 → 1/1.5.
+        //    🗑️ 구 하한 1(UI 9-3 「×1.00~×2.50」) · 상한 · 단계는 그대로. 시야 = 보드 크기 ÷ 배율(`BoardZoomRule`).
+        private const float ZoomMin = 1f / 1.5f, ZoomMax = 2.5f, ZoomStep = 0.25f;
 
         /// <summary>
         /// ⚠️ **폐기 — 배율 버튼·라벨을 걷었다**(2026-09-15 사용자 확정 · 개편 ⑦).

@@ -155,6 +155,8 @@ namespace MBI.Tests
             // #180 — 도전 배지 목표 줄 「전투력 n 넘기기」(🗑️ 「출력 n 넘기기」)
             StringAssert.Contains("\"  ·  전투력 \" + stage.req.ToString(\"F0\") + \" 넘기기\"", hud);
             StringAssert.DoesNotContain("\"  ·  출력 \" + stage.req.ToString(\"F0\") + \" 넘기기\"", hud);
+            // #181 — 줌아웃 하한 1/1.5
+            StringAssert.Contains("private const float ZoomMin = 1f / 1.5f, ZoomMax = 2.5f, ZoomStep = 0.25f;", bc);
             // #177 — B 탭 골드 아이콘
             StringAssert.Contains("RobotBGate.TabPrefix, UiIcons.Gold,", bc);
 
