@@ -602,7 +602,8 @@ namespace MBI.Combat
             string goal = farming
                 ? "파밍: " + stage.topic + "  ·  모아서 보드를 키운다"
                 : HasRequirement
-                    ? "목표: " + stage.topic + "  ·  출력 " + stage.req.ToString("F0") + " 넘기기"
+                    // ✅ #180(사용자 B안 · 10-19) — 「출력」 → 「전투력」(노드 수 칩 「출력」과 혼동). 수 · 판정은 그대로.
+                    ? "목표: " + stage.topic + "  ·  전투력 " + stage.req.ToString("F0") + " 넘기기"
                     : "목표: " + stage.topic;
             GUI.Label(new Rect(r.x + pad, r.y + rowH, r.width - pad * 2f, rowH), goal, line);
 

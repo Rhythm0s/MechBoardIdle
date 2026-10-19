@@ -152,6 +152,9 @@ namespace MBI.Tests
             StringAssert.Contains("if (UiIcons.Booster != null)", hud);
             StringAssert.Contains("HudBars.Ticks(new Rect(tickX, y + 4f * sc, tickW, tickH),", hud);
             StringAssert.Contains("if (art != null) UiIcons.Booster = art.NodeSprite(NodeType.Booster);", bc);
+            // #180 — 도전 배지 목표 줄 「전투력 n 넘기기」(🗑️ 「출력 n 넘기기」)
+            StringAssert.Contains("\"  ·  전투력 \" + stage.req.ToString(\"F0\") + \" 넘기기\"", hud);
+            StringAssert.DoesNotContain("\"  ·  출력 \" + stage.req.ToString(\"F0\") + \" 넘기기\"", hud);
             // #177 — B 탭 골드 아이콘
             StringAssert.Contains("RobotBGate.TabPrefix, UiIcons.Gold,", bc);
 
