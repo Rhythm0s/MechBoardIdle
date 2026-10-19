@@ -40,6 +40,24 @@ namespace MBI.Combat
             ? (Vector2)_hpBg.position
             : (Vector2)transform.position + new Vector2(0f, -_size * BarCenterRatio);
 
+        /// <summary>
+        /// **그려진 몸의 윗변**(뿌리 기준 로컬 y) — #187 탄약 소진 아이콘이 머리 위에 앉는 기준(2026-10-19).
+        /// 막대(`LayOutBars`)와 같은 길 — 몸 사각(`bounds`)에서 읽고, 몸이 없으면 캔버스 반(종전 값)으로 떨어진다.
+        /// 합체 몸 · 로봇 B 처럼 크기가 다른 몸도 그려진 사각을 따른다.
+        /// </summary>
+        public float BodyTopLocal
+        {
+            get
+            {
+                if (_bodyRenderer != null && _bodyRenderer.sprite != null)
+                {
+                    Bounds b = _bodyRenderer.bounds;
+                    if (b.size.y > 0.0001f) return b.max.y - transform.position.y;
+                }
+                return _size * 0.5f;
+            }
+        }
+
         /// <summary>보호막 막대 한가운데(월드).</summary>
         public Vector2 ShieldBarCenter => _shieldBar != null
             ? (Vector2)_shieldBar.transform.position

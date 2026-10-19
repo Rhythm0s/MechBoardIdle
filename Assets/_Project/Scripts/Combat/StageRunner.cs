@@ -1114,7 +1114,8 @@ namespace MBI.Combat
         }
 
         /// <summary>
-        /// 로봇 머리 위 **쉴드 막대**에 비율을 건다 — HP 바 바로 위 한 칸이다.
+        /// 로봇 **발밑** **쉴드 막대**에 비율을 건다 — HP 바 바로 아래 한 칸이다
+        /// (주석 정정 #187 · 2026-10-19 — 구 「머리 위 · HP 바 바로 위」는 낡은 글 · 자리는 `CombatEntityView.LayOutBars`).
         /// 최대치가 0 이면 음수를 줘 **막대를 지운다**(쉴드 줄이 없는 판).
         /// </summary>
         private void SyncShieldBar()
@@ -1164,9 +1165,9 @@ namespace MBI.Combat
             _ammoOutView.enabled = empty;
             if (empty && _sim.Robot != null)
             {
-                // **캐릭터 하단** — 바닥 그림자와 같은 발밑이다(`260909_W01` 3-1 · UI 문서 12-1).
-                // 종전에는 로봇 한가운데였고, 그러면 몸통을 덮어 「무엇이 멈췄는지」보다
-                // 「무언가 가려졌다」가 먼저 읽힌다.
+                // ✅ **캐릭터 위(머리 위)**(사용자 확정 #187 · 2026-10-19 「캐릭터 위에 띄워줘」).
+                // 🗑️ 구 「캐릭터 하단 — 바닥 그림자와 같은 발밑」(`260909_W01` 3-1 · UI 12-1) — 발밑이 HP · 쉴드
+                //    막대 자리라 아이콘이 막대 위에 겹쳐 찍혔다(8132 화면). 몸통을 안 덮는 뜻은 그대로 — 위로 피한다.
                 //
                 // ⚠️ **크기를 줄인다**(2026-09-10 사용자 확정 · 촬영 전 임시).
                 // 이 그림은 256 캔버스에 실루엣 212px 이라 **로봇(220px)만 하다.** 그대로 두면
@@ -1175,14 +1176,15 @@ namespace MBI.Combat
                 float scale = EffectTiming.AmmoOutScale(tuning.ammoOutScaleAssumed);
                 _ammoOutView.transform.localScale = new Vector3(scale, scale, 1f);
 
-                // ⚠️ **그림자 발밑보다 더 내려간다.** `ShadowFootOffset` 자리는 아직 실루엣 안이라
-                // 거기 두면 아이콘 위쪽이 다리를 덮는다 — 여기서는 몸통 밖으로 통째로 내린다.
+                // 🗑️ 구 「그림자 발밑보다 더 내려간다」(`AmmoOutFootOffset`) — #187.
+                // ✅ 몸 윗변은 **그려진 몸**에서 읽는다(`BodyTopLocal` · 막대와 같은 길) — 합체 · 로봇 B 몸 크기를 따른다.
                 //
                 // ⚠️ **그림자보다 위다.** 이 뷰는 `EffectOver`(10)이고 그림자는 `EffectUnder`(-10)이라
                 // 층이 이미 갈려 있다 — 새 상수를 만들지 않는다.
-                float foot = EffectTiming.AmmoOutFootOffset(RobotSize, RobotSize * scale);
+                float bodyTop = _robotView != null ? _robotView.BodyTopLocal : RobotSize * 0.5f;
+                float head = EffectTiming.AmmoOutHeadOffset(bodyTop, RobotSize * scale);
                 _ammoOutView.transform.position =
-                    new Vector3(_sim.Robot.position.x, _sim.Robot.position.y + foot, 0f);
+                    new Vector3(_sim.Robot.position.x, _sim.Robot.position.y + head, 0f);
             }
         }
 

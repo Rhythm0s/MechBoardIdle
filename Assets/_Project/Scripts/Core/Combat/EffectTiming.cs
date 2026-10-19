@@ -113,7 +113,7 @@ namespace MBI.Core
             UnityEngine.Mathf.Clamp(requested, 0.05f, AmmoOutScaleMax);
 
         /// <summary>
-        /// 아이콘이 놓이는 자리(본체 중심 기준) — **발 아래**다.
+        /// 🗑️ (구) 아이콘이 놓이는 자리(본체 중심 기준) — **발 아래**였다(#187 로 머리 위).
         ///
         /// 그림자가 쓰는 발밑(<see cref="ShadowFootOffset"/>)보다 **더 내려간다.**
         /// 그 자리는 아직 실루엣 안이라, 거기에 두면 아이콘 위쪽이 다리를 덮는다.
@@ -123,7 +123,20 @@ namespace MBI.Core
         /// ⚠️ 그림자와 겹치는 것은 괜찮다 — 층이 갈려 있어(EffectOver 대 EffectUnder)
         /// 아이콘이 위에 그려진다.
         /// </summary>
+        // 🗑️ **폐기(사용자 확정 #187 · 2026-10-19)** — 발밑 자리가 HP · 쉴드 막대 자리와 겹쳤다(8132 화면 · 「물류 마크」).
+        //    부르는 곳 0 · 지우지 않고 남긴다. 새 자리 = <see cref="AmmoOutHeadOffset"/>.
         public static float AmmoOutFootOffset(float bodySize, float iconSize) =>
             -bodySize * 0.5f - iconSize * 0.5f;
+
+        /// <summary>몸 윗변과 아이콘 사이 틈(아이콘 높이 비) — ⚠️ 가정(#187).</summary>
+        public const float AmmoOutHeadGapRatio = 0.1f;
+
+        /// <summary>
+        /// 아이콘이 놓이는 자리(본체 중심 기준) — **머리 위**(사용자 확정 #187 「캐릭터 위에 띄워줘」 · 2026-10-19).
+        /// 몸 윗변(<paramref name="bodyTop"/> · 그려진 사각)에서 틈 + 아이콘 반 높이만큼 올린다 —
+        /// 아이콘 아랫변이 몸 윗변 위에 떠서 몸통 · 막대(발밑) · 회피 눈금(막대 아래)과 안 겹친다.
+        /// </summary>
+        public static float AmmoOutHeadOffset(float bodyTop, float iconSize) =>
+            bodyTop + iconSize * (0.5f + AmmoOutHeadGapRatio);
     }
 }

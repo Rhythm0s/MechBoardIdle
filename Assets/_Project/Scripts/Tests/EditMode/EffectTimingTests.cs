@@ -172,7 +172,7 @@ namespace MBI.Tests
         /// ⚠️ **화면에서 커 보이는지는 사람이 본다.** 여기서 재는 것은 폭과 자리뿐이다.
         /// </summary>
         [Test]
-        public void AmmoOutIcon_StaysUnderHalfTheRobot_AndSitsBelowTheBody()
+        public void AmmoOutIcon_StaysUnderHalfTheRobot_AndSitsAboveTheHead()
         {
             const float robotSilhouette = 220f;  // px · robot_a.png 실측
             const float iconSilhouette = 212f;   // px · vfx_ammoout.png 실측
@@ -187,15 +187,18 @@ namespace MBI.Tests
             Assert.AreEqual(EffectTiming.AmmoOutScaleMax, EffectTiming.AmmoOutScale(3f), 0.0001f);
             Assert.Greater(EffectTiming.AmmoOutScale(0f), 0f, "0을 넣어도 사라지지 않는다");
 
-            // 자리 — 아이콘 위쪽 끝이 본체 아래쪽 끝보다 낮아야 몸통을 안 덮는다.
+            // 자리 — #187(2026-10-19) 머리 위. 아이콘 아랫변이 몸 윗변보다 높아야 몸통을 안 덮는다.
             float body = ArtSpec.RobotSize;
             float icon = body * scale;
-            float y = EffectTiming.AmmoOutFootOffset(body, icon);
+            float top = body * 0.5f;
+            float y = EffectTiming.AmmoOutHeadOffset(top, icon);
 
-            Assert.LessOrEqual(y + icon * 0.5f, -body * 0.5f + 0.0001f,
-                "아이콘 윗변이 몸통 아랫변 위로 올라왔다 — 다리를 덮는다");
-            Assert.Less(y, EffectTiming.ShadowFootOffset(body),
-                "그림자 발밑보다 더 내려간다 — 그 자리는 아직 실루엣 안이다");
+            Assert.Greater(y - icon * 0.5f, top, "아이콘 아랫변이 몸 윗변 아래로 내려왔다 — 머리를 덮는다");
+            Assert.Greater(y, 0f, "머리 위다(발밑 아님 — 막대 자리와 겹치던 것)");
+
+            string sr = System.IO.File.ReadAllText("Assets/_Project/Scripts/Combat/StageRunner.cs");
+            StringAssert.Contains("float head = EffectTiming.AmmoOutHeadOffset(bodyTop, RobotSize * scale);", sr);
+            StringAssert.DoesNotContain("float foot = EffectTiming.AmmoOutFootOffset(", sr);
         }
     }
 }
