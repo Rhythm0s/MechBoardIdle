@@ -3433,15 +3433,55 @@ namespace MBI.Logistics
             };
             st.normal.textColor = affordable ? new Color(0.95f, 0.92f, 0.8f) : new Color(1f, 0.32f, 0.28f);
             st.alignment = TextAnchor.MiddleLeft;
-            float m = Mathf.Max(2f, button.height * 0.04f);
-            float lineH = st.CalcSize(new GUIContent("0")).y;
+            // #176 — 자리 = 단추 **바닥 줄 가운데**(이름 줄 아래). 🗑️ #175 의 왼쪽 위 구석.
+            float lineH = PaletteCostRowHeight(button.height);
+            int padBottom = Mathf.Max(4, Mathf.RoundToInt(button.height * 0.08f));
+            float rowW = UiIcons.Measure(st, null, BuildCost.Amount(cost));
+            var row = new Rect(button.center.x - rowW * 0.5f, button.yMax - padBottom - lineH, rowW, lineH);
             // ✅ #175 ⓐ — 「고철 20」 글자 → 고철 아이콘 + 「20」(칩 줄 아이콘 재사용).
             // ⚠️ 값 글자는 단추가 흐려도 **흐리지 않는다** — 흐린 단추 위 흐린 빨강은 안 보였다(8123 실측). 글자라 눌림은 없다.
             bool wasEnabled = GUI.enabled;
             GUI.enabled = true;
-            UiIcons.DrawLine(new Rect(button.x + m, button.y + m, button.width - m * 2f, lineH), st,
-                             null, UiIcons.Scrap, UiIcons.ScrapFallback, BuildCost.Amount(cost));
+            UiIcons.DrawLine(row, st, null, UiIcons.Scrap, UiIcons.ScrapFallback, BuildCost.Amount(cost));
             GUI.enabled = wasEnabled;
+        }
+
+        /// <summary>값 줄 높이 — 값 글자(단추 높이의 0.11 · 사다리) 한 줄. 이름 줄을 이만큼 위로 올린다.</summary>
+        private static float PaletteCostRowHeight(float side)
+        {
+            var st = new GUIStyle(GUI.skin.label)
+            {
+                fontSize = KoreanFont.Snap(Mathf.Max(9, Mathf.RoundToInt(side * 0.11f))),
+                fontStyle = FontStyle.Bold,
+            };
+            return Mathf.Ceil(st.CalcSize(new GUIContent("0")).y);
+        }
+
+        /// <summary>
+        /// **이름 한 줄 꼴**(#176 · #125 「글자는 전부 보인다」) — 단추 폭(안쪽 여백 뺀)에 안 들면 사다리를 한 칸씩 내린다.
+        /// 줄을 바꾸지 않는다 — 두 줄로 갈리면 바닥 값 줄과 겹친다.
+        /// </summary>
+        private static GUIStyle OneLineStyle(GUIStyle baseStyle, string label, float width)
+        {
+            var st = new GUIStyle(baseStyle) { wordWrap = false };
+            if (st.CalcSize(new GUIContent(label)).x > width + 0.5f)
+                UiText.FitOneLine(st, label, width);
+            return st;
+        }
+
+        /// <summary>
+        /// **고른 단추 테두리**(#176 · 🗑️ 이름 앞 「● 」). 밝은 노랑 네 변. ⚠️ 색 · 두께(단추의 4% · 바닥 2px) 가정.
+        /// </summary>
+        private static void DrawSelectedOutline(Rect r)
+        {
+            float t = Mathf.Max(2f, r.height * 0.04f);
+            Color prev = GUI.color;
+            GUI.color = SelectedOutlineColor;
+            GUI.DrawTexture(new Rect(r.x, r.y, r.width, t), Texture2D.whiteTexture);
+            GUI.DrawTexture(new Rect(r.x, r.yMax - t, r.width, t), Texture2D.whiteTexture);
+            GUI.DrawTexture(new Rect(r.x, r.y, t, r.height), Texture2D.whiteTexture);
+            GUI.DrawTexture(new Rect(r.xMax - t, r.y, t, r.height), Texture2D.whiteTexture);
+            GUI.color = prev;
         }
 
         private static string ElementLabel(BeltElementKind e) =>
@@ -3763,6 +3803,16 @@ namespace MBI.Logistics
             int padBottom = Mathf.Max(4, Mathf.RoundToInt(side * 0.08f));
             style.padding = new RectOffset(2, 2, Mathf.RoundToInt(side * 0.50f), padBottom);
 
+            // ✅ **#176 — 값 줄은 이름 줄 아래(바닥)**(사용자 확정 · 🗑️ #175 의 단추 왼쪽 위 자리).
+            //    노드 · 모듈 단추는 바닥에 값 줄(고철 아이콘 + 값) 한 칸을 비우고 이름을 그 위로 올린다.
+            //    그림은 그만큼 작아진다(`PaletteThumbScale`). 이름은 **한 줄 · 전부 보임**(#125) — 넘치면 사다리를 내린다.
+            float costRowH = PaletteCostRowHeight(side);
+            var costStyle = new GUIStyle(style)
+            {
+                wordWrap = false,
+                padding = new RectOffset(2, 2, Mathf.RoundToInt(side * 0.44f), padBottom + Mathf.RoundToInt(costRowH)),
+            };
+
             // ⚠️ **칸 수를 세는 자리다 — 버튼을 더하면 여기도 더해야 한다**(2026-09-15 결함).
             //
             // `a27182a` 에서 「방향」 버튼을 넣고 **이 줄을 안 고쳤다.** 스크롤 내용 폭이
@@ -3858,7 +3908,9 @@ namespace MBI.Logistics
                 GUI.enabled = wasEnabled && allowed && affordable;
 
                 bool sel = i == _selectedNode;
-                if (UiSkin.Button(rect, (sel ? "● " : "") + palette[i].displayName, style))
+                // ✅ #176 — 고른 표시 = 밝은 테두리(🗑️ 이름 앞 「● 」 — 한 글자 폭을 먹어 「복합 가공 / 소」로 갈렸다 · 8131 육안).
+                var nStyle = OneLineStyle(costStyle, palette[i].displayName, rect.width);
+                if (UiSkin.Button(rect, palette[i].displayName, nStyle))
                 {
                     // ✅ **고른 단추를 다시 누르면 풀린다**(사용자 확정 #175 ⓕ · 모듈 단추와 같은 토글).
                     _selectedNode = sel ? -1 : i;
@@ -3867,6 +3919,7 @@ namespace MBI.Logistics
                 }
                 DrawPaletteThumb(rect, palette[i]);
                 DrawPaletteCost(rect, BuildCost.NodeScrap, affordable);
+                if (sel) DrawSelectedOutline(rect);
 
                 // ⚠️ **어둠막은 버튼 뒤에 그린다**(2026-09-11 재육안 · IMGUI 는 뒤에 그리는
                 // 쪽이 위로 온다). 앞에 그렸더니 **버튼이 제 바탕으로 덮어** 막이 한 번도
@@ -3904,7 +3957,7 @@ namespace MBI.Logistics
                     GUI.color = new Color(1f, 0.92f, 0.45f,
                         0.75f + 0.25f * Mathf.Abs(Mathf.Sin(Time.unscaledTime * 2.2f)));
 
-                bool pressed = UiSkin.Button(eRect, (on ? "● " : "") + ElementLabel(e), style);
+                bool pressed = UiSkin.Button(eRect, ElementLabel(e), style);   // #176 — 고른 표시는 테두리
 
                 // ⚠️ **그림을 얹는다**(2026-09-18 사용자 리허설 ⑨) — 노드 버튼은 그림이
                 //    있는데 이 둘만 글자뿐이라, 팔레트에서 **무엇을 놓는지가 안 보였다.**
@@ -3922,6 +3975,7 @@ namespace MBI.Logistics
                 }
                 GUI.color = prevCol;
 
+                if (on) DrawSelectedOutline(eRect);
                 if (pressed)
                 {
                     _elementMode = on ? (BeltElementKind?)null : e;
@@ -3954,10 +4008,9 @@ namespace MBI.Logistics
                         GUI.color = new Color(1f, 0.92f, 0.45f,
                             0.75f + 0.25f * Mathf.Abs(Mathf.Sin(Time.unscaledTime * 2.2f)));
                     // ✅ 이름 = 「생산량 모듈」·「생산속도 모듈」(#147). 안 들면 사다리를 내린다(칸은 다른 팔레트 단추와 같다).
-                    string mLabel = (on ? "●" : "") + ModuleTutorialRule.DisplayName(modulePalette[m].displayName);
-                    var mStyle = new GUIStyle(style);
-                    if (mStyle.CalcSize(new GUIContent(mLabel)).x > mRect.width + 0.5f)
-                        UiText.FitOneLine(mStyle, mLabel, mRect.width);
+                    // #176 — 「●」 접두 폐기 · 고른 표시는 테두리 · 값 줄은 바닥(노드 단추와 같은 꼴).
+                    string mLabel = ModuleTutorialRule.DisplayName(modulePalette[m].displayName);
+                    var mStyle = OneLineStyle(costStyle, mLabel, mRect.width);
                     bool mHit = UiSkin.Button(mRect, mLabel, mStyle);
                     GUI.color = prevM;
                     if (mHit)
@@ -3967,6 +4020,7 @@ namespace MBI.Logistics
                     }
                     DrawPaletteModuleThumb(mRect, modulePalette[m]);
                     DrawPaletteCost(mRect, BuildCost.ModuleScrap, mAffordable);
+                    if (on) DrawSelectedOutline(mRect);
                     if (!moduleAllowed) UiSkin.DrawLockVeil(mRect);
                     GUI.enabled = wasM;
                     bx += step;
@@ -5072,10 +5126,11 @@ namespace MBI.Logistics
             Sprite icon = art.NodeSprite(def.type);
             if (icon == null) return; // 그림이 없으면 글자만 — 색 사각으로 대신하지 않는다
 
-            // ⚠️ **정사각 버튼에서는 위쪽 절반을 쓴다**(2026-09-11 · 팔레트 가로 개편).
+            // ⚠️ **정사각 버튼에서는 위쪽을 쓴다**(2026-09-11 · 팔레트 가로 개편).
             // 종전처럼 왼쪽을 통째로 채우면 그림이 버튼을 다 덮어 **글자가 그림 뒤로 간다** —
             // 세로 줄 시절에는 버튼이 납작해서(130×36) 왼쪽 정사각이 자연히 아이콘 칸이었다.
-            float side = button.height * 0.52f;
+            // #176 — 바닥에 값 줄이 생겨 이름이 올라왔다 · 그림을 0.52 → `PaletteThumbScale` 로 줄인다.
+            float side = button.height * PaletteThumbScale;
             var box = new Rect(button.x + (button.width - side) * 0.5f,
                 button.y + PaletteThumbPad, side, side);
             GUI.DrawTextureWithTexCoords(box, icon.texture, SpriteUv(icon), true);
@@ -5094,11 +5149,17 @@ namespace MBI.Logistics
             Sprite icon = art.ModuleSprite(def.kind);
             if (icon == null) return;
 
-            float side = button.height * 0.52f;
+            float side = button.height * PaletteThumbScale;   // #176 — 노드 단추와 같은 크기
             var box = new Rect(button.x + (button.width - side) * 0.5f,
                 button.y + PaletteThumbPad, side, side);
             GUI.DrawTextureWithTexCoords(box, icon.texture, SpriteUv(icon), true);
         }
+
+        /// <summary>고른 단추 테두리 색 — 밝은 노랑(강제 버튼 빛과 같은 계열). ⚠️ 가정.</summary>
+        private static readonly Color SelectedOutlineColor = new Color(1f, 0.9f, 0.4f, 1f);
+
+        /// <summary>팔레트 그림 크기(단추 높이 비) — #176 에서 0.52 → 0.40(바닥 값 줄 자리). ⚠️ 가정.</summary>
+        private const float PaletteThumbScale = 0.40f;
 
         /// <summary>스프라이트가 아틀라스 안 어디에 있는지 — 그 조각만 그린다.</summary>
         private static Rect SpriteUv(Sprite s)
@@ -5191,7 +5252,17 @@ namespace MBI.Logistics
                 // 고른 쪽만 밝다 — 밑줄이 아니라 **밝기**로 가른다. 칸이 세로로 커서
                 // 밑줄이 글자에서 멀어지면 무엇에 붙은 줄인지 안 읽힌다.
                 if (!on) GUI.color = new Color(prev.r, prev.g, prev.b, prev.a * 0.55f);
-                bool hit = UiSkin.Button(r, labels[i], style);   // 클릭음은 UiSkin 이 낸다
+                // ✅ #177 — 「로봇 B · [골드 아이콘] 50」(전투 해금 단추와 같은 꼴 · 칩 줄 골드 그림). 글자 크기는 종전 글자에서 잰다.
+                bool goldTab = i == 1 && RobotBGate.TabShowsGoldCost(bOpen, RobotBGate.CurrentStageNumber, StageLayerSignals.IsFarming);
+                bool hit = UiSkin.Button(r, goldTab ? string.Empty : labels[i], style);   // 클릭음은 UiSkin 이 낸다
+                if (goldTab)
+                {
+                    var gst = new GUIStyle(style) { padding = new RectOffset(0, 0, 0, 0) };
+                    string amount = BuildCost.Amount(BuildCost.RobotBGold);
+                    float gw = UiIcons.Measure(gst, RobotBGate.TabPrefix, amount);
+                    UiIcons.DrawLine(new Rect(r.center.x - gw * 0.5f, r.y, gw, r.height), gst,
+                                     RobotBGate.TabPrefix, UiIcons.Gold, new Color(1f, 0.82f, 0.25f), amount);
+                }
                 GUI.color = prev;
 
                 // 🗑️ **임시 진단 걷음**(2026-09-16 · 자리가 닫혔다). 그 줄이 답한 것:

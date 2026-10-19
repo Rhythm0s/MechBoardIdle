@@ -89,6 +89,13 @@ namespace MBI.Core
             return "로봇 B · " + UnlockStageId + " 해금";
         }
 
+        /// <summary>#177 — 골드 꼴 탭 글자의 앞 조각(뒤에 골드 아이콘 + 값). ⚠️ 가정.</summary>
+        public const string TabPrefix = "로봇 B · ";
+
+        /// <summary>#177 — 탭을 「로봇 B · [골드 아이콘] n」 꼴로 그리는가(S4 파밍부터 · 미해금).</summary>
+        public static bool TabShowsGoldCost(bool unlocked, int stageNumber, bool isFarming) =>
+            !unlocked && ShowsUnlockButton(stageNumber, isFarming, false);
+
         /// <summary>잠긴 B 탭을 누르면 해금 요청이 나가는가 — 전투 화면 단추와 같은 조건(S4 파밍부터 · 골드 충분).</summary>
         public static bool TabUnlocks(bool unlocked, int stageNumber, bool isFarming, double gold, double cost) =>
             !unlocked && ShowsUnlockButton(stageNumber, isFarming, false) && CanUnlock(gold, cost);

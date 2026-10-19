@@ -114,6 +114,10 @@ namespace MBI.Tests
             Assert.IsFalse(RobotBGate.TabUnlocks(false, 4, true, 49d, 50d), "골드 부족");
             Assert.IsFalse(RobotBGate.TabUnlocks(false, 3, true, 50d, 50d), "S4 전");
             Assert.IsFalse(RobotBGate.TabUnlocks(true, 4, true, 50d, 50d), "이미 열림");
+            Assert.IsTrue(RobotBGate.TabShowsGoldCost(false, 4, true), "#177 골드 아이콘 꼴");
+            Assert.IsFalse(RobotBGate.TabShowsGoldCost(false, 3, true), "S4 전은 「S4 해금」 글자 그대로");
+            Assert.IsFalse(RobotBGate.TabShowsGoldCost(true, 4, true));
+            Assert.AreEqual("로봇 B · ", RobotBGate.TabPrefix);
         }
 
         [Test]
@@ -131,7 +135,17 @@ namespace MBI.Tests
             StringAssert.Contains("GUI.enabled = wasEnabled && allowed && affordable;", bc);   // ⓑ 단추 Disable
             StringAssert.Contains("GUI.enabled = wasM && moduleAllowed && mAffordable;", bc);
             StringAssert.Contains("if (bTabUnlocks) IdleSignals.RequestRobotBUnlock(BuildCost.RobotBGold);", bc);
-            StringAssert.Contains("UiIcons.Scrap, UiIcons.ScrapFallback, BuildCost.Amount(cost));", bc);   // ⓐ 팔레트
+            StringAssert.Contains("UiIcons.DrawLine(row, st, null, UiIcons.Scrap, UiIcons.ScrapFallback, BuildCost.Amount(cost));", bc);   // ⓐ 팔레트 · #176 바닥 줄
+            // #176 — 「● 」 접두 폐기 · 고른 표시 = 테두리 · 이름 한 줄
+            StringAssert.DoesNotContain("(sel ? \"● \" : \"\") + palette[i].displayName", bc);
+            StringAssert.DoesNotContain("(on ? \"● \" : \"\") + ElementLabel(e)", bc);
+            StringAssert.DoesNotContain("(on ? \"●\" : \"\") + ModuleTutorialRule.DisplayName", bc);
+            StringAssert.Contains("if (sel) DrawSelectedOutline(rect);", bc);
+            StringAssert.Contains("if (on) DrawSelectedOutline(eRect);", bc);
+            StringAssert.Contains("if (on) DrawSelectedOutline(mRect);", bc);
+            StringAssert.Contains("var nStyle = OneLineStyle(costStyle, palette[i].displayName, rect.width);", bc);
+            // #177 — B 탭 골드 아이콘
+            StringAssert.Contains("RobotBGate.TabPrefix, UiIcons.Gold,", bc);
 
             string sr = System.IO.File.ReadAllText("Assets/_Project/Scripts/Combat/StageRunner.cs");
             StringAssert.Contains("UiIcons.Scrap = tuning.iconScrapSprite;", sr);
