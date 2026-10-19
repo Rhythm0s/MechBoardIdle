@@ -71,6 +71,12 @@ namespace MBI.Core
             /// 보드 탭은 마운트 칸 팝오버만 연다(`BoardController.OnPressEnd`). 강화하면(표식) 저절로 풀린다.
             /// </summary>
             EnhanceMountBoard,
+
+            /// <summary>
+            /// **S4 도전 층 — 합체 원형 하나만**(사용자 확정 #189 · 2026-10-19). T3 와 같은 꼴 —
+            /// 합체 말고는 안 눌린다(태그 · 도전 · 목록 · 조립 진입) · 「▲ 전투로」 예외. 합체하면 저절로 풀린다.
+            /// </summary>
+            Merge,
         }
 
         /// <summary>막을 수 있는 조작들.</summary>
@@ -91,6 +97,12 @@ namespace MBI.Core
 
             /// <summary>로봇 B 해금 단추(#173).</summary>
             UnlockRobotB,
+
+            /// <summary>합체 원형(#189). 다른 국면에서는 늘 열린다.</summary>
+            Merge,
+
+            /// <summary>태그 원형(#189 — 합체 강제 동안만 닫힌다).</summary>
+            TagButton,
         }
 
         /// <summary>
@@ -108,6 +120,8 @@ namespace MBI.Core
         /// 이제 고스트가 떠 있어도 **이동 모드면 모드 국면**이다 — 먼저 조립 모드로 바꾸게 한다.
         /// </summary>
         public static Phase Current =>
+            // #189 — 합체 강제는 도전 층의 일이라 다른 국면과 안 겹친다. 맨 앞에서 묻는다.
+            TutorialSignals.HighlightMergeButton ? Phase.Merge :
             // ⚠️ **보드가 이미 열려 있으면 「들어가라」 국면이 아니다**
             // (2026-09-15 · 「이동 모드 버튼이 안 먹는다」).
             // 신호를 켜는 곳만 있고 끄는 곳이 없어 **들어간 뒤에도 그 국면에 머물렀고**,
@@ -247,6 +261,10 @@ namespace MBI.Core
                     //    화면이 되고, 그것이 09-15·09-16 에 두 번 보고된 모양이다.
                     return control == Control.MiniMap || control == Control.Zoom
                            || control == Control.ExitBoard;
+
+                case Phase.Merge:
+                    // #189 — 합체 하나만(T3 「도전 하나만」과 같은 결 · 「▲ 전투로」 예외).
+                    return control == Control.Merge || control == Control.ExitBoard;
 
                 case Phase.EnhanceMount:
                     // #182 ① — T4 ① 과 같게 잠근다(「▼ 조립」 하나 · 「▲ 전투로」 예외).

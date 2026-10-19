@@ -14,21 +14,22 @@ namespace MBI.Tests
         [TearDown]
         public void TearDown() => TutorialSignals.Reset();
 
-        private static bool Active(bool cleared = true, int stage = 4, bool farming = true, bool unlocked = true,
-                                   bool enhanced = false, double mat = 100d, double scrap = 300d) =>
-            MountEnhanceRule.TutorialActive(cleared, stage, farming, unlocked, enhanced, mat, 100d, scrap, 300d);
+        // #188 — S3 · B 해금 조건 없음 · #196 비용 50
+        private static bool Active(bool cleared = true, int stage = 3, bool farming = true,
+                                   bool enhanced = false, double mat = 50d, double scrap = 300d) =>
+            MountEnhanceRule.TutorialActive(cleared, stage, farming, enhanced, mat, 50d, scrap, 300d);
 
         [Test]
         public void 강화_안내는_S4_파밍_해금_뒤_재료와_고철이_다_찰_때만_선다()
         {
             Assert.IsTrue(Active());
-            Assert.IsFalse(Active(mat: 99d), "재료가 모자라면 막 없음(갇힘 방지)");
+            Assert.IsFalse(Active(mat: 49d), "재료가 모자라면 막 없음(갇힘 방지)");
             Assert.IsFalse(Active(scrap: 299d), "고철이 모자라면 막 없음");
-            Assert.IsFalse(Active(unlocked: false), "해금 막이 먼저다");
-            Assert.IsFalse(Active(enhanced: true), "강화하면 풀린다 · 바로가기 S4+ 점프(#162)도 여기서 안 선다");
+            Assert.IsTrue(Active(mat: 63d), "S3 파밍 진입 재료 63(S1 30 + S2 33) ≥ 50 — 막이 선다");
+            Assert.IsFalse(Active(enhanced: true), "강화하면 풀린다 · 바로가기 S3+ 점프(#162 · #188)도 여기서 안 선다");
             Assert.IsFalse(Active(farming: false), "도전 층에서는 안 선다");
-            Assert.IsFalse(Active(stage: 5));
-            Assert.IsFalse(Active(stage: 3));
+            Assert.IsFalse(Active(stage: 4));
+            Assert.IsFalse(Active(stage: 2));
             Assert.IsFalse(Active(cleared: false));
         }
 
@@ -70,7 +71,7 @@ namespace MBI.Tests
         {
             Assert.AreEqual("조립에서 마운트를 탭해 강화해보세요", MountEnhanceRule.CombatPrompt);
             Assert.AreEqual("마운트를 탭한 뒤 강화를 누르세요", MountEnhanceRule.BoardHint);
-            Assert.AreEqual("S4", MountEnhanceRule.TutorialStageId);
+            Assert.AreEqual("S3", MountEnhanceRule.TutorialStageId);   // #188
 
             string sr = System.IO.File.ReadAllText("Assets/_Project/Scripts/Combat/StageRunner.cs");
             StringAssert.Contains("TutorialSignals.HighlightEnhanceMount = MountEnhanceRule.TutorialActive(", sr);

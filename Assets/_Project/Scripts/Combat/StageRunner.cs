@@ -1741,8 +1741,14 @@ namespace MBI.Combat
                 RobotBGate.IsUnlocked, IdleSignals.WalletGold, BuildCost.RobotBGold);
             // **S4 — 마운트 강화 안내**(사용자 확정 #182 · 2026-10-19). 해금 막과 같은 꼴 — 매 프레임 다시 판단한다.
             //    재료 · 고철이 모자라면 안 깐다 · 강화하면(표식) 저절로 꺼진다 · 바로가기 S4+ 점프는 #162 로 표식이 켜져 안 선다.
+            // **S4 — 합체 강제 버튼**(사용자 확정 #189 · 2026-10-19). 도전 층 · S4 미통과 · B 해금 · 게이지 준비 — 누르면 저절로 꺼진다.
+            TutorialSignals.HighlightMergeButton = MergeTutorialRule.IsActive(
+                IdleSignals.TutorialCleared, stageNo, StageLayerSignals.IsFarming,
+                stage != null && IdleSignals.ClearedStageIds.Contains(stage.stageId),
+                RobotBGate.IsUnlocked, _sim != null && _sim.Merge != null && _sim.Merge.IsReady
+                    && _sim.Result == CombatResult.InProgress);
             TutorialSignals.HighlightEnhanceMount = MountEnhanceRule.TutorialActive(
-                IdleSignals.TutorialCleared, stageNo, StageLayerSignals.IsFarming, RobotBGate.IsUnlocked,
+                IdleSignals.TutorialCleared, stageNo, StageLayerSignals.IsFarming,   // #188 — B 해금 조건 걷음 · S3
                 IdleSignals.MountEnhanced, IdleSignals.WalletEnhMaterial, EnhanceCost,
                 IdleSignals.WalletScrap, BuildCost.EnhanceScrap);
 
@@ -3322,7 +3328,10 @@ namespace MBI.Combat
             // **S4 로봇 B 해금 막**(#173) — T3 막과 같은 자리(OnGUI 끝)·같은 까닭. 구멍 = 태그 원형 자리(해금 단추).
             ChallengeTutorialOverlay.DrawRobotBUnlock(TutorialSignals.HighlightUnlockRobotB);
 
-            // **S4 강화 안내 막 ①**(#182) — 같은 자리 · 같은 까닭. 구멍 = 「▼ 조립」.
+            // **S4 합체 강제 막**(#189) — 같은 자리 · 같은 까닭. 구멍 = 합체 원형.
+            ChallengeTutorialOverlay.DrawMerge(TutorialSignals.HighlightMergeButton);
+
+            // **S3 강화 안내 막 ①**(#182 · #188) — 같은 자리 · 같은 까닭. 구멍 = 「▼ 조립」.
             ChallengeTutorialOverlay.DrawEnhanceMount(TutorialSignals.HighlightEnhanceMount);
 
             // **T4 막·문구·지급 알림**(#138) — T3 막과 같은 자리(OnGUI 끝)·같은 까닭이다.
@@ -3508,6 +3517,8 @@ namespace MBI.Combat
                 round);
             GUI.color = tagPrev;
 
+            // #189 — 합체 강제 동안은 태그를 안 받는다(다른 국면에서는 늘 열림).
+            if (tagHit && !TutorialGate.Allows(TutorialGate.Control.TagButton)) tagHit = false;
             if (tagHit && !longPressed && _sim.TryManualTag() && _sim.Tag.LastTagSwapped)   // #163 — 합체 중 스킬만이면 뷰·등장 연출 없음
             {
                 // ⚠️ **여기서 뷰를 바로 다시 묶는다**(2026-09-14 · 「교대가 한 박자 느리다」).
@@ -3524,7 +3535,8 @@ namespace MBI.Combat
             }
 
             // 합체 — 게이지가 차야 눌린다. 스테이지당 1회라 쓰고 나면 영영 비활성이다.
-            GUI.enabled = _sim.Merge != null && _sim.Merge.IsReady;
+            GUI.enabled = _sim.Merge != null && _sim.Merge.IsReady
+                          && TutorialGate.Allows(TutorialGate.Control.Merge);   // #189 — 다른 강제 국면에서는 기다린다
             // **합체 원형 펄스**(사용자 확정 #160) — 도전 층에서 만충이면 누를 때까지 커졌다 작아졌다 한다.
             if (MergePulseOn) mergeRect = MergeRushRule.Scaled(mergeRect, MergeRushRule.PulseScale(Time.unscaledTime));
             if (UiSkin.Button(mergeRect, MergeButtonLabel(), round) && _sim.TryMerge())

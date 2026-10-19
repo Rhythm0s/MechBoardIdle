@@ -90,6 +90,12 @@ namespace MBI.Core
         public static bool HighlightEnhanceMount;
 
         /// <summary>
+        /// **S4 — 합체 강제 버튼 막이 서 있다**(2026-10-19 사용자 확정 #189).
+        /// 매 프레임 다시 판단한다(<see cref="MergeTutorialRule.IsActive"/> · 전투 러너가 쓴다).
+        /// </summary>
+        public static bool HighlightMergeButton;
+
+        /// <summary>
         /// T4 대상 노드 칸 — **보드가 고르고 쓴다**(그 칸의 사실을 아는 것은 보드뿐이다).
         /// null 이면 고를 노드가 없다(그때 끝 조건은 「판의 아무 노드에나 모듈」).
         /// </summary>
@@ -223,6 +229,7 @@ namespace MBI.Core
             ModuleTutorialActive = false;
             HighlightUnlockRobotB = false;
             HighlightEnhanceMount = false;
+            HighlightMergeButton = false;
             ModuleTargetCell = null;
             ModuleTargetFilled = false;
             ModuleTargetKnown = false;

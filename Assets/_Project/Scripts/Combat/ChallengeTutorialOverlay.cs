@@ -102,6 +102,23 @@ namespace MBI.Combat
         }
 
         /// <summary>
+        /// **S4 — 합체 원형 하나만 남기고 덮는 막 + 문구** (2026-10-19 사용자 확정 #189).
+        /// 해금 막과 같은 꼴 — 구멍 = 합체 원형 자리(펄스 전 기본 칸) · 문구는 단추 **위**.
+        /// </summary>
+        public static void DrawMerge(bool active)
+        {
+            if (!ChallengeTutorialOverlayRule.ShouldShow(
+                    active,
+                    TutorialSignals.BoardViewOpen,
+                    SettingsGate.IsOpen,
+                    MainMenuGate.IsOpen))
+                return;
+
+            Rect button = UiLayout.RoundButtonRect(1, Screen.width, Screen.height);
+            DrawFor(button, MergeTutorialRule.Prompt, promptAbove: true);
+        }
+
+        /// <summary>
         /// **T4 지급 알림 한 장** — 「모듈 M·R을 받았습니다」(사용자 확정 #138).
         /// 화면 가운데에 판 하나. 막은 안 깐다(알림이지 강제가 아니다). 설정·메뉴·조립 화면에서는 안 띄운다.
         /// </summary>

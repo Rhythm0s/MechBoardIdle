@@ -19,7 +19,8 @@ namespace MBI.Tests
         public void S4부터_켜고_S1부터_S3은_안_켠다()
         {
             Assert.IsFalse(MountEnhanceRule.JumpTurnsOn(1));
-            Assert.IsFalse(MountEnhanceRule.JumpTurnsOn(3));
+            Assert.IsFalse(MountEnhanceRule.JumpTurnsOn(2));
+            Assert.IsTrue(MountEnhanceRule.JumpTurnsOn(3), "#188 — S3 부터");
             Assert.IsTrue(MountEnhanceRule.JumpTurnsOn(4));
             Assert.IsTrue(MountEnhanceRule.JumpTurnsOn(6));
             Assert.IsFalse(MountEnhanceRule.JumpTurnsOn(0), "튜토리얼(0)은 안 켠다");

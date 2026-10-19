@@ -12,8 +12,9 @@ namespace MBI.Core
     ///
     /// ⚠️ 되돌리기 없음 · 「처음부터」로만 지워진다(#141 갈래 — 새 저장이 표식 없이 선다).
     /// ⚠️ 튜토리얼 T6(이중 표시 · CTA · 강제 버튼)은 안 짓는다 — 기획서 T6 전체는 뒤다.
-    /// ✅ **단, 최소 안내 하나는 있다**(사용자 확정 #182 · 2026-10-19) — S4 파밍 · B 해금 뒤 · 재료와 고철이
+    /// ✅ **단, 최소 안내 하나는 있다**(사용자 확정 #182 → **#188 S4 → S3** · 2026-10-19) — S3 파밍 · 재료와 고철이
     ///    다 차면 막 두 장(전투 「▼ 조립」 → 보드 A 마운트 칸 (1,4)) · 강화하면 풀린다(<see cref="TutorialActive"/>).
+    ///    🗑️ 「B 해금 뒤」 조건 — #188 로 걷음(S3 에는 B 가 없다 · B 해금은 S4 #189).
     /// </summary>
     public static class MountEnhanceRule
     {
@@ -40,15 +41,15 @@ namespace MBI.Core
         /// #156(마운트 만충)과 같은 결 · 심사자용 · 「그 판에 자연 진행으로 온 상태」 흉내.
         /// 재료는 안 건드린다 · S1~S3 점프는 안 켠다(켜진 표식을 끄지도 않는다) · 「처음부터」면 꺼진다.
         /// </summary>
-        public const int JumpEnhanceFromStage = 4;
+        public const int JumpEnhanceFromStage = 3;   // #188(2026-10-19) — 🗑️ 구 4(#162). 강화를 배우는 판이 S3 로 왔다.
 
         /// <summary>이 판 번호로 점프하면 강화 표식을 켜는가.</summary>
         public static bool JumpTurnsOn(int stageNumber) => stageNumber >= JumpEnhanceFromStage;
 
-        // ── #182 S4 강화 최소 안내(2026-10-19 사용자 확정 · T3 · 로봇 B 해금과 같은 꼴) ──────────
+        // ── #182 강화 최소 안내(2026-10-19 사용자 확정 · T3 · 로봇 B 해금과 같은 꼴) · #188 S4 → S3 ──────────
 
-        /// <summary>안내가 서는 판 — S4(로봇 B 해금과 같은 판 · 해금 뒤에 선다).</summary>
-        public const string TutorialStageId = "S4";
+        /// <summary>안내가 서는 판 — **S3**(#188 · 🗑️ 구 S4). 주제 「마운트 강화」(STAGE_DATA 3행).</summary>
+        public const string TutorialStageId = "S3";
 
         /// <summary>전투 화면 문구 — ⚠️ 가정(#182 · 사용자가 바꿀 수 있다).</summary>
         public const string CombatPrompt = "조립에서 마운트를 탭해 강화해보세요";
@@ -57,13 +58,13 @@ namespace MBI.Core
         public const string BoardHint = "마운트를 탭한 뒤 강화를 누르세요";
 
         /// <summary>
-        /// **안내가 서는가** — 튜토리얼 마침 · S4 파밍 · 로봇 B 해금됨 · 아직 강화 안 함 · **재료와 고철이 둘 다 참**.
+        /// **안내가 서는가** — 튜토리얼 마침 · S3 파밍(#188) · 아직 강화 안 함 · **재료와 고철이 둘 다 참**(🗑️ B 해금 조건).
         /// 모자라면 막을 안 띄운다(갇힘 방지 · 골드 부족 때 해금 막과 같은 결). 저장 장부 신설 0 —
         /// 끝은 강화 표식이 판정한다. 바로가기 S4+ 점프는 #162 로 표식이 켜져 있어 안 선다.
         /// </summary>
-        public static bool TutorialActive(bool tutorialCleared, int stageNumber, bool isFarming, bool robotBUnlocked,
+        public static bool TutorialActive(bool tutorialCleared, int stageNumber, bool isFarming,
                                           bool enhanced, double material, double cost, double scrap, double scrapCost) =>
-            tutorialCleared && isFarming && robotBUnlocked
+            tutorialCleared && isFarming
             && stageNumber == StageMapName.NumberOf(TutorialStageId)
             && CanEnhance(enhanced, material, cost, scrap, scrapCost);
 
