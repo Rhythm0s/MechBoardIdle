@@ -1437,6 +1437,8 @@ namespace MBI.Combat
             if (!_ready && !TryBeginWhenAllowed()) return;
             if (!_ready) return;
 
+            PublishMountPopover();   // #171 — 판이 서 있지 않아도(설정·메뉴) 팝오버 숫자는 실어 둔다
+
             // ⚠️⚠️ **메뉴가 떠 있는 동안에는 전투를 세운다**(2026-09-18 사용자 확정 ·
             //    「메인 메뉴로」). 종전에는 메뉴를 다시 열어도 **뒤에서 판이 계속 돌았다** —
             //    화면은 메뉴인데 적은 다가오고 HP 는 깎인다. 메뉴를 보고 돌아왔더니
@@ -2641,52 +2643,119 @@ namespace MBI.Combat
             return $"A 마운트 {a:F1} · B 마운트 드론 {b:F1}";
         }
 
+        /// <summary>
+        /// **마운트 팝오버 숫자를 싣는다**(사용자 확정 #171). 보드(로직스)는 러너를 모르므로 신호로 건넨다.
+        /// 상한은 도전 안내 창과 같은 셈이다 — A = `FullCapacity` · B = 드론 슬롯 × 드론 스택.
+        /// </summary>
+        private void PublishMountPopover()
+        {
+            MountPopover.EnhanceCost = EnhanceCost;
+            MountPopover.EnhancedCoef = EnhancedMountCoefValue;
+
+            string kindsA = "";
+            if (_mountA != null)
+                foreach (MountItem item in MountItemsShown)
+                    if (_mountA.AmountOf(item) > 0f) kindsA += (kindsA.Length > 0 ? "·" : "") + MountItemLabel(item);
+            MountPopover.Publish(MountOwner.RobotA,
+                _mountA != null ? _mountA.Total : 0f, _mountA != null ? _mountA.FullCapacity : 0f, kindsA);
+
+            float bNow = _mountB != null ? _mountB.AmountOf(MountItem.Drone) + _mountB.AmountOf(MountItem.DroneAoe) : 0f;
+            float stackB = robot != null && robot.balanceRef != null ? robot.balanceRef.mountStackLimit : 10f;
+            MountPopover.Publish(MountOwner.RobotB, bNow, MountLoad.SlotsRobotB * stackB * DroneStackFactor,
+                bNow > 0f ? "드론" : "");
+        }
+
         private void DrawEntryNotice()
         {
-            float sc = UiLayout.Scale(Screen.height);
-            float w = Mathf.Min(Screen.width - 32f, 1100f * sc);
-            bool showB = robotB != null && RobotBGate.IsUnlocked;
-            float h = (showB ? 630f : 470f) * sc;
-            var rect = new Rect((Screen.width - w) * 0.5f, (Screen.height - h) * 0.42f, w, h);
+            EntryNoticeLayout l = MeasureEntryNotice();
+            var rect = new Rect((Screen.width - l.w) * 0.5f, Mathf.Max(0f, (Screen.height - l.h) * 0.42f), l.w, l.h);
             GUI.ModalWindow(0x5E17, rect, EntryNoticeWindow, GUIContent.none, GUIStyle.none);
         }
 
-        private void EntryNoticeWindow(int id)
+        /// <summary>안내 창의 자리 — 창과 그 안이 **같은 값**을 쓴다(둘이 따로 재면 어긋난다).</summary>
+        private struct EntryNoticeLayout
+        {
+            public float w, h, pad, titleH, bodyH, lineH, btnH;
+            public bool showB;
+            public GUIStyle btn, title, line;
+            public string lineA, lineB, lineMerge;
+        }
+
+        /// <summary>
+        /// **줄 높이를 글자에서 잰다**(2026-10-19 · #171 덧 결함 수정 · #122 결).
+        /// 🗑️ 구 「높이 470 / 630 × 배율 · 줄 70 × 배율 고정」 폐기 — 800×600 창에서 글자는 바닥 크기에서
+        ///    멈추고 칸만 줄어 본문이 제목과 겹치고 「합니다」가 잘렸다(8123 실측 d9b945a).
+        /// 설계값(줄 70 · 본문 91 · 단추 = 설계 높이의 남은 몫)은 **바닥**으로 남는다 — 큰 창은 종전 그대로다.
+        /// </summary>
+        private EntryNoticeLayout MeasureEntryNotice()
         {
             float sc = UiLayout.Scale(Screen.height);
-            bool showB = robotB != null && RobotBGate.IsUnlocked;
-            float w = Mathf.Min(Screen.width - 32f, 1100f * sc);
-            float h = (showB ? 630f : 470f) * sc;
-            UiPlate.Draw(new Rect(0f, 0f, w, h));
-
-            GUIStyle btn = HudButtonStyle();
-            int px = btn.fontSize;
-            var title = new GUIStyle(GUI.skin.label) { fontSize = px, fontStyle = FontStyle.Bold, alignment = TextAnchor.MiddleCenter };
-            var line = new GUIStyle(GUI.skin.label) { fontSize = Mathf.Max(10, Mathf.RoundToInt(px * 0.82f)), alignment = TextAnchor.MiddleCenter, wordWrap = true };
-
-            float pad = 28f * sc, y = pad, lh = 70f * sc;
-            GUI.Label(new Rect(pad, y, w - pad * 2f, lh), ChallengeEntryNotice.Title, title); y += lh;
-            GUI.Label(new Rect(pad, y, w - pad * 2f, lh * 1.3f), ChallengeEntryNotice.Body, line); y += lh * 1.3f;
+            var l = new EntryNoticeLayout();
+            l.showB = robotB != null && RobotBGate.IsUnlocked;
+            l.w = Mathf.Min(Screen.width - 32f, 1100f * sc);
+            l.btn = HudButtonStyle();
+            int px = l.btn.fontSize;
+            l.title = new GUIStyle(GUI.skin.label) { fontSize = px, fontStyle = FontStyle.Bold, alignment = TextAnchor.MiddleCenter, wordWrap = true };
+            l.line = new GUIStyle(GUI.skin.label) { fontSize = Mathf.Max(10, Mathf.RoundToInt(px * 0.82f)), alignment = TextAnchor.MiddleCenter, wordWrap = true };
 
             float aNow = _mountA != null ? _mountA.Total : 0f;
             float aCap = _mountA != null ? _mountA.FullCapacity : 0f;
-            GUI.Label(new Rect(pad, y, w - pad * 2f, lh), ChallengeEntryNotice.LineA(aNow, aCap), line); y += lh;
-            if (showB)
+            l.lineA = ChallengeEntryNotice.LineA(aNow, aCap);
+            if (l.showB)
             {
                 float bNow = _mountB != null ? _mountB.AmountOf(MountItem.Drone) + _mountB.AmountOf(MountItem.DroneAoe) : 0f;
                 // ⚠️ 드론 상한 = B 슬롯 × 드론 스택(절반). `FullCapacity` 는 빈 슬롯을 큰 스택(탄)으로 세어 45 로 나왔다(8123 실측).
                 float stackB = robot != null && robot.balanceRef != null ? robot.balanceRef.mountStackLimit : 10f;
                 float bCap = MountLoad.SlotsRobotB * stackB * DroneStackFactor;
-                GUI.Label(new Rect(pad, y, w - pad * 2f, lh), ChallengeEntryNotice.LineB(bNow, bCap), line); y += lh;
+                l.lineB = ChallengeEntryNotice.LineB(bNow, bCap);
                 // 합체 게이지(사용자 확정 #155) — 이어 가는 값
-                GUI.Label(new Rect(pad, y, w - pad * 2f, lh),
-                    ChallengeEntryNotice.LineMerge(IdleSignals.MergeChargeSeconds / MergeSystem.GaugeFullSeconds), line); y += lh;
+                l.lineMerge = ChallengeEntryNotice.LineMerge(IdleSignals.MergeChargeSeconds / MergeSystem.GaugeFullSeconds);
+            }
+
+            l.pad = 28f * sc;
+            float lh = 70f * sc;
+            float innerW = Mathf.Max(1f, l.w - l.pad * 2f);
+            float Tall(GUIStyle st, string t, float min)
+            {
+                UiText.Prebake(st, t);
+                return Mathf.Max(min, Mathf.Ceil(st.CalcHeight(new GUIContent(t), innerW)));
+            }
+            l.titleH = Tall(l.title, ChallengeEntryNotice.Title, lh);
+            l.bodyH = Tall(l.line, ChallengeEntryNotice.Body, lh * 1.3f);
+            l.lineH = Tall(l.line, l.lineA, lh);
+            if (l.showB) l.lineH = Mathf.Max(l.lineH, Mathf.Max(Tall(l.line, l.lineB, lh), Tall(l.line, l.lineMerge, lh)));
+            int lines = l.showB ? 3 : 1;
+
+            float design = (l.showB ? 630f : 470f) * sc;
+            float btnDesign = design - l.pad * 2f - lh - lh * 1.3f - lh * lines;
+            UiText.Prebake(l.btn, ChallengeEntryNotice.Confirm);
+            float btnNeed = Mathf.Ceil(l.btn.CalcSize(new GUIContent(ChallengeEntryNotice.Confirm)).y) + l.pad * 0.5f;
+            l.btnH = Mathf.Max(btnDesign, btnNeed);
+
+            l.h = l.pad * 2f + l.titleH + l.bodyH + l.lineH * lines + l.btnH;
+            return l;
+        }
+
+        private void EntryNoticeWindow(int id)
+        {
+            EntryNoticeLayout l = MeasureEntryNotice();
+            float w = l.w, pad = l.pad, y = pad;
+            UiPlate.Draw(new Rect(0f, 0f, w, l.h));
+
+            GUI.Label(new Rect(pad, y, w - pad * 2f, l.titleH), ChallengeEntryNotice.Title, l.title); y += l.titleH;
+            GUI.Label(new Rect(pad, y, w - pad * 2f, l.bodyH), ChallengeEntryNotice.Body, l.line); y += l.bodyH;
+            GUI.Label(new Rect(pad, y, w - pad * 2f, l.lineH), l.lineA, l.line); y += l.lineH;
+            if (l.showB)
+            {
+                GUI.Label(new Rect(pad, y, w - pad * 2f, l.lineH), l.lineB, l.line); y += l.lineH;
+                GUI.Label(new Rect(pad, y, w - pad * 2f, l.lineH), l.lineMerge, l.line); y += l.lineH;
             }
 
             // **T3 에서도 띄운다**(사용자 확정 #155 결) — 그때는 「도전 시작」 하나만 둔다(취소 숨김 · 구현 판단):
             //    T3 는 「도전」만 열린 국면이라 닫고 돌아갈 곳이 없다.
             bool t3 = TutorialSignals.HighlightChallengeButton;
-            float bh = h - y - pad;
+            float bh = l.btnH;
+            GUIStyle btn = l.btn;
             if (t3)
             {
                 if (UiSkin.Button(new Rect(pad, y, w - pad * 2f, bh), ChallengeEntryNotice.Confirm, btn)) EnterChallenge();

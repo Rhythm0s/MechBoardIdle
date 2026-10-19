@@ -150,6 +150,15 @@ namespace MBI.Logistics
             new Dictionary<Vector2Int, SpriteRenderer[]>();
         private Vector2Int? _selected;
 
+        /// <summary>
+        /// **마운트 팝오버가 열린 칸**(사용자 확정 #171) — 탭한 마운트 칸. 주인은 보고 있는 판(`_editing`)이다.
+        /// 노드 고르기(`_selected`)와 **동시에 서지 않는다** — `Select` 가 이것을 내리고 이것을 열 때 노드 고르기를 푼다.
+        /// </summary>
+        private Vector2Int? _mountCell;
+
+        /// <summary>팝오버(노드 · 마운트) 중 하나라도 떠 있는가 — 「바깥을 누르면 닫힌다」가 둘 다에 든다.</summary>
+        private bool PopoverOpen => _selected.HasValue || _mountCell.HasValue;
+
         // 드래그 설치(§5-4 L1b): press→drag(경로 셀 누적)→release.
         private bool _dragging;
         private readonly List<Vector2Int> _dragCells = new List<Vector2Int>();
@@ -838,7 +847,7 @@ namespace MBI.Logistics
         /// </summary>
         private void ResetBoardsToStart()
         {
-            if (_selected.HasValue) Deselect();
+            if (PopoverOpen) Deselect();
             _selectedModule = -1;
             _elementMode = null;
 
@@ -872,7 +881,7 @@ namespace MBI.Logistics
         {
             BoardGrid g = _boards[Index(MountOwner.RobotA)];
             if (g == null) return;
-            if (_selected.HasValue) Deselect();
+            if (PopoverOpen) Deselect();
 
             for (int x = 0; x < g.Columns; x++)
             for (int y = 0; y < g.Rows; y++)
@@ -1088,6 +1097,7 @@ namespace MBI.Logistics
 
             // 고른 칸은 판마다 다르다 — 옮기면 테두리를 내린다.
             _selected = null;
+            _mountCell = null;   // #171 — 마운트 팝오버도 판의 것이다
             if (_selectRing != null) _selectRing.SetActive(false);
         }
 
@@ -2600,7 +2610,14 @@ namespace MBI.Logistics
                 return;
             }
 
-            if (!TryCellUnderPointer(out Vector2Int cell) || !_grid.IsInside(cell)) return;
+            if (!TryCellUnderPointer(out Vector2Int cell)) return;
+            if (!_grid.IsInside(cell))
+            {
+                // ✅ **마운트 슬롯 칸 탭 = 마운트 팝오버**(사용자 확정 #171). 슬롯 칸은 마스크 밖이라
+                //    종전엔 여기서 아무 일 없이 돌아섰다. 드래그는 안 시작한다(끌어도 벨트가 안 깔리는 칸이다).
+                if (MountPopover.IsSlotCell(cell, _editing)) OpenMountPopover(cell);
+                return;
+            }
             _dragging = true;
 
             _dragCells.Clear();
@@ -2675,7 +2692,7 @@ namespace MBI.Logistics
                 Mode = _modeBeforeChallenge;
                 // #148 덧 — 도전 중 「보기」로 열어 둔 팝오버는 도전과 함께 닫는다. 남겨 두면 파밍(S2)의
                 //    T4 안내 줄을 가렸다(8123 실측 dfbf6c8).
-                if (_selected.HasValue) Deselect();
+                if (PopoverOpen) Deselect();
             }
 
             bool boardOpen = GameLayerController.BoardViewActive;
@@ -2768,12 +2785,21 @@ namespace MBI.Logistics
                 // ✅ **도전 층 이동 모드: 끌면 이동 · 탭하면 팝오버(보기)**(2026-10-15 사용자 확정 #148).
                 //    탭 = 누른 자리가 떼는 순간에도 **같은 칸**(보드가 칸 경계를 넘을 만큼 안 밀렸다).
                 //    숫자 문턱을 새로 짓지 않는다 — 칸 하나가 기준이다. 파밍 층 이동 모드는 종전 그대로(끌기만).
-                if (_challengePanForced && _grid != null
-                    && _grid.WorldToCell(_panPressWorld - PanOffset) == _panPressCell
-                    && _grid.IsInside(_panPressCell))
+                bool tapped = _grid != null
+                    && _grid.WorldToCell(_panPressWorld - PanOffset) == _panPressCell;
+                // ✅ **마운트 칸 탭 = 마운트 팝오버 — 이동 모드도**(사용자 확정 #171 · 파밍 · 도전 둘 다).
+                //    포트 칸에 노드가 서 있으면 그 노드가 먼저다(아래 종전 길).
+                if (tapped && MountPopover.IsMountCell(_panPressCell, _editing) && !_grid.IsOccupied(_panPressCell))
+                {
+                    OpenMountPopover(_panPressCell);
+                    return;
+                }
+                // 파밍 층 이동 모드는 탭이 아무 일도 안 했다 — 열어 둔 마운트 팝오버만 바깥 탭으로 닫는다.
+                if (tapped && !_challengePanForced && _mountCell.HasValue) { Deselect(); return; }
+                if (_challengePanForced && tapped && _grid.IsInside(_panPressCell))
                 {
                     if (_grid.IsOccupied(_panPressCell)) Select(_panPressCell);
-                    else if (_selected.HasValue) Deselect();
+                    else if (PopoverOpen) Deselect();
                 }
                 return;
             }
@@ -2811,7 +2837,7 @@ namespace MBI.Logistics
                     bool isTarget = !want.HasValue || want.Value == tap;
                     if (canEdit && isTarget && _grid.IsOccupied(tap) && TryAttachSelectedModule(tap)) { }
                     else if (_grid.IsOccupied(tap)) Select(tap);
-                    else if (_selected.HasValue) Deselect();
+                    else if (PopoverOpen) Deselect();
                 }
                 _dragCells.Clear();
                 return;
@@ -2835,9 +2861,15 @@ namespace MBI.Logistics
                 if (canEdit && _grid.IsOccupied(cell) && TryAttachSelectedModule(cell)) { }
                 else if (_grid.IsOccupied(cell)) Select(cell);   // 다른 노드면 그 노드로 갈아탄다
                 else if (canEdit && _elementMode.HasValue) PlaceElement(cell, _elementMode.Value);
+                // ✅ **포트 칸 탭 = 마운트 팝오버**(사용자 확정 #171) — 벨트가 깔린 포트 칸만.
+                //    ⚠️ 구현 판단 — **빈** 포트 칸은 종전 길(닫기 · 놓기)이다. 빈 칸 탭은 「여기에 노드를 놓겠다」라
+                //    마운트 팝오버가 가로채면 포트 칸에 노드를 놓을 길이 없어진다. 마운트 묶음 칸 탭은 늘 연다.
+                //    B 묶음 칸(x3 · x8)이 마스크 안으로 잡혀도 여기서 연다(노드를 못 놓는 자리라 잃는 길이 없다).
+                else if ((_grid.HasBelt(cell) && MountPopover.IsPortCell(cell, _editing))
+                         || MountPopover.IsSlotCell(cell, _editing)) OpenMountPopover(cell);
                 // ⚠️ **벨트 탭은 아무 일도 안 한다**(2026-09-15 사용자 확정 · 개편 ①).
                 // 지우려면 끌어야 한다 — 한 번 눌러 지워지면 실수가 곧 손실이다.
-                else if (_grid.HasBelt(cell)) { if (_selected.HasValue) Deselect(); }
+                else if (_grid.HasBelt(cell)) { if (PopoverOpen) Deselect(); }
                 else
                 {
                     // ⚠️ **팝오버는 바깥을 누르면 닫힌다**(2026-09-15 사용자 확정 · 육안 ③).
@@ -2846,7 +2878,7 @@ namespace MBI.Logistics
                     // 화면 한쪽을 계속 가렸다. 빈 칸을 누르는 것은 「여기에 놓겠다」이기도 한데,
                     // **열려 있는 동안에는 닫기가 먼저다** — 팝오버가 덮은 자리를 잘못 눌러
                     // 엉뚱한 칸에 노드가 놓이는 것을 막는다.
-                    if (_selected.HasValue) Deselect();
+                    if (PopoverOpen) Deselect();
                     else if (canEdit) Place(cell);
                 }
             }
@@ -3935,6 +3967,7 @@ namespace MBI.Logistics
                 });
 
             DrawRecipePanel();
+            DrawMountPanel();   // #171 — 노드 팝오버와 동시에 안 선다(둘 중 하나만 그려진다)
 
             // ⚠️ **모드 막대를 걷었다**(2026-09-15 · 하단 개편 ④). 자리는 보드 우측 하단
             // 판으로 옮겼고(`DrawModePlate`), 그 판은 팔레트보다 **먼저** 그린다 —
@@ -5493,6 +5526,11 @@ namespace MBI.Logistics
         /// </summary>
         private void Deselect()
         {
+            if (_mountCell.HasValue)
+            {
+                _mountCell = null;
+                if (_selectRing != null) _selectRing.SetActive(false);
+            }
             if (!_selected.HasValue) return;
 
             if (_markers.TryGetValue(_selected.Value, out GameObject prev) && prev != null)
@@ -5508,6 +5546,7 @@ namespace MBI.Logistics
 
         private void Select(Vector2Int cell)
         {
+            _mountCell = null;   // #171 — 노드 팝오버와 마운트 팝오버는 동시에 안 선다
             // 이전 선택 색 복원(현재 상태색으로, §L4-R #5).
             if (_selected.HasValue && _markers.TryGetValue(_selected.Value, out GameObject prev) && prev != null)
             {
@@ -5525,6 +5564,111 @@ namespace MBI.Logistics
 
             NodeInstance inst = _grid.GetAt(cell);
             Debug.Log($"[MBI] 선택: {(inst != null ? inst.Definition.displayName : "?")} @ 셀({cell.x},{cell.y}).");
+        }
+
+        /// <summary>
+        /// **마운트 팝오버를 연다**(사용자 확정 #171). 노드 고르기는 푼다(둘은 동시에 안 선다).
+        /// </summary>
+        private void OpenMountPopover(Vector2Int cell)
+        {
+            Deselect();
+            _mountCell = cell;
+            ShowSelectionRing(cell);
+        }
+
+        /// <summary>
+        /// **마운트 팝오버** (사용자 확정 #171) — 노드 팝오버의 **바깥 틀**(자리 `RecipePopoverRect` · 폭
+        /// `RecipePopoverFitWidth` · 판 `UiPlate` · 가림 `UiBlockers`)을 그대로 쓰고 줄만 새로 쓴다.
+        /// 줄 = 제목 · 적재 · 강화 재료 · 강화 단추. 글자와 칸 판정은 `MountPopover` 한 곳이 든다.
+        ///
+        /// ⚠️ 단추는 설정 판 단추와 **같은 문**(`IdleSignals.RequestMountEnhance`)을 연다 — 재료를 쓰는 것은
+        ///    방치 런타임이다. 도전 층에서는 보기만(흐림 · #148 결).
+        /// </summary>
+        private void DrawMountPanel()
+        {
+            if (!_mountCell.HasValue || _grid == null) return;
+            Camera cam = boardCamera != null ? boardCamera : Camera.main;
+            if (cam == null) return;
+
+            Vector3 cw = CellWorld(_mountCell.Value);
+            Vector3 sp = cam.WorldToScreenPoint(cw);
+            if (sp.z <= 0f) return;
+            var cellPos = new Vector2(sp.x, Screen.height - sp.y);
+            float cellPx = Mathf.Abs(
+                cam.WorldToScreenPoint(cw + new Vector3(_grid.CellSize, 0f, 0f)).x - sp.x);
+
+            float uiS = UiLayout.Scale(Screen.height);
+            float hDesign = UiLayout.RecipePopoverRow * uiS;
+            float pad = UiLayout.RecipePopoverGap * uiS * 0.25f;
+            float inner = Mathf.Max(UiLayout.RecipePopoverGap * uiS * 0.5f, UiPlate.Pad);
+            var style = new GUIStyle(GUI.skin.button)
+            {
+                fontSize = KoreanFont.Snap(Mathf.Max(10, Mathf.RoundToInt(hDesign * 0.34f))),
+                wordWrap = true,
+            };
+            var head = new GUIStyle(GUI.skin.label)
+            {
+                fontSize = KoreanFont.Snap(Mathf.Max(10, Mathf.RoundToInt(hDesign * 0.30f))),
+                fontStyle = FontStyle.Bold,
+                wordWrap = true,
+            };
+            var body = new GUIStyle(GUI.skin.label)
+            {
+                fontSize = KoreanFont.Snap(Mathf.Max(10, Mathf.RoundToInt(hDesign * 0.26f))),
+                wordWrap = true,
+            };
+
+            MountOwner owner = _editing;
+            bool enhanced = IdleSignals.MountEnhanced;
+            double material = IdleSignals.WalletEnhMaterial;
+            float cost = MountPopover.EnhanceCost;
+            bool editOk = BoardEditRule.CanEdit(StageLayerSignals.IsFarming, StageLayerSignals.IsTutorialStage);
+
+            // 적을 글자를 **먼저** 다 만든다 — 잴 것과 그릴 것이 같아야 한다(노드 팝오버와 같은 결).
+            string title = MountPopover.Title(owner);
+            string load = MountPopover.LoadLine(MountPopover.LoadOf(owner), MountPopover.CapacityOf(owner),
+                                                MountPopover.KindsOf(owner));
+            string mat = MountPopover.MaterialLine(material, cost);
+            string label = MountPopover.ButtonLabel(enhanced, MountPopover.EnhancedCoef);
+
+            float Need(GUIStyle st, string t) => st.CalcSize(new GUIContent(t)).x;
+            float needW = Need(head, title);
+            needW = Mathf.Max(needW, Need(body, load));
+            needW = Mathf.Max(needW, Need(body, mat));
+            needW = Mathf.Max(needW, Need(style, label));
+
+            float boxW = Mathf.Max(UiLayout.RecipePopoverWidth * uiS, needW + inner * 2f);
+            float margin = UiLayout.RecipePopoverGap * uiS;
+            float w = UiLayout.RecipePopoverFitWidth(boxW, Screen.width, margin) - inner * 2f;
+
+            float Tall(GUIStyle st, string t, float min) =>
+                Mathf.Max(min, st.CalcHeight(new GUIContent(t), Mathf.Max(1f, w)));
+            float h = Mathf.Max(hDesign, style.CalcSize(new GUIContent(label)).y);
+            float row = Mathf.Max(hDesign * 0.62f, body.CalcSize(new GUIContent("적재")).y);
+            float titleH = Tall(head, title, row);
+            float loadH = Tall(body, load, row);
+            float matH = Tall(body, mat, row);
+            float btnH = Tall(style, label, h);
+
+            float total = inner * 2f + titleH + pad + loadH + matH + pad + btnH;
+            Rect box = UiLayout.RecipePopoverRect(cellPos, cellPx, w + inner * 2f, total,
+                Screen.width, Screen.height, margin);
+            UiBlockers.Add(box);
+            UiPlate.Draw(box);
+
+            float x = box.x + inner;
+            float y = box.y + inner;
+            w = box.width - inner * 2f;
+
+            GUI.Label(new Rect(x, y, w, titleH), title, head); y += titleH + pad;
+            GUI.Label(new Rect(x, y, w, loadH), load, body); y += loadH;
+            GUI.Label(new Rect(x, y, w, matH), mat, body); y += matH + pad;
+
+            bool was = GUI.enabled;
+            GUI.enabled = was && MountPopover.ButtonEnabled(editOk, enhanced, material, cost);
+            if (UiSkin.Button(new Rect(x, y, w, btnH), label, style))
+                IdleSignals.RequestMountEnhance(cost);
+            GUI.enabled = was;
         }
 
         /// <summary>

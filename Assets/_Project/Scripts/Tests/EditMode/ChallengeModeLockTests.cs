@@ -33,7 +33,8 @@ namespace MBI.Tests
         {
             // #148 — 화면 배선을 코드가 스스로 말하게 한다(ModuleDetachWiredTests 와 같은 꼴).
             string src = System.IO.File.ReadAllText("Assets/_Project/Scripts/Logistics/BoardController.cs");
-            StringAssert.Contains("if (_challengePanForced && _grid != null", src, "도전 층 이동 모드 탭 → 고르기 갈래가 없다");
+            // #171 — 탭 판정(`tapped`)을 마운트 팝오버와 나눠 쓰도록 앞으로 뺐다. 갈래 뜻은 그대로다.
+            StringAssert.Contains("if (_challengePanForced && tapped && _grid.IsInside(_panPressCell))", src, "도전 층 이동 모드 탭 → 고르기 갈래가 없다");
             StringAssert.Contains("GUI.enabled = r.IsRunnable && editOk;", src, "조합표 후보가 도전 층에서 안 흐리다");
             StringAssert.Contains("GUI.enabled = wasDel && editOk;", src, "「떼기」가 도전 층에서 안 흐리다");
             StringAssert.Contains("GUI.enabled = wasEdit && editOk;", src, "「90도 돌리기」가 도전 층에서 안 흐리다");
