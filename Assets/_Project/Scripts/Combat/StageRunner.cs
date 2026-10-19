@@ -3630,7 +3630,7 @@ namespace MBI.Combat
                           && TutorialGate.Allows(TutorialGate.Control.Merge);   // #189 — 다른 강제 국면에서는 기다린다
             // **합체 원형 펄스**(사용자 확정 #160) — 도전 층에서 만충이면 누를 때까지 커졌다 작아졌다 한다.
             if (MergePulseOn) mergeRect = MergeRushRule.Scaled(mergeRect, MergeRushRule.PulseScale(Time.unscaledTime));
-            if (TutorialSignals.HighlightMergeButton) UiSkin.DrawTutorialOutline(mergeRect);   // #210 — S4 합체 막
+            bool mergeOutline = TutorialSignals.HighlightMergeButton;   // #210 — S4 합체 막(단추 뒤에 그린다 · 아래)
             if (UiSkin.Button(mergeRect, MergeButtonLabel(), round) && _sim.TryMerge())
             {
                 // 발동에 **성공했을 때만** 튼다. 실패한 버튼에 연출이 붙으면 안 된 일이 된 것처럼 보인다.
@@ -3641,6 +3641,7 @@ namespace MBI.Combat
                 if (_sim.LastBurstDamage > 0f)
                     AudioSignals.Play(SoundIds.Burst, SoundIds.KindOf(SoundIds.Burst));
             }
+            if (mergeOutline) UiSkin.DrawTutorialOutline(mergeRect);   // #210
 
             GUI.enabled = true;
 

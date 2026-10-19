@@ -6253,13 +6253,14 @@ namespace MBI.Logistics
             bool was = GUI.enabled;
             GUI.enabled = was && MountPopover.ButtonEnabled(editOk, enhanced, material, cost,
                                                             IdleSignals.WalletScrap, BuildCost.EnhanceScrap);
-            if (!enhanced && TutorialGate.Current == TutorialGate.Phase.EnhanceMountBoard)
-                UiSkin.DrawTutorialOutline(new Rect(x, y, w, btnH));   // #210 — 강화 단추
             if (UiSkin.Button(new Rect(x, y, w, btnH), label, style))
             {
                 if (owner == MountOwner.RobotB) IdleSignals.RequestMountEnhanceB(cost);   // #195
                 else IdleSignals.RequestMountEnhance(cost);
             }
+            // #210 — 강화 단추(단추 **뒤에** 그린다 · 앞에 그리면 단추 바탕이 덮는다)
+            if (!enhanced && TutorialGate.Current == TutorialGate.Phase.EnhanceMountBoard)
+                UiSkin.DrawTutorialOutline(new Rect(x, y, w, btnH));
             GUI.enabled = was;
         }
 
