@@ -20,7 +20,7 @@ namespace MBI.Tests
         {
             Assert.IsFalse(MountEnhanceRule.JumpTurnsOn(1));
             Assert.IsFalse(MountEnhanceRule.JumpTurnsOn(2));
-            Assert.IsTrue(MountEnhanceRule.JumpTurnsOn(3), "#188 — S3 부터");
+            Assert.IsFalse(MountEnhanceRule.JumpTurnsOn(3), "#198 — S3 점프는 자동 안 켬(재료 63 → 막에서 직접)");
             Assert.IsTrue(MountEnhanceRule.JumpTurnsOn(4));
             Assert.IsTrue(MountEnhanceRule.JumpTurnsOn(6));
             Assert.IsFalse(MountEnhanceRule.JumpTurnsOn(0), "튜토리얼(0)은 안 켠다");

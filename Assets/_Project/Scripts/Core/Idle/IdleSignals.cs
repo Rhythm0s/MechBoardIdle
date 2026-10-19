@@ -161,6 +161,26 @@ namespace MBI.Core
         /// <summary>#195 — 로봇 B 마운트 강화 표식(A 와 따로). 방치 런타임이 저장에서 싣는다.</summary>
         public static bool MountEnhancedB;
 
+        private static bool _jumpTopUpRequested;
+        private static double _jumpTopUpMaterial, _jumpTopUpScrap;
+
+        /// <summary>#198 — 바로가기 점프 지갑 채움 요청(재료 · 고철을 이 값**까지만**). 방치 런타임이 가져간다.</summary>
+        public static void RequestJumpTopUp(double material, double scrap)
+        {
+            _jumpTopUpRequested = true;
+            _jumpTopUpMaterial = material;
+            _jumpTopUpScrap = scrap;
+        }
+
+        /// <summary>점프 채움 요청을 가져가며 비운다.</summary>
+        public static bool TryDrainJumpTopUp(out double material, out double scrap)
+        {
+            material = _jumpTopUpMaterial; scrap = _jumpTopUpScrap;
+            bool had = _jumpTopUpRequested;
+            _jumpTopUpRequested = false; _jumpTopUpMaterial = 0d; _jumpTopUpScrap = 0d;
+            return had;
+        }
+
         private static bool _enhanceBRequested;
         private static double _enhanceBCost;
         private static bool _jumpEnhanceBRequested;
@@ -437,6 +457,7 @@ namespace MBI.Core
             WalletGold = 0d;
             MountEnhanced = false;
             MountEnhancedB = false;
+            _jumpTopUpRequested = false;
             _enhanceBRequested = false;
             _enhanceBCost = 0d;
             _jumpEnhanceBRequested = false;

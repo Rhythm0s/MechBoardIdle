@@ -617,9 +617,24 @@ namespace MBI.Combat
             // 사용자 확정 #162 — S4 이상 점프는 강화 표식을 켠다(재료 안 씀 · 판이 서기 **전에** 켜야 계수가 바로 선다).
             if (s != null && MountEnhanceRule.JumpTurnsOn(StageMapName.NumberOf(s.stageId)))
                 IdleSignals.RequestJumpEnhance();
-            // #195 — S6 점프는 B 표식도(A · B 둘 다 자동).
+            // 🗑️ #195 「S6 점프는 B 표식도」 — #198 로 꺼짐(JumpTurnsOnB = 7 부터 · 지금 판 없음). 남김.
             if (s != null && MountEnhanceRule.JumpTurnsOnB(StageMapName.NumberOf(s.stageId)))
                 IdleSignals.RequestJumpEnhanceB();
+
+            // ✅ **#198 — 점프 판까지의 통과 보상을 지갑에**(사용자 확정 · 「S3 이동 시 바로 지급」). 그 값까지만 채운다(중복 0).
+            //    고철은 강화 비용(300)까지 보장 ⚠️ 가정. 하네스 불변(점프 = 심사자 전용).
+            if (s != null)
+            {
+                int n = StageMapName.NumberOf(s.stageId);
+                double before = 0d;
+                foreach (StageDefinition d in stages)
+                    if (d != null && StageMapName.NumberOf(d.stageId) > 0 && StageMapName.NumberOf(d.stageId) < n)
+                        before += d.enhMaterialReward;
+                double cost = runner != null ? runner.EnhanceCost : 0d;
+                double target = MountEnhanceRule.JumpMaterialTarget(before, cost,
+                    IdleSignals.MountEnhanced, IdleSignals.MountEnhancedB);
+                IdleSignals.RequestJumpTopUp(target, BuildCost.EnhanceScrap);
+            }
 
             // 사용자 확정 #167 · #168 — S5 · S6 점프는 로봇 A 보드를 폭발탄 프리셋으로 세운다(저장 보드 덮음 ⚠️ 가정).
             if (s != null && PresetBoards.ExplosiveOnJump(StageMapName.NumberOf(s.stageId)))

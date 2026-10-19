@@ -30,7 +30,7 @@ namespace MBI.Tests
             Assert.IsFalse(Active(farming: false), "도전 층에서는 안 선다");
             Assert.IsFalse(Active(stage: 4));
             Assert.IsFalse(Active(stage: 2));
-            Assert.IsFalse(Active(cleared: false));
+            Assert.IsTrue(Active(cleared: false), "#198 — 바로가기 S3 점프(튜토리얼 안 마침)도 막이 선다");
         }
 
         [Test]

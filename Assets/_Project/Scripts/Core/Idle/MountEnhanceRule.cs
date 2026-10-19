@@ -19,7 +19,7 @@ namespace MBI.Core
     public static class MountEnhanceRule
     {
         /// <summary>단추 글자 — ⚠️ 가정(#150 · 사용자가 바꿀 수 있다).</summary>
-        public const string ButtonLabel = "강화 (재료 전부 투입)";
+        public const string ButtonLabel = "강화 (재료 전부 투입)";   // 🗑️ #199 — 화면은 `ButtonLabelWithCost` · 비용 50 만 쓰는데 「전부」가 거짓이었다
 
         /// <summary>켜진 뒤 글자 — ⚠️ 가정(#150). 배율은 자산 값을 받아 적는다(1.45 를 글자에 박지 않는다).</summary>
         public static string AppliedLabel(float enhancedCoef) => $"강화 ×{enhancedCoef:0.##} 적용";
@@ -41,7 +41,7 @@ namespace MBI.Core
         /// #156(마운트 만충)과 같은 결 · 심사자용 · 「그 판에 자연 진행으로 온 상태」 흉내.
         /// 재료는 안 건드린다 · S1~S3 점프는 안 켠다(켜진 표식을 끄지도 않는다) · 「처음부터」면 꺼진다.
         /// </summary>
-        public const int JumpEnhanceFromStage = 3;   // #188(2026-10-19) — 🗑️ 구 4(#162). 강화를 배우는 판이 S3 로 왔다.
+        public const int JumpEnhanceFromStage = 4;   // #198(2026-10-19) — S3 점프는 자동 안 켬(재료 63 지급 → 강화 막에서 직접 누름) · 🗑️ #188 의 3.
 
         /// <summary>이 판 번호로 점프하면 강화 표식을 켜는가.</summary>
         public static bool JumpTurnsOn(int stageNumber) => stageNumber >= JumpEnhanceFromStage;
@@ -58,13 +58,14 @@ namespace MBI.Core
         public const string BoardHint = "마운트를 탭한 뒤 강화를 누르세요";
 
         /// <summary>
-        /// **안내가 서는가** — 튜토리얼 마침 · S3 파밍(#188) · 아직 강화 안 함 · **재료와 고철이 둘 다 참**(🗑️ B 해금 조건).
+        /// **안내가 서는가** — S3 파밍(#188) · 아직 강화 안 함 · **재료와 고철이 둘 다 참**(🗑️ B 해금 조건).
+        /// ✅ #198 — 「튜토리얼 마침」 조건 걷음(인자는 남김 · 안 씀): 바로가기 S3 점프도 막이 선다. S3 파밍은 튜토리얼을 마치거나 점프해야만 닿는다.
         /// 모자라면 막을 안 띄운다(갇힘 방지 · 골드 부족 때 해금 막과 같은 결). 저장 장부 신설 0 —
         /// 끝은 강화 표식이 판정한다. 바로가기 S4+ 점프는 #162 로 표식이 켜져 있어 안 선다.
         /// </summary>
         public static bool TutorialActive(bool tutorialCleared, int stageNumber, bool isFarming,
                                           bool enhanced, double material, double cost, double scrap, double scrapCost) =>
-            tutorialCleared && isFarming
+            isFarming
             && stageNumber == StageMapName.NumberOf(TutorialStageId)
             && CanEnhance(enhanced, material, cost, scrap, scrapCost);
 
@@ -74,7 +75,7 @@ namespace MBI.Core
         public const string TutorialStageIdB = "S6";
 
         /// <summary>바로가기 점프로 B 표식을 켜는 판 — S6 부터(A · B 둘 다 자동).</summary>
-        public const int JumpEnhanceBFromStage = 6;
+        public const int JumpEnhanceBFromStage = 7;   // #198 — 🗑️ 구 6(#195 「S6 점프 = A·B 자동」) · B 는 점프에서 자동 안 켬(재료 지급 → B 막에서 직접)
 
         /// <summary>이 판 번호로 점프하면 B 강화 표식을 켜는가.</summary>
         public static bool JumpTurnsOnB(int stageNumber) => stageNumber >= JumpEnhanceBFromStage;
@@ -90,9 +91,26 @@ namespace MBI.Core
         /// </summary>
         public static bool TutorialActiveB(bool tutorialCleared, int stageNumber, bool isFarming, bool robotBUnlocked,
                                            bool enhancedB, double material, double cost, double scrap, double scrapCost) =>
-            tutorialCleared && isFarming && robotBUnlocked
+            isFarming && robotBUnlocked   // #198 — 튜토리얼 마침 조건 걷음(A 와 같은 까닭)
             && stageNumber == StageMapName.NumberOf(TutorialStageIdB)
             && CanEnhance(enhancedB, material, cost, scrap, scrapCost);
+
+        /// <summary>
+        /// **#198 — 바로가기 점프 재료**: 그 판 앞 판들의 최초 통과 보상 합에서 이미 강화한(또는 점프가 자동 강화한) 마운트 몫을 뺀 값.
+        /// 지갑을 이 값**까지만** 채운다(더하지 않는다 → 거듭 점프해도 중복 지급 없음 · 장부 신설 0). S3 = 63 · S4·S5 = 50 · S6 = 50(B 몫).
+        /// </summary>
+        public static double JumpMaterialTarget(double rewardsBefore, double cost, bool aEnhanced, bool bEnhanced) =>
+            System.Math.Max(0d, rewardsBefore - (aEnhanced ? cost : 0d) - (bEnhanced ? cost : 0d));
+
+        // ── #199 팝오버 레벨 · 배율 줄 + 단추 글자 ──────────
+        /// <summary>「강화 Lv 1 · ×1.00」 / 「강화 Lv 2 · ×1.45」 — ⚠️ 꼴 가정(#199).</summary>
+        public static string LevelLine(bool enhanced, float enhancedCoef) =>
+            enhanced ? $"강화 Lv 2 · ×{enhancedCoef:0.00}" : "강화 Lv 1 · ×1.00";
+
+        /// <summary>단추 글자 — 「강화 (재료 50 · 고철 300)」 / 강화 뒤 「강화 완료」(흐림) ⚠️ 가정(#199 · 🗑️ 「강화 (재료 전부 투입)」).</summary>
+        public static string ButtonLabelWithCost(bool enhanced, double cost, double scrapCost) =>
+            enhanced ? "강화 완료"
+                     : scrapCost > 0d ? $"강화 (재료 {cost:0} · 고철 {scrapCost:0})" : $"강화 (재료 {cost:0})";
 
         /// <summary>마운트계수 — **표식 ? 강화 : 기본**. 러너와 하네스가 같은 문을 지난다.</summary>
         public static float MountCoef(bool enhanced, float baseCoef, float enhancedCoef) =>

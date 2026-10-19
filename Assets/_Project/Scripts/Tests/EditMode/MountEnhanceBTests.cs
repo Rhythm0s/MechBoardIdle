@@ -25,7 +25,7 @@ namespace MBI.Tests
             Assert.IsFalse(Active(unlocked: false));
             Assert.IsFalse(Active(stage: 5));
             Assert.IsFalse(Active(farming: false));
-            Assert.IsTrue(MountEnhanceRule.JumpTurnsOnB(6));
+            Assert.IsFalse(MountEnhanceRule.JumpTurnsOnB(6), "#198 — S6 점프는 B 를 자동으로 안 켬(재료 지급 → B 막)");
             Assert.IsFalse(MountEnhanceRule.JumpTurnsOnB(5));
             Assert.AreEqual("로봇 B 마운트를 탭한 뒤 강화를 누르세요", MountEnhanceRule.BoardHintB);
         }

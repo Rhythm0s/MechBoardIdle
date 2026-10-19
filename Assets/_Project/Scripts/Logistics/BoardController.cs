@@ -6097,12 +6097,15 @@ namespace MBI.Logistics
             string load = MountPopover.LoadLine(MountPopover.LoadOf(owner), MountPopover.CapacityOf(owner),
                                                 MountPopover.KindsOf(owner));
             string mat = MountPopover.MaterialLine(material, cost, IdleSignals.WalletScrap, BuildCost.EnhanceScrap);   // #172 재료 · 고철 한 줄
-            string label = MountPopover.ButtonLabel(enhanced, MountPopover.EnhancedCoef);
+            // ✅ #199 — 단추 글자 = 비용 · 강화 뒤 「강화 완료」(🗑️ 「강화 (재료 전부 투입)」 · 「강화 ×1.45 적용」은 레벨 줄로 옮김).
+            string label = MountEnhanceRule.ButtonLabelWithCost(enhanced, cost, BuildCost.EnhanceScrap);
+            string lv = MountEnhanceRule.LevelLine(enhanced, MountPopover.EnhancedCoef);
 
             float Need(GUIStyle st, string t) => st.CalcSize(new GUIContent(t)).x;
             float needW = Need(head, title);
             needW = Mathf.Max(needW, Need(body, load));
             needW = Mathf.Max(needW, Need(body, mat));
+            needW = Mathf.Max(needW, Need(body, lv));
             needW = Mathf.Max(needW, Need(style, label));
 
             float boxW = Mathf.Max(UiLayout.RecipePopoverWidth * uiS, needW + inner * 2f);
@@ -6117,9 +6120,10 @@ namespace MBI.Logistics
             float loadH = Tall(body, load, row);
             bool matIcon = BuildCost.EnhanceScrap > 0d;   // #175 ⓐ — 고철 쪽은 아이콘 + 값(한 줄)
             float matH = matIcon ? row : Tall(body, mat, row);
+            float lvH = Tall(body, lv, row);   // #199
             float btnH = Tall(style, label, h);
 
-            float total = inner * 2f + titleH + pad + loadH + matH + pad + btnH;
+            float total = inner * 2f + titleH + pad + loadH + lvH + matH + pad + btnH;
             Rect box = UiLayout.RecipePopoverRect(cellPos, cellPx, w + inner * 2f, total,
                 Screen.width, Screen.height, margin);
             UiBlockers.Add(box);
@@ -6131,6 +6135,7 @@ namespace MBI.Logistics
 
             GUI.Label(new Rect(x, y, w, titleH), title, head); y += titleH + pad;
             GUI.Label(new Rect(x, y, w, loadH), load, body); y += loadH;
+            GUI.Label(new Rect(x, y, w, lvH), lv, body); y += lvH;   // #199
             if (matIcon)
                 UiIcons.DrawLine(new Rect(x, y, w, matH), body, MountPopover.MaterialPrefix(material, cost),
                                  UiIcons.Scrap, UiIcons.ScrapFallback,

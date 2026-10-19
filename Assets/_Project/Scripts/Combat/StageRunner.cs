@@ -2813,8 +2813,9 @@ namespace MBI.Combat
                 return;
             }
             float bw = (w - pad * 3f) * 0.5f;
-            if (UiSkin.Button(new Rect(pad, y, bw, bh), ChallengeEntryNotice.Confirm, btn)) EnterChallenge();
-            else if (UiSkin.Button(new Rect(pad * 2f + bw, y, bw, bh), ChallengeEntryNotice.Cancel, btn)) _entryNoticeOpen = false;
+            // ✅ #200 — [취소] 왼쪽 · [도전 시작] 오른쪽(물류 모듈 창의 취소 자리와 통일 · 사용자 확정). 🗑️ 구 [도전 시작][취소].
+            if (UiSkin.Button(new Rect(pad, y, bw, bh), ChallengeEntryNotice.Cancel, btn)) _entryNoticeOpen = false;
+            else if (UiSkin.Button(new Rect(pad * 2f + bw, y, bw, bh), ChallengeEntryNotice.Confirm, btn)) EnterChallenge();
         }
 
         /// <summary>**도전 → 파밍**. 결과 화면의 「스테이지로」가 부른다.</summary>

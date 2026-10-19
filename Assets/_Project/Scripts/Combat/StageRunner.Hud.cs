@@ -601,7 +601,7 @@ namespace MBI.Combat
             bool farming = status == StageBadgeRule.StatusKind.Farm;
             string goal = farming
                 ? "파밍: " + stage.topic + "  ·  모아서 보드를 키운다"
-                : HasRequirement
+                : HasRequirement && stage.req > 0f   // ✅ #201 — 요구치 0 판(S5 · S6 · 예산식/공식)은 「전투력 0 넘기기」를 안 쓴다
                     // ✅ #180(사용자 B안 · 10-19) — 「출력」 → 「전투력」(노드 수 칩 「출력」과 혼동). 수 · 판정은 그대로.
                     ? "목표: " + stage.topic + "  ·  전투력 " + stage.req.ToString("F0") + " 넘기기"
                     : "목표: " + stage.topic;

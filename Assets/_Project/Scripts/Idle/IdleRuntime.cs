@@ -191,7 +191,15 @@ namespace MBI.Idle
                 Save();
             }
 
-            // #195 — 바로가기 S6 점프 B 강화(표식만 · 바로 저장).
+            // ✅ #198 — 바로가기 점프 지갑 채움(그 값까지만 · 더하지 않음 → 중복 지급 없음) · 바로 저장.
+            if (IdleSignals.TryDrainJumpTopUp(out double topMat, out double topScrap))
+            {
+                if (Wallet.EnhMaterial < topMat) Wallet.AddEnhMaterial(topMat - Wallet.EnhMaterial);
+                if (Wallet.Scrap < topScrap) Wallet.AddScrap(topScrap - Wallet.Scrap);
+                Save();
+            }
+
+            // #195 — 바로가기 S6 점프 B 강화(표식만 · 바로 저장). 🗑️ #198 로 부르는 곳 없음(JumpTurnsOnB 가 안 켬) · 남김.
             if (IdleSignals.TryDrainJumpEnhanceB() && !Data.mountEnhancedB)
             {
                 Data.mountEnhancedB = true;
