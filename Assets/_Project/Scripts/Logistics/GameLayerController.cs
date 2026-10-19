@@ -178,6 +178,10 @@ namespace MBI.Logistics
             float k = Mathf.Clamp01(slideSpeed * Time.deltaTime);
             cam.transform.position = Vector3.Lerp(p, new Vector3(tc.x, tc.y, p.z), k);
             cam.orthographicSize = Mathf.Lerp(cam.orthographicSize, ts, k);
+
+            // ✅ CID_214 — 미끄러짐이 끝났는가(튜토리얼 시야 이동이 이것을 기다린다).
+            GameViewSignals.BoardCameraSettled = _boardView && BoardFocusRule.CameraSettled(
+                cam.transform.position, tc, cam.orthographicSize, ts);
         }
 
         private void Snap(bool board)

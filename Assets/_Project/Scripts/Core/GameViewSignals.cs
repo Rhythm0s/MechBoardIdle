@@ -17,6 +17,9 @@ namespace MBI.Core
         /// <summary>조립(물류 보드) 레이어가 활성인가. 레이어 컨트롤러가 매 프레임 넣는다.</summary>
         public static bool BoardViewActive;
 
+        /// <summary>CID_214 — 보드 화면이고 카메라가 목표 위치 · 배율에 닿았는가(`BoardFocusRule`). 레이어 컨트롤러가 매 프레임 넣는다.</summary>
+        public static bool BoardCameraSettled;
+
         /// <summary>
         /// **카메라가 비출 자리** — 싸우는 로봇의 위치 (2026-09-15 사용자 확정 · 육안 ⑥ · UI 9-5).
         ///

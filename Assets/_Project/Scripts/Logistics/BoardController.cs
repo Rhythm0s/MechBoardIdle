@@ -1934,7 +1934,9 @@ namespace MBI.Logistics
                 && TutorialGate.Current == TutorialGate.Phase.ExplosiveBoard)
             {
                 Vector2Int xc = ExplosiveTutorialRule.CellOf(TutorialSignals.ExplosiveStep);
-                if (!_explosiveFocusDone) { FocusCell(xc); _explosiveFocusDone = true; }
+                // ✅ CID_214 — 카메라가 선 뒤에 한 번(🗑️ 들어간 첫 프레임 한 번 = 미끄러지는 카메라로 쟀다).
+                if (BoardFocusRule.ShouldFocus(_explosiveFocusDone, GameLayerController.BoardViewActive, GameViewSignals.BoardCameraSettled))
+                { FocusCell(xc); _explosiveFocusDone = true; }
                 RefreshTutorialDim(xc);
                 RefreshTutorialGhost(_grid.GetAt(xc) == null && _grid.GetBeltAt(xc) == null ? (Vector2Int?)xc : null);
                 return;
@@ -1954,7 +1956,9 @@ namespace MBI.Logistics
                 && TutorialGate.Current == TutorialGate.Phase.EnhanceMountBoard)
             {
                 Vector2Int mc = EnhanceTutorialCell;
-                if (!_enhanceFocusDone) { FocusCell(mc); _enhanceFocusDone = true; }
+                // ✅ CID_214 — A · B 강화 같은 규칙: 판 전환 · 카메라 미끄러짐이 끝난 뒤 한 번.
+                if (BoardFocusRule.ShouldFocus(_enhanceFocusDone, GameLayerController.BoardViewActive, GameViewSignals.BoardCameraSettled))
+                { FocusCell(mc); _enhanceFocusDone = true; }
                 RefreshTutorialDim(mc);
                 RefreshTutorialGhost(null);
                 return;
