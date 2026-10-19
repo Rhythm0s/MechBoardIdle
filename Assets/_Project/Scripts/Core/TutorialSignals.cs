@@ -95,6 +95,9 @@ namespace MBI.Core
         /// </summary>
         public static bool HighlightMergeButton;
 
+        /// <summary>**S6 — 로봇 B 마운트 강화 안내 막**(사용자 확정 #195). A 안내와 같은 국면 둘을 쓴다.</summary>
+        public static bool HighlightEnhanceMountB;
+
         /// <summary>
         /// T4 대상 노드 칸 — **보드가 고르고 쓴다**(그 칸의 사실을 아는 것은 보드뿐이다).
         /// null 이면 고를 노드가 없다(그때 끝 조건은 「판의 아무 노드에나 모듈」).
@@ -230,6 +233,7 @@ namespace MBI.Core
             HighlightUnlockRobotB = false;
             HighlightEnhanceMount = false;
             HighlightMergeButton = false;
+            HighlightEnhanceMountB = false;
             ModuleTargetCell = null;
             ModuleTargetFilled = false;
             ModuleTargetKnown = false;

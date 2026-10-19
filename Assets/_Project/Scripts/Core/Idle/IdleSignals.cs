@@ -158,6 +158,45 @@ namespace MBI.Core
         /// </summary>
         public static bool MountEnhanced;
 
+        /// <summary>#195 — 로봇 B 마운트 강화 표식(A 와 따로). 방치 런타임이 저장에서 싣는다.</summary>
+        public static bool MountEnhancedB;
+
+        private static bool _enhanceBRequested;
+        private static double _enhanceBCost;
+        private static bool _jumpEnhanceBRequested;
+
+        /// <summary>#195 — B 강화 요청(마운트 팝오버 B 판). 재료 · 고철을 쓰는 것은 방치 런타임 하나다.</summary>
+        public static void RequestMountEnhanceB(double cost)
+        {
+            _enhanceBRequested = true;
+            _enhanceBCost = cost;
+        }
+
+        /// <summary>B 강화 요청을 가져가며 비운다.</summary>
+        public static bool TryDrainMountEnhanceB(out double cost)
+        {
+            cost = _enhanceBCost;
+            bool had = _enhanceBRequested;
+            _enhanceBRequested = false;
+            _enhanceBCost = 0d;
+            return had;
+        }
+
+        /// <summary>#195 — 바로가기 S6 점프 B 강화(재료 없이 표식만 · 표식은 바로 세운다).</summary>
+        public static void RequestJumpEnhanceB()
+        {
+            _jumpEnhanceBRequested = true;
+            MountEnhancedB = true;
+        }
+
+        /// <summary>점프 B 강화 요청을 가져가며 비운다.</summary>
+        public static bool TryDrainJumpEnhanceB()
+        {
+            bool had = _jumpEnhanceBRequested;
+            _jumpEnhanceBRequested = false;
+            return had;
+        }
+
         /// <summary>
         /// **합체 게이지(초) 게시 — 상태**(사용자 확정 #155 · 2026-10-16). 전투가 매 프레임 쓰고, 판이 새로 설 때
         /// 그 값을 새 판에 넣는다. 방치 런타임이 저장에서 복원하고 저장에 쓴다. 썼으면 0.
@@ -397,6 +436,10 @@ namespace MBI.Core
             WalletEnhMaterial = 0d;
             WalletGold = 0d;
             MountEnhanced = false;
+            MountEnhancedB = false;
+            _enhanceBRequested = false;
+            _enhanceBCost = 0d;
+            _jumpEnhanceBRequested = false;
             MergeChargeSeconds = 0f;
             _jumpEnhanceRequested = false;
             _robotBUnlockRequested = false;

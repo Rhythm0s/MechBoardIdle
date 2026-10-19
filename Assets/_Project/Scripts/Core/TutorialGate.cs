@@ -126,7 +126,11 @@ namespace MBI.Core
             // (2026-09-15 · 「이동 모드 버튼이 안 먹는다」).
             // 신호를 켜는 곳만 있고 끄는 곳이 없어 **들어간 뒤에도 그 국면에 머물렀고**,
             // 그 국면은 조립 버튼 하나만 허락하므로 **보드가 통째로 잠겼다.**
-            Resolve(TutorialSignals.HighlightEnhanceMount && TutorialSignals.BoardViewIsTutorialBoard,
+            // #195 — B 안내도 같은 국면 둘(전투 「▼ 조립」 / 보드 마운트 칸)을 쓴다. 보드에서는 **그 판을 보고 있을 때만**.
+            Resolve((TutorialSignals.HighlightEnhanceMount
+                        && (!TutorialSignals.BoardViewOpen || TutorialSignals.BoardViewIsTutorialBoard))
+                    || (TutorialSignals.HighlightEnhanceMountB
+                        && (!TutorialSignals.BoardViewOpen || !TutorialSignals.BoardViewIsTutorialBoard)),
                     TutorialSignals.HighlightUnlockRobotB,
                     TutorialSignals.HighlightChallengeButton,
                     TutorialSignals.ModuleTutorialActive,

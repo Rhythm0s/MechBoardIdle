@@ -617,6 +617,9 @@ namespace MBI.Combat
             // 사용자 확정 #162 — S4 이상 점프는 강화 표식을 켠다(재료 안 씀 · 판이 서기 **전에** 켜야 계수가 바로 선다).
             if (s != null && MountEnhanceRule.JumpTurnsOn(StageMapName.NumberOf(s.stageId)))
                 IdleSignals.RequestJumpEnhance();
+            // #195 — S6 점프는 B 표식도(A · B 둘 다 자동).
+            if (s != null && MountEnhanceRule.JumpTurnsOnB(StageMapName.NumberOf(s.stageId)))
+                IdleSignals.RequestJumpEnhanceB();
 
             // 사용자 확정 #167 · #168 — S5 · S6 점프는 로봇 A 보드를 폭발탄 프리셋으로 세운다(저장 보드 덮음 ⚠️ 가정).
             if (s != null && PresetBoards.ExplosiveOnJump(StageMapName.NumberOf(s.stageId)))

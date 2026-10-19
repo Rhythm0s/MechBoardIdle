@@ -74,6 +74,7 @@ namespace MBI.Combat
 
         /// <summary>지금 판에 든 강화 표식 — 게시값과 다르면 그 자리에서 계수를 갈아 끼운다(#150).</summary>
         private bool _mountEnhancedApplied;
+        private bool _mountEnhancedBApplied;   // #195
 
         /// <summary>설정 판 단추가 읽는 강화 비용 — ENHANCE_DATA s4Cost(BalanceConfig). 없으면 0(단추 안 눌림).</summary>
         public float EnhanceCost => robot != null && robot.balanceRef != null ? robot.balanceRef.s4Cost : 0f;
@@ -118,12 +119,15 @@ namespace MBI.Combat
 
         private void ApplyMountEnhanceIfChanged()
         {
-            if (_sim == null || _mountEnhancedApplied == IdleSignals.MountEnhanced) return;
+            if (_sim == null) return;
+            if (_mountEnhancedApplied == IdleSignals.MountEnhanced && _mountEnhancedBApplied == IdleSignals.MountEnhancedB) return;
             _mountEnhancedApplied = IdleSignals.MountEnhanced;
+            _mountEnhancedBApplied = IdleSignals.MountEnhancedB;
             _mountCoef = MountEnhanceRule.MountCoef(_mountEnhancedApplied, robot.mountCoef, robot.enhancedMountCoef);
             _sim.SetMountCoef(0, _mountCoef);
+            // ✅ #195 — B 는 **제 표식**(mountEnhancedB)을 본다. 🗑️ 구 「A 표식 하나가 A · B 둘 다」(#150).
             if (robotB != null)
-                _sim.SetMountCoef(1, MountEnhanceRule.MountCoef(_mountEnhancedApplied,
+                _sim.SetMountCoef(1, MountEnhanceRule.MountCoef(_mountEnhancedBApplied,
                     robotB.mountCoef, robotB.enhancedMountCoef));
         }
         private bool _ready;
@@ -604,6 +608,7 @@ namespace MBI.Combat
             //    (2026-10-16 사용자 확정 #150) — 재료를 안 넣어도 S4 부터 ×1.45 가 저절로 켜졌다.
             //    이제 **강화 표식 하나**가 정한다(`MountEnhanceRule`).
             _mountEnhancedApplied = IdleSignals.MountEnhanced;
+            _mountEnhancedBApplied = IdleSignals.MountEnhancedB;   // #195
             _mountCoef = MountEnhanceRule.MountCoef(_mountEnhancedApplied, robot.mountCoef, robot.enhancedMountCoef);
             float origin = robot.balanceRef != null ? robot.balanceRef.origin : 100f;
             float ammoCapacity = robot.balanceRef != null ? robot.balanceRef.storeCapacity : 40f;
@@ -728,8 +733,8 @@ namespace MBI.Combat
             return new RobotSetup
             {
                 hp = tuning.robotHp,
-                // 🗑️ 구 powerModel 조건 폐기(#150) — A 와 같은 표식이 정한다
-                mountCoef = MountEnhanceRule.MountCoef(IdleSignals.MountEnhanced,
+                // 🗑️ 구 powerModel 조건 폐기(#150) · 🗑️ 「A 와 같은 표식」(#195) — B 는 제 표식
+                mountCoef = MountEnhanceRule.MountCoef(IdleSignals.MountEnhancedB,
                     robotB.mountCoef, robotB.enhancedMountCoef),
                 moduleMult = robotB.moduleMult,
                 attackRange = tuning.robotAttackRangeTbd,
@@ -1747,6 +1752,11 @@ namespace MBI.Combat
                 stage != null && IdleSignals.ClearedStageIds.Contains(stage.stageId),
                 RobotBGate.IsUnlocked, _sim != null && _sim.Merge != null && _sim.Merge.IsReady
                     && _sim.Result == CombatResult.InProgress);
+            // **S6 — 로봇 B 마운트 강화 안내**(사용자 확정 #195) — A 안내와 같은 꼴 · 같은 비용.
+            TutorialSignals.HighlightEnhanceMountB = MountEnhanceRule.TutorialActiveB(
+                IdleSignals.TutorialCleared, stageNo, StageLayerSignals.IsFarming, RobotBGate.IsUnlocked,
+                IdleSignals.MountEnhancedB, IdleSignals.WalletEnhMaterial, EnhanceCost,
+                IdleSignals.WalletScrap, BuildCost.EnhanceScrap);
             TutorialSignals.HighlightEnhanceMount = MountEnhanceRule.TutorialActive(
                 IdleSignals.TutorialCleared, stageNo, StageLayerSignals.IsFarming,   // #188 — B 해금 조건 걷음 · S3
                 IdleSignals.MountEnhanced, IdleSignals.WalletEnhMaterial, EnhanceCost,
@@ -3333,6 +3343,7 @@ namespace MBI.Combat
 
             // **S3 강화 안내 막 ①**(#182 · #188) — 같은 자리 · 같은 까닭. 구멍 = 「▼ 조립」.
             ChallengeTutorialOverlay.DrawEnhanceMount(TutorialSignals.HighlightEnhanceMount);
+            ChallengeTutorialOverlay.DrawEnhanceMount(TutorialSignals.HighlightEnhanceMountB, MountEnhanceRule.CombatPromptB);   // #195
 
             // **T4 막·문구·지급 알림**(#138) — T3 막과 같은 자리(OnGUI 끝)·같은 까닭이다.
             //    알림이 서 있는 동안은 막을 안 깐다 — 둘이 겹치면 알림이 어둠에 묻힌다.

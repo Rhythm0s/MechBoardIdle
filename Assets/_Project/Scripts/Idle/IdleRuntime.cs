@@ -53,6 +53,7 @@ namespace MBI.Idle
             BuildCost.Reset();   // 대기 지출 비움 — 값은 아래 PublishWallet 이 게시한다
             // #150 — 전투가 첫 판을 세우기 전에 계수를 알아야 한다(Awake · 튜토리얼 복원과 같은 자리)
             IdleSignals.MountEnhanced = Data.mountEnhanced;
+            IdleSignals.MountEnhancedB = Data.mountEnhancedB;   // #195
             IdleSignals.MergeChargeSeconds = Data.mergeChargeSeconds;   // #155 — 첫 판이 서기 전에
 
             // 튜토리얼을 이미 했는지 전투 쪽에 알린다. **Awake에서 한다** —
@@ -161,6 +162,17 @@ namespace MBI.Idle
                 Save();
             }
 
+            // ✅ **로봇 B 마운트 강화**(사용자 확정 #195) — A 와 같은 문 · 같은 비용(재료 + 고철) · 표식만 따로.
+            if (IdleSignals.TryDrainMountEnhanceB(out double enhCostB)
+                && MountEnhanceRule.CanEnhance(Data.mountEnhancedB, Wallet.EnhMaterial, enhCostB, Wallet.Scrap, enhScrap)
+                && Wallet.TrySpendEnhMaterial(enhCostB))
+            {
+                if (enhScrap > 0d) Wallet.TrySpendScrap(enhScrap);
+                Data.mountEnhancedB = true;
+                IdleSignals.MountEnhancedB = true;
+                Save();
+            }
+
             // 로봇 B 해금(사용자 확정 #173) — 골드를 쓰는 **유일한 자리** · 바로 저장(강화와 같은 까닭).
             if (IdleSignals.TryDrainRobotBUnlock(out double bGold)
                 && !Data.robotBUnlocked
@@ -176,6 +188,14 @@ namespace MBI.Idle
             {
                 Data.mountEnhanced = true;
                 IdleSignals.MountEnhanced = true;
+                Save();
+            }
+
+            // #195 — 바로가기 S6 점프 B 강화(표식만 · 바로 저장).
+            if (IdleSignals.TryDrainJumpEnhanceB() && !Data.mountEnhancedB)
+            {
+                Data.mountEnhancedB = true;
+                IdleSignals.MountEnhancedB = true;
                 Save();
             }
 
@@ -224,6 +244,7 @@ namespace MBI.Idle
             IdleSignals.WalletEnhMaterial = Wallet.EnhMaterial;
             IdleSignals.WalletGold = Wallet.Gold;
             IdleSignals.MountEnhanced = Data != null && Data.mountEnhanced;   // #150 · 「처음부터」면 새 저장이라 거짓
+            IdleSignals.MountEnhancedB = Data != null && Data.mountEnhancedB; // #195
             IdleSignals.KillsTowardGold = Data != null ? Data.killsTowardGold : 0;
 
             // ⚠️ **마리당 고철을 여기서 게시한다** — 전투 화면의 드롭 팝이 「+n 스크랩」을

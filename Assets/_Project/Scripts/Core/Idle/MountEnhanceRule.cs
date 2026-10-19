@@ -68,6 +68,32 @@ namespace MBI.Core
             && stageNumber == StageMapName.NumberOf(TutorialStageId)
             && CanEnhance(enhanced, material, cost, scrap, scrapCost);
 
+        // ── #195 로봇 B 마운트 강화(2026-10-19 사용자 확정) ──────────
+
+        /// <summary>B 강화 안내가 서는 판 — S6 파밍(주제 「자유 플레이 · 보스」 · 안내는 이것 하나).</summary>
+        public const string TutorialStageIdB = "S6";
+
+        /// <summary>바로가기 점프로 B 표식을 켜는 판 — S6 부터(A · B 둘 다 자동).</summary>
+        public const int JumpEnhanceBFromStage = 6;
+
+        /// <summary>이 판 번호로 점프하면 B 강화 표식을 켜는가.</summary>
+        public static bool JumpTurnsOnB(int stageNumber) => stageNumber >= JumpEnhanceBFromStage;
+
+        /// <summary>전투 화면 문구(B) — ⚠️ 가정(#195).</summary>
+        public const string CombatPromptB = "조립에서 로봇 B 마운트를 탭해 강화해보세요";
+
+        /// <summary>보드 화면 안내(B) — ⚠️ 가정(#195 · 플랜 문안).</summary>
+        public const string BoardHintB = "로봇 B 마운트를 탭한 뒤 강화를 누르세요";
+
+        /// <summary>
+        /// B 안내가 서는가 — 튜토리얼 마침 · S6 파밍 · B 해금 · B 미강화 · 재료와 고철 둘 다(모자라면 막 없음).
+        /// </summary>
+        public static bool TutorialActiveB(bool tutorialCleared, int stageNumber, bool isFarming, bool robotBUnlocked,
+                                           bool enhancedB, double material, double cost, double scrap, double scrapCost) =>
+            tutorialCleared && isFarming && robotBUnlocked
+            && stageNumber == StageMapName.NumberOf(TutorialStageIdB)
+            && CanEnhance(enhancedB, material, cost, scrap, scrapCost);
+
         /// <summary>마운트계수 — **표식 ? 강화 : 기본**. 러너와 하네스가 같은 문을 지난다.</summary>
         public static float MountCoef(bool enhanced, float baseCoef, float enhancedCoef) =>
             enhanced ? enhancedCoef : baseCoef;

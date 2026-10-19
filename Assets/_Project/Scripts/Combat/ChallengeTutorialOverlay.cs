@@ -88,7 +88,10 @@ namespace MBI.Combat
         /// **S4 — 강화 안내 ① 「▼ 조립」 하나만 남기고 덮는 막 + 문구** (2026-10-19 사용자 확정 #182).
         /// T4 ① 막 그대로다 — 구멍 = 「▼ 조립」 · 문구는 단추 **위**. 조립 화면 · 설정 · 메뉴에서는 안 깐다.
         /// </summary>
-        public static void DrawEnhanceMount(bool active)
+        public static void DrawEnhanceMount(bool active) => DrawEnhanceMount(active, MountEnhanceRule.CombatPrompt);
+
+        /// <summary>#195 — 같은 막에 다른 문구(로봇 B 마운트 강화).</summary>
+        public static void DrawEnhanceMount(bool active, string prompt)
         {
             if (!ChallengeTutorialOverlayRule.ShouldShow(
                     active,
@@ -98,7 +101,7 @@ namespace MBI.Combat
                 return;
 
             Rect button = UiLayout.EnterBoardRect(Screen.width, Screen.height);
-            DrawFor(button, MountEnhanceRule.CombatPrompt, promptAbove: true);
+            DrawFor(button, prompt, promptAbove: true);
         }
 
         /// <summary>

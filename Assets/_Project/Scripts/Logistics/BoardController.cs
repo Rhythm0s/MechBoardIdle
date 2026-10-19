@@ -1905,7 +1905,16 @@ namespace MBI.Logistics
                 : null;
             // ✅ **#182 ② — A 마운트 칸 (1,4)만 남기고 덮는다**(사용자 확정 · T1 막 재사용).
             //    화면 밖이면 국면에 들어설 때 한 번 시야를 그 칸으로 옮긴다(그 뒤 끄는 것은 손 그대로).
-            if (!target.HasValue && _editing == TutorialBoardOwner
+            // #195 — B 안내면 B 판으로 한 번 넘긴다(조립 진입 때 탭이 싸우는 로봇을 따라가므로 · ⚠️ 구현 판단 = 「B 보드 탭」 손 대신).
+            if (TutorialSignals.HighlightEnhanceMountB && !TutorialSignals.HighlightEnhanceMount
+                && GameLayerController.BoardViewActive && _editing != MountOwner.RobotB && !_enhanceBSwitched)
+            {
+                _enhanceBSwitched = true;
+                SetEditing(MountOwner.RobotB);
+            }
+            if (!GameLayerController.BoardViewActive || !TutorialSignals.HighlightEnhanceMountB) _enhanceBSwitched = false;
+
+            if (!target.HasValue && _editing == EnhanceOwner
                 && TutorialGate.Current == TutorialGate.Phase.EnhanceMountBoard)
             {
                 Vector2Int mc = EnhanceTutorialCell;
@@ -1955,10 +1964,19 @@ namespace MBI.Logistics
         {
             get
             {
-                foreach (MountPort p in PartLayout.MountPortsFor(MountOwner.RobotA)) return p.cell;
+                // #195 — B 안내면 B 의 첫 마운트 포트((2,10)).
+                foreach (MountPort p in PartLayout.MountPortsFor(EnhanceOwner)) return p.cell;
                 return new Vector2Int(1, 4);
             }
         }
+
+        /// <summary>#195 — 강화 안내가 가리키는 판의 주인(A 안내 우선 · 둘은 다른 판(S3 · S6)이라 안 겹친다).</summary>
+        private static MountOwner EnhanceOwner =>
+            TutorialSignals.HighlightEnhanceMountB && !TutorialSignals.HighlightEnhanceMount
+                ? MountOwner.RobotB : TutorialBoardOwner;
+
+        /// <summary>#195 — 이번 조립 진입에 B 판으로 이미 넘겼는가.</summary>
+        private bool _enhanceBSwitched;
 
         /// <summary>#182 — 이번 국면에 시야를 이미 옮겼는가(국면을 벗어나면 내린다).</summary>
         private bool _enhanceFocusDone;
@@ -2166,11 +2184,12 @@ namespace MBI.Logistics
         private void DrawGhostHint(Camera cam, GUIStyle style, float fontScale)
         {
             // ✅ **#182 ② — 마운트 칸 위 안내**(⚠️ 문안 가정 · T4 ② 판 재사용).
-            if (_editing == TutorialBoardOwner
+            if (_editing == EnhanceOwner
                 && TutorialGate.Current == TutorialGate.Phase.EnhanceMountBoard
                 && !_mountCell.HasValue)   // 팝오버가 열리면 판을 걷는다(팝오버와 겹치지 않게)
             {
-                DrawModuleGhostHint(cam, style, fontScale, EnhanceTutorialCell, MountEnhanceRule.BoardHint);
+                DrawModuleGhostHint(cam, style, fontScale, EnhanceTutorialCell,
+                    EnhanceOwner == MountOwner.RobotB ? MountEnhanceRule.BoardHintB : MountEnhanceRule.BoardHint);
                 return;
             }
 
@@ -5938,7 +5957,8 @@ namespace MBI.Logistics
             };
 
             MountOwner owner = _editing;
-            bool enhanced = IdleSignals.MountEnhanced;
+            // ✅ #195 — 판마다 제 표식(A = mountEnhanced · B = mountEnhancedB) · 비용은 같다.
+            bool enhanced = owner == MountOwner.RobotB ? IdleSignals.MountEnhancedB : IdleSignals.MountEnhanced;
             double material = IdleSignals.WalletEnhMaterial;
             float cost = MountPopover.EnhanceCost;
             bool editOk = BoardEditRule.CanEdit(StageLayerSignals.IsFarming, StageLayerSignals.IsTutorialStage);
@@ -5994,7 +6014,10 @@ namespace MBI.Logistics
             GUI.enabled = was && MountPopover.ButtonEnabled(editOk, enhanced, material, cost,
                                                             IdleSignals.WalletScrap, BuildCost.EnhanceScrap);
             if (UiSkin.Button(new Rect(x, y, w, btnH), label, style))
-                IdleSignals.RequestMountEnhance(cost);
+            {
+                if (owner == MountOwner.RobotB) IdleSignals.RequestMountEnhanceB(cost);   // #195
+                else IdleSignals.RequestMountEnhance(cost);
+            }
             GUI.enabled = was;
         }
 
