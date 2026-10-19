@@ -6393,7 +6393,10 @@ namespace MBI.Logistics
             //
             // 파일에 바로 쓰지는 않는다 — 신호에만 올려 두고 방치 런타임의 자동저장이
             // 가져간다. 한 프레임에 여러 번 바뀌어도 디스크는 한 번만 닿는다.
-            IdleSignals.BoardState = BoardStateCodec.Capture(_grid);
+            // ✅ **#197 — 편집 중인 판의 주인 칸에 쓴다**(2026-10-19 결함 수정). 🗑️ 구 `IdleSignals.BoardState = …`
+            //    — 그 세터는 **언제나 A 칸**이라, B 판을 보는 동안 바뀌면 A 저장 칸에 B 판이 실렸다 →
+            //    자동저장이 A 항목을 B 판으로 갈아 끼움 → 불러올 때 A 판이 0x0 구 칸으로 → 시작 보드(전투력 0).
+            IdleSignals.SetBoardState(_grid.Owner, BoardStateCodec.Capture(_grid));
 
             // **면 화살표는 배치가 바뀔 때만 다시 짓는다**(2026-09-16 · §74-3 #34).
             // 매 프레임 짓지 않는 까닭은 저장과 같다 — 바뀌는 자리가 전부 여기를 지난다.

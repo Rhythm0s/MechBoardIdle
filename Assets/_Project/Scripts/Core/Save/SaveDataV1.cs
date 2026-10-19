@@ -117,6 +117,8 @@ namespace MBI.Core
         /// <summary>그 로봇의 판을 넣는다 — 같은 주인의 옛 판은 갈아 끼운다.</summary>
         public void SetBoard(MountOwner owner, BoardStateV1 state)
         {
+            // ✅ #197 — 판이 든 주인과 인자가 다르면 거른다(남의 판으로 갈아 끼우면 그 주인 항목이 사라진다).
+            if (state != null && state.owner != (int)owner) return;
             for (int i = 0; i < boards.Count; i++)
             {
                 if (boards[i] == null || boards[i].owner != (int)owner) continue;
@@ -135,6 +137,9 @@ namespace MBI.Core
         public void MigrateLegacyBoard()
         {
             if (board == null) return;
+            // ✅ #197 — 0x0 구 칸은 넣지 않는다. JsonUtility 는 빈 칸도 기본값(0x0 · owner 0) 객체로 되살려서,
+            //    A 항목이 없는 저장에서 이것이 A 판으로 들어앉아 「격자 크기가 다르다」로 버려졌다.
+            if (board.columns <= 0 || board.rows <= 0) { board = null; return; }
             if (BoardOf((MountOwner)board.owner) == null) boards.Add(board);
             board = null;
         }
