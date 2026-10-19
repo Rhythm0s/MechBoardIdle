@@ -33,7 +33,7 @@ namespace MBI.EditorTools
         private const string NodeRoot = SoRoot + "/Nodes";
 
         /// <summary>한 틱. 게임은 프레임마다 돌지만 재는 쪽은 고정 간격이어야 되풀이가 된다.</summary>
-        private const float Dt = 0.05f;
+        private static float Dt = 0.05f;   // #205 ⑤ — 틱 폭 탐침 손잡이(하네스 전용 · 기본 0.05 그대로 · 🗑️ 구 const)
 
         /// <summary>안 끝나면 여기서 끊는다. ⚠️ **끊긴 것은 「졌다」가 아니다** — 따로 적는다.</summary>
         private const float HardCapSeconds = 600f;
@@ -2991,6 +2991,48 @@ namespace MBI.EditorTools
             }
             finally { BoardHook = null; KnobReset(); }
             System.IO.File.WriteAllText("Docs/261018_preset167.md", sb.ToString());
+            Debug.Log(sb.ToString());
+            if (Application.isBatchMode) EditorApplication.Exit(0);
+        }
+
+        /// <summary>
+        /// **#205 ⑤ — S6 프리셋 즉시 합체 · 틱 폭 탐침**(2026-10-19 · 8133 화면 S6 시간 초과 가름 · 값 0).
+        /// 화면 재현은 인앱 창이 숨겨진 채(배경 탭 · 프레임 조임)였다 — 프레임이 굵으면 보드 틱이 지는지 잰다.
+        /// 배치: <c>-executeMethod MBI.EditorTools.StageClearHarness.RunDtProbeBatch</c>
+        /// </summary>
+        public static void RunDtProbeBatch()
+        {
+            var sb = new StringBuilder();
+            sb.AppendLine("############ #205 ⑤ S6 프리셋 · 틱 폭 탐침 (2026-10-19 · 하네스 전용 · 자산 0) ############");
+            sb.AppendLine("판 = S6 도전 · 폭발탄 프리셋 · A·B 강화 · 즉시 합체 · A 40 · B 0 · 게이지 0(RunPreset167 ① 칸과 같은 문)");
+            sb.AppendLine();
+            sb.AppendLine("| 틱 폭(초) | ≈ 프레임 | S6 프리셋 | S6 시작 보드 | 물류 60초 도착(프리셋 · 표준/폭발) |");
+            sb.AppendLine("|---|---|---|---|---|");
+            System.Action<BoardGrid> hook = g => PresetBoards.ApplyExplosive(g, NodeResolver(BasePropellantNeed));
+            try
+            {
+                foreach (float dt in new[] { 0.05f, 0.1f, 0.2f, 0.333f })
+                {
+                    Dt = dt;
+                    var c = new string[2];
+                    for (int k = 0; k < 2; k++)
+                    {
+                        BoardHook = k == 0 ? hook : null;
+                        Enhanced = true; HarnessMergeOutput = true; AutoMerge = true; RushMerge = true;
+                        MergeNotBefore = 0f; MergeStartRatio = 0f; AStartRatio = 1f; BStartRatio = 0f;
+                        StageVerdict v = RunOne("S6", 0f);
+                        c[k] = v.result == CombatResult.Win ? $"**Win {v.seconds:F1}초**" : $"{v.result} · 남은 적 HP {LastEnemyHpLeft:F0}";
+                        BoardHook = null; KnobReset();
+                    }
+                    BoardHook = hook; BoardGrid g = Board(); BoardHook = null;
+                    var flow = new BeltItemFlow(); flow.Rebuild(g);
+                    int n = Mathf.RoundToInt(60f / dt);
+                    for (int i = 0; i < n; i++) BoardItemTick.Step(g, flow, dt, 1f);
+                    sb.AppendLine($"| {dt:F3} | {1f / dt:F0} fps | {c[0]} | {c[1]} | {flow.MountArrivedOf(FlowKind.StandardAmmo)} / {flow.MountArrivedOf(FlowKind.ExplosiveAmmo)} |");
+                }
+            }
+            finally { Dt = 0.05f; BoardHook = null; KnobReset(); }
+            System.IO.File.WriteAllText("Docs/261019_dt_probe.md", sb.ToString());
             Debug.Log(sb.ToString());
             if (Application.isBatchMode) EditorApplication.Exit(0);
         }
