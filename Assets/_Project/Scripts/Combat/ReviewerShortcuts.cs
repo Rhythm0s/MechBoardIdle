@@ -146,8 +146,9 @@ namespace MBI.Combat
             //    (09-19 에 「메인 메뉴로」가 그렇게 사라졌다), 자리만 밀면 안 뜬 날
             //    **빈 칸**이 남는다(빌드 실측). 한 값이 두 곳에 살면 안 된다(지침 §7).
             bool showFinish = ShowTutorial && runner != null && runner.CanFinishChallengeNow;
-            // 강화(#150) · 스테이지 · 게이지 · 전멸 · [도전 즉시 종료] · 초기화 · 덤프 · 메인 메뉴 · 닫기
-            int buttonRows = showFinish ? 9 : 8;
+            // 스테이지 · 게이지 · 전멸 · [도전 즉시 종료] · 초기화 · 덤프 · 메인 메뉴 · 닫기
+            // 🗑️ 「강화(#150)」 줄 — 사용자 확정 #179(10-19)로 걷음. 강화 길 = 마운트 팝오버(#171) 하나.
+            int buttonRows = showFinish ? 8 : 7;
             float noteH = 44f * scale;  // 안내 두 줄
 
             // ✅ **소리 줄이 이 판 안으로 들어왔다**(2026-10-14 사용자 확정 ⑤).
@@ -242,8 +243,9 @@ namespace MBI.Combat
             //    스테이지·도전 단추 위에 겹쳐 앉았다(사용자 스크린샷).
             y += MBI.UI.AudioOptionsPanel.DrawChannels(x, y, w, scale);
 
-            DrawEnhanceButton(y, x, w, h, button);
-            y += h + pad;
+            // 🗑️ **설정 판 강화 단추 폐기**(사용자 확정 #179 · 2026-10-19) — 강화 길은 마운트 팝오버(#171) 하나다.
+            //    신호(`RequestMountEnhance`) · 규칙(`MountEnhanceRule`) · 저장 표식 · #162 점프 자동은 그대로.
+            //    아래 단추들이 한 줄 위로 당겨진다. `DrawEnhanceButton` 은 지우지 않고 남긴다(부르는 곳 0 · 폐기 표기).
 
             DrawStageButtons(y, x, w, h, pad, button);
             y += h + pad;
@@ -429,6 +431,7 @@ namespace MBI.Combat
         /// ⚠️ 바로가기가 아니라 **진행 단추**다 — 배포 빌드에도 늘 그린다(ShowTutorial 과 무관).
         /// 재료를 쓰는 것은 방치 런타임이다 — 여기서는 요청만 놓는다(지갑을 두 곳이 만지지 않는다).
         /// </summary>
+        // 🗑️ 폐기(#179) — 부르는 곳 0. 강화 단추는 마운트 팝오버(`BoardController.DrawMountPanel`)에만 있다.
         private void DrawEnhanceButton(float y, float x, float w, float h, GUIStyle style)
         {
             float cost = runner != null ? runner.EnhanceCost : 0f;

@@ -64,7 +64,10 @@ namespace MBI.Tests
             StringAssert.DoesNotContain("? robot.mountCoef : robot.enhancedMountCoef", harness);
             StringAssert.Contains("MountEnhanceRule.MountCoef(", runner);
             string panel = System.IO.File.ReadAllText("Assets/_Project/Scripts/Combat/ReviewerShortcuts.cs");
-            StringAssert.Contains("DrawEnhanceButton(y, x, w, h, button);", panel, "설정 판에 강화 단추가 없다");
+            // #179 — 설정 판 강화 단추 폐기 · 강화 단추는 마운트 팝오버에만(같은 신호)
+            StringAssert.DoesNotContain("            DrawEnhanceButton(y, x, w, h, button);", panel, "설정 판에 강화 단추가 남아 있다");
+            string board = System.IO.File.ReadAllText("Assets/_Project/Scripts/Logistics/BoardController.cs");
+            StringAssert.Contains("IdleSignals.RequestMountEnhance(cost);", board, "마운트 팝오버에 강화 단추가 없다");
         }
     }
 }

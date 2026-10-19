@@ -118,6 +118,9 @@ namespace MBI.Tests
             Assert.IsFalse(RobotBGate.TabShowsGoldCost(false, 3, true), "S4 전은 「S4 해금」 글자 그대로");
             Assert.IsFalse(RobotBGate.TabShowsGoldCost(true, 4, true));
             Assert.AreEqual("로봇 B · ", RobotBGate.TabPrefix);
+            Assert.AreEqual("변환기 · ", BuildCost.PickPrefix("변환기"));
+            Assert.AreEqual("20", BuildCost.PickSuffix(20d, false));
+            Assert.AreEqual("30 — 놓인 노드를 탭하면 붙는다", BuildCost.PickSuffix(30d, true));
         }
 
         [Test]
@@ -135,7 +138,7 @@ namespace MBI.Tests
             StringAssert.Contains("GUI.enabled = wasEnabled && allowed && affordable;", bc);   // ⓑ 단추 Disable
             StringAssert.Contains("GUI.enabled = wasM && moduleAllowed && mAffordable;", bc);
             StringAssert.Contains("if (bTabUnlocks) IdleSignals.RequestRobotBUnlock(BuildCost.RobotBGold);", bc);
-            StringAssert.Contains("UiIcons.DrawLine(row, st, null, UiIcons.Scrap, UiIcons.ScrapFallback, BuildCost.Amount(cost));", bc);   // ⓐ 팔레트 · #176 바닥 줄
+            StringAssert.Contains("if (st.CalcSize(new GUIContent(label)).x > width + 0.5f) st.wordWrap = true;", bc);   // 바닥 글자에서도 넘칠 때만 두 줄
             // #176 — 「● 」 접두 폐기 · 고른 표시 = 테두리 · 이름 한 줄
             StringAssert.DoesNotContain("(sel ? \"● \" : \"\") + palette[i].displayName", bc);
             StringAssert.DoesNotContain("(on ? \"● \" : \"\") + ElementLabel(e)", bc);
@@ -164,8 +167,11 @@ namespace MBI.Tests
             StringAssert.Contains("if (!BuildCost.CanAffordScrap(BuildCost.NodeScrap)) return;\n            if (!_grid.TryPlace(cell, node, out _)) return;\n            BuildCost.TryReserveScrap(BuildCost.NodeScrap);", bc);
             StringAssert.Contains("if (!BuildCost.CanAffordScrap(BuildCost.ModuleScrap)) return false;", bc);
             StringAssert.Contains("BuildCost.TryReserveScrap(BuildCost.ModuleScrap);", bc);
-            StringAssert.Contains("DrawPaletteCost(rect, BuildCost.NodeScrap, affordable);", bc);
-            StringAssert.Contains("DrawPaletteCost(mRect, BuildCost.ModuleScrap, mAffordable);", bc);
+            // #176 정정 — 팔레트 단추 안에는 값을 안 그린다 · 고른 것의 값은 안내 줄
+            StringAssert.DoesNotContain("DrawPaletteCost(rect, BuildCost.NodeScrap, affordable);", bc);
+            StringAssert.DoesNotContain("DrawPaletteCost(mRect, BuildCost.ModuleScrap, mAffordable);", bc);
+            StringAssert.Contains("BuildCost.PickPrefix(pickName), UiIcons.Scrap, UiIcons.ScrapFallback,", bc);
+            StringAssert.Contains("private const float PaletteThumbScale = 0.52f;", bc);
             StringAssert.Contains("BuildCost.NodeInstallLine(BuildCost.NodeScrap)", bc);   // 폭 재기용 글자(그리는 것은 아이콘 줄)
             StringAssert.Contains("BuildCost.NodeInstallPrefix, UiIcons.Scrap,", bc);
 

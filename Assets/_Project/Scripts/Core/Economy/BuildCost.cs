@@ -82,6 +82,15 @@ namespace MBI.Core
         /// </summary>
         public static string SpendPopText(double cost) => "-" + Floor(cost);
 
+        /// <summary>#176 정정 — 고른 노드 · 모듈 안내 줄 앞 조각 「변환기 · 」(뒤에 고철 아이콘). ⚠️ 플랜 가정.</summary>
+        public static string PickPrefix(string name) => name + " · ";
+
+        /// <summary>
+        /// #176 정정 — 안내 줄 뒤 조각. 노드 = 「20」 · 모듈 = 「30 — 놓인 노드를 탭하면 붙는다」(종전 모듈 안내를 잇는다 · 구현 판단).
+        /// </summary>
+        public static string PickSuffix(double cost, bool module) =>
+            module ? Floor(cost) + " — 놓인 노드를 탭하면 붙는다" : Floor(cost).ToString();
+
         /// <summary>하단 상태 띠 한 줄 — 노드 하나도 못 놓을 때. ⚠️ 가정.</summary>
         public const string ScrapShortLine = "고철 부족";
 

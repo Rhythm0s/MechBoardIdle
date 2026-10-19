@@ -3419,7 +3419,8 @@ namespace MBI.Logistics
         }
 
         /// <summary>
-        /// 팔레트 단추 **비용 글자**(사용자 확정 #172 보충) — 단추 왼쪽 위 구석에 「고철 20」. 모자라면 빨강.
+        /// 🗑️ **폐기(#176 정정 · 14:1x)** — 팔레트 단추 안 값 글자. 부르는 곳 0. 지우지 않고 남긴다(규칙 · 폐기 표기).
+        /// 구 설명: 팔레트 단추 **비용 글자**(사용자 확정 #172 보충) — 단추 왼쪽 위 구석에 「고철 20」. 모자라면 빨강.
         /// 비용 0(벨트 · 병합기 · 분류기 · 런타임 없는 판)이면 안 그린다. ⚠️ 자리 · 색 가정.
         /// </summary>
         private static void DrawPaletteCost(Rect button, double cost, bool affordable)
@@ -3448,7 +3449,7 @@ namespace MBI.Logistics
             GUI.enabled = wasEnabled;
         }
 
-        /// <summary>값 줄 높이 — 값 글자(단추 높이의 0.11 · 사다리) 한 줄. 이름 줄을 이만큼 위로 올린다.</summary>
+        /// <summary>🗑️ 폐기(#176 정정) — 값 줄 높이. `DrawPaletteCost` 만 부른다(그것도 부르는 곳 0).</summary>
         private static float PaletteCostRowHeight(float side)
         {
             var st = new GUIStyle(GUI.skin.label)
@@ -3460,14 +3461,18 @@ namespace MBI.Logistics
         }
 
         /// <summary>
-        /// **이름 한 줄 꼴**(#176 · #125 「글자는 전부 보인다」) — 단추 폭(안쪽 여백 뺀)에 안 들면 사다리를 한 칸씩 내린다.
-        /// 줄을 바꾸지 않는다 — 두 줄로 갈리면 바닥 값 줄과 겹친다.
+        /// **이름 한 줄 꼴**(#176 · #125 「글자는 전부 보인다」) — 단추 폭에 안 들면 사다리를 한 칸씩 내린다.
+        /// ✅ 정정(14:1x) — 바닥 글자(사다리 맨 아래)에서도 안 들면 **그때만 두 줄**을 허용한다(좁은 창 · 옆 단추 이름과 겹치던 것).
+        /// 값 줄이 단추에서 빠져 두 줄이 들 자리가 생겼다.
         /// </summary>
         private static GUIStyle OneLineStyle(GUIStyle baseStyle, string label, float width)
         {
             var st = new GUIStyle(baseStyle) { wordWrap = false };
             if (st.CalcSize(new GUIContent(label)).x > width + 0.5f)
+            {
                 UiText.FitOneLine(st, label, width);
+                if (st.CalcSize(new GUIContent(label)).x > width + 0.5f) st.wordWrap = true;   // 바닥 글자에서도 넘침 → 두 줄
+            }
             return st;
         }
 
@@ -3805,15 +3810,11 @@ namespace MBI.Logistics
             int padBottom = Mathf.Max(4, Mathf.RoundToInt(side * 0.08f));
             style.padding = new RectOffset(2, 2, Mathf.RoundToInt(side * 0.50f), padBottom);
 
-            // ✅ **#176 — 값 줄은 이름 줄 아래(바닥)**(사용자 확정 · 🗑️ #175 의 단추 왼쪽 위 자리).
-            //    노드 · 모듈 단추는 바닥에 값 줄(고철 아이콘 + 값) 한 칸을 비우고 이름을 그 위로 올린다.
-            //    그림은 그만큼 작아진다(`PaletteThumbScale`). 이름은 **한 줄 · 전부 보임**(#125) — 넘치면 사다리를 내린다.
-            float costRowH = PaletteCostRowHeight(side);
-            var costStyle = new GUIStyle(style)
-            {
-                wordWrap = false,
-                padding = new RectOffset(2, 2, Mathf.RoundToInt(side * 0.44f), padBottom + Mathf.RoundToInt(costRowH)),
-            };
+            // ✅ **#176 정정(사용자 14:1x) — 값은 팔레트 단추 안 어디에도 안 그린다**(「지금 공간이 너무 협소함」).
+            //    🗑️ #175 의 왼쪽 위 자리 · 🗑️ #176 첫 판의 바닥 줄 — 둘 다 이름 · 그림과 겹쳤다.
+            //    단추 = 그림 + 이름만(종전 배치). 고른 것의 값은 **보드 안내 줄**이 말한다(`BoardHintText`).
+            //    이름은 한 줄이 먼저(#125) — 바닥 글자에서도 안 들면 그때만 두 줄(`OneLineStyle`).
+            var costStyle = style;
 
             // ⚠️ **칸 수를 세는 자리다 — 버튼을 더하면 여기도 더해야 한다**(2026-09-15 결함).
             //
@@ -3920,7 +3921,6 @@ namespace MBI.Logistics
                     _selectedModule = -1;
                 }
                 DrawPaletteThumb(rect, palette[i]);
-                DrawPaletteCost(rect, BuildCost.NodeScrap, affordable);
                 if (sel) DrawSelectedOutline(rect);
 
                 // ⚠️ **어둠막은 버튼 뒤에 그린다**(2026-09-11 재육안 · IMGUI 는 뒤에 그리는
@@ -4010,7 +4010,7 @@ namespace MBI.Logistics
                         GUI.color = new Color(1f, 0.92f, 0.45f,
                             0.75f + 0.25f * Mathf.Abs(Mathf.Sin(Time.unscaledTime * 2.2f)));
                     // ✅ 이름 = 「생산량 모듈」·「생산속도 모듈」(#147). 안 들면 사다리를 내린다(칸은 다른 팔레트 단추와 같다).
-                    // #176 — 「●」 접두 폐기 · 고른 표시는 테두리 · 값 줄은 바닥(노드 단추와 같은 꼴).
+                    // #176 — 「●」 접두 폐기 · 고른 표시는 테두리 · 값은 안내 줄(노드 단추와 같은 꼴).
                     string mLabel = ModuleTutorialRule.DisplayName(modulePalette[m].displayName);
                     var mStyle = OneLineStyle(costStyle, mLabel, mRect.width);
                     bool mHit = UiSkin.Button(mRect, mLabel, mStyle);
@@ -4021,7 +4021,6 @@ namespace MBI.Logistics
                         _elementMode = null;
                     }
                     DrawPaletteModuleThumb(mRect, modulePalette[m]);
-                    DrawPaletteCost(mRect, BuildCost.ModuleScrap, mAffordable);
                     if (on) DrawSelectedOutline(mRect);
                     if (!moduleAllowed) UiSkin.DrawLockVeil(mRect);
                     GUI.enabled = wasM;
@@ -4052,7 +4051,26 @@ namespace MBI.Logistics
             // 속**이었다(막대 1932~2082 · 안내 줄 2030~2074). 자리가 코드 안에 흩어져
             // 있으면 **겹치는지를 눈으로만** 볼 수 있다 — 순수 함수로 빼면 시험이 본다
             // (`UiLayoutHintRectTests`).
-            GUI.Label(UiLayout.BoardHintRect(Screen.width, Screen.height),
+            Rect hintRect = UiLayout.BoardHintRect(Screen.width, Screen.height);
+            var hintStyle = new GUIStyle(GUI.skin.label)
+            {
+                fontSize = UiLayout.BoardHintFontSize(Screen.height),
+                normal = { textColor = NameTextColor },
+            };
+            // ✅ **#176 정정 — 고른 것의 값은 이 안내 줄이 말한다**(「변환기 · [고철 아이콘] 20」 · 플랜 가정 · 모듈도 같은 꼴 ⚠️ 구현 판단).
+            //    아무것도 안 골랐으면 종전 문구. 도전 층(못 고침)에서는 종전 문구가 먼저다.
+            bool editable = BoardEditRule.CanEdit(StageLayerSignals.IsFarming, StageLayerSignals.IsTutorialStage);
+            string pickName = null; double pickCost = 0d;
+            if (editable && _selectedModule >= 0 && modulePalette != null && _selectedModule < modulePalette.Count && modulePalette[_selectedModule] != null)
+            { pickName = ModuleTutorialRule.DisplayName(modulePalette[_selectedModule].displayName); pickCost = BuildCost.ModuleScrap; }
+            else if (editable && _selectedNode >= 0 && palette != null && _selectedNode < palette.Count && palette[_selectedNode] != null)
+            { pickName = palette[_selectedNode].displayName; pickCost = BuildCost.NodeScrap; }
+            if (pickName != null && pickCost > 0d)
+                UiIcons.DrawLine(new Rect(hintRect.x, hintRect.y, hintRect.width, hintRect.height), hintStyle,
+                                 BuildCost.PickPrefix(pickName), UiIcons.Scrap, UiIcons.ScrapFallback,
+                                 BuildCost.PickSuffix(pickCost, _selectedModule >= 0));
+            else
+            GUI.Label(hintRect,
                 _selectedModule >= 0 ? "모듈 — 놓인 노드를 탭하면 붙는다"
                 // ⚠️ **벨트는 끌어야 깔린다**(2026-10-07 사용자 지시) — 빈 칸 탭은
                 //    팔레트에 골라진 것을 놓는다. 위 고스트 안내와 같은 말을 쓴다.
@@ -4063,13 +4081,9 @@ namespace MBI.Logistics
                                          StageLayerSignals.IsTutorialStage)
                     ? "도전 중 — 보드는 보기만 된다 · 고치려면 파밍으로"
                     : "빈 칸 드래그 = 벨트 · 노드 탭 = 조합표 · 놓인 것 위에서 끌면 제거",
-                new GUIStyle(GUI.skin.label)
-                {
-                    // ⚠️ **스냅을 여기서 다시 하지 않는다** — 상자 높이가 이 크기를 보고
-                    //    정해지므로 둘이 같은 곳에서 나와야 한다(육안 3차 ②).
-                    fontSize = UiLayout.BoardHintFontSize(Screen.height),
-                    normal = { textColor = NameTextColor },
-                });
+                // ⚠️ **스냅을 여기서 다시 하지 않는다** — 상자 높이가 이 크기를 보고
+                //    정해지므로 둘이 같은 곳에서 나와야 한다(육안 3차 ②).
+                hintStyle);
 
             DrawRecipePanel();
             DrawMountPanel();   // #171 — 노드 팝오버와 동시에 안 선다(둘 중 하나만 그려진다)
@@ -5160,8 +5174,8 @@ namespace MBI.Logistics
         /// <summary>고른 단추 테두리 색 — 밝은 노랑(강제 버튼 빛과 같은 계열). ⚠️ 가정.</summary>
         private static readonly Color SelectedOutlineColor = new Color(1f, 0.9f, 0.4f, 1f);
 
-        /// <summary>팔레트 그림 크기(단추 높이 비) — #176 에서 0.52 → 0.40(바닥 값 줄 자리). ⚠️ 가정.</summary>
-        private const float PaletteThumbScale = 0.40f;
+        /// <summary>팔레트 그림 크기(단추 높이 비) — 0.52(종전). 🗑️ #176 첫 판의 0.40(바닥 값 줄 자리)은 정정으로 되돌림.</summary>
+        private const float PaletteThumbScale = 0.52f;
 
         /// <summary>스프라이트가 아틀라스 안 어디에 있는지 — 그 조각만 그린다.</summary>
         private static Rect SpriteUv(Sprite s)
