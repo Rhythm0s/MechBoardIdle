@@ -32,5 +32,18 @@ namespace MBI.Core
             if (active != lastSeenActive) return true;       // 교대가 일어났다
             return boardOpen && !wasBoardOpen;               // 막 들어왔다
         }
+
+        /// <summary>
+        /// ✅ **#205 ① — 튜토리얼 막 동안 탭 고정**(CID_204 · 플랜 판단 ⚠️ · 2026-10-19).
+        /// 막이 선 동안에는 교대 · 손 어느 쪽도 탭을 못 옮긴다 — 대상 판(S5 폭발탄 · S3 강화 = A · S6 B 강화 = B)에 묶는다.
+        /// 8133 실측: Auto 교대마다 B 판으로 따라가 안내가 꺼지고 B 판 탭이 보통 조작(모듈 붙음 · 고철 −30)으로 샜다.
+        /// 막이 걷히면 null → 종전 따라가기(<see cref="ShouldFollow"/>) 그대로. Auto 교대 자체는 안 건드린다.
+        /// </summary>
+        public static MountOwner? TutorialPin(bool explosiveActive, bool enhanceA, bool enhanceB)
+        {
+            if (explosiveActive || enhanceA) return MountOwner.RobotA;
+            if (enhanceB) return MountOwner.RobotB;
+            return null;
+        }
     }
 }

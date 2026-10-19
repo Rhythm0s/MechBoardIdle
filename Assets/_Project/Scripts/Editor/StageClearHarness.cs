@@ -2001,6 +2001,67 @@ namespace MBI.EditorTools
             if (Application.isBatchMode) EditorApplication.Exit(0);
         }
 
+        /// <summary>
+        /// **#205 ④ — S5 파밍 생존 탐침**(2026-10-19 · CID_206 사용자 판정 자료 · 값 0 · 표만).
+        /// 배치: <c>-executeMethod MBI.EditorTools.StageClearHarness.RunFarmS5Batch</c>
+        /// </summary>
+        public static void RunFarmS5Batch()
+        {
+            var m = AssetDatabase.LoadAssetAtPath<ModuleDefinition>($"{SoRoot}/Modules/Module_M.asset");
+            var sb = new StringBuilder();
+            sb.AppendLine("############ S5 파밍 생존 탐침 (2026-10-19 · #205 ④ · 하네스 전용 · 자산 0) ############");
+            sb.AppendLine("판 = A·B 둘 · Auto 태그 · 합체 만충 즉시 · 60초 · 리필 · 즉시 접근 · 정원 = FarmCapTarget(0 = 표 그대로 · 비율 유지)");
+            sb.AppendLine();
+            string Row(string sid, string label, System.Action<BoardGrid> hook, int bEnh, int cap, float aStart, float bStart)
+            {
+                BoardHook = hook; Enhanced = true; EnhancedBOverride = bEnh; FarmMode = true; AutoMerge = true; FarmCapTarget = cap;
+                AStartRatio = aStart; BStartRatio = bStart; MergeStartRatio = 0f;
+                RunTag(sid);
+                StageVerdict v = LastVerdict;
+                string r = $"| {sid} | {label} | " + (v.result == CombatResult.LoseDead ? $"파괴 {v.seconds:F1}초" : $"**생존** · HP 바닥 {LastFarmMinHp:F0}")
+                    + $" · 처치 {LastFarmKills} · 장갑 처치 {LastArmorKills} |";
+                BoardHook = null; FarmMode = false; FarmCapTarget = 0; KnobReset();
+                return r;
+            }
+            System.Action<BoardGrid> startM = g => g.GetAt(new Vector2Int(7, 8))?.TryAttachModule(m);
+            System.Action<BoardGrid> preset = g => PresetBoards.ApplyExplosive(g, NodeResolver(BasePropellantNeed));
+            try
+            {
+                sb.AppendLine("## ⓐ 정원 갈래 — 화면 조건(A 강화 · **B 미강화** · 시작 보드 + M)");
+                sb.AppendLine("| 판 | 갈래 | 결과 |"); sb.AppendLine("|---|---|---|");
+                sb.AppendLine(Row("S5", "정원 표 그대로 · 마운트 가득 시작", startM, 0, 0, 1f, 1f));
+                sb.AppendLine(Row("S5", "정원 표 그대로 · 마운트 빈 채 시작", startM, 0, 0, 0f, 0f));
+                foreach (int cap in new[] { 7, 5 })
+                {
+                    sb.AppendLine(Row("S5", $"정원 {cap} · 마운트 가득 시작", startM, 0, cap, 1f, 1f));
+                    sb.AppendLine(Row("S5", $"정원 {cap} · 마운트 빈 채 시작", startM, 0, cap, 0f, 0f));
+                }
+                sb.AppendLine(Row("S5", "참고 — B 강화(종전 표 조건)", startM, 1, 0, 1f, 1f));
+                sb.AppendLine();
+                sb.AppendLine("## ⓑ S5 막 동안 전투 정지 갈래(#203 에 S5 추가)");
+                sb.AppendLine("막 동안 = 적 · 발사 정지 → 피해 0(정의상). 막이 걷힌 뒤 A 판 = 다섯 칸 완성 = 폭발탄 프리셋과 같은 판:");
+                sb.AppendLine("| 판 | 갈래 | 결과 |"); sb.AppendLine("|---|---|---|");
+                sb.AppendLine(Row("S5", "막 뒤 판(폭발탄 프리셋) · B 미강화 · 정원 표 그대로", preset, 0, 0, 1f, 1f));
+                sb.AppendLine(Row("S5", "막 뒤 판(폭발탄 프리셋) · B 미강화 · 마운트 빈 채", preset, 0, 0, 0f, 0f));
+                sb.AppendLine();
+                sb.AppendLine("## ⓒ S3 화면 ↔ 하네스 갈림 탐침(A 단독 · 강화 · 시작 보드 + M)");
+                sb.AppendLine("| 판 | 갈래 | 결과 |"); sb.AppendLine("|---|---|---|");
+                foreach (bool pre in new[] { true, false })
+                {
+                    BoardHook = startM; Enhanced = true; FarmMode = true;
+                    Run("S3", preloadMount: pre, propellantNeed: BasePropellantNeed, hpOverride: 0f);
+                    StageVerdict v = LastVerdict;
+                    sb.AppendLine($"| S3 | 마운트 {(pre ? "가득" : "빈 채")} 시작 | " + (v.result == CombatResult.LoseDead ? $"파괴 {v.seconds:F1}초" : $"**생존** · HP 바닥 {LastFarmMinHp:F0}")
+                        + $" · 처치 {LastFarmKills} · 장갑 처치 {LastArmorKills} |");
+                    BoardHook = null; FarmMode = false; Enhanced = false;
+                }
+            }
+            finally { FarmMode = false; FarmCapTarget = 0; BoardHook = null; KnobReset(); }
+            System.IO.File.WriteAllText("Docs/261019_farm_s5.md", sb.ToString());
+            Debug.Log(sb.ToString());
+            if (Application.isBatchMode) EditorApplication.Exit(0);
+        }
+
         /// <summary>피해량 배수 — 하네스 전용(2026-10-16 피해량 축). `moduleMult` 한 칸에 곱한다(PerHit 의 곱 항 · 드론도 같은 항).</summary>
         internal static float DmgMult = 1f;
 
@@ -2105,6 +2166,8 @@ namespace MBI.EditorTools
         /// ⚠️ 종전 하네스는 S4+ 를 저절로 ×1.45 로 쟀다 — 이제 이 칸을 켜야 그 판이다.
         /// </summary>
         public static bool Enhanced;
+        /// <summary>#205 ④ — 로봇 B 강화만 따로(-1 = Enhanced 따라감 · 0 = 미강화 · 1 = 강화) · 하네스 전용.</summary>
+        internal static int EnhancedBOverride = -1;
 
         /// <summary>
         /// **#149·#150 투입 뒤 S1~S6 표**(2026-10-16) — 강화 전·후 둘.
@@ -2679,6 +2742,7 @@ namespace MBI.EditorTools
             HarnessMergeOutput = false;
             KnobRefillMult = 1f; KnobMergeSeconds = 0f; KnobFreeDrones = false; KnobHalfSkill = false; KnobBossHp = 0f; SpawnHook = null;
             Enhanced = false; AutoMerge = false; RushMerge = false; MergeNotBefore = 0f; MergeStartRatio = -1f; AStartRatio = -1f; BStartRatio = -1f;
+            EnhancedBOverride = -1;
         }
         internal static float MergeNotBefore;
 
@@ -3224,7 +3288,7 @@ namespace MBI.EditorTools
             var setupB = new RobotSetup
             {
                 hp = HpAll > 0f ? HpAll : tuning.robotHp,
-                mountCoef = MountEnhanceRule.MountCoef(Enhanced, robotB.mountCoef, robotB.enhancedMountCoef),
+                mountCoef = MountEnhanceRule.MountCoef(EnhancedBOverride < 0 ? Enhanced : EnhancedBOverride == 1, robotB.mountCoef, robotB.enhancedMountCoef),
                 moduleMult = robotB.moduleMult,
                 attackRange = tuning.robotAttackRangeTbd, radius = 0.5f,
                 multiShotCount = 1, aoeRadius = 0f, aoeSplashFactor = 1f,

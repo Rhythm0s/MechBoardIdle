@@ -1160,6 +1160,17 @@ namespace MBI.Logistics
             MountOwner active = SupplySignals.ActiveOwner;
             bool open = GameLayerController.BoardViewActive;
 
+            // ✅ #205 ① — 튜토리얼 막 동안은 대상 판에 묶는다(CID_204). 직전 값은 계속 적어 둬 막이 걷힌 순간 튀지 않게.
+            MountOwner? pin = BoardTabFollow.TutorialPin(TutorialSignals.ExplosiveActive,
+                TutorialSignals.HighlightEnhanceMount, TutorialSignals.HighlightEnhanceMountB);
+            if (pin.HasValue && open)
+            {
+                if (_editing != pin.Value) SetEditing(pin.Value);
+                _lastSeenActiveOwner = active;
+                _wasBoardOpen = open;
+                return;
+            }
+
             if (BoardTabFollow.ShouldFollow(active, _lastSeenActiveOwner, open, _wasBoardOpen))
                 SetEditing(active);
 
