@@ -659,6 +659,8 @@ namespace MBI.EditorTools
             }
             List<EnemySpawn> spawns = StageSpawnFactory.Build(stage, catalog, tuning);
             if (SpawnHook != null) spawns = SpawnHook(spawns);   // 2026-10-16 문턱 훑기(하네스 전용)
+            List<StageComposition> farmRoster = null;            // 2026-10-19 파밍 생존 훑기(하네스 전용)
+            if (FarmMode) { farmRoster = FarmRoster(stage); spawns = new List<EnemySpawn>(); _farmSpawned = 0; }
 
             var sim = new CombatSimulation(setup, spawns,
                 tuning.arenaRadiusTbd, stage.challengeTime, tuning.spawnCadenceTbd);
@@ -695,6 +697,16 @@ namespace MBI.EditorTools
                 sim.SetSpawnRing(tuning.spawnRingRadiusTbd);
             else
                 sb.AppendLine("  ⚠️ 스폰 띠·링이 튜닝에 없다 — 시뮬 기본값으로 돈다(게임과 다를 수 있다)");
+
+            // 2026-10-19 파밍 생존 훑기 — 러너 `OpenFarmLayer` 와 같은 문(무한 · 줄 선 적 멈춤 · 즉시 접근 · 첫 바퀴 바로 채움).
+            if (FarmMode)
+            {
+                sim.Endless = true;
+                sim.SuspendQueuedSpawns = true;
+                sim.SpawnAllAtOnce = false;
+                sim.SetAggroRange(FarmAggro ? tuning.enemyAggroRangeTbd : 0f);
+                FarmRefill(sim, farmRoster, catalog, tuning);
+            }
 
             sb.AppendLine();
             sb.AppendLine("[판] " + stage.stageId + " · " + stage.topic);
@@ -830,6 +842,7 @@ namespace MBI.EditorTools
             float bossPushTotal = 0f;
             bool bossSeen = false;
 
+            float farmClock = 0f, farmMinHp = float.MaxValue;
             for (int i = 0; i < steps; i++)
             {
                 // 1) 물류 — 실제 보드가 실제로 나른다
@@ -1102,6 +1115,13 @@ namespace MBI.EditorTools
                     nextStuckAt += 10f;
                 }
 
+                if (FarmMode)
+                {
+                    farmClock += Dt;
+                    if (farmClock >= stage.spawnInterval) { farmClock = 0f; FarmRefill(sim, farmRoster, catalog, tuning); }
+                    if (sim.Robot != null && sim.Robot.hp < farmMinHp) farmMinHp = sim.Robot.hp;
+                    if (elapsed >= FarmSeconds) { result = sim.Result; break; }
+                }
                 if (allSpawnedAt < 0f && sim.Unspawned == 0) allSpawnedAt = elapsed;   // #151 열
                 { int awake = 0; foreach (CombatEntity e in sim.Enemies) if (e.IsAlive && e.aggro) awake++; if (awake > peakAggro) peakAggro = awake; }   // #152 열
                 result = sim.Result;
@@ -1109,6 +1129,12 @@ namespace MBI.EditorTools
             }
 
             // ── 보고 ──────────────────────────────────────────────────────
+            if (FarmMode)
+            {
+                LastFarmMinHp = farmMinHp == float.MaxValue ? sim.Robot.hp : Mathf.Max(0f, farmMinHp);
+                int aliveNow = 0; foreach (CombatEntity e in sim.Enemies) if (e.IsAlive) aliveNow++;
+                LastFarmKills = _farmSpawned - aliveNow;
+            }
             LastVerdict = new StageVerdict
             {
                 stageId = stageId, how = "한 로봇",
@@ -1694,6 +1720,144 @@ namespace MBI.EditorTools
             finally { SpawnHook = null; HpAll = 0f; PlantScale = 1f; }
 
             System.IO.File.WriteAllText("Docs/261016_threshold_sweep.md", sb.ToString());
+            Debug.Log(sb.ToString());
+            if (Application.isBatchMode) EditorApplication.Exit(0);
+        }
+
+        // ── 파밍 층 생존 훑기(2026-10-19 · 플랜 ① · 하네스 전용 · 자산·게임 코드 0) ──────────
+        /// <summary>참이면 Run 이 **파밍 층**으로 돈다 — 무한(승패 없음) · 정원까지 간격마다 리필 · 로봇 파괴만 끝.</summary>
+        internal static bool FarmMode;
+        /// <summary>정원 바꿈(0 = 표 그대로). 종류 비율을 지켜 줄인다.</summary>
+        internal static int FarmCapTarget;
+        /// <summary>참이면 파밍에도 탐색 범위(#153 도전 층 규칙)를 건다 — 즉시 접근 끔.</summary>
+        internal static bool FarmAggro;
+        /// <summary>참이면 적 HP 의 S1 대비 증가분을 반으로(#149 식 한 번 더).</summary>
+        internal static bool FarmHpHalfGrowth;
+        /// <summary>파밍 한 판 길이(초).</summary>
+        internal static float FarmSeconds = 60f;
+        /// <summary>마지막 파밍 판의 HP 바닥 · 처치 수.</summary>
+        internal static float LastFarmMinHp; internal static int LastFarmKills;
+
+        private static List<StageComposition> FarmRoster(StageDefinition stage)
+        {
+            var roster = new List<StageComposition>(stage.farmComposition);
+            if (FarmHpHalfGrowth)
+            {
+                var s1 = AssetDatabase.LoadAssetAtPath<StageDefinition>($"{SoRoot}/Stages/Stage_S1.asset");
+                for (int i = 0; i < roster.Count; i++)
+                {
+                    StageComposition c = roster[i];
+                    float baseHp = 0f;
+                    if (s1 != null) foreach (StageComposition b in s1.farmComposition) if (b.enemyKey == c.enemyKey) { baseHp = b.hp; break; }
+                    if (baseHp <= 0f) baseHp = c.hp;   // S1 에 없는 종류 = 기준 없음 → 그대로(⚠️)
+                    c.hp = baseHp + (c.hp - baseHp) * 0.5f;
+                    roster[i] = c;
+                }
+            }
+            int cap = FarmRefillRule.CapacityOf(roster);
+            if (FarmCapTarget > 0 && cap > 0 && FarmCapTarget != cap)
+            {
+                // 비율을 지켜 줄인다 — 큰 나머지 순(종류가 0 으로 사라지지 않게 최소 1).
+                var exact = new float[roster.Count]; int sum = 0;
+                for (int i = 0; i < roster.Count; i++)
+                {
+                    exact[i] = roster[i].count * (float)FarmCapTarget / cap;
+                    StageComposition c = roster[i]; c.count = Mathf.Max(1, Mathf.FloorToInt(exact[i])); roster[i] = c; sum += c.count;
+                }
+                while (sum < FarmCapTarget)
+                {
+                    int best = 0; float bestR = -1f;
+                    for (int i = 0; i < roster.Count; i++) { float r = exact[i] - roster[i].count; if (r > bestR) { bestR = r; best = i; } }
+                    StageComposition c = roster[best]; c.count++; roster[best] = c; sum++;
+                }
+                while (sum > FarmCapTarget)
+                {
+                    int best = -1; int most = 1;
+                    for (int i = 0; i < roster.Count; i++) if (roster[i].count > most) { most = roster[i].count; best = i; }
+                    if (best < 0) break;
+                    StageComposition c = roster[best]; c.count--; roster[best] = c; sum--;
+                }
+            }
+            return roster;
+        }
+
+        private static void FarmRefill(CombatSimulation sim, List<StageComposition> roster,
+                                       List<EnemyDefinition> catalog, CombatTuning tuning)
+        {
+            var alive = new Dictionary<string, int>();
+            foreach (CombatEntity e in sim.Enemies)
+            {
+                if (!e.IsAlive || string.IsNullOrEmpty(e.label)) continue;
+                string key = null;
+                foreach (EnemyDefinition d in catalog) if (d != null && d.displayName == e.label) { key = d.enemyKey; break; }
+                if (key == null) continue;
+                alive.TryGetValue(key, out int n); alive[key] = n + 1;
+            }
+            var plan = new List<FarmRefillRule.Refill>();
+            FarmRefillRule.Plan(roster, alive, plan);
+            var batch = new List<EnemySpawn>();
+            foreach (FarmRefillRule.Refill r in plan)
+                for (int i = 0; i < r.count; i++) batch.Add(StageSpawnFactory.FarmSpawn(r.entry, catalog, tuning));
+            if (batch.Count > 0) sim.SpawnBatch(batch);
+            _farmSpawned += batch.Count;
+        }
+        private static int _farmSpawned;
+
+        /// <summary>
+        /// **파밍 층 생존 훑기**(2026-10-19 · 플랜 ① · 표만). 판 = 시작 보드 + S2 모듈 하나(7,8 생산량) · 강화 ×1.45 ·
+        /// 마운트 가득 · 로봇 A 한 대(⚠️ S5 · S6 도 A 단독 — 실제 파밍은 태그 Auto 로 B 가 섞인다) · 60초.
+        /// 배치: <c>-executeMethod MBI.EditorTools.StageClearHarness.RunFarmSurvivalBatch</c>
+        /// </summary>
+        public static void RunFarmSurvivalBatch()
+        {
+            var m = AssetDatabase.LoadAssetAtPath<ModuleDefinition>($"{SoRoot}/Modules/Module_M.asset");
+            var sb = new StringBuilder();
+            sb.AppendLine("############ 파밍 층 생존 훑기 (2026-10-19 · 하네스 전용 · 자산 0) ############");
+            sb.AppendLine("판 = 시작 보드 + 모듈 M (7,8) · 강화 ×1.45 · 마운트 가득 · 로봇 A 단독 · 60초 · 간격마다 정원까지 리필 · 즉시 접근(탐색 0)");
+            sb.AppendLine("칸 = 생존(60초) 또는 파괴 시각 · 처치 · HP 바닥");
+            sb.AppendLine();
+            string F(StageVerdict v) => v.result == CombatResult.LoseDead
+                ? $"파괴 {v.seconds:F1}초 · 처치 {LastFarmKills}"
+                : $"**생존** · 처치 {LastFarmKills} · HP 바닥 {LastFarmMinHp:F0}";
+            StageVerdict One(string sid, float hp)
+            {
+                BoardHook = g => g.GetAt(new Vector2Int(7, 8))?.TryAttachModule(m);
+                Enhanced = true; FarmMode = true;
+                Run(sid, preloadMount: true, propellantNeed: BasePropellantNeed, hpOverride: hp);
+                StageVerdict v = LastVerdict;
+                BoardHook = null; Enhanced = false; FarmMode = false;
+                return v;
+            }
+            try
+            {
+                foreach (string sid in new[] { "S3", "S4", "S5", "S6" })
+                {
+                    var stage = AssetDatabase.LoadAssetAtPath<StageDefinition>($"{SoRoot}/Stages/Stage_{sid}.asset");
+                    int cap = stage != null ? FarmRefillRule.CapacityOf(stage.farmComposition) : 0;
+                    sb.AppendLine($"## {sid} · 정원 {cap} · 간격 {(stage != null ? stage.spawnInterval : 0f):F0}초");
+                    sb.AppendLine("| 갈래 | 결과 |");
+                    sb.AppendLine("|---|---|");
+                    sb.AppendLine($"| 기준(정원 {cap} · HP 1000) | {F(One(sid, 0f))} |");
+                    int[] caps = cap >= 15 ? new[] { 13, 10, 8 } : new[] { 7, 5 };
+                    foreach (int c in caps)
+                    {
+                        FarmCapTarget = c;
+                        sb.AppendLine($"| (a) 정원 {c} | {F(One(sid, 0f))} |");
+                        FarmCapTarget = 0;
+                    }
+                    FarmAggro = true;
+                    sb.AppendLine($"| (b) 탐색 6 + 맞으면 깸 | {F(One(sid, 0f))} |");
+                    FarmAggro = false;
+                    foreach (float hp in new[] { 1500f, 2000f })
+                        sb.AppendLine($"| (c) 로봇 HP {hp:F0} | {F(One(sid, hp))} |");
+                    FarmHpHalfGrowth = true;
+                    sb.AppendLine($"| (d) 적 HP 증가분 ×0.5 | {F(One(sid, 0f))} |");
+                    FarmHpHalfGrowth = false;
+                    sb.AppendLine();
+                }
+            }
+            finally { FarmMode = false; FarmCapTarget = 0; FarmAggro = false; FarmHpHalfGrowth = false; BoardHook = null; KnobReset(); }
+            System.IO.File.WriteAllText("Docs/261019_farm_survival.md", sb.ToString());
             Debug.Log(sb.ToString());
             if (Application.isBatchMode) EditorApplication.Exit(0);
         }
