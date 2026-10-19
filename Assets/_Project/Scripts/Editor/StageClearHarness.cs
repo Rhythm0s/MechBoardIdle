@@ -660,7 +660,7 @@ namespace MBI.EditorTools
             List<EnemySpawn> spawns = StageSpawnFactory.Build(stage, catalog, tuning);
             if (SpawnHook != null) spawns = SpawnHook(spawns);   // 2026-10-16 문턱 훑기(하네스 전용)
             List<StageComposition> farmRoster = null;            // 2026-10-19 파밍 생존 훑기(하네스 전용)
-            if (FarmMode) { farmRoster = FarmRoster(stage); spawns = new List<EnemySpawn>(); _farmSpawned = 0; }
+            if (FarmMode) { farmRoster = FarmRoster(stage); spawns = new List<EnemySpawn>(); _farmSpawned = 0; _armorSpawned = 0; LastArmorFirstKill = -1f; }
 
             var sim = new CombatSimulation(setup, spawns,
                 tuning.arenaRadiusTbd, stage.challengeTime, tuning.spawnCadenceTbd);
@@ -1120,6 +1120,12 @@ namespace MBI.EditorTools
                     farmClock += Dt;
                     if (farmClock >= stage.spawnInterval) { farmClock = 0f; FarmRefill(sim, farmRoster, catalog, tuning); }
                     if (sim.Robot != null && sim.Robot.hp < farmMinHp) farmMinHp = sim.Robot.hp;
+                    if (LastArmorFirstKill < 0f && _armorSpawned > 0)
+                    {
+                        int armorAlive = 0;
+                        foreach (CombatEntity e in sim.Enemies) if (e.IsAlive && e.label == "장갑") armorAlive++;
+                        if (armorAlive < _armorSpawned) LastArmorFirstKill = elapsed;
+                    }
                     if (elapsed >= FarmSeconds) { result = sim.Result; break; }
                 }
                 if (allSpawnedAt < 0f && sim.Unspawned == 0) allSpawnedAt = elapsed;   // #151 열
@@ -1134,6 +1140,8 @@ namespace MBI.EditorTools
                 LastFarmMinHp = farmMinHp == float.MaxValue ? sim.Robot.hp : Mathf.Max(0f, farmMinHp);
                 int aliveNow = 0; foreach (CombatEntity e in sim.Enemies) if (e.IsAlive) aliveNow++;
                 LastFarmKills = _farmSpawned - aliveNow;
+                int armorAliveEnd = 0; foreach (CombatEntity e in sim.Enemies) if (e.IsAlive && e.label == "장갑") armorAliveEnd++;
+                LastArmorKills = _armorSpawned - armorAliveEnd;
             }
             LastVerdict = new StageVerdict
             {
@@ -1738,9 +1746,24 @@ namespace MBI.EditorTools
         /// <summary>마지막 파밍 판의 HP 바닥 · 처치 수.</summary>
         internal static float LastFarmMinHp; internal static int LastFarmKills;
 
+        /// <summary>장갑 축 훑기(2026-10-19 · 하네스 전용) — 음수 = 표 그대로.</summary>
+        internal static float FarmArmorHp = -1f, FarmArmorDef = -1f; internal static int FarmArmorCount = -1;
+        /// <summary>마지막 파밍 판의 장갑 처치 수 · 첫 장갑 처치 시각(없으면 -1).</summary>
+        internal static int LastArmorKills; internal static float LastArmorFirstKill;
+        private static int _armorSpawned;
+
         private static List<StageComposition> FarmRoster(StageDefinition stage)
         {
             var roster = new List<StageComposition>(stage.farmComposition);
+            for (int i = roster.Count - 1; i >= 0; i--)
+            {
+                if (roster[i].enemyKey != "armor") continue;
+                StageComposition c = roster[i];
+                if (FarmArmorHp >= 0f) c.hp = FarmArmorHp;
+                if (FarmArmorDef >= 0f) c.def = FarmArmorDef;
+                if (FarmArmorCount >= 0) c.count = FarmArmorCount;
+                if (c.count <= 0) roster.RemoveAt(i); else roster[i] = c;
+            }
             if (FarmHpHalfGrowth)
             {
                 var s1 = AssetDatabase.LoadAssetAtPath<StageDefinition>($"{SoRoot}/Stages/Stage_S1.asset");
@@ -1797,7 +1820,11 @@ namespace MBI.EditorTools
             FarmRefillRule.Plan(roster, alive, plan);
             var batch = new List<EnemySpawn>();
             foreach (FarmRefillRule.Refill r in plan)
-                for (int i = 0; i < r.count; i++) batch.Add(StageSpawnFactory.FarmSpawn(r.entry, catalog, tuning));
+                for (int i = 0; i < r.count; i++)
+                {
+                    batch.Add(StageSpawnFactory.FarmSpawn(r.entry, catalog, tuning));
+                    if (r.entry.enemyKey == "armor") _armorSpawned++;
+                }
             if (batch.Count > 0) sim.SpawnBatch(batch);
             _farmSpawned += batch.Count;
         }
@@ -1858,6 +1885,61 @@ namespace MBI.EditorTools
             }
             finally { FarmMode = false; FarmCapTarget = 0; FarmAggro = false; FarmHpHalfGrowth = false; BoardHook = null; KnobReset(); }
             System.IO.File.WriteAllText("Docs/261019_farm_survival.md", sb.ToString());
+            Debug.Log(sb.ToString());
+            if (Application.isBatchMode) EditorApplication.Exit(0);
+        }
+
+        /// <summary>
+        /// **장갑 축 훑기**(2026-10-19 · 사용자 「방패몹 체력·방어 너무 강함」 · 표만).
+        /// 배치: <c>-executeMethod MBI.EditorTools.StageClearHarness.RunFarmArmorBatch</c>
+        /// </summary>
+        public static void RunFarmArmorBatch()
+        {
+            var m = AssetDatabase.LoadAssetAtPath<ModuleDefinition>($"{SoRoot}/Modules/Module_M.asset");
+            var sb = new StringBuilder();
+            sb.AppendLine("############ 파밍 장갑 축 훑기 (2026-10-19 · 하네스 전용 · 자산 0) ############");
+            sb.AppendLine("판 = 시작 보드 + 모듈 M (7,8) · 강화 ×1.45 · 마운트 가득 · 로봇 A 단독 · 60초 · 리필 · 즉시 접근");
+            sb.AppendLine("칸 = 생존(HP 바닥) / 파괴 시각 · 처치 · 장갑 처치 · 첫 장갑 처치 시각");
+            sb.AppendLine();
+            string F(StageVerdict v) => (v.result == CombatResult.LoseDead ? $"파괴 {v.seconds:F1}초" : $"**생존** · HP 바닥 {LastFarmMinHp:F0}")
+                + $" · 처치 {LastFarmKills} · 장갑 처치 {LastArmorKills}" + (LastArmorFirstKill >= 0f ? $" · 첫 장갑 {LastArmorFirstKill:F1}초" : " · 장갑 못 잡음");
+            string One(string sid)
+            {
+                BoardHook = g => g.GetAt(new Vector2Int(7, 8))?.TryAttachModule(m);
+                Enhanced = true; FarmMode = true;
+                Run(sid, preloadMount: true, propellantNeed: BasePropellantNeed, hpOverride: 0f);
+                string r = F(LastVerdict);
+                BoardHook = null; Enhanced = false; FarmMode = false;
+                return r;
+            }
+            void Row(string label, string sid, float hp, float def, int cnt, int cap = 0)
+            {
+                FarmArmorHp = hp; FarmArmorDef = def; FarmArmorCount = cnt; FarmCapTarget = cap;
+                sb.AppendLine($"| {label} | {One(sid)} |");
+                FarmArmorHp = -1f; FarmArmorDef = -1f; FarmArmorCount = -1; FarmCapTarget = 0;
+            }
+            try
+            {
+                sb.AppendLine("## S3 (보병 14 · 포격 2 · 장갑 1 · 장갑 hp 600 · def 3)");
+                sb.AppendLine("| 갈래 | 결과 |"); sb.AppendLine("|---|---|");
+                Row("(ㄹ) 지금 값", "S3", -1f, -1f, -1);
+                Row("(ㄹ) 정원 10(비율)", "S3", -1f, -1f, -1, 10);
+                foreach (float hp in new[] { 400f, 300f, 150f }) Row($"(ㄱ) 장갑 hp {hp:F0}", "S3", hp, -1f, -1);
+                foreach (float d in new[] { 1f, 0f }) Row($"(ㄴ) 장갑 def {d:F0}", "S3", -1f, d, -1);
+                Row("(ㄷ) 장갑 0기(정원 16)", "S3", -1f, -1f, 0);
+                sb.AppendLine();
+                sb.AppendLine("## 참고 — S4 (장갑 1 · 550/5) · S5 (장갑 2 · 850/45)");
+                sb.AppendLine("| 갈래 | 결과 |"); sb.AppendLine("|---|---|");
+                Row("S4 지금 값", "S4", -1f, -1f, -1);
+                Row("S4 장갑 0기", "S4", -1f, -1f, 0);
+                Row("S4 장갑 hp 275(반)", "S4", 275f, -1f, -1);
+                Row("S5 지금 값", "S5", -1f, -1f, -1);
+                Row("S5 장갑 0기", "S5", -1f, -1f, 0);
+                Row("S5 장갑 def 5(보병과 같게)", "S5", -1f, 5f, -1);
+                Row("S5 장갑 hp 425(반)", "S5", 425f, -1f, -1);
+            }
+            finally { FarmMode = false; FarmArmorHp = -1f; FarmArmorDef = -1f; FarmArmorCount = -1; FarmCapTarget = 0; BoardHook = null; KnobReset(); }
+            System.IO.File.WriteAllText("Docs/261019_farm_armor.md", sb.ToString());
             Debug.Log(sb.ToString());
             if (Application.isBatchMode) EditorApplication.Exit(0);
         }
