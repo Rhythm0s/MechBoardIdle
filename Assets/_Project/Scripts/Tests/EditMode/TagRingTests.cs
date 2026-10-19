@@ -19,5 +19,14 @@ namespace MBI.Tests
             StringAssert.DoesNotContain("DrawLoadRing(Shrink(tagRect, loadT), ready,", sr, "쿨다운 안쪽 띠 폐기");
             StringAssert.Contains("if (cd > 0f) return $\"쿨다운\\n{cd:F1}s\";", sr, "쿨다운은 글자로");
         }
+
+        [Test]
+        public void 상태_띠는_문제가_있을_때만()   // #186
+        {
+            string ss = System.IO.File.ReadAllText("Assets/_Project/Scripts/UI/StatusStrip.cs");
+            StringAssert.Contains("if (!alarm) return;", ss);
+            StringAssert.DoesNotContain("if (!alarm) text = ", ss);
+            Assert.Less(ss.IndexOf("if (!alarm) return;"), ss.IndexOf("UiBlockers.Add(strip);"), "안 그리면 막는 자리도 안 잡는다");
+        }
     }
 }

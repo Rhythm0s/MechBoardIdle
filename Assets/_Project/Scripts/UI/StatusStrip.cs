@@ -142,6 +142,11 @@ namespace MBI.UI
             List<string> problems = Problems(out _);
             bool alarm = problems.Count > 0;
 
+            // ✅ **문제가 없으면 띠를 아예 안 띄운다**(사용자 확정 #186 · 2026-10-19 · 전투 · 조립 두 화면 같은 규칙).
+            //    🗑️ 구 「물류 · 조립 — 문제 없음」 회색 한 줄 폐기. 자리는 비워 둔다(아래 단추 · 팔레트 재배치 없음).
+            //    ⚠️ 구현 판단 — 안 그릴 때는 막는 자리(`UiBlockers`)도 안 잡는다(보이지 않는 칸이 터치를 먹지 않게).
+            if (!alarm) return;
+
             // ⚠️ **막는 자리는 그대로 잡는다** — 글자 뒤로 터치가 새면 그 밑의 판이 눌린다.
             UiBlockers.Add(strip);
 
@@ -157,10 +162,9 @@ namespace MBI.UI
                 clipping = TextClipping.Overflow,
             };
 
-            // ⚠️ 문제가 없으면 「문제 없음」이다 — **없는 문제를 지어내 채우지 않는다.**
+            // ⚠️ **없는 문제를 지어내 채우지 않는다.** 🗑️ 구 「문제가 없으면 회색 『문제 없음』」 갈래 — #186 로 위에서 돌아선다.
             string text;
-            if (!alarm) text = "물류 · 조립 — 문제 없음";
-            else if (problems.Count == 1) text = "⚠ " + problems[0];
+            if (problems.Count == 1) text = "⚠ " + problems[0];
             else text = "⚠ " + problems[0] + "  외 " + (problems.Count - 1) + "건";
 
             // ⚠️⚠️ **칸에 맞게 줄인다**(2026-09-30 · 빌드 육안 두 번째).
