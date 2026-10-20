@@ -596,7 +596,14 @@ namespace MBI.Combat
                 // ✅ **#218(2026-10-20 사용자 확정) — 모든 판 「목표: {주제}」만.** 요구치 수는 화면에서 뺀다(판정 · 표 값 불변 · P-9 는 표 값으로만).
                 //    🗑️ #180 「목표: {주제} · 전투력 {req} 넘기기」 · 🗑️ #201 요구치 0 판만 뺀 갈래(`HasRequirement && stage.req > 0f`).
                 : "목표: " + stage.topic;
-            GUI.Label(new Rect(r.x + pad, r.y + rowH, r.width - pad * 2f, rowH), goal, line);
+            // ✅ **#224(2026-10-20 사용자 육안 44) — 목표 줄은 카드 줄 칸 안에**(`BadgeLineFit` · 한 줄 내림 → 「  ·  」 두 줄 → 16 아래).
+            //    🗑️ 「한 줄 · 고정 크기 · Overflow」 — 「파밍: 로봇 B 해금 · 합체 · 모아서 보드를 키운다」가 카드 밖 「스테이지」 단추까지 나갔다.
+            var goalRect = new Rect(r.x + pad, r.y + rowH, r.width - pad * 2f, rowH);
+            var goalStyle = new GUIStyle(line) { clipping = TextClipping.Clip, alignment = TextAnchor.MiddleLeft };
+            BadgeLineFit.Result gf = BadgeLineFit.Fit(goal, goalRect.width, goalRect.height, line.fontSize,
+                (t, size) => { goalStyle.fontSize = size; return goalStyle.CalcSize(new GUIContent(t)); });
+            goalStyle.fontSize = gf.fontSize;
+            GUI.Label(goalRect, gf.text, goalStyle);
 
             // 셋째 줄 — 파밍이면 「리젠 · 맵」, 도전이면 「남은 몬스터 · 남은 시간」.
             //
