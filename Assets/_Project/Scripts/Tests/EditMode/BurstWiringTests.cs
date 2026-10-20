@@ -13,6 +13,9 @@ namespace MBI.Tests
     /// 테스트까지 있는 채로 두 달을 지났고, 아무것도 실패하지 않았다.
     ///
     /// 규칙은 MergeSystemTests가 보고, 여기서는 **합체를 발동시켜 실제로 터지는지**를 잰다.
+    ///
+    /// ✅ **#229(2026-10-20 사용자 확정)** — 순간 버스트 300% 폐기 → 「과부하」 상태(발사 ×2 · 산출 ×2.5 · 지속 overloadSec).
+    /// 이 파일은 이제 **과부하 배선**을 잰다(파일 이름은 그대로).
     /// </summary>
     public sealed class BurstWiringTests
     {
@@ -58,81 +61,67 @@ namespace MBI.Tests
         private static void ChargeGauge(CombatSimulation sim) =>
             Run(sim, MergeSystem.GaugeFullSeconds + 1f);
 
-        // ---- 불리는가 ----
+        // ---- #229 과부하 (🗑️ 순간 버스트 300% 시험 넷 — Merging_FiresTheBurst · BurstIsThreeHundredPercent… · BurstMultipliesAfterDefence · BurstFiresOnce) ----
 
-        /// <summary>
-        /// **합체를 발동하면 버스트가 터진다.** 이것이 이 파일의 존재 이유다 —
-        /// 종전에는 계산기만 있고 호출자가 0건이었다.
-        /// </summary>
+        /// <summary>#229 — 합체 순간 **피해가 없다**(순간 폭발 폐기). TryMerge 는 틱 밖이라 사격도 안 낀다.</summary>
         [Test]
-        public void Merging_FiresTheBurst()
+        public void Merging_DealsNoInstantDamage()
         {
-            CombatSimulation sim = TwoRobots();
+            CombatSimulation sim = TwoRobots(dmgA: 20f, dmgB: 30f);
             ChargeGauge(sim);
 
-            Assert.AreEqual(0f, sim.LastBurstDamage, "발동 전에는 안 터진다");
+            float before = sim.Enemies[0].hp;
             Assert.IsTrue(sim.TryMerge());
-
-            Assert.Greater(sim.LastBurstDamage, 0f, "발동 순간 터진다");
+            Assert.AreEqual(before, sim.Enemies[0].hp, D, "합체 순간 = 피해 0");
+            Assert.AreEqual(50f, sim.LastMergeSnapshot, D, "연출용 스냅샷은 그대로 (20 + 30)");
         }
 
-        /// <summary>
-        /// 스냅샷 = 그 순간 **두 로봇이 합쳐 내는 초당 실피해**, 거기에 300%.
-        /// A 20 + B 30 = 50 → 150.
-        /// </summary>
+        /// <summary>#229 — 과부하 동안 발사 ×2 · 피해 ×1.8 은 그대로 곱 = (20 + 30) × 1.8 × 2.</summary>
         [Test]
-        public void BurstIsThreeHundredPercentOfBothRobotsCombined()
+        public void Overload_DoublesFireRate_KeepsMergeMultiplier()
         {
             CombatSimulation sim = TwoRobots(dmgA: 20f, dmgB: 30f);
+            sim.OverloadFireRate = 2f;
             ChargeGauge(sim);
-
             sim.TryMerge();
+            Assert.IsTrue(sim.IsOverloaded);
 
-            Assert.AreEqual(150f, sim.LastBurstDamage, D, "(20 + 30) × 300%");
+            float start = sim.Enemies[0].hp;
+            Run(sim, 2f);
+            float dealt = start - sim.Enemies[0].hp;
+            Assert.AreEqual(2f * (20f + 30f) * MergeSystem.MergeMultiplier * 2f, dealt, 20f, "2초 × 90 × 2");
         }
 
-        /// <summary>
-        /// **방어를 뺀 뒤에 300%를 곱한다.** 합체 배율과 같은 규칙이다(260829_V01) —
-        /// 발당피해에 곱했다면 (100×3 − 45) × 2 = 510이 되어 값이 달라진다.
-        /// </summary>
+        /// <summary>과부하가 끝나면 합체 화력만 — 과부하 1초 · 합체는 20초.</summary>
         [Test]
-        public void BurstMultipliesAfterDefence()
-        {
-            CombatSimulation sim = TwoRobots(dmgA: 100f, dmgB: 100f, def: 45f);
-            ChargeGauge(sim);
-
-            sim.TryMerge();
-
-            Assert.AreEqual(330f, sim.LastBurstDamage, D, "((100−45) + (100−45)) × 300%");
-            Assert.Less(sim.LastBurstDamage, 510f, "발당피해에 곱했을 때의 값보다 낮다");
-        }
-
-        /// <summary>
-        /// 버스트는 **한 번**이다. 합체가 지속되는 동안 계속 터지지 않는다.
-        ///
-        /// ⚠️ 「이후 피해가 버스트보다 작다」로는 못 잰다 — 합체 중 화력이 90/초라
-        /// 2초만 지나도 버스트 150을 넘는다. **합체 이후 증가분이 합체 화력과 같은지**로 잰다.
-        /// </summary>
-        [Test]
-        public void BurstFiresOnce_NotEveryTick()
+        public void Overload_Ends_MergeContinuesAtNormalRate()
         {
             CombatSimulation sim = TwoRobots(dmgA: 20f, dmgB: 30f);
+            sim.OverloadFireRate = 2f;
             ChargeGauge(sim);
-
-            float before = SandbagHp - sim.Enemies[0].hp;
+            sim.Merge.OverloadSeconds = 1f;   // 마운트 재고(충전 90초 뒤 남은 몫) 안에서 잰다
             sim.TryMerge();
-
-            // TryMerge는 틱 밖이라 사격이 끼지 않는다 — 늘어난 만큼이 정확히 버스트다.
-            float afterMerge = SandbagHp - sim.Enemies[0].hp;
-            Assert.AreEqual(sim.LastBurstDamage, afterMerge - before, D, "합체 순간 = 버스트 하나뿐");
 
             Run(sim, 2f);
+            Assert.IsFalse(sim.IsOverloaded, "과부하 끝");
+            Assert.IsTrue(sim.Merge.IsActive, "합체는 이어진다");
 
-            float dealtSince = (SandbagHp - sim.Enemies[0].hp) - afterMerge;
-            float mergedDps = (20f + 30f) * MergeSystem.MergeMultiplier;
+            float start = sim.Enemies[0].hp;
+            Run(sim, 2f);
+            Assert.AreEqual(2f * (20f + 30f) * MergeSystem.MergeMultiplier, start - sim.Enemies[0].hp, 20f, "2초 × 90");
+        }
 
-            Assert.AreEqual(2f * mergedDps, dealtSince, 20f,
-                "이후 증가분은 합체 화력만 — 버스트가 다시 안 터졌다");
+        /// <summary>과부하 배율 기본 1 — 격리 경로는 종전 합체 화력 그대로.</summary>
+        [Test]
+        public void DefaultOverloadRate_IsOne()
+        {
+            CombatSimulation sim = TwoRobots(dmgA: 20f, dmgB: 30f);
+            ChargeGauge(sim);
+            sim.TryMerge();
+
+            float start = sim.Enemies[0].hp;
+            Run(sim, 2f);
+            Assert.AreEqual(2f * (20f + 30f) * MergeSystem.MergeMultiplier, start - sim.Enemies[0].hp, 20f);
         }
 
         /// <summary>
@@ -150,33 +139,7 @@ namespace MBI.Tests
             Assert.IsFalse(sim.TryMerge(), "두 번째 합체는 없다");
         }
 
-        /// <summary>게이지가 안 찼으면 합체가 실패하므로 버스트도 없다.</summary>
-        [Test]
-        public void FailedMerge_FiresNothing()
-        {
-            CombatSimulation sim = TwoRobots();
-            Run(sim, 5f);
-
-            Assert.IsFalse(sim.TryMerge());
-            Assert.AreEqual(0f, sim.LastBurstDamage, "발동에 실패했으면 안 터진다");
-        }
-
-        /// <summary>
-        /// 때릴 것이 없으면 **터뜨리지 않는다** — 스테이지당 1회짜리를 허공에 버리지 않는다.
-        /// </summary>
-        [Test]
-        public void NoTarget_KeepsTheBurst()
-        {
-            var sim = new CombatSimulation(Robot(20f), Robot(30f),
-                new MountLoad(4, Stacks()), new MountLoad(4, Stacks()),
-                new List<EnemySpawn>(), arenaRadius: 6f, challengeTime: 1000f, spawnCadence: 0f);
-            sim.Endless = true; // 적이 없어도 승리로 끝나지 않게
-
-            ChargeGauge(sim);
-            sim.TryMerge();
-
-            Assert.AreEqual(0f, sim.LastBurstDamage);
-        }
+        // 🗑️ FailedMerge_FiresNothing · NoTarget_KeepsTheBurst — #229 로 순간 버스트가 없다.
 
         /// <summary>
         /// **태그 스킬은 부르지 않는다**(2026-08-29 확정). 합체 발동 순간에 일어나는 것은
@@ -199,17 +162,30 @@ namespace MBI.Tests
             Assert.AreEqual(0f, sim.Tag.LastTagSkillDrained, D, "마운트도 안 비운다");
         }
 
+        /// <summary>#228 — 합체가 교대를 잠그고 **스킬 허용도 끈다**(🗑️ #163 「스킬은 나간다」).</summary>
+        [Test]
+        public void Merging_LocksTag_NoSkillWhileLocked()
+        {
+            CombatSimulation sim = TwoRobots();
+            ChargeGauge(sim);
+            sim.TryMerge();
+
+            Assert.IsTrue(sim.Tag.Locked);
+            Assert.IsFalse(sim.Tag.SkillWhileLocked, "#228");
+            Assert.IsFalse(sim.Tag.CanSkillWhileLocked);
+        }
+
         // ---- 결정론 ----
 
         [Test]
-        public void Deterministic_SameSetupSameBurst()
+        public void Deterministic_SameSetupSameSnapshot()
         {
             CombatSimulation a = TwoRobots(), b = TwoRobots();
             ChargeGauge(a); ChargeGauge(b);
 
             a.TryMerge(); b.TryMerge();
 
-            Assert.AreEqual(a.LastBurstDamage, b.LastBurstDamage, 0.001f);
+            Assert.AreEqual(a.LastMergeSnapshot, b.LastMergeSnapshot, 0.001f);
         }
     }
 }

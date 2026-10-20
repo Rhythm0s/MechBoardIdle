@@ -129,7 +129,16 @@ namespace MBI.Data
         public int dodgeStacksPerBooster = 4;
 
         [Tooltip("합체 지속 중 두 보드 모든 노드의 산출량 배율. params.mergeOutputMult = 2 확정치. 재료·전력·생산 주기는 그대로이고 벨트는 제외다(12/초 고정). 합체가 끝나면 즉시 1.0.")]
-        public float mergeOutputMult = 2f;
+        public float mergeOutputMult = 2f;   // 🗑️ #229 — 산출 배율은 이제 과부하 동안 `overloadProduce`
+
+        [Tooltip("과부하 발사 배율(사용자 확정 #229 · 2026-10-20). params.overloadFireRate = 2 — 과부하 동안 마운트 소비(= 발사 · 드론 발진) ×2. 피해 ×1.8(mergeMult)은 그대로 곱한다.")]
+        public float overloadFireRate = 2f;
+
+        [Tooltip("과부하 산출 배율(사용자 확정 #229). params.overloadProduce = 2.5 — 과부하 동안 A·B 보드 노드(코어·가공소) 산출 ×2.5. 벨트는 제외. 합체 뒤 만재 복귀용.")]
+        public float overloadProduce = 2.5f;
+
+        [Tooltip("과부하 지속(초). params.overloadSec = 20 ⚠️ 미확정(사용자 「10~20초」) — 기본 = 합체 20초 전체.")]
+        public float overloadSec = 20f;
 
         [Tooltip("군수 노드 1개당 생산(발/초). params.muniPerNode = 1 확정치. ⚠️ 소비 상한(capA 6)과 혼동 금지 — 여기에 6을 넣으면 노드 하나가 상한을 다 채워 보드가 출력을 못 바꾼다.")]
         public float muniPerNode = 1f;

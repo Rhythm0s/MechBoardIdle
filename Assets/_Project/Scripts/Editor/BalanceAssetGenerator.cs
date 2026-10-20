@@ -184,6 +184,11 @@ namespace MBI.Editor
             // 합체 산출량 배율 — **하드코딩 금지**(`260917_W03` 7-2 #2). json 이 원천이다.
             c.mergeOutputMult = json.Param("mergeOutputMult");
 
+            // 과부하(사용자 확정 #229 · 2026-10-20) — 버스트 = 상태. 지속은 ⚠️ 미확정(10~20초).
+            c.overloadFireRate = json.Param("overloadFireRate");
+            c.overloadProduce = json.Param("overloadProduce");
+            c.overloadSec = json.Param("overloadSec");
+
             // 부스터 1대당 회피 스택 칸 — 2026-09-17 사용자 확정으로 2 → 4.
             // ⚠️ 구 값 2 는 `DodgeSystem` 에 `const` 로 **박혀 있었다.** 자산으로 옮겼다.
             c.dodgeStacksPerBooster = Mathf.RoundToInt(json.Param("dodgeStacksPerBooster"));

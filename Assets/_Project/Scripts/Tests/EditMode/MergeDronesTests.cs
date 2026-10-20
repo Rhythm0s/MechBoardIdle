@@ -79,7 +79,7 @@ namespace MBI.Tests
         public void 합체_중_드론_목록은_양쪽을_다_보여준다()
         {
             string src = System.IO.File.ReadAllText("Assets/_Project/Scripts/Core/Combat/CombatSimulation.cs");
-            StringAssert.Contains("DroneTickSide(_sides[i], dt, MergeSystem.MergeMultiplier, _sides[i] == Act);", src);
+            StringAssert.Contains("DroneTickSide(_sides[i], dt, MergeSystem.MergeMultiplier, _sides[i] == Act, OverloadRate);", src);   // #229 과부하 발진 배율
             StringAssert.Contains("for (int i = 0; i < _sides.Length; i++) _dronesAll.AddRange(_sides[i].drones);", src);
         }
     }

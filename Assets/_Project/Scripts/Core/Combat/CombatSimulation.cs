@@ -922,10 +922,13 @@ namespace MBI.Core
         public bool TryMerge()
         {
             if (Merge == null || !Merge.TryActivate()) return false;
-            if (Tag != null) { Tag.Locked = true; Tag.SkillWhileLocked = true; }   // #163 — 교대만 잠근다 · 스킬은 나간다
+            // ✅ **#228(2026-10-20 사용자 확정)** — 합체 중 태그 스킬은 나가지 않는다(문서 9-1).
+            //    🗑️ #163 `SkillWhileLocked = true`(「스킬은 나간다」 = 10-17 기록 오독 · #227: 그 「스킬」은 버스트였다).
+            if (Tag != null) { Tag.Locked = true; Tag.SkillWhileLocked = false; Tag.CancelPendingSkill(); }
 
-            // 발동 순간에 일어나는 것은 **버스트 하나**다 — 태그 스킬은 부르지 않는다(2026-08-29 확정).
-            FireBurst();
+            // ✅ **#229** — 순간 폭발은 없다(🗑️ `FireBurst` 300% 1회). 과부하는 틱에서 걸린다(`OverloadRate` · 러너 산출 ×2.5).
+            //    연출 「화력 전 → 후」의 전만 잡는다.
+            CaptureMergeSnapshot();
             return true;
         }
 
@@ -938,8 +941,19 @@ namespace MBI.Core
         private float AoeJudgeRadiusOf(DroneUnit d)
             => Act.setup.droneAoeJudgeRadius > 0f ? Act.setup.droneAoeJudgeRadius : d.AttackRange;
 
-        /// <summary>직전 버스트가 낸 피해(진단·연출용). 아직 안 터졌으면 0.</summary>
-        public float LastBurstDamage { get; private set; }
+        // 🗑️ `LastBurstDamage` — #229 로 순간 버스트가 없어졌다.
+
+        /// <summary>
+        /// **과부하 발사 배율**(#229 · 마운트 소비 ×2 = 발사 속도 ×2). 값의 임자는 `balance_v4.json` 의 `overloadFireRate` —
+        /// 러너 · 하네스가 넣는다. 기본 1 = 과부하 없음(격리 시험 경로가 종전 그대로).
+        /// </summary>
+        public float OverloadFireRate { get; set; } = 1f;
+
+        /// <summary>지금 걸리는 발사·발진 배율 — 과부하 중이면 <see cref="OverloadFireRate"/>, 아니면 1.</summary>
+        private float OverloadRate => Merge != null && Merge.IsOverloaded ? Mathf.Max(1f, OverloadFireRate) : 1f;
+
+        /// <summary>지금 과부하인가(HUD · 하네스).</summary>
+        public bool IsOverloaded => Merge != null && Merge.IsOverloaded;
 
         /// <summary>합체 발동 순간의 두 로봇 합산 초당 실피해. 연출이 「전 → 후」의 **전**으로 쓴다.</summary>
         public float LastMergeSnapshot { get; private set; }
@@ -1098,41 +1112,15 @@ namespace MBI.Core
         }
 
         /// <summary>
-        /// 버스트 — 합체 발동 순간의 **순간 필살 1회**(밸런스 5장, 예산 밖 마진 항).
-        ///
-        /// 스냅샷 = 그 순간 **두 로봇이 합쳐 내는 초당 실피해**이고, 거기에 300%를 곱한다.
-        /// 「실피해」인 이유는 합체 배율과 같다 — 배율을 방어 빼기 전에 곱하면
-        /// 「(A 화력 + B 화력) × 배수」와 값이 달라진다(260829_V01 확정).
-        ///
-        /// ⚠️ 드론은 스냅샷에 넣지 않는다. 드론은 초당 화력이 아니라 **재고를 태워 쓰는** 축이라
-        /// 「지금 내고 있는 화력」에 섞으면 남은 재고까지 한 번에 계상된다.
+        /// 합체 발동 순간 **두 로봇이 합쳐 내는 초당 실피해**(연출 「화력 전 → 후」의 전).
+        /// 🗑️ 구 `FireBurst` — 이 스냅샷 × 300% 를 최근접 하나에 1회(#229 로 폐기 · 과부하 상태가 대신).
         /// </summary>
-        private void FireBurst()
+        private void CaptureMergeSnapshot()
         {
-            LastBurstDamage = 0f;
-
             CombatEntity target = NearestLivingEnemyInRange();
-
-            // ⚠️ 스냅샷은 **표적 유무와 무관하게** 잡는다. 연출이 「화력 50 → 90」을 띄우는 근거가
-            // 이 값인데, 마침 사거리에 적이 없었다는 이유로 0이 되면 화면이 빈다.
             float snapshot = 0f;
             for (int i = 0; i < _sides.Length; i++) snapshot += SideOutputAgainst(_sides[i], target);
             LastMergeSnapshot = snapshot;
-
-            if (target == null) return; // 때릴 것이 없으면 터뜨리지 않는다 — 허공에 버리지 않는다
-            if (snapshot <= 0f) return;
-
-            float damage = MergeSystem.BurstDamage(snapshot);
-            target.hp -= damage;
-            target.aggro = true;   // 사용자 확정 #153 — 맞으면 깸(맞은 적만 · 전파 없음)
-            LastBurstDamage = damage;
-
-            _shots.Add(new ShotEvent
-            {
-                from = Act.body.position, to = target.position,
-                kind = AmmoKind.Explosive, // 순간 필살 — 폭발 연출로 그린다
-                killed = target.hp <= 0f, aoeRadius = 0f,
-            });
         }
 
         /// <summary>그 표적에 대해 이 로봇이 내는 **초당 실피해**. 판정식을 다시 만들지 않는다.</summary>
@@ -2089,13 +2077,13 @@ namespace MBI.Core
             if (MergedNow)
             {
                 for (int i = 0; i < _sides.Length; i++)
-                    DroneTickSide(_sides[i], dt, MergeSystem.MergeMultiplier, _sides[i] == Act);
+                    DroneTickSide(_sides[i], dt, MergeSystem.MergeMultiplier, _sides[i] == Act, OverloadRate);   // #229 과부하 = 발진 ×2
                 return;
             }
             DroneTickSide(Act, dt, 1f, true);
         }
 
-        private void DroneTickSide(RobotSide s, float dt, float damageMultiplier, bool loadInflow)
+        private void DroneTickSide(RobotSide s, float dt, float damageMultiplier, bool loadInflow, float launchRate = 1f)
         {
             if (s.bay == null) return;
 
@@ -2106,7 +2094,8 @@ namespace MBI.Core
             float stock = s.mount != null
                 ? s.mount.AmountOf(MountItem.Drone) + s.mount.AmountOf(MountItem.DroneAoe)
                 : 0f;
-            int launched = s.bay.Launch(dt, stock);
+            // ✅ #229 — 과부하는 **마운트 소비 ×2** 라 발진 허용량도 ×2(유입 · 드론 수명은 그대로 dt). 슬롯 상한은 그대로다.
+            int launched = s.bay.Launch(dt * launchRate, stock);
 
             for (int i = 0; i < launched; i++)
             {
@@ -2444,14 +2433,14 @@ namespace MBI.Core
             if (Merge != null && Merge.IsActive)
             {
                 for (int i = 0; i < _sides.Length; i++)
-                    FireSide(_sides[i], dt, MergeSystem.MergeMultiplier);
+                    FireSide(_sides[i], dt, MergeSystem.MergeMultiplier, OverloadRate);   // #229 과부하 = 발사 ×2 · 피해 ×1.8 그대로
                 return;
             }
 
-            FireSide(Act, dt, 1f);
+            FireSide(Act, dt, 1f, 1f);
         }
 
-        private void FireSide(RobotSide side, float dt, float damageMultiplier)
+        private void FireSide(RobotSide side, float dt, float damageMultiplier, float fireRate)
         {
             List<AmmoLine> lines = side.setup.lines;
             if (lines == null || lines.Count == 0) return;
@@ -2466,7 +2455,7 @@ namespace MBI.Core
                 AmmoLine shot = lines[li];
                 if (shot.shotsPerSec <= 0f) continue;
 
-                side.lineTimers[li] += shot.shotsPerSec * dt;
+                side.lineTimers[li] += shot.shotsPerSec * fireRate * dt;
                 // 허용오차: dt를 잘게 더하면 1발/초가 정확히 1.0이 아니라 0.9999…로 끝나 그 발이 다음 틱으로 밀린다.
                 // 잔여가 이월되므로 장기 발사율은 맞지만, 초 경계에서 한 발이 늦어 "1초 피해 = 명목 출력"(§5-6 계약)이
                 // 딱 떨어지지 않는다. 계약을 경계에서도 성립시키기 위한 허용오차다.

@@ -2458,6 +2458,9 @@ namespace MBI.EditorTools
         /// 「롤링 전투력 합(A 명목 · B 드론 도착률 × 충전량) × 계수」를 사거리 안 적 **전부**에(방어 무시 · 가정) 더 준다.
         /// </summary>
         internal static bool MergeSkillOff;
+        /// <summary>#229 과부하 손잡이(하네스 전용) — 0 이면 자산 `overloadSec`.</summary>
+        internal static float OverloadSecOverride;
+        internal static float LastMountADryAt, LastMountBDryAt, LastMergeEndAt, LastRefullA, LastRefullB, LastMountAAtMergeEnd, LastMountBAtMergeEnd;
         internal static float DocBurstPercent;
         internal static float LastDocBurst;
         /// <summary>#223 결함 후보 가름 — 합체 20초 동안 2초마다 A 줄 · A 마운트 · 실제 발사 · B 드론(하네스 전용 · 비우면 안 씀).</summary>
@@ -2756,7 +2759,7 @@ namespace MBI.EditorTools
             HarnessMergeOutput = false;
             KnobRefillMult = 1f; KnobMergeSeconds = 0f; KnobFreeDrones = false; KnobHalfSkill = false; KnobBossHp = 0f; SpawnHook = null;
             Enhanced = false; AutoMerge = false; RushMerge = false; MergeNotBefore = 0f; MergeStartRatio = -1f; AStartRatio = -1f; BStartRatio = -1f;
-            EnhancedBOverride = -1;
+            EnhancedBOverride = -1; OverloadSecOverride = 0f;
         }
         internal static float MergeNotBefore;
 
@@ -3057,6 +3060,7 @@ namespace MBI.EditorTools
         /// 배치: <c>-executeMethod MBI.EditorTools.StageClearHarness.RunFill223Batch</c>
         /// </summary>
         /// <summary>
+        /// 🗑️ #231(2026-10-20) — (다) 300% 광역 꼴 폐기 · 과부하로 재측(<see cref="RunOverloadBatch"/>). #228 뒤로 (가)(나) 칸은 같아진다.
         /// **버스트 문서식 가정 표**(2026-10-20 사용자 물음 「합체 때는 태그 스킬이 아니라 버스트가 나가야」 · 하네스 전용 · 값 0).
         /// S5 · S6 × 시작 보드 / 프리셋 × B 0 / 95% / 가득 × (가) 지금 (나) 합체 중 태그 스킬 금지 (다) (나)+문서식 버스트 300%
         /// (라) (나)+문서식 버스트 500% · 1000%. 강화 둘 · A 40 · 즉시 합체(3초). 배치: RunBurstDocBatch
@@ -3095,6 +3099,52 @@ namespace MBI.EditorTools
             }
             finally { BoardHook = null; MergeSkillOff = false; DocBurstPercent = 0f; KnobReset(); }
             System.IO.File.WriteAllText("Docs/261020_burst_doc.md", sb.ToString());
+            Debug.Log(sb.ToString());
+            if (Application.isBatchMode) EditorApplication.Exit(0);
+        }
+
+        /// <summary>
+        /// **#229 과부하 표**(2026-10-20 사용자 확정 · #231 재측). S5 · S6 × 시작 보드 / 프리셋 × B 0 / 95% / 가득 ×
+        /// 과부하 지속 10 / 15 / 20초. 강화 둘 · A 40 · 즉시 합체(3초) · 노드 산출 ×2.5(과부하 동안).
+        /// 칸 = 결과 · 끝 시각 · 합체 중 A/B 마운트 바닥(합체 뒤 초) · 합체 끝 뒤 A/B 만재 복귀(초). 배치: RunOverloadBatch
+        /// </summary>
+        public static void RunOverloadBatch()
+        {
+            var sb = new StringBuilder();
+            sb.AppendLine("############ #229 과부하 표 (2026-10-20 · 하네스 · 발사 ×2 · 피해 ×1.8 · 산출 ×2.5 · 합체 중 태그 스킬 없음) ############");
+            sb.AppendLine("강화 A·B · A 40 · 게이지 0 → #160 3초 만충 · 즉시 합체 · 칸 = 결과(승 시각 / 남은 적 HP) · 나선 로봇 · 바닥 A/B(합체 뒤 초 · — = 안 바닥) · 합체 끝 재고 A/B · 만재 복귀 A/B(합체 끝 뒤 초 · — = 판 끝까지 안 참)");
+            sb.AppendLine();
+            sb.AppendLine("| 판 | 보드 | B 시작 | 과부하 10초 | 과부하 15초 | 과부하 20초 |");
+            sb.AppendLine("|---|---|---|---|---|---|");
+            System.Action<BoardGrid> hook = g => PresetBoards.ApplyExplosive(g, NodeResolver(BasePropellantNeed));
+            string T(float v) => v < 0f ? "—" : $"{v:F1}";
+            try
+            {
+                foreach (string sid in new[] { "S5", "S6" })
+                    foreach (bool on in new[] { false, true })
+                        foreach (float b in new[] { 0f, 0.95f, 1f })
+                        {
+                            float[] secs = { 10f, 15f, 20f };
+                            var c = new string[secs.Length];
+                            for (int k = 0; k < secs.Length; k++)
+                            {
+                                BoardHook = on ? hook : null;
+                                Enhanced = true; HarnessMergeOutput = true; AutoMerge = true; RushMerge = true;
+                                MergeNotBefore = 0f; MergeStartRatio = 0f; AStartRatio = 1f; BStartRatio = b;
+                                OverloadSecOverride = secs[k];
+                                StageVerdict v = RunOne(sid, 0f);
+                                c[k] = (v.result == CombatResult.Win ? $"**Win {v.seconds:F1}**" : $"Timeout · {LastEnemyHpLeft:F0}")
+                                       + $" · {(LastActiveAtMerge == 0 ? "A" : LastActiveAtMerge == 1 ? "B" : "-")}"
+                                       + $" · 바닥 {T(LastMountADryAt)}/{T(LastMountBDryAt)}"
+                                       + $" · 끝재고 {(LastMountAAtMergeEnd < 0f ? "—" : LastMountAAtMergeEnd.ToString("F0"))}/{(LastMountBAtMergeEnd < 0f ? "—" : LastMountBAtMergeEnd.ToString("F0"))}"
+                                       + $" · 복귀 {T(LastRefullA)}/{T(LastRefullB)}";
+                                BoardHook = null; KnobReset();
+                            }
+                            sb.AppendLine($"| {sid} | {(on ? "프리셋" : "시작")} | {b * 100f:F0}% | {c[0]} | {c[1]} | {c[2]} |");
+                        }
+            }
+            finally { BoardHook = null; KnobReset(); }
+            System.IO.File.WriteAllText("Docs/261020_overload.md", sb.ToString());
             Debug.Log(sb.ToString());
             if (Application.isBatchMode) EditorApplication.Exit(0);
         }
@@ -3487,6 +3537,12 @@ namespace MBI.EditorTools
             var sim = new CombatSimulation(setupA, setupB, mountA, mountB, spawns,
                 tuning.arenaRadiusTbd, stage.challengeTime, tuning.spawnCadenceTbd);
             sim.AutoTagEnabled = true;
+            // #229 과부하 — 러너와 같은 자산에서(지속만 하네스 손잡이로 덮을 수 있다).
+            if (robotA.balanceRef != null)
+            {
+                sim.OverloadFireRate = robotA.balanceRef.overloadFireRate;
+                if (sim.Merge != null) sim.Merge.OverloadSeconds = OverloadSecOverride > 0f ? OverloadSecOverride : robotA.balanceRef.overloadSec;
+            }
             sim.SetSideStepHold(tuning.enemySideStepHoldTbd);
             // ⚠️ **러너와 같은 자산에서 읽는다** — 안 읽으면 하네스가 종전 거동(예산 0)으로
             //    재서 화면과 다른 판을 본다(오늘 아침 `RespawnUnreachable` 과 같은 자리).
@@ -3528,6 +3584,7 @@ namespace MBI.EditorTools
             float allSpawnedAt = -1f;   // #151 — 다 나온 시각
             LastMergeAt = -1f; LastMergeReadyAt = -1f; LastBurstDamage = 0f;   // 2026-10-16 S6 합체 확인
             LastActiveAtMerge = -1; LastTagSwaps = 0; _mergeDiagNext = 0f; LastDocBurst = 0f;
+            LastMountADryAt = LastMountBDryAt = LastMergeEndAt = LastRefullA = LastRefullB = -1f; LastMountAAtMergeEnd = LastMountBAtMergeEnd = -1f;
             LastHpBeforeMerge = -1f; LastMergeEndHp = -1f;
             int peakAggro = 0;          // #152 — 한 번에 깨어 있던 최대 수
             float bFullAt = -1f;
@@ -3562,8 +3619,9 @@ namespace MBI.EditorTools
 
                 // 1) 보드 둘 다 돈다 — 대기 보드도 계속 만든다(그것이 태그의 전제다).
                 // 2026-10-17 — 게임처럼 합체 중 노드 산출 ×mergeOutputMult 를 태울 수 있다(러너 `MergeSignals.OutputMultiplier` → `BoardItemTick.Step`).
-                bool mmOn = sim.Merge != null && sim.Merge.IsActive;
-                float mm = HarnessMergeOutput && mmOn && robotA.balanceRef != null ? Mathf.Max(1f, robotA.balanceRef.mergeOutputMult) : 1f;
+                // ✅ #229 — 과부하 동안만 ×overloadProduce(2.5) · 🗑️ 합체 전체 ×mergeOutputMult(2).
+                bool mmOn = sim.IsOverloaded;
+                float mm = HarnessMergeOutput && mmOn && robotA.balanceRef != null ? Mathf.Max(1f, robotA.balanceRef.overloadProduce) : 1f;
                 BoardItemTick.Step(gridA, flowA, Dt, throttleA.Scale, mm);
                 deliveryA.Observe(flowA.PendingMountArrivals, DamageOf, Dt, MountOwner.RobotA);
                 flowA.ClearPendingMountArrivals();
@@ -3692,6 +3750,21 @@ namespace MBI.EditorTools
                 }
                 int strikesBefore = sim.TagSkillStrikes;
                 if (wasMerging && LastMergeEndHp < 0f && sim.Merge != null && !sim.Merge.IsActive) LastMergeEndHp = enemyHp;
+                // #229 과부하 자취 — 합체 중 마운트 바닥 시각 · 합체 끝 재고 · 끝난 뒤 만재 복귀까지 초.
+                if (LastMergeAt >= 0f && sim.Merge != null)
+                {
+                    if (sim.Merge.IsActive)
+                    {
+                        if (LastMountADryAt < 0f && mountA.Total < 1f) LastMountADryAt = elapsed - LastMergeAt;
+                        if (LastMountBDryAt < 0f && mountB.Total < 1f) LastMountBDryAt = elapsed - LastMergeAt;
+                    }
+                    else
+                    {
+                        if (LastMergeEndAt < 0f) { LastMergeEndAt = elapsed; LastMountAAtMergeEnd = mountA.Total; LastMountBAtMergeEnd = mountB.Total; }
+                        if (LastRefullA < 0f && mountA.IsFull) LastRefullA = elapsed - LastMergeEndAt;
+                        if (LastRefullB < 0f && mountB.IsFull) LastRefullB = elapsed - LastMergeEndAt;
+                    }
+                }
                 float bStack = mountB.AmountOf(MountItem.Drone);
                 float bAoe = mountB.AmountOf(MountItem.DroneAoe);
 
@@ -3806,7 +3879,7 @@ namespace MBI.EditorTools
 
             // ── 보고 ───────────────────────────────────────────────────────
             LastTagSwaps = tagSwaps;   // #223 가름
-            LastBurstDamage = sim.LastBurstDamage;
+            LastBurstDamage = 0f;   // 🗑️ #229 — 순간 버스트 없음
             LastTagStrikes = sim.TagSkillStrikes;
             LastDroneDamage = sim.DroneDamageDealt;
             LastStrikeLog = string.Join(" / ", strikeLog).Replace("    ", "");

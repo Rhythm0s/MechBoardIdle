@@ -28,7 +28,7 @@ namespace MBI.Tests
             Assert.AreEqual(90f, MergeSystem.GaugeFullSeconds, D, "params gaugeFull");
             Assert.AreEqual(20f, MergeSystem.DurationSeconds, D, "params bd");
             Assert.AreEqual(1.8f, MergeSystem.MergeMultiplier, D, "params mergeMult");
-            Assert.AreEqual(300f, MergeSystem.BurstPercent, D, "params bc");
+            // 🗑️ BurstPercent 300(params bc) — #229 폐기
         }
 
         /// <summary>
@@ -43,11 +43,31 @@ namespace MBI.Tests
             Assert.AreEqual(360f, MergeSystem.MergedOutput(100f, 100f), D, "200 × 1.8");
         }
 
+        /// <summary>#229 — 과부하는 합체 시작부터 OverloadSeconds 동안만(기본 = 합체 전체).</summary>
         [Test]
-        public void BurstDamage_IsThreeHundredPercentOfSnapshot()
+        public void Overload_LastsOverloadSecondsFromMergeStart()
         {
-            Assert.AreEqual(300f, MergeSystem.BurstDamage(100f), D);
-            Assert.AreEqual(0f, MergeSystem.BurstDamage(-5f), D, "음수는 0으로");
+            MergeSystem m = Charged();
+            m.OverloadSeconds = 10f;
+            Assert.IsFalse(m.IsOverloaded, "발동 전엔 아니다");
+            Assert.IsTrue(m.TryActivate());
+            Assert.IsTrue(m.IsOverloaded, "발동 순간부터");
+            m.Tick(9.9f, inCombat: true);
+            Assert.IsTrue(m.IsOverloaded, "9.9초");
+            m.Tick(0.2f, inCombat: true);
+            Assert.IsFalse(m.IsOverloaded, "10초 넘으면 끝");
+            Assert.IsTrue(m.IsActive, "합체는 그대로");
+        }
+
+        [Test]
+        public void Overload_DefaultIsWholeMerge()
+        {
+            MergeSystem m = Charged();
+            m.TryActivate();
+            m.Tick(MergeSystem.DurationSeconds - 0.1f, inCombat: true);
+            Assert.IsTrue(m.IsOverloaded);
+            m.Tick(0.2f, inCombat: true);
+            Assert.IsFalse(m.IsOverloaded, "합체가 끝나면 함께 끝");
         }
 
         // ---- 게이지 ----
@@ -206,19 +226,6 @@ namespace MBI.Tests
 
         // ---- 예산 경계 ----
 
-        /// <summary>
-        /// 버스트는 **지속 DPS가 아니다.** 순간 1회라 예산 밖 마진 항이고,
-        /// 지속 화력과 더해 놓으면 요구치 예산이 무너진다 — 두 값이 섞이지 않는다는 확인.
-        /// </summary>
-        [Test]
-        public void BurstIsNotAddedToSustainedOutput()
-        {
-            float sustained = MergeSystem.MergedOutput(100f, 100f); // 360
-            float burst = MergeSystem.BurstDamage(200f);            // 600
-
-            Assert.AreEqual(360f, sustained, D, "지속은 지속대로");
-            Assert.AreEqual(600f, burst, D, "순간은 순간대로");
-            Assert.AreNotEqual(sustained + burst, sustained, "합산하는 API가 없다");
-        }
+        // 🗑️ BurstIsNotAddedToSustainedOutput — #229 로 순간 버스트가 없어졌다.
     }
 }

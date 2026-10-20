@@ -63,7 +63,7 @@ namespace MBI.Tests
         public void 합체가_잠그고_풀_때_스킬_허용도_같이_따라간다()
         {
             string src = System.IO.File.ReadAllText("Assets/_Project/Scripts/Core/Combat/CombatSimulation.cs");
-            StringAssert.Contains("Tag.Locked = true; Tag.SkillWhileLocked = true;", src);
+            StringAssert.Contains("Tag.Locked = true; Tag.SkillWhileLocked = false;", src);   // #228 — 합체 중 태그 스킬 없음
             StringAssert.Contains("Tag.Locked = false; Tag.SkillWhileLocked = false;", src);
             StringAssert.Contains("RobotSide side = _sides[Tag.PendingSkillIndex];", src);
         }

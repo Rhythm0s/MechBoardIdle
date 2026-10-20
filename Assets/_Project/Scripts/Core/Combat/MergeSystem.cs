@@ -5,7 +5,10 @@ namespace MBI.Core
     /// <summary>
     /// 합체·버스트(전투 시스템 문서 4·5장 · 밸런스 5장). 순수 상태 기계 — 씬 비의존.
     ///
-    /// 확정치: 게이지 만충 **90초** · 합체 지속 **20초** · 합체 배율 **×1.8** · 버스트 **300%**.
+    /// 확정치: 게이지 만충 **90초** · 합체 지속 **20초** · 합체 배율 **×1.8** · 🗑️ 버스트 300%(#229 폐기).
+    ///
+    /// ✅ **#229(2026-10-20 사용자 확정) — 버스트 = 「과부하」 상태.** 합체 기간(<see cref="OverloadSeconds"/>) 동안
+    /// 마운트 소비(= 발사 속도) ×2(피해 ×1.8 은 그대로 곱) · 두 보드 노드 산출 ×2.5. 아래 「순간 1회」 설명은 🗑️ 구 규칙이다.
     /// 게이지는 **공통 1개**이고 **스테이지당 1회**이며, 만충 시 합체와 버스트가 **동시 발동**한다.
     ///
     /// 두 축이 분리돼 있다(밸런스 1장「순간/지속 경계」):
@@ -27,8 +30,16 @@ namespace MBI.Core
         /// <summary>합체 배율. params mergeMult = 1.8 확정.</summary>
         public const float MergeMultiplier = 1.8f;
 
-        /// <summary>버스트 계수. params bc = 300% 확정.</summary>
-        public const float BurstPercent = 300f;
+        // 🗑️ `BurstPercent = 300f`(params bc) — 사용자 확정 #229(2026-10-20): 300% 1회 폭발은 없앤다. 버스트 = 「과부하」 상태.
+
+        /// <summary>
+        /// **과부하 지속(초)** — 사용자 확정 #229: 합체 동안 마운트 소비 ×2 · 노드 산출 ×2.5 가 걸리는 시간.
+        /// 값의 임자는 `balance_v4.json` 의 `overloadSec`(러너 · 하네스가 넣는다) — 여기 기본은 합체 전체.
+        /// </summary>
+        public float OverloadSeconds { get; set; } = DurationSeconds;
+
+        /// <summary>지금 과부하인가 — 합체 시작부터 <see cref="OverloadSeconds"/> 동안(합체가 끝나면 함께 끝).</summary>
+        public bool IsOverloaded => IsActive && DurationSeconds - _remaining < OverloadSeconds;
 
         private float _charge;   // 초 단위 누적
         private float _remaining;
@@ -127,12 +138,6 @@ namespace MBI.Core
         public static float MergedOutput(float outputA, float outputB) =>
             (Mathf.Max(0f, outputA) + Mathf.Max(0f, outputB)) * MergeMultiplier;
 
-        /// <summary>
-        /// 버스트 피해 = **발동 순간 스냅샷 × 300%**, 순간 1회.
-        /// 지속 DPS가 아니라 한 번 터지는 값이라 예산 밖 마진 항이다 —
-        /// 이것을 DPS에 섞으면 요구치 예산이 무너진다.
-        /// </summary>
-        public static float BurstDamage(float snapshotOutput) =>
-            Mathf.Max(0f, snapshotOutput) * (BurstPercent / 100f);
+        // 🗑️ `BurstDamage(snapshot)` = 스냅샷 × 300% 순간 1회 — 사용자 확정 #229(2026-10-20)로 폐기. 과부하 상태가 대신한다.
     }
 }

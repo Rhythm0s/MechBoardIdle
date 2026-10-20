@@ -1565,8 +1565,14 @@ namespace MBI.Combat
                     _sim.DodgeMoveDistance = bal.dodgeMoveDistance;
                     _sim.DodgeMoveSeconds = bal.dodgeMoveSeconds;
                 }
-                MergeSignals.OutputMultiplier = IsMerged && bal != null
-                    ? Mathf.Max(1f, bal.mergeOutputMult)
+                // ✅ #229 — 과부하 동안만 노드 산출 ×overloadProduce(2.5) · 🗑️ 합체 전체 ×mergeOutputMult(2).
+                if (bal != null)
+                {
+                    _sim.OverloadFireRate = bal.overloadFireRate;
+                    if (_sim.Merge != null) _sim.Merge.OverloadSeconds = bal.overloadSec;
+                }
+                MergeSignals.OutputMultiplier = _sim.IsOverloaded && bal != null
+                    ? Mathf.Max(1f, bal.overloadProduce)
                     : MergeSignals.None;
 
                 // ── 쉴드 (2026-09-17 · `260917_W05` 4장) ──────────────────────────
@@ -3521,13 +3527,9 @@ namespace MBI.Combat
             GUI.Label(new Rect(0f, y + 96f, w, 44f),
                 $"화력 {_cutscene.OutputBefore:F0}  →  {_cutscene.OutputNow:F0}", line);
 
-            // 표적이 없어 안 터졌으면 줄 자체를 안 그린다 — 「버스트 0」은 거짓말이다.
-            if (_cutscene.BurstDamage > 0f)
-            {
-                GUI.color = new Color(1f, 0.55f, 0.35f, a);
-                GUI.Label(new Rect(0f, y + 144f, w, 44f),
-                    $"버스트 {_cutscene.BurstDamage:F0}", line);
-            }
+            // ✅ #229 — 버스트 = 「과부하」 상태(⚠️ 낱말 = 플랜 가정 · 육안 때 사용자 판정). 🗑️ 「버스트 N」 줄.
+            GUI.color = new Color(1f, 0.55f, 0.35f, a);
+            GUI.Label(new Rect(0f, y + 144f, w, 44f), "과부하", line);
 
             GUI.color = prev;
         }
@@ -3669,12 +3671,10 @@ namespace MBI.Combat
                 float shownFirepower = _sim.LastMergeSnapshot > 0f
                     ? _sim.LastMergeSnapshot
                     : RobotOutput.Nominal(robot.weapons, _mountCoef, robot.moduleMult);
-                _cutscene.Play(shownFirepower, _sim.LastBurstDamage);
-                // 합체와 버스트는 **한 순간에 나는 두 사건**이다(MVP 4장 「동시에 일어나는 두 사건」).
-                // 소리도 둘이며, 사운드 문서 4장이 **음색으로** 가르라고 정했다.
+                _cutscene.Play(shownFirepower, 0f);   // #229 — 순간 버스트 없음
+                // 합체와 과부하 시작은 **한 순간에 나는 두 사건**이다 — 소리 둘 그대로(⚠️ 구현 판단: 버스트 소리를 과부하 시작에 씀).
                 AudioSignals.Play(SoundIds.Fusion, SoundIds.KindOf(SoundIds.Fusion));
-                if (_sim.LastBurstDamage > 0f)
-                    AudioSignals.Play(SoundIds.Burst, SoundIds.KindOf(SoundIds.Burst));
+                AudioSignals.Play(SoundIds.Burst, SoundIds.KindOf(SoundIds.Burst));
             }
             if (mergeOutline) UiSkin.DrawTutorialOutline(mergeRect);   // #210
 

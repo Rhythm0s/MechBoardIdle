@@ -124,7 +124,10 @@ namespace MBI.Tests
             BalanceConfig bal = Balance();
             Assert.IsNotNull(bal, "BalanceConfig 자산이 없다 — 생성기를 먼저 돌린다");
             Assert.AreEqual(2f, bal.mergeOutputMult, D,
-                "params mergeOutputMult = 2 (밸런스 「합체 예외」)");
+                "params mergeOutputMult = 2 (🗑️ #229 — 산출은 과부하 동안 overloadProduce)");
+            Assert.AreEqual(2.5f, bal.overloadProduce, D, "params overloadProduce = 2.5 (#229)");
+            Assert.AreEqual(2f, bal.overloadFireRate, D, "params overloadFireRate = 2 (#229)");
+            Assert.AreEqual(20f, bal.overloadSec, D, "params overloadSec = 20 ⚠️ 미확정 (#229)");
         }
 
         // ── ⑤ 합체 중 보드 편집을 막지 않는 것이 **의도**다 ──────────────────
