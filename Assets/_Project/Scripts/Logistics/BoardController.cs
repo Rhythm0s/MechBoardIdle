@@ -3773,14 +3773,65 @@ namespace MBI.Logistics
         /// ✅ **#213 — 팔레트 이름 = 한 줄이 들면 한 줄 · 안 들면 낱말 자리 두 줄**(`PaletteLabelRule`).
         /// 글자는 긴 줄이 폭에 들 때까지 사다리를 내린다(바닥 16). 🗑️ 노드 · 모듈 단추에서 `OneLineStyle` 대신.
         /// </summary>
-        private static string PaletteLabel(GUIStyle baseStyle, string label, float width, out GUIStyle st)
+        private string PaletteLabel(GUIStyle baseStyle, string label, float width, out GUIStyle st)
         {
-            st = new GUIStyle(baseStyle) { wordWrap = false };
-            if (st.CalcSize(new GUIContent(label)).x <= width + 0.5f) return label;
-            string text = PaletteLabelRule.BreakAtWord(label);
-            if (text == label) { st = OneLineStyle(baseStyle, label, width); return label; }
-            UiText.FitOneLine(st, PaletteLabelRule.WidestLine(text), width);
-            return text;
+            // #219 — 글자 크기는 팔레트 하나(`_paletteLabelFont`) · 키우지 않는다(🗑️ `UiText.FitOneLine` 이 폭에 맞춰 키웠다).
+            st = new GUIStyle(baseStyle) { wordWrap = false, fontSize = _paletteLabelFont > 0 ? _paletteLabelFont : baseStyle.fontSize };
+            return LabelTextAt(st, label, PaletteBandWidth(width));
+        }
+
+        /// <summary>#219 — 이 글자 크기에서 한 줄에 들면 한 줄, 아니면 낱말 자리 두 줄.</summary>
+        private static string LabelTextAt(GUIStyle st, string label, float bandWidth) =>
+            st.CalcSize(new GUIContent(label)).x <= bandWidth + 0.5f ? label : PaletteLabelRule.BreakAtWord(label);
+
+        /// <summary>#219 — 라벨 띠의 안쪽 폭 · 최대 높이(단추 한 변 기준 · `DrawPaletteNameBand` 와 같은 수).</summary>
+        private static float PaletteBandWidth(float side) => side - 2f * Mathf.Max(2f, side * 0.03f) - 2f;
+        private static float PaletteBandMaxHeight(float side) => side * 0.5f;
+
+        /// <summary>#219 — 팔레트 라벨 글자 상한 = 사다리 중간 단(⚠️ 구현 가정).</summary>
+        private static int PaletteLabelFontCap => KoreanFont.Ladder[KoreanFont.Ladder.Length / 2 - 1];
+
+        private int _paletteLabelFont;
+
+        private System.Collections.Generic.List<string> VisiblePaletteNames()
+        {
+            var names = new System.Collections.Generic.List<string>();
+            if (palette != null)
+                foreach (NodeDefinition d in palette)
+                    if (d != null && PaletteCategories.Shows(_tab, d)) names.Add(d.displayName);
+            if (modulePalette != null && PaletteCategories.ShowsModule(_tab))
+                foreach (ModuleDefinition m in modulePalette)
+                    if (m != null) names.Add(ModuleTutorialRule.DisplayName(m.displayName));
+            if (PaletteCategories.ShowsBeltElement(_tab))
+            { names.Add(ElementLabel(BeltElementKind.Merger)); names.Add(ElementLabel(BeltElementKind.Sorter)); }
+            return names;
+        }
+
+        /// <summary>
+        /// #219 — 보이는 이름 **전부**가 띠 안에 드는 가장 큰 사다리 단(상한부터 내려감 · 바닥 = 사다리 첫 단).
+        /// 들려면 한 줄이면 한 줄 폭, 두 줄이면 긴 줄 폭이 띠 폭 안 · 줄 수 × 줄 높이가 띠 최대 높이 안.
+        /// </summary>
+        private static int PaletteLabelFontFor(System.Collections.Generic.List<string> names, float side)
+        {
+            float w = PaletteBandWidth(side), hMax = PaletteBandMaxHeight(side) - 4f;
+            var st = new GUIStyle(GUI.skin.label) { wordWrap = false, padding = new RectOffset(1, 1, 0, 0) };
+            for (int li = KoreanFont.Ladder.Length - 1; li >= 0; li--)
+            {
+                int size = KoreanFont.Ladder[li];
+                if (size > PaletteLabelFontCap) continue;
+                st.fontSize = size;
+                bool ok = true;
+                float lineH = st.lineHeight > 0f ? st.lineHeight : size * 1.2f;
+                foreach (string n in names)
+                {
+                    string t = LabelTextAt(st, n, w);
+                    int lines = t.IndexOf('\n') >= 0 ? 2 : 1;
+                    if (st.CalcSize(new GUIContent(PaletteLabelRule.WidestLine(t))).x > w + 0.5f || lines * lineH > hMax)
+                    { ok = false; break; }
+                }
+                if (ok) return size;
+            }
+            return KoreanFont.MinSize;   // 바닥에서도 안 들면 바닥(#125 하한)
         }
 
         private static GUIStyle OneLineStyle(GUIStyle baseStyle, string label, float width)
@@ -4177,6 +4228,10 @@ namespace MBI.Logistics
             side = Mathf.Max(1f, Mathf.Min(side, byWidth));
 
             float step = side + pad;
+
+            // ✅ **#219 — 팔레트 라벨 글자 하나로**(2026-10-20 사용자 육안 41 · 모듈 이름이 띠 밖으로 넘치고 「병합기」만 컸다).
+            //    보이는 이름 전부가 띠(두 줄 높이) 안에 드는 가장 큰 사다리 단 · 상한 = 사다리 중간 단(⚠️ 가정) · 바닥 = #125 하한.
+            _paletteLabelFont = PaletteLabelFontFor(VisiblePaletteNames(), side);
             var content = new Rect(0f, 0f, slots * step, side);
 
             // ⚠️ **휠·트랙패드로도 밀린다**(2026-09-15 사용자 확정 · 「좌우로 스크롤 되지 않음」).
@@ -4311,7 +4366,8 @@ namespace MBI.Logistics
                         GUI.DrawTexture(PaletteThumbRect(eRect), icon.texture, ScaleMode.ScaleToFit, true);
                     }
                 }
-                DrawPaletteNameBand(eRect, ElementLabel(e), style);   // #213 개정
+                string eText = PaletteLabel(style, ElementLabel(e), eRect.width, out GUIStyle eStyle);   // #219 — 같은 크기
+                DrawPaletteNameBand(eRect, eText, eStyle);   // #213 개정
                 GUI.color = prevCol;
 
                 if (on) DrawSelectedOutline(eRect);
@@ -5531,7 +5587,7 @@ namespace MBI.Logistics
             if (string.IsNullOrEmpty(text)) return;
             var st = new GUIStyle(GUI.skin.label)
             {
-                fontSize = baseStyle.fontSize,
+                fontSize = baseStyle.fontSize,   // #219 — 부르는 쪽이 팔레트 하나 크기를 실어 준다
                 alignment = TextAnchor.MiddleCenter,
                 wordWrap = false,
                 clipping = TextClipping.Overflow,
@@ -5540,7 +5596,7 @@ namespace MBI.Logistics
             st.normal.textColor = Color.white;
             float lineH = st.lineHeight > 0f ? st.lineHeight : st.fontSize * 1.2f;
             float inset = Mathf.Max(2f, button.height * 0.03f);
-            float bandH = Mathf.Min(button.height * 0.5f, lineH * 2f + 4f);
+            float bandH = Mathf.Min(PaletteBandMaxHeight(button.height), lineH * 2f + 4f);
             var band = new Rect(button.x + inset, button.yMax - inset - bandH, button.width - inset * 2f, bandH);
             Color prev = GUI.color;
             GUI.color = new Color(0f, 0f, 0f, PaletteNameBandAlpha * prev.a);
