@@ -2452,6 +2452,10 @@ namespace MBI.EditorTools
         internal static float LastMergeAt = -1f, LastMergeReadyAt = -1f, LastBurstDamage, LastEnemyHpLeft;
         /// <summary>#223 가름 — 합체 순간 나선 로봇(0 = A · 1 = B · -1 = 합체 없음) · 판 전체 교대 수.</summary>
         internal static int LastActiveAtMerge = -1, LastTagSwaps;
+        /// <summary>#223 결함 후보 가름 — 합체 20초 동안 2초마다 A 줄 · A 마운트 · 실제 발사 · B 드론(하네스 전용 · 비우면 안 씀).</summary>
+        internal static StringBuilder MergeDiag;
+        private static float _mergeDiagNext;
+        private static int _mergeDiagFired0;
 
         /// <summary>
         /// **S6 태그·합체 확인**(2026-10-16 사용자 직접 지시 「스테이지 6 태그 및 합체도 사용해도 시간 초과 발생하는지」 · 값 0).
@@ -3044,6 +3048,30 @@ namespace MBI.EditorTools
         /// S4 · S5 · S6 × 시작 보드 / 폭발탄 프리셋 × 강화 뒤 × 즉시 합체 / 45초 합체 · B 0 시작(종전 표) ↔ B 가득(#223).
         /// 배치: <c>-executeMethod MBI.EditorTools.StageClearHarness.RunFill223Batch</c>
         /// </summary>
+        /// <summary>#223 결함 후보 가름 — S6 시작 보드 · 즉시 합체 · B 95% ↔ B 가득 합체 20초 자취. 배치: RunMergeDiagBatch</summary>
+        public static void RunMergeDiagBatch()
+        {
+            var sb = new StringBuilder();
+            sb.AppendLine("############ #223 결함 후보 가름 — 합체 20초 자취 (S6 시작 보드 · 강화 뒤 · A 40) ############");
+            try
+            {
+                foreach (float b in new[] { 0.95f, 1f })
+                {
+                    sb.AppendLine($"## B {b * 100f:F0}% 시작");
+                    MergeDiag = sb;
+                    Enhanced = true; HarnessMergeOutput = true; AutoMerge = true; RushMerge = true;
+                    MergeNotBefore = 0f; MergeStartRatio = 0f; AStartRatio = 1f; BStartRatio = b;
+                    StageVerdict v = RunOne("S6", 0f);
+                    sb.AppendLine($"  → {v.result} {v.seconds:F1}초 · 합체 때 {(LastActiveAtMerge == 0 ? "A" : "B")} · 교대 {LastTagSwaps}");
+                    MergeDiag = null; KnobReset();
+                }
+            }
+            finally { MergeDiag = null; KnobReset(); }
+            System.IO.File.WriteAllText("Docs/261020_merge_diag.md", sb.ToString());
+            Debug.Log(sb.ToString());
+            if (Application.isBatchMode) EditorApplication.Exit(0);
+        }
+
         public static void RunFill223Batch()
         {
             var sb = new StringBuilder();
@@ -3448,7 +3476,7 @@ namespace MBI.EditorTools
             var tagLines = new List<AmmoLine>();   // 매 틱 A 줄 재배분용(아래 · 2026-10-16 정정)
             float allSpawnedAt = -1f;   // #151 — 다 나온 시각
             LastMergeAt = -1f; LastMergeReadyAt = -1f; LastBurstDamage = 0f;   // 2026-10-16 S6 합체 확인
-            LastActiveAtMerge = -1; LastTagSwaps = 0;
+            LastActiveAtMerge = -1; LastTagSwaps = 0; _mergeDiagNext = 0f;
             LastHpBeforeMerge = -1f; LastMergeEndHp = -1f;
             int peakAggro = 0;          // #152 — 한 번에 깨어 있던 최대 수
             float bFullAt = -1f;
@@ -3589,6 +3617,8 @@ namespace MBI.EditorTools
                     LastMergeAt = elapsed;
                     LastHpBeforeMerge = enemyHp;
                     LastActiveAtMerge = sim.ActiveRobotIndex;   // #223 가름
+                    _mergeDiagFired0 = sim.FiredOf(AmmoKind.Standard) + sim.FiredOf(AmmoKind.Explosive) + sim.FiredOf(AmmoKind.Pierce);
+                    _mergeDiagNext = elapsed;
                 }
                 if (TraceS6 != null && elapsed >= TraceNext)
                 {
@@ -3684,6 +3714,17 @@ namespace MBI.EditorTools
                     peakShieldB = Mathf.Max(peakShieldB, sim.Shield != null ? sim.Shield.Value : 0f);
                 }
                 if (sim.ActiveRobotIndex != lastActive) { tagSwaps++; lastActive = sim.ActiveRobotIndex; }
+                if (MergeDiag != null && LastMergeAt >= 0f && elapsed - LastMergeAt <= 20f + Dt && elapsed >= _mergeDiagNext)
+                {
+                    _mergeDiagNext += 2f;
+                    float aRate = 0f; int aLines = setupA.lines != null ? setupA.lines.Count : 0;
+                    if (setupA.lines != null) foreach (AmmoLine l in setupA.lines) aRate += l.shotsPerSec;
+                    int fired = sim.FiredOf(AmmoKind.Standard) + sim.FiredOf(AmmoKind.Explosive) + sim.FiredOf(AmmoKind.Pierce) - _mergeDiagFired0;
+                    MergeDiag.AppendLine($"    {elapsed,5:F1}초 · 나선 {(sim.ActiveRobotIndex == 0 ? "A" : "B")} · 합체 {(sim.Merge != null && sim.Merge.IsActive ? "중" : "-")}"
+                        + $" · A 줄 {aLines}개 Σ{aRate:F2}발/초 · A 마운트 {(mountA != null ? mountA.Total : 0f):F0}"
+                        + $" · 합체 뒤 실제 발사 {fired} · B 드론 재고 {(mountB != null ? mountB.AmountOf(MountItem.Drone) + mountB.AmountOf(MountItem.DroneAoe) : 0f):F0}"
+                        + $" · 보스 HP {enemyHp:F0}");
+                }
                 if (allSpawnedAt < 0f && sim.Unspawned == 0) allSpawnedAt = elapsed;   // #151 열
                 { int awake = 0; foreach (CombatEntity e in sim.Enemies) if (e.IsAlive && e.aggro) awake++; if (awake > peakAggro) peakAggro = awake; }   // #152 열
                 if (sim.TagSkillStrikes > strikesBefore)
