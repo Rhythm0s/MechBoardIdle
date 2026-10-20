@@ -3626,6 +3626,69 @@ namespace MBI.EditorTools
             if (Application.isBatchMode) EditorApplication.Exit(0);
         }
 
+        /// <summary>
+        /// **S5 폭발탄 줄 연결 확인**(2026-10-20 사용자 보고 「폭발탄 쪽 벨트 연결이 안 되어 있다」 · 하네스 · 값 0).
+        /// 같은 시작 보드에 (가) 튜토리얼 다섯 칸만(걸음 ①~⑤ 끝 직후) (나) (가) + #216 꼬리 자동 완성(덮어쓰기 거짓)
+        /// (다) 바로가기 프리셋(ApplyExplosive) → 물류 60초 · 마운트 도착 탄종별 · 꼬리 칸 상태. 배치: RunExplosiveLinkBatch
+        /// ⚠️ 튜토리얼 칸은 화면 손이 아니라 같은 좌표 · 같은 면으로 직접 놓는다(가정).
+        /// </summary>
+        public static void RunExplosiveLinkBatch()
+        {
+            var sb = new StringBuilder();
+            sb.AppendLine("############ S5 폭발탄 줄 연결 (2026-10-20 · 하네스 · 시작 보드 + 칸 놓기 · 물류 60초) ############");
+            void Clr(BoardGrid g, Vector2Int c) { if (g.GetAt(c) != null) g.TryRemove(c); if (g.GetBeltAt(c) != null) g.TryRemoveBelt(c); }
+            System.Action<BoardGrid> steps = g =>
+            {
+                NodeInstance pm = g.GetAt(new Vector2Int(6, 7)); pm?.SelectRecipe(RecipeKind.PowerMaterial);
+                Clr(g, new Vector2Int(7, 7)); g.TryPlaceBelt(new Vector2Int(7, 7), PortFace.West, PortFace.East, FlowKind.None, out _);
+                Clr(g, new Vector2Int(8, 8)); g.TryPlaceBeltElement(new Vector2Int(8, 8), BeltElementKind.Sorter,
+                    new[] { PortFace.West }, new[] { PortFace.South, PortFace.East }, FlowKind.None, out _);
+                Clr(g, new Vector2Int(8, 7));
+                NodeDefinition mx = NodeResolver(BasePropellantNeed)(StartingBoardB.ComplexId);
+                if (mx != null && g.TryPlace(new Vector2Int(8, 7), mx, out NodeInstance x)) { x.Rotation = 1; x.SelectRecipe(RecipeKind.ExplosiveAmmo); }
+            };
+            int tailSkipped = 0;
+            System.Action<BoardGrid> stepsTail = g =>
+            {
+                steps(g);
+                tailSkipped = 0;
+                foreach (PresetBoards.TailStep t in PresetBoards.ExplosiveTail) if (!PresetBoards.PlaceTail(g, t, overwrite: false)) tailSkipped++;
+            };
+            System.Action<BoardGrid> preset = g => PresetBoards.ApplyExplosive(g, NodeResolver(BasePropellantNeed));
+            (string name, System.Action<BoardGrid> hook)[] cases = { ("시작 보드(대조)", null), ("(가) 튜토리얼 다섯 칸만", steps), ("(나) (가) + #216 꼬리 자동 완성", stepsTail), ("(다) 바로가기 프리셋", preset) };
+            try
+            {
+                foreach (var cs in cases)
+                {
+                    BoardHook = cs.hook;
+                    BoardGrid g = Board();
+                    BoardHook = null;
+                    var flow = new BeltItemFlow();
+                    flow.Rebuild(g);
+                    for (int i = 0; i < 1200; i++) BoardItemTick.Step(g, flow, 0.05f, 1f);
+                    sb.AppendLine($"- {cs.name}: 마운트 도착 표준탄 {flow.MountArrivedOf(FlowKind.StandardAmmo)} · 폭발탄 {flow.MountArrivedOf(FlowKind.ExplosiveAmmo)}"
+                                  + (cs.hook == stepsTail ? $" · 꼬리 건너뜀 {tailSkipped}/{PresetBoards.ExplosiveTail.Length}" : ""));
+                    NodeInstance cx = g.GetAt(new Vector2Int(8, 7));
+                    if (cx != null) sb.AppendLine($"    (8,7) {cx.Definition.nodeId} 돌림 {cx.Rotation} 조합표 {cx.CurrentRecipe.kind} 출력 {cx.OutputBuffer:F1} 정지 {cx.StallReason}");
+                    var cells = new System.Collections.Generic.List<Vector2Int> { new Vector2Int(7, 7), new Vector2Int(8, 8), new Vector2Int(8, 6), new Vector2Int(8, 5) };
+                    foreach (PresetBoards.TailStep t in PresetBoards.ExplosiveTail) cells.Add(t.cell);
+                    cells.Add(new Vector2Int(2, 6)); cells.Add(new Vector2Int(1, 4));
+                    var line = new StringBuilder("    ");
+                    foreach (Vector2Int c in cells)
+                    {
+                        BeltInstance b = g.GetBeltAt(c);
+                        NodeInstance nn = g.GetAt(c);
+                        line.Append($"{c.x},{c.y}=" + (b != null ? $"{b.Element}[{string.Join("", System.Linq.Enumerable.Select(b.InFaces, f => f.ToString()[0]))}>{string.Join("", System.Linq.Enumerable.Select(b.OutFaces, f => f.ToString()[0]))}]" : nn != null ? nn.Definition.nodeId : "빈칸") + " ");
+                    }
+                    sb.AppendLine(line.ToString());
+                }
+            }
+            finally { BoardHook = null; }
+            System.IO.File.WriteAllText("Docs/261020_explosive_link.md", sb.ToString());
+            Debug.Log(sb.ToString());
+            if (Application.isBatchMode) EditorApplication.Exit(0);
+        }
+
         /// <summary>#223 결함 후보 가름 — S6 시작 보드 · 즉시 합체 · B 95% ↔ B 가득 합체 20초 자취. 배치: RunMergeDiagBatch</summary>
         public static void RunMergeDiagBatch()
         {
