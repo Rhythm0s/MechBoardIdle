@@ -122,7 +122,7 @@ namespace MBI.Tests
             Assert.AreEqual("boss", c.enemyKey);
             Assert.AreEqual(1, c.count);
             Assert.AreEqual(15000f, c.hp, Delta);
-            Assert.AreEqual(12f, c.def, Delta);
+            Assert.AreEqual(6f, c.def, Delta, "#222(2026-10-20 사용자 확정) — 모든 몬스터 방어 ×0.5 · 🗑️ 12");
         }
 
         [Test]

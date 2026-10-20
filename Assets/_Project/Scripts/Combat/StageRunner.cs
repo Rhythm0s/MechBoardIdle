@@ -3651,7 +3651,13 @@ namespace MBI.Combat
             if (UiSkin.Button(mergeRect, MergeButtonLabel(), round) && _sim.TryMerge())
             {
                 // 발동에 **성공했을 때만** 튼다. 실패한 버튼에 연출이 붙으면 안 된 일이 된 것처럼 보인다.
-                _cutscene.Play(_sim.LastMergeSnapshot, _sim.LastBurstDamage);
+                // ✅ **결함 ④(10-20 사용자 육안 · 「화력 0 → 0」 여전)** — 스냅샷은 「그 순간 실제로 쏘는 초당 피해」라
+                //    마운트 탄이 비었으면(자연 S5 튜토리얼 판 · 표준탄 갈래 없음) 0 이다(B 는 본체 무기 없음).
+                //    수치 줄만 **명목 화력**(무기 스펙 × 마운트계수 × 모듈)으로 대신 보인다 ⚠️ 플랜 대안. 버스트 피해(실제)는 그대로.
+                float shownFirepower = _sim.LastMergeSnapshot > 0f
+                    ? _sim.LastMergeSnapshot
+                    : RobotOutput.Nominal(robot.weapons, _mountCoef, robot.moduleMult);
+                _cutscene.Play(shownFirepower, _sim.LastBurstDamage);
                 // 합체와 버스트는 **한 순간에 나는 두 사건**이다(MVP 4장 「동시에 일어나는 두 사건」).
                 // 소리도 둘이며, 사운드 문서 4장이 **음색으로** 가르라고 정했다.
                 AudioSignals.Play(SoundIds.Fusion, SoundIds.KindOf(SoundIds.Fusion));

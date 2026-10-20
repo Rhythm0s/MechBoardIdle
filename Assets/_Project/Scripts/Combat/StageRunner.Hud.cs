@@ -270,18 +270,10 @@ namespace MBI.Combat
 
             float nameX = face.xMax + 10f * sc;
             float nameW = Mathf.Max(0f, left.xMax - nameX - 6f * sc);
-            GUI.Label(new Rect(nameX, left.y, nameW, h * 0.5f), PilotName, text);
-
-            // ⚠️ **전투력은 `CombatPower` 한 곳이 낸다** — 화면에서 직접 곱하지 않는다(지침 §7).
-            MountLoad mount = _sim != null ? _sim.ActiveMount : null;
-            int power = CombatPower.Of(_output,
-                mount != null ? mount.Total : 0f,
-                mount != null ? mount.Capacity : 0f,
-                tuning != null ? tuning.combatPowerMountFactorTbd : CombatPower.DefaultMountFactor);
-            var powerStyle = new GUIStyle(text) { fontStyle = FontStyle.Bold };
-            powerStyle.normal.textColor = new Color(1f, 0.88f, 0.55f);
-            GUI.Label(new Rect(nameX, left.y + h * 0.5f, nameW, h * 0.5f),
-                      "전투력 " + power.ToString("N0"), powerStyle);
+            // ✅ **#221(2026-10-20 사용자 확정) — 칩 = 이름만**(세로 가운데). 전투력 값은 팝오버 · 하네스에 남는다.
+            //    🗑️ 「전투력 N」 둘째 줄(`CombatPower.Of(_output, 마운트 …)` · #180) — 화면에서 뺐다(계산 자리 `CombatPower` 는 그대로).
+            var nameStyle = new GUIStyle(text) { alignment = TextAnchor.MiddleLeft };
+            GUI.Label(new Rect(nameX, left.y, nameW, h), PilotName, nameStyle);
 
             // ── 골드 칩 — 수 + 「+n/초」 ──
             Rect chip = UiLayout.ChipGoldRect(Screen.width, Screen.height);

@@ -576,13 +576,13 @@
           "enemy": "infantry",
           "count": 50,
           "hp": 22.5,
-          "def": 1
+          "def": 0.5
         },
         {
           "enemy": "artillery",
           "count": 5,
           "hp": 60,
-          "def": 1
+          "def": 0.5
         }
       ],
       "compositionPrev": [
@@ -636,19 +636,19 @@
           "enemy": "infantry",
           "count": 26,
           "hp": 27.5,
-          "def": 3
+          "def": 1.5
         },
         {
           "enemy": "artillery",
           "count": 4,
           "hp": 82.5,
-          "def": 3
+          "def": 1.5
         },
         {
           "enemy": "armor",
           "count": 0,
           "hp": 600,
-          "def": 3
+          "def": 1.5
         }
       ],
       "compositionPrev": [
@@ -714,19 +714,19 @@
           "enemy": "infantry",
           "count": 19,
           "hp": 30,
-          "def": 5
+          "def": 2.5
         },
         {
           "enemy": "artillery",
           "count": 3,
           "hp": 90,
-          "def": 5
+          "def": 2.5
         },
         {
           "enemy": "armor",
           "count": 2,
           "hp": 550,
-          "def": 5
+          "def": 2.5
         }
       ],
       "compositionPrev": [
@@ -790,7 +790,7 @@
           "enemy": "armor",
           "count": 7,
           "hp": 850,
-          "def": 45
+          "def": 22.5
         }
       ]
     },
@@ -813,7 +813,7 @@
           "enemy": "boss",
           "count": 1,
           "hp": 15000,
-          "def": 12
+          "def": 6
         }
       ]
     }
