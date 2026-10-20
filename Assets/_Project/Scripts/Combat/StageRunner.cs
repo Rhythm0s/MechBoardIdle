@@ -3652,8 +3652,10 @@ namespace MBI.Combat
             float loadT = TagSkillRingThickness * 0.6f * ringScale;
 
             MountLoad standby = _sim.Tag.StandbyMount;
-            if (standby != null && standby.Capacity > 0f)
-                DrawLoadRing(tagRect, standby.Total / standby.Capacity,
+            // ✅ #251 — 분모 = 전 슬롯 만충 기준 · 로봇마다 고정(TagRingRule) · 🗑️ standby.Capacity(차 있는 슬롯만 · 톱니).
+            bool standbyIsB = _sim.ActiveRobotIndex == 0;
+            if (standby != null && TagRingRule.Denominator(standby, standbyIsB) > 0f)
+                DrawLoadRing(tagRect, TagRingRule.Ratio(standby, standbyIsB),
                     skillReady ? TagSkillRingColor : TagLoadRingColor, loadT);
 
             Color tagPrev = GUI.color;
