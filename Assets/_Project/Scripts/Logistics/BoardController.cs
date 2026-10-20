@@ -3777,8 +3777,20 @@ namespace MBI.Logistics
         {
             // #219 — 글자 크기는 팔레트 하나(`_paletteLabelFont`) · 키우지 않는다(🗑️ `UiText.FitOneLine` 이 폭에 맞춰 키웠다).
             st = new GUIStyle(baseStyle) { wordWrap = false, fontSize = _paletteLabelFont > 0 ? _paletteLabelFont : baseStyle.fontSize };
-            return LabelTextAt(st, label, PaletteBandWidth(width));
+            return PaletteLabelFit.TextAt(label, st.fontSize, PaletteLabelFit.BandWidth(width), MeasurePaletteLabel);   // #220
         }
+
+        /// <summary>#220 — 라벨 잼(그리는 스타일과 같은 꼴 · 글 크기만 바꿔 잰다).</summary>
+        private static GUIStyle _measureStyle;
+        private static Vector2 MeasurePaletteLabel(string text, int size)
+        {
+            if (_measureStyle == null)
+                _measureStyle = new GUIStyle(GUI.skin.label) { wordWrap = false, padding = new RectOffset(1, 1, 0, 0) };
+            _measureStyle.fontSize = size;
+            return _measureStyle.CalcSize(new GUIContent(text));
+        }
+
+        private PaletteLabelFit.Result _paletteLabelFit;
 
         /// <summary>#219 — 이 글자 크기에서 한 줄에 들면 한 줄, 아니면 낱말 자리 두 줄.</summary>
         private static string LabelTextAt(GUIStyle st, string label, float bandWidth) =>
@@ -3811,6 +3823,7 @@ namespace MBI.Logistics
         /// #219 — 보이는 이름 **전부**가 띠 안에 드는 가장 큰 사다리 단(상한부터 내려감 · 바닥 = 사다리 첫 단).
         /// 들려면 한 줄이면 한 줄 폭, 두 줄이면 긴 줄 폭이 띠 폭 안 · 줄 수 × 줄 높이가 띠 최대 높이 안.
         /// </summary>
+        // 🗑️ #220 — `PaletteLabelFit.Compute` 가 대신한다(사다리 바닥 16 에서 멈춰 작은 창에서 넘쳤다 · 42). 부르는 곳 0.
         private static int PaletteLabelFontFor(System.Collections.Generic.List<string> names, float side)
         {
             float w = PaletteBandWidth(side), hMax = PaletteBandMaxHeight(side) - 4f;
@@ -4231,7 +4244,8 @@ namespace MBI.Logistics
 
             // ✅ **#219 — 팔레트 라벨 글자 하나로**(2026-10-20 사용자 육안 41 · 모듈 이름이 띠 밖으로 넘치고 「병합기」만 컸다).
             //    보이는 이름 전부가 띠(두 줄 높이) 안에 드는 가장 큰 사다리 단 · 상한 = 사다리 중간 단(⚠️ 가정) · 바닥 = #125 하한.
-            _paletteLabelFont = PaletteLabelFontFor(VisiblePaletteNames(), side);
+            _paletteLabelFit = PaletteLabelFit.Compute(VisiblePaletteNames(), side, MeasurePaletteLabel);   // #220
+            _paletteLabelFont = _paletteLabelFit.fontSize;
             var content = new Rect(0f, 0f, slots * step, side);
 
             // ⚠️ **휠·트랙패드로도 밀린다**(2026-09-15 사용자 확정 · 「좌우로 스크롤 되지 않음」).
@@ -4363,7 +4377,7 @@ namespace MBI.Logistics
                     if (icon != null)
                     {
                         // #213 개정 — 그림을 단추 가득(🗑️ 0.22 · 0.08 · 0.56 자리)
-                        GUI.DrawTexture(PaletteThumbRect(eRect), icon.texture, ScaleMode.ScaleToFit, true);
+                        GUI.DrawTexture(PaletteThumbRectFit(eRect), icon.texture, ScaleMode.ScaleToFit, true);
                     }
                 }
                 string eText = PaletteLabel(style, ElementLabel(e), eRect.width, out GUIStyle eStyle);   // #219 — 같은 크기
@@ -5563,8 +5577,14 @@ namespace MBI.Logistics
             // 세로 줄 시절에는 버튼이 납작해서(130×36) 왼쪽 정사각이 자연히 아이콘 칸이었다.
             // #176 — 바닥에 값 줄이 생겨 이름이 올라왔다 · 그림을 0.52 → `PaletteThumbScale` 로 줄인다.
             // #213 개정 — 단추 가득(🗑️ `PaletteThumbScale` 위쪽 정사각).
-            GUI.DrawTextureWithTexCoords(PaletteThumbRect(button), icon.texture, SpriteUv(icon), true);
+            GUI.DrawTextureWithTexCoords(PaletteThumbRectFit(button), icon.texture, SpriteUv(icon), true);
         }
+
+        /// <summary>#220 — 띠가 늘면 그림을 띠 위로 줄인다(`PaletteLabelFit.ThumbRect`).</summary>
+        private Rect PaletteThumbRectFit(Rect button) =>
+            _paletteLabelFit.bandHeight > 0f
+                ? PaletteLabelFit.ThumbRect(button, _paletteLabelFit.bandHeight, PaletteThumbFill)
+                : PaletteThumbRect(button);
 
         /// <summary>#213 개정 — 팔레트 그림 자리 = 단추 가득(가장자리 6% 여백 · ⚠️ 가정) · 정사각.</summary>
         private static Rect PaletteThumbRect(Rect button)
@@ -5582,7 +5602,7 @@ namespace MBI.Logistics
         /// ✅ **#213 개정(2026-10-20 사용자 안) — 단추 하단 반투명 라벨 띠(두 줄 높이) 위에 이름**(낱말 단위 두 줄 · 한 줄에 들면 한 줄).
         /// 그림은 단추 가득 · 선택 테두리는 단추 바깥 그대로.
         /// </summary>
-        private static void DrawPaletteNameBand(Rect button, string text, GUIStyle baseStyle)
+        private void DrawPaletteNameBand(Rect button, string text, GUIStyle baseStyle)
         {
             if (string.IsNullOrEmpty(text)) return;
             var st = new GUIStyle(GUI.skin.label)
@@ -5590,19 +5610,21 @@ namespace MBI.Logistics
                 fontSize = baseStyle.fontSize,   // #219 — 부르는 쪽이 팔레트 하나 크기를 실어 준다
                 alignment = TextAnchor.MiddleCenter,
                 wordWrap = false,
-                clipping = TextClipping.Overflow,
+                clipping = TextClipping.Clip,    // #220 — 끝까지 안 들면 단추 밖으로 안 나가게 자른다
                 padding = new RectOffset(1, 1, 0, 0),
             };
             st.normal.textColor = Color.white;
-            float lineH = st.lineHeight > 0f ? st.lineHeight : st.fontSize * 1.2f;
-            float inset = Mathf.Max(2f, button.height * 0.03f);
-            float bandH = Mathf.Min(PaletteBandMaxHeight(button.height), lineH * 2f + 4f);
-            var band = new Rect(button.x + inset, button.yMax - inset - bandH, button.width - inset * 2f, bandH);
+            // ✅ #220 — 띠 = 단추 사각 안(`PaletteLabelFit.BandRect`) · 높이는 팔레트 맞춤이 정한다(반 → 필요 시 2/3).
+            float bandH = _paletteLabelFit.bandHeight > 0f ? _paletteLabelFit.bandHeight
+                                                           : PaletteBandMaxHeight(button.height);
+            Rect band = PaletteLabelFit.BandRect(button, bandH);
             Color prev = GUI.color;
             GUI.color = new Color(0f, 0f, 0f, PaletteNameBandAlpha * prev.a);
             GUI.DrawTexture(band, Texture2D.whiteTexture);
             GUI.color = prev;
-            GUI.Label(band, text, st);
+            GUI.BeginGroup(band);   // #220 — 글자 사각 ⊂ 단추 사각(그룹이 자른다)
+            GUI.Label(new Rect(0f, 0f, band.width, band.height), text, st);
+            GUI.EndGroup();
         }
 
         /// <summary>
@@ -5618,8 +5640,8 @@ namespace MBI.Logistics
             Sprite icon = art.ModuleSprite(def.kind);
             if (icon == null) return;
 
-            // #213 개정 — 노드 단추와 같은 자리(단추 가득).
-            GUI.DrawTextureWithTexCoords(PaletteThumbRect(button), icon.texture, SpriteUv(icon), true);
+            // #213 개정 — 노드 단추와 같은 자리(단추 가득 · #220 띠가 늘면 줄어듦).
+            GUI.DrawTextureWithTexCoords(PaletteThumbRectFit(button), icon.texture, SpriteUv(icon), true);
         }
 
         /// <summary>고른 단추 테두리 색 — 밝은 노랑(강제 버튼 빛과 같은 계열). ⚠️ 가정.</summary>
