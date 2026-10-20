@@ -37,5 +37,14 @@ namespace MBI.Tests
             StringAssert.Contains("if (BoardFocusRule.ShouldFocus(_moduleFocusDone, GameLayerController.BoardViewActive, GameViewSignals.BoardCameraSettled))", bc);
             StringAssert.Contains("{ FocusCell(moduleCell.Value); _moduleFocusDone = true; }", bc);
         }
+
+        /// <summary>#246 — 고스트 칸 걸음(S1 T3 등)도 같은 꼴.</summary>
+        [Test]
+        public void GhostTutorial_FocusesCellOnce()
+        {
+            string bc = System.IO.File.ReadAllText("Assets/_Project/Scripts/Logistics/BoardController.cs");
+            StringAssert.Contains("if (BoardFocusRule.ShouldFocus(_ghostFocusDone, GameLayerController.BoardViewActive, GameViewSignals.BoardCameraSettled))", bc);
+            StringAssert.Contains("{ FocusCell(cell); _ghostFocusDone = true; }", bc);
+        }
     }
 }

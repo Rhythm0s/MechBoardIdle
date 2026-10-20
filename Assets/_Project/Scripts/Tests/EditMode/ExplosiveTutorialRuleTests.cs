@@ -35,7 +35,7 @@ namespace MBI.Tests
             Assert.IsTrue(ExplosiveTutorialRule.IsActive(true, 5, true, ExplosiveTutorialRule.Step.Belt, false, 0d, 20d));
             Assert.IsFalse(ExplosiveTutorialRule.IsActive(true, 5, true, ExplosiveTutorialRule.Step.Done, false, 99d, 20d));
             Assert.IsFalse(ExplosiveTutorialRule.IsActive(true, 5, true, ExplosiveTutorialRule.Step.None, false, 99d, 20d), "모름 = 안 뜸");
-            Assert.IsFalse(ExplosiveTutorialRule.IsActive(false, 5, true, s, false, 99d, 20d), "바로가기(튜토리얼 안 마침) = 안 뜸");
+            Assert.IsTrue(ExplosiveTutorialRule.IsActive(false, 5, true, s, false, 99d, 20d), "#245 — 바로가기(튜토리얼 안 마침)도 뜸 · 🗑️ 「안 뜸」");
             Assert.IsFalse(ExplosiveTutorialRule.IsActive(true, 6, true, s, false, 99d, 20d));
             Assert.IsFalse(ExplosiveTutorialRule.IsActive(true, 5, false, s, false, 99d, 20d));
         }

@@ -7,7 +7,12 @@ namespace MBI.Core
     /// </summary>
     public static class DroneReleaseRule
     {
+        /// <summary>🗑️ #242 — B 강화는 더 이상 처리량을 안 올린다(러너 · 하네스는 droneRelease 고정). 식만 남김.</summary>
         public static float Throughput(float baseRelease, float enhanceBonus, bool enhancedB) =>
             UnityEngine.Mathf.Max(0f, baseRelease) + (enhancedB ? UnityEngine.Mathf.Max(0f, enhanceBonus) : 0f);
+
+        /// <summary>✅ #242 — 종류별 상한 = droneKindCap(3) + B 강화면 enhanceDroneCap(+2).</summary>
+        public static int KindCap(int baseCap, int enhanceBonus, bool enhancedB) =>
+            UnityEngine.Mathf.Max(0, baseCap) + (enhancedB ? UnityEngine.Mathf.Max(0, enhanceBonus) : 0);
     }
 }

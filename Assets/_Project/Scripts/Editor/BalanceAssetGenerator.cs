@@ -232,7 +232,11 @@ namespace MBI.Editor
             c.droneSlots = Mathf.RoundToInt(json.Param("slot"));
             c.droneReleaseRate = json.Param("r");
             c.droneRelease = json.Param("droneRelease");                 // #233
-            c.enhanceDroneRelease = json.Param("enhanceDroneRelease");   // #234
+            c.enhanceDroneRelease = json.Param("enhanceDroneRelease");   // #234 · 🗑️ #242
+            c.droneKindCap = Mathf.RoundToInt(json.Param("droneKindCap"));          // #242
+            c.enhanceDroneCap = Mathf.RoundToInt(json.Param("enhanceDroneCap"));    // #242
+            c.overloadDroneHitMult = json.Param("overloadDroneHitMult");            // #243
+            c.droneMaxLife = json.Param("droneMaxLife");                            // #244
             c.droneCharge = json.Param("dB");
             c.droneInflow = json.Param("pB");
 

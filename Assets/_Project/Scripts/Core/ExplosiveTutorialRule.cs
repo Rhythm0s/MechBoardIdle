@@ -91,7 +91,9 @@ namespace MBI.Core
         /// </summary>
         public static bool IsActive(bool tutorialCleared, int stageNumber, bool isFarming, Step step,
                                     bool needsScrap, double scrap, double nodeScrap) =>
-            tutorialCleared && isFarming && stageNumber == StageMapName.NumberOf(StageId)
+            // ✅ #245(2026-10-20) — 튜토리얼 통과 조건 걷음(#198 A 강화 막과 같은 꼴 · 인자는 남김 · 안 씀).
+            //    🗑️ `tutorialCleared &&` — 바로가기 점프 저장은 튜토리얼 통과를 안 적어 S5 폭발탄 막이 아예 안 섰다(10-20 8133 실측).
+            isFarming && stageNumber == StageMapName.NumberOf(StageId)
             && step != Step.None && step != Step.Done
             && (!needsScrap || scrap >= nodeScrap - 1e-9);
 

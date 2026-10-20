@@ -130,7 +130,7 @@ namespace MBI.Combat
             if (robotB != null)
             {
                 _sim.SetMountCoef(1, robotB.mountCoef);
-                _sim.SetDroneThroughput(1, DroneThroughputB(_mountEnhancedBApplied));
+                _sim.SetDroneKindCap(1, DroneKindCapB(_mountEnhancedBApplied));   // ✅ #242 강화 = 상한 +2 · 🗑️ SetDroneThroughput(출격 +2)
             }
         }
         private bool _ready;
@@ -744,6 +744,13 @@ namespace MBI.Combat
             return bal == null ? 0f : DroneReleaseRule.Throughput(bal.droneRelease, bal.enhanceDroneRelease, enhancedB);
         }
 
+        /// <summary>B 드론 종류별 상한 — droneKindCap + 강화면 enhanceDroneCap(#242 · 자산이 원천).</summary>
+        private int DroneKindCapB(bool enhancedB)
+        {
+            BalanceConfig bal = robotB != null && robotB.balanceRef != null ? robotB.balanceRef : robot.balanceRef;
+            return bal == null ? 0 : DroneReleaseRule.KindCap(bal.droneKindCap, bal.enhanceDroneCap, enhancedB);
+        }
+
         private RobotSetup BuildRobotBSetup()
         {
             BalanceConfig bal = robotB.balanceRef != null ? robotB.balanceRef : robot.balanceRef;
@@ -768,7 +775,8 @@ namespace MBI.Combat
                 ammoStore = StoreB(bal != null ? bal.storeCapacity : 40f),
                 droneSlots = bal != null ? bal.droneSlots : 3,
                 droneReleaseRate = bal != null ? bal.droneReleaseRate : 1f,
-                droneThroughput = DroneThroughputB(IdleSignals.MountEnhancedB),   // #233 · #234
+                droneThroughput = DroneThroughputB(false),   // #233 · #242 — 처리량은 droneRelease 고정(🗑️ #234 강화 +2)
+                droneKindCap = DroneKindCapB(IdleSignals.MountEnhancedB),   // #242
                 droneCharge = bal != null ? bal.droneCharge : 100f,
                 // ⚠️ **기당 피해는 충전량의 몫이다**(2026-09-16 사용자 확정 · 가정 1/10).
                 //    총 피해와 수명은 안 바뀐다 — 나눠 쓰는 횟수만 바뀐다.
@@ -1575,6 +1583,8 @@ namespace MBI.Combat
                 {
                     _sim.DodgeMoveDistance = bal.dodgeMoveDistance;
                     _sim.DodgeMoveSeconds = bal.dodgeMoveSeconds;
+                    _sim.OverloadDroneHitMult = bal.overloadDroneHitMult;   // #243
+                    _sim.DroneMaxLife = bal.droneMaxLife;                   // #244
                 }
                 // ✅ #229 — 과부하 동안만 노드 산출 ×overloadProduce(2.5) · 🗑️ 합체 전체 ×mergeOutputMult(2).
                 if (bal != null)
@@ -2784,7 +2794,7 @@ namespace MBI.Combat
             MountPopover.EnhancedCoef = EnhancedMountCoefValue;
             {
                 BalanceConfig balB = robotB != null && robotB.balanceRef != null ? robotB.balanceRef : robot != null ? robot.balanceRef : null;
-                MountPopover.DroneReleaseBonus = balB != null ? balB.enhanceDroneRelease : 0f;   // #234
+                MountPopover.DroneReleaseBonus = balB != null ? balB.enhanceDroneCap : 0f;   // #242 — 강화 = 상한 +2(문구 「출격 +2」 그대로 ⚠️)
             }
 
             string kindsA = "";

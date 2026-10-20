@@ -46,6 +46,10 @@ MonoBehaviour:
   droneSlots: 3
   droneRelease: 3
   enhanceDroneRelease: 2
+  droneKindCap: 3
+  enhanceDroneCap: 2
+  overloadDroneHitMult: 0.5
+  droneMaxLife: 5
   droneReleaseRate: 1
   droneCharge: 100
   droneInflow: 1

@@ -105,6 +105,11 @@ namespace MBI.Core
         /// 0 이면 종전 식(슬롯 × 방출률).
         /// </summary>
         public float droneThroughput;
+        /// <summary>
+        /// **종류별 동시 유지 상한**(사용자 확정 #242 · 2026-10-20) — 누적형 · 광역형 **각각** 이 수까지 필드에 선다.
+        /// `droneKindCap`(3) + B 강화 `enhanceDroneCap`(+2) = 5. 0 = 상한 없음(격리 시험 · 종전 거동).
+        /// </summary>
+        public int droneKindCap;
         public float droneCharge;       // params dB = 100. **1기 = 1회 타격 = 충전량 전량**
 
         /// <summary>
@@ -1558,6 +1563,13 @@ namespace MBI.Core
             _sides[sideIndex].bay.SetThroughput(perSecond);
         }
 
+        /// <summary>종류별 상한을 판 도중에 바꾼다(#242 — B 마운트 강화 = 상한 +2 · 누른 그 판에 바로).</summary>
+        public void SetDroneKindCap(int sideIndex, int cap)
+        {
+            if (sideIndex < 0 || sideIndex >= _sides.Length) return;
+            _sides[sideIndex].setup.droneKindCap = Mathf.Max(0, cap);
+        }
+
         /// <summary>지금 필드에 나가 있는 드론 수(양쪽 합 · 진단 · 연출 부담 측정).</summary>
         public int DronesOnField
         {
@@ -2115,9 +2127,18 @@ namespace MBI.Core
             if (loadInflow) LoadDronesInto(s, dt);
 
             // ⚠️ **둘을 합쳐 셈한다** — 어느 종이든 슬롯 하나를 쓴다.
-            float stock = s.mount != null
-                ? s.mount.AmountOf(MountItem.Drone) + s.mount.AmountOf(MountItem.DroneAoe)
-                : 0f;
+            float haveS0 = s.mount != null ? s.mount.AmountOf(MountItem.Drone) : 0f;
+            float haveA0 = s.mount != null ? s.mount.AmountOf(MountItem.DroneAoe) : 0f;
+            // ✅ #242 — 종류별 상한: 각 종의 「남은 자리」까지만 낼 수 있는 재고로 센다(0 = 상한 없음).
+            int roomS = int.MaxValue, roomA = int.MaxValue;
+            if (s.setup.droneKindCap > 0)
+            {
+                int onS = 0, onA = 0;
+                foreach (DroneUnit du in s.drones) { if (du.Kind == DroneKind.Aoe) onA++; else onS++; }
+                roomS = Mathf.Max(0, s.setup.droneKindCap - onS);
+                roomA = Mathf.Max(0, s.setup.droneKindCap - onA);
+            }
+            float stock = Mathf.Min(haveS0, roomS) + Mathf.Min(haveA0, roomA);
             // ✅ #229 — 과부하는 **마운트 소비 ×2** 라 발진 허용량도 ×2(유입 · 드론 수명은 그대로 dt). 슬롯 상한은 그대로다.
             int launched = s.bay.Launch(dt * launchRate, stock);
 
@@ -2135,7 +2156,11 @@ namespace MBI.Core
                 //    그러면 둘이 섞여 들어와도 한쪽만 쌓이지 않는다.
                 float haveStack = s.mount != null ? s.mount.AmountOf(MountItem.Drone) : 0f;
                 float haveAoe = s.mount != null ? s.mount.AmountOf(MountItem.DroneAoe) : 0f;
+                // #242 — 자리가 없는 종은 고르지 않는다(낼 수 있는 몫으로만 견준다).
+                if (roomS <= 0) haveStack = 0f;
+                if (roomA <= 0) haveAoe = 0f;
                 DroneKind kind = haveAoe > haveStack ? DroneKind.Aoe : DroneKind.Stack;
+                if (kind == DroneKind.Aoe) roomA--; else roomS--;
 
                 MountItem item = kind == DroneKind.Aoe ? MountItem.DroneAoe : MountItem.Drone;
                 if (s.mount != null && !s.mount.TryConsume(item, 1f))
@@ -2177,6 +2202,16 @@ namespace MBI.Core
             {
                 DroneUnit d = s.drones[i];
 
+                // ✅ #244(2026-10-20 사용자 확정) — 발사 뒤 DroneMaxLife(5초) 지나면 표적 · 충전과 무관하게 소멸.
+                d.Age += dt;
+                if (DroneMaxLife > 0f && d.Age >= DroneMaxLife)
+                {
+                    _droneExpiries.Add(d.Position);
+                    s.drones.RemoveAt(i);
+                    s.bay.Retire();
+                    continue;
+                }
+
                 // ⚠️⚠️ **누적형은 붙은 적만 친다**(2026-09-16 사용자 확정).
                 //    최근접을 다시 고르면 붙어 있는 뜻이 사라진다 — 옆에 더 가까운 적이
                 //    지나가는 순간 표적이 갈아타 「붙어서 다 쓴다」가 성립하지 않는다.
@@ -2191,7 +2226,7 @@ namespace MBI.Core
 
                 float dealt = d.Fire();
                 if (dealt <= 0f) continue;
-                d.HitCooldown = DroneHitInterval;
+                d.HitCooldown = DroneHitInterval * (IsOverloaded ? Mathf.Clamp(OverloadDroneHitMult, 0.01f, 1f) : 1f);   // #243 과부하 = 타격 ×2
 
                 // 판정식을 다시 만들지 않는다 — 본체 사격과 같은 식을 탄다.
                 float applied = DamageFormula.PerHit(dealt, s.setup.mountCoef, s.setup.moduleMult, target.def) * damageMultiplier;
@@ -2400,6 +2435,18 @@ namespace MBI.Core
         /// ⚠️ **누적형·광역형 같은 간격**이다 — 두 종을 가르는 것은 이동과 표적이다.
         /// </summary>
         public float DroneHitInterval { get; set; } = 0.5f;
+
+        /// <summary>
+        /// **과부하 동안 드론 타격 간격 배율**(사용자 확정 #243) — 값의 임자는 `overloadDroneHitMult`(0.5 → 간격 0.25초 · 수명 절반).
+        /// 러너 · 하네스가 넣는다. 기본 1 = 과부하가 간격을 안 건드림(격리 시험 경로).
+        /// </summary>
+        public float OverloadDroneHitMult { get; set; } = 1f;
+
+        /// <summary>
+        /// **드론 최대 유지 시간(초)**(사용자 확정 #244) — 발사 뒤 이만큼 지나면 표적 · 충전과 무관하게 소멸. 0 = 없음(격리 시험).
+        /// 값의 임자는 `droneMaxLife`(5).
+        /// </summary>
+        public float DroneMaxLife { get; set; }
 
         /// <summary>
         /// **광역형이 차지하는 몫**(0~1) — 보드의 복합 가공소가 무엇을 돌리는가.

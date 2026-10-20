@@ -194,6 +194,9 @@ namespace MBI.Core
         /// </summary>
         public float HitCooldown { get; set; }
 
+        /// <summary>발사 뒤 지난 시간(초) — #244 최대 유지 시간 판정.</summary>
+        public float Age { get; set; }
+
         public Vector2 Position { get; set; }
 
         /// <summary>남은 충전량 = 남은 피해 총량 = 남은 수명.</summary>

@@ -58,7 +58,7 @@ namespace MBI.Tests
             Assert.AreEqual(TutorialGate.Phase.None, TutorialGate.Current);
 
             string sr = System.IO.File.ReadAllText("Assets/_Project/Scripts/Combat/StageRunner.cs");
-            StringAssert.Contains("_sim.SetDroneThroughput(1, DroneThroughputB(_mountEnhancedBApplied));", sr);   // #234 출격 +2(🗑️ B 계수 ×1.45)
+            StringAssert.Contains("_sim.SetDroneKindCap(1, DroneKindCapB(_mountEnhancedBApplied));", sr);   // #242 강화 = 상한 +2(🗑️ #234 처리량 +2 · B 계수 ×1.45)
             StringAssert.Contains("_sim.SetMountCoef(1, robotB.mountCoef);", sr);
             string bc = System.IO.File.ReadAllText("Assets/_Project/Scripts/Logistics/BoardController.cs");
             StringAssert.Contains("if (owner == MountOwner.RobotB) IdleSignals.RequestMountEnhanceB(cost);", bc);

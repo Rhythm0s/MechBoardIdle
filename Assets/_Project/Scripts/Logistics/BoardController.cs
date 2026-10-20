@@ -1988,6 +1988,7 @@ namespace MBI.Logistics
                     : null;
                 // ✅ #241(2026-10-20 사용자 확정) — 모듈 단계에서도 대상 노드 칸으로 시야를 한 번 옮긴다(폭발탄 · 강화와 같은 꼴 ·
                 //    카메라 안착 뒤 한 번 · 손으로 끈 시야는 안 빼앗음). 대상은 PickTarget 이 고른 하나(둘이면 첫 노드 ⚠️ 가정).
+                _ghostFocusDone = false;   // #246 — 고스트 걸음이 아니면 다음 고스트에 다시 한 번
                 if (moduleCell.HasValue)
                 {
                     if (BoardFocusRule.ShouldFocus(_moduleFocusDone, GameLayerController.BoardViewActive, GameViewSignals.BoardCameraSettled))
@@ -2007,6 +2008,13 @@ namespace MBI.Logistics
             // 채우면 막이 걷힌다 — 그것이 수업이 끝났다는 신호다.
             // ⚠️ **고스트도 같은 판단으로 함께 움직인다** — 둘을 떨어뜨려 두었다가
             // 막만 남던 것이 09-11 오전의 결함이었다(§71-16 ⑤).
+            // ✅ #246(2026-10-20 사용자 확정) — 고스트 칸 걸음(S1 T3 PlaceNode 등)도 #241 과 같은 꼴로 시야를 한 번 옮긴다.
+            if (!filled)
+            {
+                if (BoardFocusRule.ShouldFocus(_ghostFocusDone, GameLayerController.BoardViewActive, GameViewSignals.BoardCameraSettled))
+                { FocusCell(cell); _ghostFocusDone = true; }
+            }
+            else _ghostFocusDone = false;
             RefreshTutorialDim(filled ? null : (Vector2Int?)cell);
             RefreshTutorialGhost(filled ? null : (Vector2Int?)cell);
         }
@@ -2036,6 +2044,9 @@ namespace MBI.Logistics
 
         /// <summary>#241 — 모듈 단계에 시야를 이미 옮겼는가.</summary>
         private bool _moduleFocusDone;
+
+        /// <summary>#246 — 고스트 칸 걸음에 시야를 이미 옮겼는가.</summary>
+        private bool _ghostFocusDone;
 
         /// <summary>
         /// #190 — A 판 다섯 칸을 읽어 폭발탄 걸음을 게시한다(`ExplosiveTutorialRule.Next`).

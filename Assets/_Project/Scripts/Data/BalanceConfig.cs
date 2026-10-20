@@ -173,8 +173,20 @@ namespace MBI.Data
         [Tooltip("드론 방출 처리량(기/초). params.droneRelease = 3 (#233 — 슬롯 3 × r 1.0 과 같은 값 · 유지 상한 없음).")]
         public float droneRelease = 3f;
 
-        [Tooltip("B 마운트 강화 출격 보너스(기/초). params.enhanceDroneRelease = 2 (사용자 확정 #234 · 🗑️ B 강화 = 드론 피해 ×1.45).")]
+        [Tooltip("🗑️ #242 — B 강화 처리량 보너스(안 씀 · 강화 = 상한 +2 로 바뀜). params.enhanceDroneRelease = 2.")]
         public float enhanceDroneRelease = 2f;
+
+        [Tooltip("드론 종류별 동시 유지 상한. params.droneKindCap = 3 (사용자 확정 #242 · 누적형 · 광역형 각각).")]
+        public int droneKindCap = 3;
+
+        [Tooltip("B 마운트 강화 상한 보너스. params.enhanceDroneCap = 2 (사용자 확정 #242 · 3 → 5 · 최대 10).")]
+        public int enhanceDroneCap = 2;
+
+        [Tooltip("과부하 동안 드론 타격 간격 배율. params.overloadDroneHitMult = 0.5 (사용자 확정 #243 · 0.5 → 0.25초 · ⚠️ 행 이름 가정).")]
+        public float overloadDroneHitMult = 0.5f;
+
+        [Tooltip("드론 최대 유지 시간(초). params.droneMaxLife = 5 (사용자 확정 #244 · 표적 · 충전 무관 소멸).")]
+        public float droneMaxLife = 5f;
 
         [Tooltip("슬롯당 방출률(기/초). params.r = 1.0 확정치. 실효 방출량 = min(유입, 슬롯 x 방출률).")]
         public float droneReleaseRate = 1f;

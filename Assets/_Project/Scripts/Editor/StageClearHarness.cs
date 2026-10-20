@@ -3606,7 +3606,7 @@ namespace MBI.EditorTools
         {
             var sb = new StringBuilder();
             sb.AppendLine();
-            sb.AppendLine("############ #238 · #239 최종 (2026-10-20 · 자산 그대로: 산출 ×3 · 벨트 ×2 · 소비 ×2 · 과부하 20초 · 드론 상한 없음 · B 강화 = 출격 +2) ############");
+            sb.AppendLine("############ #238 · #239 최종 (2026-10-20 · 자산 그대로: 산출 ×3 · 벨트 ×2 · 소비 ×2 · 과부하 20초 · 드론 종류별 상한 3/강화 5 · 과부하 타격 간격 ×0.5 · 최대 유지 5초) ############");
             sb.AppendLine("| 판 | 보드 | B | 결과 |");
             sb.AppendLine("|---|---|---|---|");
             System.Action<BoardGrid> hook = g => PresetBoards.ApplyExplosive(g, NodeResolver(BasePropellantNeed));
@@ -4135,8 +4135,9 @@ namespace MBI.EditorTools
                 ammoCapacity = ammoCapacity, ammoStore = new AmmoInventory(ammoCapacity),
                 droneSlots = bal != null ? bal.droneSlots : 3,
                 droneReleaseRate = bal != null ? bal.droneReleaseRate : 1f,
-                droneThroughput = bal != null ? DroneReleaseRule.Throughput(bal.droneRelease, bal.enhanceDroneRelease,
-                    EnhancedBOverride < 0 ? Enhanced : EnhancedBOverride == 1) : 0f,   // #233 · #234
+                droneThroughput = bal != null ? bal.droneRelease : 0f,   // #233 · #242 — 처리량 고정(🗑️ #234 강화 +2)
+                droneKindCap = bal != null ? DroneReleaseRule.KindCap(bal.droneKindCap, bal.enhanceDroneCap,
+                    EnhancedBOverride < 0 ? Enhanced : EnhancedBOverride == 1) : 0,   // #242
                 droneCharge = bal != null ? bal.droneCharge : 100f,
                 droneDamagePerHit = (bal != null ? bal.droneCharge : 100f)
                                     * (DroneFractionOverride > 0f ? DroneFractionOverride : tuning.droneDamageFractionTbd),   // ㄱ 덮개
@@ -4170,6 +4171,7 @@ namespace MBI.EditorTools
                 sim.OverloadFireRate = robotA.balanceRef.overloadFireRate;
                 if (sim.Merge != null) sim.Merge.OverloadSeconds = OverloadSecOverride > 0f ? OverloadSecOverride : robotA.balanceRef.overloadSec;
             }
+            if (bal != null) { sim.OverloadDroneHitMult = bal.overloadDroneHitMult; sim.DroneMaxLife = bal.droneMaxLife; }   // #243 · #244 러너와 같게
             if (OverloadFireOff) sim.OverloadFireRate = 1f;   // (ㄴ) 하네스 손잡이
             if (OverloadFireRateOverride > 0f) sim.OverloadFireRate = OverloadFireRateOverride;   // (ㅂ)
             var refundCarry = new float[3];
