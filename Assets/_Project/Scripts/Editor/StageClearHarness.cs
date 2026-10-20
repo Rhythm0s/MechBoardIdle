@@ -2480,6 +2480,17 @@ namespace MBI.EditorTools
         /// · ⓒ <c>DroneLaunchOnlyWithTarget</c> 사거리 안 살아 있는 적이 없으면 그 틱 처리량 0.
         /// </summary>
         internal static float DroneFractionOverride;
+        /// <summary>
+        /// #240 사용자 제안 덮개(2026-10-20 · 하네스만 · 런타임 코드 0) — 드론 **종류마다** 동시 유지 상한.
+        /// <c>DroneKindCap</c> 0 = 끔 · 3(강화 전) · <c>DroneKindCapEnh</c> 5(B 강화) · <c>DroneCapOverloadDouble</c> = 과부하 동안 상한 ×2(갈래 b)
+        /// · 덮개가 켜지면 처리량은 droneRelease(3) 고정(강화 +2 처리량 끔 → 강화 = 상한 +2 로만).
+        /// 방법: 틱 전에 종류별 「남은 자리」를 넘는 재고를 B 마운트에서 잠시 빼 두고 틱 뒤 되돌린다(DroneBay 밖).
+        /// </summary>
+        internal static int DroneKindCap, DroneKindCapEnh = 5;
+        internal static bool DroneCapOverloadDouble;
+        /// <summary>(c) 과부하 동안 드론 타격 간격 ×0.5(0.5 → 0.25 · 수명 절반 · 하네스 덮개 · sim.DroneHitInterval 프로퍼티).</summary>
+        internal static bool DroneOverloadHitHalf;
+        internal static int LastMaxStack, LastMaxAoe, LastDronesAtLastEnemy;
         internal static bool DroneAllowanceUncap, DroneBCoefRestore, DroneSlotCapRestore, DroneLaunchOnlyWithTarget;
         internal static float LastOverloadMountFullSec, LastFireDemandA;
         internal static float LastOverloadArrivalsA, LastOverloadSecondsA;
@@ -2844,6 +2855,7 @@ namespace MBI.EditorTools
             OverloadFireRateOverride = 0f; OverloadConsumePerShot = 1f; OverloadProduceOverride = 0f;
             OverloadBeltMult = 0f; BeltItemFlow.SpeedMultiplier = 1f;
             DroneFractionOverride = 0f; DroneAllowanceUncap = DroneBCoefRestore = DroneSlotCapRestore = DroneLaunchOnlyWithTarget = false;
+            DroneKindCap = 0; DroneKindCapEnh = 5; DroneCapOverloadDouble = false; DroneOverloadHitHalf = false;
         }
         internal static float MergeNotBefore;
 
@@ -3689,6 +3701,77 @@ namespace MBI.EditorTools
             if (Application.isBatchMode) EditorApplication.Exit(0);
         }
 
+        /// <summary>
+        /// **#240 종류별 드론 상한 표**(2026-10-20 사용자 제안 · 하네스 덮개만). 24칸(자산 그대로: 소비 ×2 · 산출 ×3 · 벨트 ×2 · 20초)
+        /// × 지금(상한 없음) · (a) 상한 3/강화 5 · 과부하 출격만 ×2 · (b) (a) + 과부하 상한 ×2 · 강화 전(B 미강화 · 상한 3 · a 꼴)
+        /// + 전투 12줄 두 로봇 판(S5 · S6 × 강화 전/뒤) (a) 덮개. 배치: RunDroneCapBatch
+        /// </summary>
+        public static void RunDroneCapBatch()
+        {
+            var sb = new StringBuilder();
+            sb.AppendLine();
+            sb.AppendLine("############ #240 종류별 드론 동시 유지 상한 (2026-10-20 · 하네스 덮개만 · 런타임 코드 0) ############");
+            sb.AppendLine("덮개: 종류(누적형 · 광역형)마다 상한 3 · B 강화 5 · 처리량 3기/초 고정(강화 +2 처리량 끔) · (a) 과부하 = 출격 ×2만 · (b) 과부하 = 상한도 ×2(6/10)");
+            sb.AppendLine("칸 = 결과 · A 바닥 · 화면 최대(합 / 누적 / 광역) · 적 1 남았을 때 필드 드론(판 끝 직전 값 · — = 그런 순간 없음)");
+            sb.AppendLine();
+            sb.AppendLine("(c) 3/5 · 출격 ×2 · 과부하 동안 드론 타격 간격 0.5 → 0.25초(누적형 · 광역형 · 수명 2.5 → 1.25초)");
+            sb.AppendLine("| 판 | 보드 | B | 지금(상한 없음) | (a) 3/5 · 출격만 ×2 | (b) 3/5 · 과부하 상한 ×2 | 강화 전(B 상한 3 · a) | (c) 3/5 · 과부하 타격 ×2 |");
+            sb.AppendLine("|---|---|---|---|---|---|---|---|");
+            System.Action<BoardGrid> hook = g => PresetBoards.ApplyExplosive(g, NodeResolver(BasePropellantNeed));
+            string T(float x) => x < 0f ? "—" : $"{x:F1}";
+            (int cap, bool dbl, int enhB, bool half)[] vs = { (0, false, -1, false), (3, false, -1, false), (3, true, -1, false), (3, false, 0, false), (3, false, -1, true) };
+            var wins = new int[vs.Length]; var maxF = new int[vs.Length];
+            try
+            {
+                foreach (string sid in new[] { "S5", "S6" })
+                    foreach (bool on in new[] { false, true })
+                        foreach (float b in new[] { 0f, 0.95f, 1f })
+                        {
+                            var c = new string[vs.Length];
+                            for (int k = 0; k < vs.Length; k++)
+                            {
+                                BoardHook = on ? hook : null;
+                                Enhanced = true; EnhancedBOverride = vs[k].enhB; HarnessMergeOutput = true; AutoMerge = true; RushMerge = true;
+                                MergeNotBefore = 0f; MergeStartRatio = 0f; AStartRatio = 1f; BStartRatio = b;
+                                DroneKindCap = vs[k].cap; DroneCapOverloadDouble = vs[k].dbl; DroneOverloadHitHalf = vs[k].half;
+                                StageVerdict v = RunOne(sid, 0f);
+                                if (v.result == CombatResult.Win) wins[k]++;
+                                if (LastMaxDronesOnField > maxF[k]) maxF[k] = LastMaxDronesOnField;
+                                c[k] = (v.result == CombatResult.Win ? $"**Win {v.seconds:F1}**" : $"Timeout · {LastEnemyHpLeft:F0}")
+                                       + $" · 바닥 {T(LastMountADryAt)} · 최대 {LastMaxDronesOnField}/{LastMaxStack}/{LastMaxAoe}"
+                                       + $" · 적1 {(LastDronesAtLastEnemy < 0 ? "—" : LastDronesAtLastEnemy.ToString())}";
+                                BoardHook = null; KnobReset();
+                            }
+                            sb.AppendLine($"| {sid} | {(on ? "프리셋" : "시작")} | {b * 100f:F0}% | {c[0]} | {c[1]} | {c[2]} | {c[3]} | {c[4]} |");
+                        }
+                sb.AppendLine();
+                sb.AppendLine($"승 수(12칸 중): 지금 {wins[0]} · 강화 전(3) {wins[3]} · (a) {wins[1]} · (b) {wins[2]} · (c) {wins[4]} · 화면 최대(12칸 중 최고): 지금 {maxF[0]} · 강화 전 {maxF[3]} · (a) {maxF[1]} · (b) {maxF[2]} · (c) {maxF[4]}");
+
+                sb.AppendLine();
+                sb.AppendLine("전투 12줄 두 로봇 판(A 가득 · B 0 · 합체 안 누름 · 모듈 0 · 60초) — 지금 ↔ (a) 덮개(합체 없음 = 과부하 없음이라 a = b = c)");
+                sb.AppendLine("| 판 | 강화 | 지금 | (a) 상한 3/5 |");
+                sb.AppendLine("|---|---|---|---|");
+                foreach (string sid in new[] { "S5", "S6" })
+                    foreach (bool en in new[] { false, true })
+                    {
+                        var d = new string[2];
+                        for (int k = 0; k < 2; k++)
+                        {
+                            Enhanced = en; HarnessMergeOutput = true; AStartRatio = 1f; BStartRatio = 0f; MergeStartRatio = 0f;
+                            DroneKindCap = k == 1 ? 3 : 0;
+                            StageVerdict v = RunOne(sid, 0f);
+                            d[k] = (v.result == CombatResult.Win ? $"**Win {v.seconds:F1}**" : $"{v.result} · 남은 적 HP {LastEnemyHpLeft:F0}") + $" · 최대 {LastMaxDronesOnField}";
+                            KnobReset();
+                        }
+                        sb.AppendLine($"| {sid} | {(en ? "뒤" : "전")} | {d[0]} | {d[1]} |");
+                    }
+            }
+            finally { BoardHook = null; KnobReset(); }
+            System.IO.File.AppendAllText("Docs/261020_overload.md", sb.ToString());
+            Debug.Log(sb.ToString());
+            if (Application.isBatchMode) EditorApplication.Exit(0);
+        }
+
         /// <summary>#223 결함 후보 가름 — S6 시작 보드 · 즉시 합체 · B 95% ↔ B 가득 합체 20초 자취. 배치: RunMergeDiagBatch</summary>
         public static void RunMergeDiagBatch()
         {
@@ -4091,6 +4174,9 @@ namespace MBI.EditorTools
             if (OverloadFireRateOverride > 0f) sim.OverloadFireRate = OverloadFireRateOverride;   // (ㅂ)
             var refundCarry = new float[3];
             float droneShadowAllowance = 0f;   // ㄴ · ㄹ 그림자 허용량(이월 캡 없는 구 셈)
+            bool capEnhB = EnhancedBOverride < 0 ? Enhanced : EnhancedBOverride == 1;
+            float droneHitBase = sim.DroneHitInterval;
+            if (DroneKindCap > 0 && bal != null) sim.SetDroneThroughput(1, bal.droneRelease);   // #240 덮개 — 강화 +2 처리량 끔
             int[] baseBaySlots = BaySlotsOf(sim);
             bool slotsRaised = false;
             int launchesAtMerge = -1;
@@ -4139,6 +4225,7 @@ namespace MBI.EditorTools
             LastMountADryAt = LastMountBDryAt = LastMergeEndAt = LastRefullA = LastRefullB = -1f; LastMountAAtMergeEnd = LastMountBAtMergeEnd = -1f;
             LastOverloadArrivalsA = LastOverloadSecondsA = 0f; LastMaxDronesOnField = 0;
             LastOverloadMountFullSec = 0f; LastFireDemandA = -1f;
+            LastMaxStack = LastMaxAoe = 0; LastDronesAtLastEnemy = -1;
             LastHpBeforeMerge = -1f; LastMergeEndHp = -1f;
             int peakAggro = 0;          // #152 — 한 번에 깨어 있던 최대 수
             float bFullAt = -1f;
@@ -4369,6 +4456,21 @@ namespace MBI.EditorTools
                     typeof(DroneBay).GetField("_allowance", NonPub).SetValue(bayB, set);
                 }
                 bool cutLaunch = false;
+                float heldStack = 0f, heldAoe = 0f;
+                if (DroneOverloadHitHalf && sim.IsOverloaded) sim.DroneHitInterval = droneHitBase * 0.5f;   // (c)
+                // ⚠️ 사출대가 실제로 도는 틱(B 나감 · 합체)에만 — A 나간 동안 B 재고를 빼면 「대기 마운트 만충」이 안 서서 자동 태그가 막힌다(첫 판 실측 · 12줄 드론 0).
+                if (DroneKindCap > 0 && SidesOf(sim).Count > 1 && bayTicked)
+                {
+                    var dl = SideField(SidesOf(sim)[1], "drones") as System.Collections.Generic.List<DroneUnit>;
+                    int ns = 0, na = 0;
+                    if (dl != null) foreach (DroneUnit du in dl) { if (du.Kind == DroneKind.Aoe) na++; else ns++; }
+                    int cap = capEnhB ? DroneKindCapEnh : DroneKindCap;
+                    if (DroneCapOverloadDouble && sim.IsOverloaded) cap *= 2;
+                    float roomS = Mathf.Max(0, cap - ns), roomA = Mathf.Max(0, cap - na);
+                    float hs = mountB.AmountOf(MountItem.Drone) - roomS, ha = mountB.AmountOf(MountItem.DroneAoe) - roomA;
+                    if (hs > 0f && mountB.TryConsume(MountItem.Drone, hs)) heldStack = hs;
+                    if (ha > 0f && mountB.TryConsume(MountItem.DroneAoe, ha)) heldAoe = ha;
+                }
                 if (DroneLaunchOnlyWithTarget && bayB != null)
                 {
                     bool any = false;
@@ -4379,6 +4481,18 @@ namespace MBI.EditorTools
                 int fP0 = sim.FiredOf(AmmoKind.Pierce), fS0 = sim.FiredOf(AmmoKind.Standard), fE0 = sim.FiredOf(AmmoKind.Explosive);
                 sim.Tick(Dt);
                 if (cutLaunch) sim.SetDroneThroughput(1, bayBaseT);   // ⓒ 되돌림
+                if (DroneOverloadHitHalf) sim.DroneHitInterval = droneHitBase;   // (c) 되돌림
+                if (heldStack > 0f) mountB.Load(MountItem.Drone, heldStack);   // #240 되돌림
+                if (heldAoe > 0f) mountB.Load(MountItem.DroneAoe, heldAoe);
+                {
+                    var dl = SidesOf(sim).Count > 1 ? SideField(SidesOf(sim)[1], "drones") as System.Collections.Generic.List<DroneUnit> : null;
+                    int ns = 0, na = 0;
+                    if (dl != null) foreach (DroneUnit du in dl) { if (du.Kind == DroneKind.Aoe) na++; else ns++; }
+                    if (ns > LastMaxStack) LastMaxStack = ns;
+                    if (na > LastMaxAoe) LastMaxAoe = na;
+                    int alive = 0; foreach (CombatEntity en in sim.Enemies) if (en.IsAlive) alive++;
+                    if (alive == 1) LastDronesAtLastEnemy = sim.DronesOnField;
+                }
                 if (shadowOn && bayTicked)
                     droneShadowAllowance += bayBaseT * bayDtEff - (DroneSpawnedOf(sim) - spawnedPre);
                 if (sim.DronesOnField > LastMaxDronesOnField) LastMaxDronesOnField = sim.DronesOnField;   // #233 연출 부담
