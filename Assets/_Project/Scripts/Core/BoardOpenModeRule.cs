@@ -29,5 +29,15 @@ namespace MBI.Core
         /// </summary>
         public static bool OpensInBuildMode(bool isTutorialStage, bool moduleTutorialActive) =>
             isTutorialStage || moduleTutorialActive;
+
+        /// <summary>
+        /// ✅ **#252(2026-10-20 사용자 확정) — 설치 걸음 전부 설치 모드로.** 「카메라가 거기까지 포커스가 진행되면 이동이 필요 없으니
+        /// 설치 모드를 기본으로」. 범위 = 튜토리얼 판(T1) · T4 모듈 · 고스트 칸이 떠 있는 걸음(T3 등) · S5 폭발탄 걸음 ①~⑤
+        /// (#241 · #246 포커스가 걸리는 자리와 같은 범위 · ⚠️ 범위 가정). 보드가 **열릴 때**와 걸음이 **새로 설 때** 한 번 켠다 —
+        /// 사용자가 이동 모드로 바꾸면 그대로 둔다(모드 단추 그대로) · 걸음이 끝나도 되돌리지 않는다(⚠️ 가정).
+        /// 국면 「조립 모드로 바꿔라」(`TutorialGate.Phase.BuildMode`)는 이미 설치 모드면 저절로 안 선다(자동 통과).
+        /// </summary>
+        public static bool PlaceStepActive(bool isTutorialStage, bool moduleTutorialActive, bool ghostWaiting, bool explosiveActive) =>
+            isTutorialStage || moduleTutorialActive || ghostWaiting || explosiveActive;
     }
 }

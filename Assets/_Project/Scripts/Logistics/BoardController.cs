@@ -173,6 +173,7 @@ namespace MBI.Logistics
         //    이것이었고, **규칙대로인 화면**이다. 모드를 바꾸면 걷히는 것을 09-28 에
         //    같은 창·같은 자리에서 두 장으로 대조해 확인했다.
         private BoardMode _mode = BoardMode.Pan;
+        private bool _wasPlaceStepForMode;   // #252 — 설치 걸음이 새로 섰는가(한 번만 켠다)
         /// <summary>
         /// 지난 프레임에 보드가 열려 있었나 — **모드를 세우는 데만** 쓴다(#135).
         /// ⚠️ `_wasBoardOpen`(탭 따라가기용)과 **따로 둔다** — 그쪽은 `FollowActiveRobotTab` 이
@@ -3006,11 +3007,15 @@ namespace MBI.Logistics
             }
 
             bool boardOpen = GameLayerController.BoardViewActive;
-            if (boardOpen && !_wasBoardOpenForMode
-                && BoardOpenModeRule.OpensInBuildMode(StageLayerSignals.IsTutorialStage,
-                                                      TutorialSignals.ModuleTutorialActive))
+            // ✅ #252 — 설치 걸음이면 보드가 열릴 때 · 걸음이 새로 설 때 한 번 설치 모드(🗑️ 열릴 때 + T1 · T4 만).
+            bool placeStep = BoardOpenModeRule.PlaceStepActive(StageLayerSignals.IsTutorialStage,
+                TutorialSignals.ModuleTutorialActive,
+                TutorialSignals.GhostCell.HasValue && !TutorialSignals.GhostCellFilled,
+                TutorialSignals.ExplosiveActive);
+            if (boardOpen && placeStep && (!_wasBoardOpenForMode || !_wasPlaceStepForMode))
                 Mode = BoardMode.Build;
             _wasBoardOpenForMode = boardOpen;
+            _wasPlaceStepForMode = placeStep;
 
             // ⚠️ **게이트가 이것을 읽는다**(2026-09-11 · §71-19 ①). 국면은 신호만으로
             // 안 정해진다 — 이동 모드인 채로 고스트가 뜨면 할 수 있는 일은

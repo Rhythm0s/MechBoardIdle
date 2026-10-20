@@ -34,5 +34,28 @@ namespace MBI.Tests
                 TutorialGate.Resolve(urgeEnterBoard: false, urgeBuildMode: true,
                                      ghostWaiting: true, inBuildMode: false));
         }
+
+        /// <summary>#252 — 설치 걸음 전부(튜토리얼 판 · T4 · 고스트 칸 · S5 폭발탄 걸음)에서 설치 모드.</summary>
+        [Test]
+        public void PlaceSteps_AllOpenInBuildMode()
+        {
+            Assert.IsTrue(BoardOpenModeRule.PlaceStepActive(true, false, false, false), "T1");
+            Assert.IsTrue(BoardOpenModeRule.PlaceStepActive(false, true, false, false), "T4");
+            Assert.IsTrue(BoardOpenModeRule.PlaceStepActive(false, false, true, false), "고스트 칸(T3 등)");
+            Assert.IsTrue(BoardOpenModeRule.PlaceStepActive(false, false, false, true), "S5 폭발탄 걸음");
+            Assert.IsFalse(BoardOpenModeRule.PlaceStepActive(false, false, false, false), "걸음 없음 = 종전 이동 모드");
+        }
+
+        /// <summary>#252 — 이미 설치 모드면 「바꿔라」 국면은 안 서고 바로 놓기 국면(자동 통과).</summary>
+        [Test]
+        public void BuildModePhase_SkippedWhenAlreadyBuild()
+        {
+            Assert.AreEqual(TutorialGate.Phase.PlaceNode,
+                TutorialGate.Resolve(false, false, false, false, false, false, false, true, true));
+            Assert.AreEqual(TutorialGate.Phase.BuildMode,
+                TutorialGate.Resolve(false, false, false, false, false, false, false, true, false));
+            string bc = System.IO.File.ReadAllText("Assets/_Project/Scripts/Logistics/BoardController.cs");
+            StringAssert.Contains("if (boardOpen && placeStep && (!_wasBoardOpenForMode || !_wasPlaceStepForMode))", bc);
+        }
     }
 }
