@@ -30,7 +30,7 @@ namespace MBI.Tests
         public void S5와_S6_점프만_프리셋을_건다()
         {
             for (int n = 0; n <= 4; n++) Assert.IsFalse(PresetBoards.ExplosiveOnJump(n), $"S{n}");
-            Assert.IsTrue(PresetBoards.ExplosiveOnJump(5));
+            Assert.IsFalse(PresetBoards.ExplosiveOnJump(5), "#250 — S5 점프 = 튜토리얼 시작판(🗑️ 프리셋)");
             Assert.IsTrue(PresetBoards.ExplosiveOnJump(6));
         }
 

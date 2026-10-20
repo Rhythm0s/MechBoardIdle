@@ -3796,6 +3796,47 @@ namespace MBI.EditorTools
             if (Application.isBatchMode) EditorApplication.Exit(0);
         }
 
+        /// <summary>
+        /// **#250 S5 점프 꼴 도전 확인**(2026-10-20) — 시작 판 + 튜토리얼 다섯 칸(걸음 자동 밟기) + #216 꼬리(덮어쓰기 거짓)
+        /// ↔ 🗑️ 종전 프리셋. 점프 상태 흉내: A 강화 · B 미강화 · A 40 · B 드론 가득 · 합체 3초 차오름 즉시. 배치: RunS5JumpTutorialBatch
+        /// </summary>
+        public static void RunS5JumpTutorialBatch()
+        {
+            var sb = new StringBuilder();
+            sb.AppendLine();
+            sb.AppendLine("############ #250 S5 점프 꼴 — 튜토리얼판(다섯 칸 + 꼬리) ↔ 종전 프리셋 (2026-10-20 · 하네스) ############");
+            void Clr(BoardGrid g, Vector2Int c) { if (g.GetAt(c) != null) g.TryRemove(c); if (g.GetBeltAt(c) != null) g.TryRemoveBelt(c); }
+            System.Action<BoardGrid> tutorial = g =>
+            {
+                g.GetAt(new Vector2Int(6, 7))?.SelectRecipe(RecipeKind.PowerMaterial);
+                Clr(g, new Vector2Int(7, 7)); g.TryPlaceBelt(new Vector2Int(7, 7), PortFace.West, PortFace.East, FlowKind.None, out _);
+                Clr(g, new Vector2Int(8, 8)); g.TryPlaceBeltElement(new Vector2Int(8, 8), BeltElementKind.Sorter,
+                    new[] { PortFace.West }, new[] { PortFace.South, PortFace.East }, FlowKind.None, out _);
+                Clr(g, new Vector2Int(8, 7));
+                NodeDefinition mx = NodeResolver(BasePropellantNeed)(StartingBoardB.ComplexId);
+                if (mx != null && g.TryPlace(new Vector2Int(8, 7), mx, out NodeInstance x)) { x.Rotation = 1; x.SelectRecipe(RecipeKind.ExplosiveAmmo); }
+                foreach (PresetBoards.TailStep t in PresetBoards.ExplosiveTail) PresetBoards.PlaceTail(g, t, overwrite: false);
+            };
+            System.Action<BoardGrid> preset = g => PresetBoards.ApplyExplosive(g, NodeResolver(BasePropellantNeed));
+            try
+            {
+                foreach (var cs in new (string n, System.Action<BoardGrid> h)[] { ("튜토리얼판(#250)", tutorial), ("🗑️ 종전 프리셋", preset) })
+                {
+                    BoardHook = cs.h;
+                    Enhanced = true; EnhancedBOverride = 0; HarnessMergeOutput = true; AutoMerge = true; RushMerge = true;
+                    MergeNotBefore = 0f; MergeStartRatio = 0f; AStartRatio = 1f; BStartRatio = 1f;
+                    StageVerdict v = RunOne("S5", 0f);
+                    sb.AppendLine($"- S5 도전 · {cs.n}: " + (v.result == CombatResult.Win ? $"**Win {v.seconds:F1}초**" : $"{v.result} · 남은 적 HP {LastEnemyHpLeft:F0}")
+                                  + $" · 합체 중 A 바닥 {(LastMountADryAt < 0f ? "—" : LastMountADryAt.ToString("F1"))} · 화면 드론 최대 {LastMaxDronesOnField}");
+                    BoardHook = null; KnobReset();
+                }
+            }
+            finally { BoardHook = null; KnobReset(); }
+            System.IO.File.AppendAllText("Docs/261020_explosive_link.md", sb.ToString());
+            Debug.Log(sb.ToString());
+            if (Application.isBatchMode) EditorApplication.Exit(0);
+        }
+
         /// <summary>#223 결함 후보 가름 — S6 시작 보드 · 즉시 합체 · B 95% ↔ B 가득 합체 20초 자취. 배치: RunMergeDiagBatch</summary>
         public static void RunMergeDiagBatch()
         {

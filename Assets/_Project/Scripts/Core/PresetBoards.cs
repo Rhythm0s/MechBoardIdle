@@ -23,8 +23,12 @@ namespace MBI.Core
     /// </summary>
     public static class PresetBoards
     {
-        /// <summary>이 판으로 뛰면 폭발탄 프리셋을 세우는가 — S5 · S6(사용자 확정 #167 · #168).</summary>
-        public static bool ExplosiveOnJump(int stageNumber) => stageNumber == 5 || stageNumber == 6;
+        /// <summary>
+        /// 이 판으로 뛰면 폭발탄 프리셋을 세우는가 — **S6 만**(사용자 확정 #250 · 2026-10-20 · 🗑️ S5 · S6 #167 · #168).
+        /// ✅ #250 「메뉴 이동은 심사자용 — 초기화 상태에서 그 판 튜토리얼을 맞춰 진행」 → S5 점프는 시작 판으로 서서
+        ///    폭발탄 튜토리얼이 걸음 ①부터 선다(#216 꼬리 자동 완성 그대로). S6(튜토리얼 = B 강화 막뿐)은 완성판 그대로 ⚠️ 플랜 가정.
+        /// </summary>
+        public static bool ExplosiveOnJump(int stageNumber) => stageNumber == 6;
 
         /// <summary>
         /// **폭발탄 프리셋 요청 — 사건**(바로가기가 놓고 보드가 가져간다 · `TutorialSignals.FillEmptySlotRequested` 와 같은 결).

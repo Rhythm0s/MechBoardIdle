@@ -869,6 +869,10 @@ namespace MBI.Logistics
                 //    다시 올라가 있다** — 그대로 세우면 그것을 「복원」한다. 비우고 세운다.
                 IdleSignals.SetBoardState(owner, null);
                 ApplyInitialLayout(g);
+                // ✅ #249(2026-10-20 사용자 확정) — 벨트 위 아이템 · 대기 도착도 버린다(새 흐름).
+                //    🗑️ 종전 Rebuild 는 벨트가 없어진 칸의 줄만 지워, 프리셋 판과 시작 판이 같이 쓰는 칸((8,6)(8,5) · y5 운반로 ·
+                //    (2,6) · 포트 (1,4)) 위 폭발탄이 새 빈 마운트에 도착했다(10-20 사용자 육안 「초기화해도 폭발탄 남음」).
+                _flows[Index(owner)] = new BeltItemFlow();
                 ResolveFlow(g, _flows[Index(owner)]);
             }
 
