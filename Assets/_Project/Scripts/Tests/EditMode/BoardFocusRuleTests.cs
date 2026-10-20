@@ -28,5 +28,14 @@ namespace MBI.Tests
             Assert.IsFalse(BoardFocusRule.ShouldFocus(true, true, true), "한 번 옮긴 뒤엔 손으로 끈 시야를 안 빼앗는다");
             Assert.IsFalse(BoardFocusRule.ShouldFocus(false, false, true), "전투 화면이면 안 옮긴다");
         }
+
+        /// <summary>#241 — 모듈 튜토리얼(T4)도 같은 꼴로 대상 노드 칸에 한 번 포커스.</summary>
+        [Test]
+        public void ModuleTutorial_FocusesTargetOnce()
+        {
+            string bc = System.IO.File.ReadAllText("Assets/_Project/Scripts/Logistics/BoardController.cs");
+            StringAssert.Contains("if (BoardFocusRule.ShouldFocus(_moduleFocusDone, GameLayerController.BoardViewActive, GameViewSignals.BoardCameraSettled))", bc);
+            StringAssert.Contains("{ FocusCell(moduleCell.Value); _moduleFocusDone = true; }", bc);
+        }
     }
 }

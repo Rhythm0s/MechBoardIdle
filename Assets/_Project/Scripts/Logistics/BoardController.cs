@@ -1986,6 +1986,14 @@ namespace MBI.Logistics
                                          && TutorialGate.Current == TutorialGate.Phase.PlaceModule
                     ? TutorialSignals.ModuleTargetCell
                     : null;
+                // ✅ #241(2026-10-20 사용자 확정) — 모듈 단계에서도 대상 노드 칸으로 시야를 한 번 옮긴다(폭발탄 · 강화와 같은 꼴 ·
+                //    카메라 안착 뒤 한 번 · 손으로 끈 시야는 안 빼앗음). 대상은 PickTarget 이 고른 하나(둘이면 첫 노드 ⚠️ 가정).
+                if (moduleCell.HasValue)
+                {
+                    if (BoardFocusRule.ShouldFocus(_moduleFocusDone, GameLayerController.BoardViewActive, GameViewSignals.BoardCameraSettled))
+                    { FocusCell(moduleCell.Value); _moduleFocusDone = true; }
+                }
+                else _moduleFocusDone = false;
                 RefreshTutorialDim(moduleCell); // 튜토리얼이 끝났거나 꺼졌으면 null — 막을 걷는다
                 RefreshTutorialGhost(moduleCell);
                 return;
@@ -2025,6 +2033,9 @@ namespace MBI.Logistics
 
         /// <summary>#190 — 이번 국면에 시야를 이미 옮겼는가.</summary>
         private bool _explosiveFocusDone;
+
+        /// <summary>#241 — 모듈 단계에 시야를 이미 옮겼는가.</summary>
+        private bool _moduleFocusDone;
 
         /// <summary>
         /// #190 — A 판 다섯 칸을 읽어 폭발탄 걸음을 게시한다(`ExplosiveTutorialRule.Next`).
