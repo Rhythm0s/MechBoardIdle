@@ -2460,6 +2460,70 @@ namespace MBI.EditorTools
         internal static bool MergeSkillOff;
         /// <summary>#229 과부하 손잡이(하네스 전용) — 0 이면 자산 `overloadSec`.</summary>
         internal static float OverloadSecOverride;
+        /// <summary>
+        /// #229 원인 분리 손잡이(2026-10-20 플랜 요청 · **하네스 전용 · 리플렉션 덮개 · 런타임 코드 0**).
+        /// <c>OverloadSlotMult</c> = 과부하 동안 드론 슬롯 상한 ×N(끝나면 원래대로) · <c>OverloadFireOff</c> = 소비 ×2 끔(발사 ×1)
+        /// · <c>OverloadSubstitute</c> = 과부하 동안 줄 탄종이 바닥이면 같은 마운트의 다른 탄 1발을 그 탄종으로 옮겨 쏘게 함(가정 · 피해는 그 줄 값).
+        /// </summary>
+        internal static float OverloadSlotMult = 1f;
+        internal static bool OverloadFireOff, OverloadSubstitute;
+        internal static int LastMergeLaunches;
+        private static readonly System.Reflection.BindingFlags NonPub = System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance;
+
+        private static System.Collections.IList SidesOf(CombatSimulation sim) =>
+            (System.Collections.IList)typeof(CombatSimulation).GetField("_sides", NonPub).GetValue(sim);
+
+        private static object SideField(object side, string name) => side.GetType().GetField(name).GetValue(side);
+
+        private static int DroneSpawnedOf(CombatSimulation sim) =>
+            (int)typeof(CombatSimulation).GetField("_droneSpawned", NonPub).GetValue(sim);
+
+        /// <summary>사출대 슬롯 상한을 덮는다(자동 속성 뒷칸 · 하네스 전용).</summary>
+        private static void SetBaySlots(CombatSimulation sim, int[] baseSlots, float mult)
+        {
+            System.Collections.IList sides = SidesOf(sim);
+            for (int i = 0; i < sides.Count; i++)
+            {
+                var bay = SideField(sides[i], "bay") as DroneBay;
+                if (bay == null) continue;
+                typeof(DroneBay).GetField("<Slots>k__BackingField", NonPub).SetValue(bay, Mathf.RoundToInt(baseSlots[i] * mult));
+            }
+        }
+
+        private static int[] BaySlotsOf(CombatSimulation sim)
+        {
+            System.Collections.IList sides = SidesOf(sim);
+            var r = new int[sides.Count];
+            for (int i = 0; i < sides.Count; i++) { var bay = SideField(sides[i], "bay") as DroneBay; r[i] = bay != null ? bay.Slots : 0; }
+            return r;
+        }
+
+        private static readonly MountItem[] AmmoItems = { MountItem.Pierce, MountItem.Standard, MountItem.Explosive };
+
+        /// <summary>(ㄷ) 가정 — 줄 탄종이 바닥이면 같은 마운트의 다른 탄 1발을 그 탄종으로 옮긴다(틱마다 줄당 1발).</summary>
+        private static void SubstituteDryLines(CombatSimulation sim)
+        {
+            System.Collections.IList sides = SidesOf(sim);
+            for (int i = 0; i < sides.Count; i++)
+            {
+                var mount = SideField(sides[i], "mount") as MountLoad;
+                var setup = (RobotSetup)SideField(sides[i], "setup");
+                if (mount == null || setup.lines == null) continue;
+                foreach (AmmoLine l in setup.lines)
+                {
+                    if (l.shotsPerSec <= 0f) continue;
+                    MountItem need = MountItemMap.From(l.kind);
+                    if (mount.AmountOf(need) >= 1f) continue;
+                    foreach (MountItem other in AmmoItems)
+                    {
+                        if (other == need || mount.AmountOf(other) < 1f) continue;
+                        if (!mount.TryConsume(other, 1f)) continue;
+                        if (mount.Load(need, 1f) < 1f) mount.Load(other, 1f);   // 칸이 없으면 되돌린다
+                        break;
+                    }
+                }
+            }
+        }
         internal static float LastMountADryAt, LastMountBDryAt, LastMergeEndAt, LastRefullA, LastRefullB, LastMountAAtMergeEnd, LastMountBAtMergeEnd;
         internal static float DocBurstPercent;
         internal static float LastDocBurst;
@@ -2759,7 +2823,7 @@ namespace MBI.EditorTools
             HarnessMergeOutput = false;
             KnobRefillMult = 1f; KnobMergeSeconds = 0f; KnobFreeDrones = false; KnobHalfSkill = false; KnobBossHp = 0f; SpawnHook = null;
             Enhanced = false; AutoMerge = false; RushMerge = false; MergeNotBefore = 0f; MergeStartRatio = -1f; AStartRatio = -1f; BStartRatio = -1f;
-            EnhancedBOverride = -1; OverloadSecOverride = 0f;
+            EnhancedBOverride = -1; OverloadSecOverride = 0f; OverloadSlotMult = 1f; OverloadFireOff = false; OverloadSubstitute = false;
         }
         internal static float MergeNotBefore;
 
@@ -3145,6 +3209,55 @@ namespace MBI.EditorTools
             }
             finally { BoardHook = null; KnobReset(); }
             System.IO.File.WriteAllText("Docs/261020_overload.md", sb.ToString());
+            Debug.Log(sb.ToString());
+            if (Application.isBatchMode) EditorApplication.Exit(0);
+        }
+
+        /// <summary>
+        /// **#229 원인 분리 표**(2026-10-20 플랜 요청 · 하네스 손잡이만). 과부하 20초 · 조건은 <see cref="RunOverloadBatch"/> 그대로.
+        /// 지금 · (ㄱ) 슬롯 ×2 · (ㄴ) 소비 ×2 끔 + 슬롯 ×2 · (ㄷ) (ㄱ) + 바닥 탄종 대체. Docs/261020_overload.md 뒤에 잇는다.
+        /// </summary>
+        public static void RunOverloadVariantsBatch()
+        {
+            var sb = new StringBuilder();
+            sb.AppendLine();
+            sb.AppendLine("############ #229 원인 분리 (2026-10-20 · 하네스 손잡이만 · 과부하 20초) ############");
+            sb.AppendLine("칸 = 결과(승 시각 / 남은 적 HP) · 합체 중 A 바닥(합체 뒤 초 · — = 안 바닥) · 합체 중 실제 드론 발진 수(합체 끝까지 · 판이 먼저 끝나면 「판 끝」)");
+            sb.AppendLine("(ㄱ) 지금 + 과부하 중 드론 슬롯 ×2(3→6) · (ㄴ) 발사 ×1(소비 ×2 끔) + 슬롯 ×2 · (ㄷ) (ㄱ) + 과부하 중 바닥 탄종을 같은 마운트 다른 탄으로 대체(가정 · 피해는 그 줄 값)");
+            sb.AppendLine();
+            sb.AppendLine("| 판 | 보드 | B 시작 | 지금(80b5392) | (ㄱ) 슬롯 ×2 | (ㄴ) 소비 ×1 + 슬롯 ×2 | (ㄷ) (ㄱ) + 대체 |");
+            sb.AppendLine("|---|---|---|---|---|---|---|");
+            System.Action<BoardGrid> hook = g => PresetBoards.ApplyExplosive(g, NodeResolver(BasePropellantNeed));
+            string T(float v) => v < 0f ? "—" : $"{v:F1}";
+            var wins = new int[4];
+            try
+            {
+                foreach (string sid in new[] { "S5", "S6" })
+                    foreach (bool on in new[] { false, true })
+                        foreach (float b in new[] { 0f, 0.95f, 1f })
+                        {
+                            (float slot, bool fireOff, bool sub)[] vs = { (1f, false, false), (2f, false, false), (2f, true, false), (2f, false, true) };
+                            var c = new string[vs.Length];
+                            for (int k = 0; k < vs.Length; k++)
+                            {
+                                BoardHook = on ? hook : null;
+                                Enhanced = true; HarnessMergeOutput = true; AutoMerge = true; RushMerge = true;
+                                MergeNotBefore = 0f; MergeStartRatio = 0f; AStartRatio = 1f; BStartRatio = b;
+                                OverloadSecOverride = 20f; OverloadSlotMult = vs[k].slot; OverloadFireOff = vs[k].fireOff; OverloadSubstitute = vs[k].sub;
+                                StageVerdict v = RunOne(sid, 0f);
+                                if (v.result == CombatResult.Win) wins[k]++;
+                                c[k] = (v.result == CombatResult.Win ? $"**Win {v.seconds:F1}**" : $"Timeout · {LastEnemyHpLeft:F0}")
+                                       + $" · A 바닥 {T(LastMountADryAt)}"
+                                       + $" · 발진 {(LastMergeLaunches >= 0 ? LastMergeLaunches.ToString() : "판 끝")}";
+                                BoardHook = null; KnobReset();
+                            }
+                            sb.AppendLine($"| {sid} | {(on ? "프리셋" : "시작")} | {b * 100f:F0}% | {c[0]} | {c[1]} | {c[2]} | {c[3]} |");
+                        }
+            }
+            finally { BoardHook = null; KnobReset(); }
+            sb.AppendLine();
+            sb.AppendLine($"승 수(12칸 중): 지금 {wins[0]} · (ㄱ) {wins[1]} · (ㄴ) {wins[2]} · (ㄷ) {wins[3]}");
+            System.IO.File.AppendAllText("Docs/261020_overload.md", sb.ToString());
             Debug.Log(sb.ToString());
             if (Application.isBatchMode) EditorApplication.Exit(0);
         }
@@ -3543,6 +3656,11 @@ namespace MBI.EditorTools
                 sim.OverloadFireRate = robotA.balanceRef.overloadFireRate;
                 if (sim.Merge != null) sim.Merge.OverloadSeconds = OverloadSecOverride > 0f ? OverloadSecOverride : robotA.balanceRef.overloadSec;
             }
+            if (OverloadFireOff) sim.OverloadFireRate = 1f;   // (ㄴ) 하네스 손잡이
+            int[] baseBaySlots = BaySlotsOf(sim);
+            bool slotsRaised = false;
+            int launchesAtMerge = -1;
+            LastMergeLaunches = -1;
             sim.SetSideStepHold(tuning.enemySideStepHoldTbd);
             // ⚠️ **러너와 같은 자산에서 읽는다** — 안 읽으면 하네스가 종전 거동(예산 0)으로
             //    재서 화면과 다른 판을 본다(오늘 아침 `RespawnUnreachable` 과 같은 자리).
@@ -3778,6 +3896,15 @@ namespace MBI.EditorTools
                 if (FarmMode) foreach (CombatEntity e in sim.Enemies) if (e.IsAlive && e.label == "장갑") armorHpBefore += e.hp;
                 bool aActiveTick = sim.ActiveRobotIndex == 0;
                 bool mergingTick = sim.Merge != null && sim.Merge.IsActive;
+                // #229 원인 분리 손잡이(하네스 전용)
+                if (OverloadSlotMult != 1f && sim.IsOverloaded != slotsRaised)
+                {
+                    slotsRaised = sim.IsOverloaded;
+                    SetBaySlots(sim, baseBaySlots, slotsRaised ? OverloadSlotMult : 1f);
+                }
+                if (OverloadSubstitute && sim.IsOverloaded) SubstituteDryLines(sim);
+                if (mergingTick && launchesAtMerge < 0) launchesAtMerge = DroneSpawnedOf(sim);
+                if (!mergingTick && launchesAtMerge >= 0 && LastMergeLaunches < 0) LastMergeLaunches = DroneSpawnedOf(sim) - launchesAtMerge;
                 sim.Tick(Dt);
                 elapsed += Dt;
                 if (FarmMode)
