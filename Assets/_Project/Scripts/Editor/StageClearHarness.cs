@@ -2467,6 +2467,8 @@ namespace MBI.EditorTools
         /// </summary>
         internal static float OverloadSlotMult = 1f;
         internal static bool OverloadFireOff, OverloadSubstitute;
+        /// <summary>(ㅂ) 과부하 발사 배율 덮개(0 = 자산값) · (ㅁ) 과부하 중 발당 소비 비(1 = 그대로 · 0.5 = 두 발에 한 번 꼴 · 하네스 환급 덮개).</summary>
+        internal static float OverloadFireRateOverride, OverloadConsumePerShot = 1f;
         internal static int LastMergeLaunches;
         private static readonly System.Reflection.BindingFlags NonPub = System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance;
 
@@ -2824,6 +2826,7 @@ namespace MBI.EditorTools
             KnobRefillMult = 1f; KnobMergeSeconds = 0f; KnobFreeDrones = false; KnobHalfSkill = false; KnobBossHp = 0f; SpawnHook = null;
             Enhanced = false; AutoMerge = false; RushMerge = false; MergeNotBefore = 0f; MergeStartRatio = -1f; AStartRatio = -1f; BStartRatio = -1f;
             EnhancedBOverride = -1; OverloadSecOverride = 0f; OverloadSlotMult = 1f; OverloadFireOff = false; OverloadSubstitute = false;
+            OverloadFireRateOverride = 0f; OverloadConsumePerShot = 1f;
         }
         internal static float MergeNotBefore;
 
@@ -3262,6 +3265,56 @@ namespace MBI.EditorTools
             if (Application.isBatchMode) EditorApplication.Exit(0);
         }
 
+        /// <summary>
+        /// **#229 원인 분리 2**(2026-10-20 플랜 요청 · 사용자 「소비 안 늘면 공속도 안 는다」). 과부하 20초 · 슬롯 ×2 둘 다.
+        /// (ㅁ) 발사 ×2 + 발당 소비 0.5(하네스 환급) · (ㅂ) 발사 ×1.5(소비 ×1.5). Docs/261020_overload.md 뒤에 잇는다.
+        /// </summary>
+        public static void RunOverloadVariants2Batch()
+        {
+            var sb = new StringBuilder();
+            sb.AppendLine();
+            sb.AppendLine("############ #229 원인 분리 2 (2026-10-20 · 하네스 손잡이만 · 과부하 20초 · 슬롯 ×2) ############");
+            sb.AppendLine("(ㅁ) 발사 ×2 + 발당 소비 0.5(틱마다 나간 탄 수 × 0.5 를 A 마운트에 환급 · 정수 단위 이월) · (ㅂ) 발사 ×1.5(소비 ×1.5)");
+            sb.AppendLine("칸 = 결과(승 시각 / 남은 적 HP) · 합체 중 A 바닥(합체 뒤 초) · 합체 중 드론 발진 수");
+            sb.AppendLine();
+            sb.AppendLine("| 판 | 보드 | B 시작 | (ㅁ) 발사 ×2 · 소비 0.5 · 슬롯 ×2 | (ㅂ) 발사 ×1.5 · 슬롯 ×2 |");
+            sb.AppendLine("|---|---|---|---|---|");
+            System.Action<BoardGrid> hook = g => PresetBoards.ApplyExplosive(g, NodeResolver(BasePropellantNeed));
+            string T(float v) => v < 0f ? "—" : $"{v:F1}";
+            var wins = new int[2];
+            try
+            {
+                foreach (string sid in new[] { "S5", "S6" })
+                    foreach (bool on in new[] { false, true })
+                        foreach (float b in new[] { 0f, 0.95f, 1f })
+                        {
+                            (float rate, float per)[] vs = { (0f, 0.5f), (1.5f, 1f) };
+                            var c = new string[vs.Length];
+                            for (int k = 0; k < vs.Length; k++)
+                            {
+                                BoardHook = on ? hook : null;
+                                Enhanced = true; HarnessMergeOutput = true; AutoMerge = true; RushMerge = true;
+                                MergeNotBefore = 0f; MergeStartRatio = 0f; AStartRatio = 1f; BStartRatio = b;
+                                OverloadSecOverride = 20f; OverloadSlotMult = 2f;
+                                OverloadFireRateOverride = vs[k].rate; OverloadConsumePerShot = vs[k].per;
+                                StageVerdict v = RunOne(sid, 0f);
+                                if (v.result == CombatResult.Win) wins[k]++;
+                                c[k] = (v.result == CombatResult.Win ? $"**Win {v.seconds:F1}**" : $"Timeout · {LastEnemyHpLeft:F0}")
+                                       + $" · A 바닥 {T(LastMountADryAt)}"
+                                       + $" · 발진 {(LastMergeLaunches >= 0 ? LastMergeLaunches.ToString() : "판 끝")}";
+                                BoardHook = null; KnobReset();
+                            }
+                            sb.AppendLine($"| {sid} | {(on ? "프리셋" : "시작")} | {b * 100f:F0}% | {c[0]} | {c[1]} |");
+                        }
+            }
+            finally { BoardHook = null; KnobReset(); }
+            sb.AppendLine();
+            sb.AppendLine($"승 수(12칸 중 · 앞 표 포함): 지금 9 · (ㄱ) 10 · (ㄴ) 12 · (ㄷ) 10 · (ㅁ) {wins[0]} · (ㅂ) {wins[1]}");
+            System.IO.File.AppendAllText("Docs/261020_overload.md", sb.ToString());
+            Debug.Log(sb.ToString());
+            if (Application.isBatchMode) EditorApplication.Exit(0);
+        }
+
         /// <summary>#223 결함 후보 가름 — S6 시작 보드 · 즉시 합체 · B 95% ↔ B 가득 합체 20초 자취. 배치: RunMergeDiagBatch</summary>
         public static void RunMergeDiagBatch()
         {
@@ -3657,6 +3710,8 @@ namespace MBI.EditorTools
                 if (sim.Merge != null) sim.Merge.OverloadSeconds = OverloadSecOverride > 0f ? OverloadSecOverride : robotA.balanceRef.overloadSec;
             }
             if (OverloadFireOff) sim.OverloadFireRate = 1f;   // (ㄴ) 하네스 손잡이
+            if (OverloadFireRateOverride > 0f) sim.OverloadFireRate = OverloadFireRateOverride;   // (ㅂ)
+            var refundCarry = new float[3];
             int[] baseBaySlots = BaySlotsOf(sim);
             bool slotsRaised = false;
             int launchesAtMerge = -1;
@@ -3905,7 +3960,20 @@ namespace MBI.EditorTools
                 if (OverloadSubstitute && sim.IsOverloaded) SubstituteDryLines(sim);
                 if (mergingTick && launchesAtMerge < 0) launchesAtMerge = DroneSpawnedOf(sim);
                 if (!mergingTick && launchesAtMerge >= 0 && LastMergeLaunches < 0) LastMergeLaunches = DroneSpawnedOf(sim) - launchesAtMerge;
+                bool refundTick = OverloadConsumePerShot < 1f && sim.IsOverloaded;
+                int fP0 = sim.FiredOf(AmmoKind.Pierce), fS0 = sim.FiredOf(AmmoKind.Standard), fE0 = sim.FiredOf(AmmoKind.Explosive);
                 sim.Tick(Dt);
+                // (ㅁ) 발당 소비 0.5 — 이번 틱에 나간 **탄 수**(FiredOf 는 쪼갠 발을 세므로 ShotsPerRound 로 나눔)의 (1 − 비)만큼 A 마운트에 되돌린다.
+                if (refundTick)
+                {
+                    int split = ShotSplitRule.ShotsPerRound(sim.ShotsPerRound);
+                    int[] d = { sim.FiredOf(AmmoKind.Pierce) - fP0, sim.FiredOf(AmmoKind.Standard) - fS0, sim.FiredOf(AmmoKind.Explosive) - fE0 };
+                    for (int q = 0; q < 3; q++)
+                    {
+                        refundCarry[q] += d[q] / (float)split * (1f - OverloadConsumePerShot);
+                        if (refundCarry[q] >= 1f) { float whole = Mathf.Floor(refundCarry[q]); mountA.Load(AmmoItems[q], whole); refundCarry[q] -= whole; }
+                    }
+                }
                 elapsed += Dt;
                 if (FarmMode)
                 {
