@@ -88,6 +88,12 @@ namespace MBI.Core
         /// </summary>
         public const float MinGapCells = 1f / 3f;
 
+        /// <summary>
+        /// **시험용 벨트 속도 배율**(#236 · 2026-10-20 · 플랜 허용 「시험용 정적 배율 하나 · 런타임 기본 1」).
+        /// 하네스만 과부하 동안 바꾼다 — 게임은 아무도 안 쓴다(값 1 = 종전 거동 그대로).
+        /// </summary>
+        public static float SpeedMultiplierProbe = 1f;
+
         /// <summary>한 칸에 설 수 있는 최대 개수. 간격에서 파생되며 따로 정하지 않는다.</summary>
         public static int MaxPerCell => Mathf.FloorToInt(1f / MinGapCells);
 
@@ -327,7 +333,7 @@ namespace MBI.Core
         public void Tick(float dt)
         {
             if (dt <= 0f) return;
-            float step = CellsPerSecondTbd * dt;
+            float step = CellsPerSecondTbd * SpeedMultiplierProbe * dt;   // #236 시험 배율(기본 1)
 
             // 하류부터 처리해야 앞 칸이 비운 자리를 뒤 칸이 같은 틱에 쓸 수 있다.
             foreach (Vector2Int cell in OrderedDownstreamFirst())

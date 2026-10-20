@@ -2471,6 +2471,9 @@ namespace MBI.EditorTools
         internal static float OverloadFireRateOverride, OverloadConsumePerShot = 1f;
         /// <summary>#235 산출 배율 훑기(0 = 자산 overloadProduce) · 과부하 중 A 마운트 도착 수 · 최대 필드 드론 수.</summary>
         internal static float OverloadProduceOverride;
+        /// <summary>#236 과부하 중 벨트 속도 ×N(하네스 · `BeltItemFlow.SpeedMultiplierProbe`) · 상한 분리 진단값.</summary>
+        internal static float OverloadBeltMult = 1f;
+        internal static float LastOverloadMountFullSec, LastFireDemandA;
         internal static float LastOverloadArrivalsA, LastOverloadSecondsA;
         internal static int LastMaxDronesOnField;
         internal static int LastMergeLaunches;
@@ -2831,6 +2834,7 @@ namespace MBI.EditorTools
             Enhanced = false; AutoMerge = false; RushMerge = false; MergeNotBefore = 0f; MergeStartRatio = -1f; AStartRatio = -1f; BStartRatio = -1f;
             EnhancedBOverride = -1; OverloadSecOverride = 0f; OverloadSlotMult = 1f; OverloadFireOff = false; OverloadSubstitute = false;
             OverloadFireRateOverride = 0f; OverloadConsumePerShot = 1f; OverloadProduceOverride = 0f;
+            OverloadBeltMult = 1f; BeltItemFlow.SpeedMultiplierProbe = 1f;
         }
         internal static float MergeNotBefore;
 
@@ -3396,6 +3400,74 @@ namespace MBI.EditorTools
             if (Application.isBatchMode) EditorApplication.Exit(0);
         }
 
+        /// <summary>
+        /// **#236 상한 분리 · 지렛대 훑기**(2026-10-20 · 소비 ×2 · 과부하 20초 · 강화 둘 · A 40 · 즉시 합체 · #233 · #234 위).
+        /// 생산 2.5 / 3 / 4 / 5(벨트 ×1) · 벨트 ×2(생산 2.5) · 생산 3 + 벨트 ×2. 배치: RunOverloadBeltBatch
+        /// </summary>
+        public static void RunOverloadBeltBatch()
+        {
+            var sb = new StringBuilder();
+            sb.AppendLine();
+            sb.AppendLine("############ #236 상한 분리 · 생산 / 벨트 지렛대 (2026-10-20 · 하네스 · 소비 ×2 · 과부하 20초 · 벨트 배율은 과부하 동안만) ############");
+            sb.AppendLine("칸 = 결과 · 합체 중 A 바닥(합체 뒤 초) · 과부하 중 A 도착(발/초) · 과부하 중 A 마운트 가득 비율 · 발사 수요(A 줄 발/초 합 × 2)");
+            sb.AppendLine("상한 낱말(생산 2.5 · 벨트 ×1 칸 기준): 가득 비율 ≥ 50% = 「적재 상한」 · 아니고 벨트 ×2 에서 도착 +15% 이상 = 「벨트」 · 아니면 「생산력」 · 운송 지연은 도착 **률**에는 안 걸림(늦게 시작할 뿐) → 낱말 후보에서 뺌");
+            sb.AppendLine();
+            (float p, float belt, string name)[] vs = { (2.5f, 1f, "생산 2.5"), (3f, 1f, "생산 3"), (4f, 1f, "생산 4"), (5f, 1f, "생산 5"), (2.5f, 2f, "벨트 ×2 · 생산 2.5"), (3f, 2f, "생산 3 · 벨트 ×2") };
+            sb.Append("| 판 | 보드 | B | 상한 |");
+            foreach (var v in vs) sb.Append($" {v.name} |");
+            sb.AppendLine();
+            sb.Append("|---|---|---|---|");
+            foreach (var _ in vs) sb.Append("---|");
+            sb.AppendLine();
+            System.Action<BoardGrid> hook = g => PresetBoards.ApplyExplosive(g, NodeResolver(BasePropellantNeed));
+            string T(float x) => x < 0f ? "—" : $"{x:F1}";
+            var wins = new int[vs.Length];
+            var rateSum = new float[vs.Length]; var rateN = new int[vs.Length];
+            try
+            {
+                foreach (string sid in new[] { "S5", "S6" })
+                    foreach (bool on in new[] { false, true })
+                        foreach (float b in new[] { 0f, 0.95f, 1f })
+                        {
+                            var c = new string[vs.Length];
+                            var rates = new float[vs.Length]; var fulls = new float[vs.Length];
+                            for (int k = 0; k < vs.Length; k++)
+                            {
+                                BoardHook = on ? hook : null;
+                                Enhanced = true; HarnessMergeOutput = true; AutoMerge = true; RushMerge = true;
+                                MergeNotBefore = 0f; MergeStartRatio = 0f; AStartRatio = 1f; BStartRatio = b;
+                                OverloadSecOverride = 20f; OverloadProduceOverride = vs[k].p; OverloadBeltMult = vs[k].belt;
+                                StageVerdict v = RunOne(sid, 0f);
+                                if (v.result == CombatResult.Win) wins[k]++;
+                                float sec = LastOverloadSecondsA;
+                                rates[k] = sec > 0f ? LastOverloadArrivalsA / sec : -1f;
+                                fulls[k] = sec > 0f ? LastOverloadMountFullSec / sec : 0f;
+                                if (rates[k] >= 0f) { rateSum[k] += rates[k]; rateN[k]++; }
+                                c[k] = (v.result == CombatResult.Win ? $"**Win {v.seconds:F1}**" : $"Timeout · {LastEnemyHpLeft:F0}")
+                                       + $" · 바닥 {T(LastMountADryAt)} · 도착 {(rates[k] < 0f ? "—" : rates[k].ToString("F1"))}"
+                                       + $" · 가득 {fulls[k] * 100f:F0}% · 수요 {(LastFireDemandA < 0f ? "—" : LastFireDemandA.ToString("F1"))}";
+                                BoardHook = null; KnobReset();
+                            }
+                            string limit = fulls[0] >= 0.5f ? "적재 상한"
+                                : (rates[0] > 0f && rates[4] >= rates[0] * 1.15f) ? "벨트" : "생산력";
+                            sb.Append($"| {sid} | {(on ? "프리셋" : "시작")} | {b * 100f:F0}% | {limit} |");
+                            foreach (string x in c) sb.Append($" {x} |");
+                            sb.AppendLine();
+                        }
+                sb.AppendLine();
+                sb.Append("승 수(12칸 중): ");
+                for (int k = 0; k < vs.Length; k++) sb.Append($"{vs[k].name} {wins[k]}{(k < vs.Length - 1 ? " · " : "")}");
+                sb.AppendLine();
+                sb.Append("과부하 중 A 도착 평균(발/초): ");
+                for (int k = 0; k < vs.Length; k++) sb.Append($"{vs[k].name} {(rateN[k] > 0 ? rateSum[k] / rateN[k] : 0f):F2}{(k < vs.Length - 1 ? " · " : "")}");
+                sb.AppendLine();
+            }
+            finally { BoardHook = null; KnobReset(); }
+            System.IO.File.AppendAllText("Docs/261020_overload.md", sb.ToString());
+            Debug.Log(sb.ToString());
+            if (Application.isBatchMode) EditorApplication.Exit(0);
+        }
+
         /// <summary>#223 결함 후보 가름 — S6 시작 보드 · 즉시 합체 · B 95% ↔ B 가득 합체 20초 자취. 배치: RunMergeDiagBatch</summary>
         public static void RunMergeDiagBatch()
         {
@@ -3842,6 +3914,7 @@ namespace MBI.EditorTools
             LastActiveAtMerge = -1; LastTagSwaps = 0; _mergeDiagNext = 0f; LastDocBurst = 0f;
             LastMountADryAt = LastMountBDryAt = LastMergeEndAt = LastRefullA = LastRefullB = -1f; LastMountAAtMergeEnd = LastMountBAtMergeEnd = -1f;
             LastOverloadArrivalsA = LastOverloadSecondsA = 0f; LastMaxDronesOnField = 0;
+            LastOverloadMountFullSec = 0f; LastFireDemandA = -1f;
             LastHpBeforeMerge = -1f; LastMergeEndHp = -1f;
             int peakAggro = 0;          // #152 — 한 번에 깨어 있던 최대 수
             float bFullAt = -1f;
@@ -3878,6 +3951,8 @@ namespace MBI.EditorTools
                 // 2026-10-17 — 게임처럼 합체 중 노드 산출 ×mergeOutputMult 를 태울 수 있다(러너 `MergeSignals.OutputMultiplier` → `BoardItemTick.Step`).
                 // ✅ #229 — 과부하 동안만 ×overloadProduce(2.5) · 🗑️ 합체 전체 ×mergeOutputMult(2).
                 bool mmOn = sim.IsOverloaded;
+                BeltItemFlow.SpeedMultiplierProbe = mmOn ? OverloadBeltMult : 1f;   // #236 하네스만
+                if (mmOn && mountA.IsFull) LastOverloadMountFullSec += Dt;
                 float mm = HarnessMergeOutput && mmOn && robotA.balanceRef != null
                     ? Mathf.Max(1f, OverloadProduceOverride > 0f ? OverloadProduceOverride : robotA.balanceRef.overloadProduce) : 1f;
                 BoardItemTick.Step(gridA, flowA, Dt, throttleA.Scale, mm);
@@ -3985,6 +4060,13 @@ namespace MBI.EditorTools
                     LastMergeAt = elapsed;
                     LastHpBeforeMerge = enemyHp;
                     LastActiveAtMerge = sim.ActiveRobotIndex;   // #223 가름
+                    {   // #236 — 발사 수요 = A 줄 발/초 합 × 과부하 배율(합체 순간 배분)
+                        var sideA = SidesOf(sim)[0];
+                        var setupNow = (RobotSetup)SideField(sideA, "setup");
+                        float dem = 0f;
+                        if (setupNow.lines != null) foreach (AmmoLine l in setupNow.lines) dem += Mathf.Max(0f, l.shotsPerSec);
+                        LastFireDemandA = dem * Mathf.Max(1f, sim.OverloadFireRate);
+                    }
                     // 가정 손잡이(하네스 전용) — 합체 중 태그 스킬 금지 · 문서식 버스트
                     if (MergeSkillOff && sim.Tag != null) { sim.Tag.SkillWhileLocked = false; sim.Tag.CancelPendingSkill(); }
                     if (DocBurstPercent > 0f)
