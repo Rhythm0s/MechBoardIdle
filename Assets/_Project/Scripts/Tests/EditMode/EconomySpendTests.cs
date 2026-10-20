@@ -146,14 +146,15 @@ namespace MBI.Tests
             StringAssert.Contains("if (sel) DrawSelectedOutline(rect);", bc);
             StringAssert.Contains("if (on) DrawSelectedOutline(eRect);", bc);
             StringAssert.Contains("if (on) DrawSelectedOutline(mRect);", bc);
-            StringAssert.Contains("var nStyle = OneLineStyle(costStyle, palette[i].displayName, rect.width);", bc);
+            // #213 — 이름은 낱말 자리 두 줄(🗑️ OneLineStyle 직접 부름)
+            StringAssert.Contains("PaletteLabel(costStyle, palette[i].displayName, rect.width, out GUIStyle nStyle)", bc);
             // #178 — 회피 눈금 바 왼쪽 부스터 아이콘(그림 없으면 눈금만)
             string hud = System.IO.File.ReadAllText("Assets/_Project/Scripts/Combat/StageRunner.Hud.cs");
             StringAssert.Contains("if (UiIcons.Booster != null)", hud);
             StringAssert.Contains("HudBars.Ticks(new Rect(tickX, y + 4f * sc, tickW, tickH),", hud);
             StringAssert.Contains("if (art != null) UiIcons.Booster = art.NodeSprite(NodeType.Booster);", bc);
-            // #180 — 도전 배지 목표 줄 「전투력 n 넘기기」(🗑️ 「출력 n 넘기기」)
-            StringAssert.Contains("\"  ·  전투력 \" + stage.req.ToString(\"F0\") + \" 넘기기\"", hud);
+            // #218 — 배지 목표 줄은 「목표: {주제}」만(🗑️ #180 「전투력 n 넘기기」)
+            StringAssert.DoesNotContain("\"  ·  전투력 \" + stage.req.ToString(\"F0\") + \" 넘기기\"", hud);
             StringAssert.DoesNotContain("\"  ·  출력 \" + stage.req.ToString(\"F0\") + \" 넘기기\"", hud);
             // #181 — 줌아웃 하한 1/1.5
             StringAssert.Contains("private const float ZoomMin = 1f / 1.5f, ZoomMax = 2.5f, ZoomStep = 0.25f;", bc);
@@ -176,7 +177,9 @@ namespace MBI.Tests
             StringAssert.DoesNotContain("DrawPaletteCost(rect, BuildCost.NodeScrap, affordable);", bc);
             StringAssert.DoesNotContain("DrawPaletteCost(mRect, BuildCost.ModuleScrap, mAffordable);", bc);
             StringAssert.Contains("BuildCost.PickPrefix(pickName), UiIcons.Scrap, UiIcons.ScrapFallback,", bc);
-            StringAssert.Contains("private const float PaletteThumbScale = 0.52f;", bc);
+            // #213 개정 — 그림 = 단추 가득 · 하단 라벨 띠(🗑️ PaletteThumbScale 0.52)
+            StringAssert.Contains("private const float PaletteThumbFill = 0.88f;", bc);
+            StringAssert.Contains("DrawPaletteNameBand(rect, nLabel, nStyle);", bc);
             StringAssert.Contains("BuildCost.NodeInstallLine(BuildCost.NodeScrap)", bc);   // 폭 재기용 글자(그리는 것은 아이콘 줄)
             StringAssert.Contains("BuildCost.NodeInstallPrefix, UiIcons.Scrap,", bc);
 

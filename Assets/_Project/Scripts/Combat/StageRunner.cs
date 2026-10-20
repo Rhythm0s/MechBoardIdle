@@ -1799,8 +1799,18 @@ namespace MBI.Combat
                 TutorialSignals.ExplosiveNeedsScrap, IdleSignals.WalletScrap, BuildCost.NodeScrap);
             if (stageNo != StageMapName.NumberOf(ExplosiveTutorialRule.StageId)) _explosiveNotice.Rearm();   // S5 를 떠나면 다음 S5 진입에 다시
             _explosiveNotice.Observe(TutorialSignals.ExplosiveActive, true, Time.unscaledTime);
+            // #216 — 자동 완성 끝 사건 → 알림 한 번(가려진 동안은 시계 멈춤 · 아래 Hold).
+            if (TutorialSignals.AutoCompleteNotice)
+            {
+                TutorialSignals.AutoCompleteNotice = false;
+                _autoCompleteNotice.Rearm();
+                _autoCompleteNotice.Observe(true, true, Time.unscaledTime);
+            }
             if (SettingsGate.IsOpen || TutorialSignals.BoardViewOpen || MainMenuGate.IsOpen)
+            {
                 _explosiveNotice.Hold(Time.unscaledDeltaTime);
+                _autoCompleteNotice.Hold(Time.unscaledDeltaTime);   // #216
+            }
 
             TutorialSignals.HighlightEnhanceMount = MountEnhanceRule.TutorialActive(
                 IdleSignals.TutorialCleared, stageNo, StageLayerSignals.IsFarming,   // #188 — B 해금 조건 걷음 · S3
@@ -2397,6 +2407,8 @@ namespace MBI.Combat
 
         /// <summary>#190 — S5 파밍 첫 진입 알림 「복합 가공소가 열렸습니다」(T4 알림과 같은 꼴 · 저장 안 함).</summary>
         private readonly ModuleGrantNotice _explosiveNotice = new ModuleGrantNotice();
+        /// <summary>#216 — S5 자동 완성 끝 알림(한 번).</summary>
+        private readonly ModuleGrantNotice _autoCompleteNotice = new ModuleGrantNotice();
 
         /// <summary>
         /// 「도전」 단추의 글자 꼴 — 지금 창에서 그 단추가 실제로 쓰는 값.
@@ -3432,6 +3444,9 @@ namespace MBI.Combat
             bool xNoticeUp = _explosiveNotice.IsVisible(Time.unscaledTime);
             ChallengeTutorialOverlay.DrawExplosive(TutorialSignals.ExplosiveActive && !xNoticeUp);
             if (ChallengeTutorialOverlay.DrawGrantNotice(xNoticeUp, ExplosiveTutorialRule.GrantNotice)) _explosiveNotice.Dismiss();
+            // #216 — 자동 완성 끝 알림
+            if (!xNoticeUp && ChallengeTutorialOverlay.DrawGrantNotice(_autoCompleteNotice.IsVisible(Time.unscaledTime),
+                    ExplosiveTutorialRule.AutoCompleteNotice)) _autoCompleteNotice.Dismiss();
 
             // ✅ **오프라인 보상 판 = HUD 맨 위**(#142 b · CID_102) — 배지 카드·막 위에 앉는다.
             HudTopLayer.DrawAll();

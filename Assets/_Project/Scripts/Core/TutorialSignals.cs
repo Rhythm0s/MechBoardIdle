@@ -110,6 +110,9 @@ namespace MBI.Core
         /// <summary>#190 — 폭발탄 안내가 서 있다(전투 러너가 매 프레임 쓴다).</summary>
         public static bool ExplosiveActive;
 
+        /// <summary>#216 — S5 자동 완성이 끝났다(사건 · 러너가 알림 한 번을 띄우고 내린다).</summary>
+        public static bool AutoCompleteNotice;
+
         /// <summary>
         /// T4 대상 노드 칸 — **보드가 고르고 쓴다**(그 칸의 사실을 아는 것은 보드뿐이다).
         /// null 이면 고를 노드가 없다(그때 끝 조건은 「판의 아무 노드에나 모듈」).

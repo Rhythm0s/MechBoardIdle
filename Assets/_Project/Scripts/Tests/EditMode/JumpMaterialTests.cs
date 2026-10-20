@@ -49,7 +49,8 @@ namespace MBI.Tests
             int cancel = sr.IndexOf("if (UiSkin.Button(new Rect(pad, y, bw, bh), ChallengeEntryNotice.Cancel, btn))");
             Assert.Greater(cancel, 0, "#200 — 왼쪽 칸 = 취소");
             string hud = System.IO.File.ReadAllText("Assets/_Project/Scripts/Combat/StageRunner.Hud.cs");
-            StringAssert.Contains(": HasRequirement && stage.req > 0f", hud);
+            // #218 — 요구치 줄을 모든 판에서 뺐다(🗑️ #201 「요구치 0 판만」 갈래)
+            StringAssert.DoesNotContain(": HasRequirement && stage.req > 0f", hud);
         }
     }
 }

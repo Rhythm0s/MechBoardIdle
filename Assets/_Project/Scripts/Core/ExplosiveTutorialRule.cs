@@ -50,6 +50,9 @@ namespace MBI.Core
         /// <summary>S5 파밍 첫 진입 알림 — ⚠️ 가정(#190).</summary>
         public const string GrantNotice = "복합 가공소가 열렸습니다";
 
+        /// <summary>#216 — 걸음 ⑤ 끝 뒤 자동 완성이 끝나면 한 번(⚠️ 문안 플랜 가정).</summary>
+        public const string AutoCompleteNotice = "이렇게 이으면 표준탄도 마운트에 닿습니다";
+
         /// <summary>전투 화면 문구 — ⚠️ 가정(#190).</summary>
         public const string CombatPrompt = "조립에서 복합 가공소로 폭발탄을 만들어보세요";
 
@@ -109,8 +112,11 @@ namespace MBI.Core
                     return occupiedByOther ? "이 변환기를 탭해 조합표 「발전재료」를 고르세요"
                                            : "이 자리의 변환기를 탭해 조합표 「발전재료」를 고르세요";
                 case Step.Belt: return "이 칸을 탭해 벨트로 바꾸세요";
-                case Step.Sorter: return "벨트 요소에서 분류기를 고른 뒤 이 칸을 탭하세요";
-                case Step.Complex: return "복합 가공소를 고른 뒤 이 칸을 탭하세요";
+                // ✅ #215(2026-10-20 사용자 육안) — 실제 탭 이름으로(🗑️ 「벨트 요소에서 분류기를 …」 · 🗑️ 「복합 가공소를 고른 뒤 …」).
+                case Step.Sorter:
+                    return $"{PaletteCategories.LabelOf(PaletteCategories.OfBeltElement())} 탭에서 분류기를 고른 뒤 이 칸을 탭하세요";
+                case Step.Complex:
+                    return $"{PaletteCategories.LabelOf(PaletteCategory.Complex)} 탭에서 복합 가공소를 고른 뒤 이 칸을 탭하세요";
                 case Step.ExplosiveRecipe: return "복합 가공소를 탭해 조합표 「폭발탄」을 고르세요";
                 default: return null;
             }

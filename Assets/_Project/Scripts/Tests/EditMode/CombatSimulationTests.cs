@@ -261,6 +261,30 @@ namespace MBI.Tests
         }
 
         /// <summary>
+        /// **#217 — 쪼갠 발은 한 표적에게 전부**(2026-10-20 사용자 확정 · #60 개정). 앞 발에 표적이 죽으면 남은 발은
+        /// 다른 적에게 안 간다(🗑️ 「탄 하나에 두 줄기」). 표준탄 한 줄 · 1발/초 · 셋으로 쪼갬.
+        /// </summary>
+        [Test]
+        public void SplitShots_StayOnOneTarget_RestWastedWhenItDies()
+        {
+            RobotSetup setup = Robot(1000f);
+            setup.lines = new List<AmmoLine> { new AmmoLine(AmmoKind.Standard, 10f, 1f) };
+            var spawns = new List<EnemySpawn>
+            {
+                new EnemySpawn { label = "약한 적", hp = 1f, def = 0f, atk = 0f, moveSpeed = 0f, attackRange = 0.5f, attackInterval = 1f },
+                new EnemySpawn { label = "샌드백", hp = 100000f, def = 0f, atk = 0f, moveSpeed = 0f, attackRange = 0.5f, attackInterval = 1f },
+            };
+            var sim = new CombatSimulation(setup, spawns, 6f, 120f, 0f) { ShotsPerRound = 3, ShotDamageFactor = 0.5f };
+            Run(sim, 1.01f, 0.02f);   // 한 발(= 세 발로 쪼갬)만 나간다
+
+            CombatEntity weak = null, bag = null;
+            foreach (CombatEntity e in sim.Enemies) { if (e.label == "약한 적") weak = e; else if (e.label == "샌드백") bag = e; }
+            Assert.IsTrue(weak == null || weak.hp <= 0f, "첫 발에 약한 적이 쓰러진다(목록에서 빠질 수도 있다)");
+            Assert.IsNotNull(bag);
+            Assert.AreEqual(100000f, bag.hp, 0.001f, "남은 두 발이 다른 적에게 갈라지지 않는다");
+        }
+
+        /// <summary>
         /// 절반 공급이면 피해도 절반. 0.5발/초는 2초에 한 발이므로 2초를 돌려 130(=65×2)으로 본다.
         /// 정수 반올림 경로였다면 관통·표준이 0으로 접혀 100만 나온다.
         /// </summary>

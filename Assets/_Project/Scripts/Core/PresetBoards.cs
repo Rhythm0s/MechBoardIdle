@@ -65,19 +65,59 @@ namespace MBI.Core
             if (placed) x.Rotation = 1;
             ok &= placed && x.SelectRecipe(RecipeKind.ExplosiveAmmo);
 
-            // 표준탄 갈래 — 분류기 동 → x=9 기둥 남 → y4 서 → 병합기(2,5)
-            ok &= Belt(grid, 9, 8, PortFace.West, PortFace.South);
-            for (int y = 7; y >= 5; y--) ok &= Belt(grid, 9, y, PortFace.North, PortFace.South);
-            ok &= Belt(grid, 9, 4, PortFace.North, PortFace.West);
-            for (int xx = 8; xx >= 3; xx--) ok &= Belt(grid, xx, 4, PortFace.East, PortFace.West);
-            ok &= Belt(grid, 2, 4, PortFace.East, PortFace.North);
-
-            // 기존 운반로 (2,5) 를 병합기로 — 운반로(동)와 새 줄(남)이 합쳐 북(2,6)으로 올라 마운트 포트(1,4)로 간다.
+            // 표준탄 갈래 — 분류기 동 → x=9 기둥 남 → y4 서 → 병합기(2,5) · 칸 목록은 `ExplosiveTail` 한 곳(#216 자동 완성과 같은 줄).
             // ⚠️ 마운트 포트 칸(1,4) 자체를 병합기로 두면 `BeltAutoOrient` 가 출력면을 북으로 돌려 줄이 막혔다(2026-10-18 하네스 실측).
-            Clear(grid, MergeCell);
-            ok &= grid.TryPlaceBeltElement(MergeCell, BeltElementKind.Merger,
-                new[] { PortFace.East, PortFace.South }, new[] { PortFace.North }, FlowKind.None, out _);
+            foreach (TailStep t in ExplosiveTail) ok &= PlaceTail(grid, t, overwrite: true);
             return ok;
+        }
+
+        /// <summary>
+        /// **폭발탄 판의 꼬리 — 표준탄 갈래**(#169 · #216). 튜토리얼 다섯 칸 뒤에 남는 칸들이다.
+        /// 차례 = 분류기 동 (9,8) → x=9 기둥 → (9,4) → y4 서쪽 → (2,4) → 병합기 (2,5).
+        /// </summary>
+        public struct TailStep
+        {
+            public Vector2Int cell;
+            public bool merger;
+            public PortFace[] ins;
+            public PortFace[] outs;
+        }
+
+        public static readonly TailStep[] ExplosiveTail = BuildTail();
+
+        private static TailStep[] BuildTail()
+        {
+            var list = new System.Collections.Generic.List<TailStep>();
+            void B(int x, int y, PortFace i, PortFace o) =>
+                list.Add(new TailStep { cell = new Vector2Int(x, y), ins = new[] { i }, outs = new[] { o } });
+            B(9, 8, PortFace.West, PortFace.South);
+            for (int y = 7; y >= 5; y--) B(9, y, PortFace.North, PortFace.South);
+            B(9, 4, PortFace.North, PortFace.West);
+            for (int xx = 8; xx >= 3; xx--) B(xx, 4, PortFace.East, PortFace.West);
+            B(2, 4, PortFace.East, PortFace.North);
+            // 기존 운반로 (2,5) 를 병합기로 — 운반로(동)와 새 줄(남)이 합쳐 북(2,6)으로 올라 마운트 포트(1,4)로 간다.
+            list.Add(new TailStep { cell = MergeCell, merger = true,
+                ins = new[] { PortFace.East, PortFace.South }, outs = new[] { PortFace.North } });
+            return list.ToArray();
+        }
+
+        /// <summary>
+        /// 꼬리 한 칸을 놓는다. <paramref name="overwrite"/> = 거짓(#216 자동 완성)이면 **플레이어가 놓은 칸은 건너뛴다**
+        /// (노드가 있거나 · 벨트가 있는데 병합기 자리의 운반로가 아니면) ⚠️ 가정. 참(바로가기 프리셋)이면 종전대로 덮는다.
+        /// </summary>
+        /// <returns>그 칸이 꼬리 모양으로 섰으면 참(건너뛰면 거짓).</returns>
+        public static bool PlaceTail(BoardGrid grid, TailStep t, bool overwrite)
+        {
+            if (!overwrite)
+            {
+                if (grid.GetAt(t.cell) != null) return false;
+                BeltInstance b = grid.GetBeltAt(t.cell);
+                if (b != null && !(t.merger && b.Element != BeltElementKind.Merger && b.Element != BeltElementKind.Sorter)) return false;
+            }
+            Clear(grid, t.cell);
+            return t.merger
+                ? grid.TryPlaceBeltElement(t.cell, BeltElementKind.Merger, t.ins, t.outs, FlowKind.None, out _)
+                : grid.TryPlaceBelt(t.cell, t.ins[0], t.outs[0], FlowKind.None, out _);
         }
 
         private static bool Belt(BoardGrid g, int x, int y, PortFace inFace, PortFace outFace)

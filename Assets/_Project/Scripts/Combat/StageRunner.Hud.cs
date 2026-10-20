@@ -601,10 +601,9 @@ namespace MBI.Combat
             bool farming = status == StageBadgeRule.StatusKind.Farm;
             string goal = farming
                 ? "파밍: " + stage.topic + "  ·  모아서 보드를 키운다"
-                : HasRequirement && stage.req > 0f   // ✅ #201 — 요구치 0 판(S5 · S6 · 예산식/공식)은 「전투력 0 넘기기」를 안 쓴다
-                    // ✅ #180(사용자 B안 · 10-19) — 「출력」 → 「전투력」(노드 수 칩 「출력」과 혼동). 수 · 판정은 그대로.
-                    ? "목표: " + stage.topic + "  ·  전투력 " + stage.req.ToString("F0") + " 넘기기"
-                    : "목표: " + stage.topic;
+                // ✅ **#218(2026-10-20 사용자 확정) — 모든 판 「목표: {주제}」만.** 요구치 수는 화면에서 뺀다(판정 · 표 값 불변 · P-9 는 표 값으로만).
+                //    🗑️ #180 「목표: {주제} · 전투력 {req} 넘기기」 · 🗑️ #201 요구치 0 판만 뺀 갈래(`HasRequirement && stage.req > 0f`).
+                : "목표: " + stage.topic;
             GUI.Label(new Rect(r.x + pad, r.y + rowH, r.width - pad * 2f, rowH), goal, line);
 
             // 셋째 줄 — 파밍이면 「리젠 · 맵」, 도전이면 「남은 몬스터 · 남은 시간」.

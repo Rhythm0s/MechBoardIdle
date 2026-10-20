@@ -851,6 +851,7 @@ namespace MBI.Logistics
         {
             if (PopoverOpen) Deselect();
             _selectedModule = -1;
+            _selectedNode = -1;   // ✅ #214 — 「처음부터」 뒤 고르기 잔존(보호막 · 고철 20 안내 줄)
             _elementMode = null;
 
             foreach (MountOwner owner in new[] { MountOwner.RobotA, MountOwner.RobotB })
@@ -2031,9 +2032,46 @@ namespace MBI.Logistics
             bool c4 = isComplex && cx.Rotation == ExplosiveTutorialRule.ComplexRotation;
             bool c5 = isComplex && cx.SelectedRecipe == RecipeKind.ExplosiveAmmo;
             ExplosiveTutorialRule.Step step = ExplosiveTutorialRule.Next(c1, c2, c3, c4, c5);
+            // ✅ #216 — 튜토리얼이 **실제로 돌다가** ⑤ 를 막 끝낸 순간 나머지 판(표준탄 갈래)을 시스템이 깐다.
+            //    바로가기 프리셋(처음부터 다섯 칸 완성)은 ⑤ → 끝 넘어감이 없어 안 걸린다.
+            if (_lastExplosiveStep == ExplosiveTutorialRule.Step.ExplosiveRecipe
+                && step == ExplosiveTutorialRule.Step.Done && _explosiveWasActive && _autoCompleteRoutine == null)
+                _autoCompleteRoutine = StartCoroutine(AutoCompleteExplosiveBoard());
+            _lastExplosiveStep = step;
+            _explosiveWasActive = TutorialSignals.ExplosiveActive;
             TutorialSignals.ExplosiveStep = step;
             TutorialSignals.ExplosiveNeedsScrap = ExplosiveTutorialRule.NeedsNodeScrap(step, isComplex);
             _explosiveComplexWrongTurn = step == ExplosiveTutorialRule.Step.Complex && isComplex;
+        }
+
+        private ExplosiveTutorialRule.Step _lastExplosiveStep = ExplosiveTutorialRule.Step.None;
+        private bool _explosiveWasActive;
+        private Coroutine _autoCompleteRoutine;
+
+        /// <summary>#216 — 자동 완성 칸 사이 간격(초 · ⚠️ 가정 0.15).</summary>
+        private const float AutoCompleteInterval = 0.15f;
+
+        /// <summary>
+        /// ✅ **#216 — S5 튜토리얼 끝 뒤 나머지 판 자동 완성**(2026-10-20 사용자 확정 · 「이렇게 활용할 수 있다」 연출).
+        /// #169 프리셋의 꼬리(`PresetBoards.ExplosiveTail` · 표준탄 갈래)를 0.15초 간격으로 한 칸씩 깐다.
+        /// 고철 0 ⚠️ · 플레이어가 이미 놓은 칸은 건너뜀 ⚠️ · 끝나면 안내 한 번(`TutorialSignals.AutoCompleteNotice`).
+        /// 결과 = 자연 S5 판 = 바로가기 프리셋과 같은 판(하네스 프리셋 행과 같은 난이도).
+        /// </summary>
+        private System.Collections.IEnumerator AutoCompleteExplosiveBoard()
+        {
+            BoardGrid g = _boards[Index(MountOwner.RobotA)];
+            BeltItemFlow flow = _flows[Index(MountOwner.RobotA)];
+            foreach (PresetBoards.TailStep t in PresetBoards.ExplosiveTail)
+            {
+                yield return new WaitForSecondsRealtime(AutoCompleteInterval);
+                if (g == null) break;
+                if (!PresetBoards.PlaceTail(g, t, overwrite: false)) continue;
+                ResolveFlow(g, flow);
+                if (_editing == MountOwner.RobotA) RespawnMarkersFromGrid();
+                RefreshConnections();
+            }
+            TutorialSignals.AutoCompleteNotice = true;
+            _autoCompleteRoutine = null;
         }
 
         /// <summary>#190 — ④ 걸음인데 복합 가공소는 섰고 돌림만 틀렸다(안내 문안이 갈린다).</summary>
@@ -3731,6 +3769,20 @@ namespace MBI.Logistics
         /// ✅ 정정(14:1x) — 바닥 글자(사다리 맨 아래)에서도 안 들면 **그때만 두 줄**을 허용한다(좁은 창 · 옆 단추 이름과 겹치던 것).
         /// 값 줄이 단추에서 빠져 두 줄이 들 자리가 생겼다.
         /// </summary>
+        /// <summary>
+        /// ✅ **#213 — 팔레트 이름 = 한 줄이 들면 한 줄 · 안 들면 낱말 자리 두 줄**(`PaletteLabelRule`).
+        /// 글자는 긴 줄이 폭에 들 때까지 사다리를 내린다(바닥 16). 🗑️ 노드 · 모듈 단추에서 `OneLineStyle` 대신.
+        /// </summary>
+        private static string PaletteLabel(GUIStyle baseStyle, string label, float width, out GUIStyle st)
+        {
+            st = new GUIStyle(baseStyle) { wordWrap = false };
+            if (st.CalcSize(new GUIContent(label)).x <= width + 0.5f) return label;
+            string text = PaletteLabelRule.BreakAtWord(label);
+            if (text == label) { st = OneLineStyle(baseStyle, label, width); return label; }
+            UiText.FitOneLine(st, PaletteLabelRule.WidestLine(text), width);
+            return text;
+        }
+
         private static GUIStyle OneLineStyle(GUIStyle baseStyle, string label, float width)
         {
             var st = new GUIStyle(baseStyle) { wordWrap = false };
@@ -4078,7 +4130,8 @@ namespace MBI.Logistics
             // 화면에서는 **액션바에 물려 아랫부분이 잘린 것처럼** 보였다.
             // 위를 조금 덜 밀고 아래를 띄워 **글자를 버튼 안쪽에** 앉힌다.
             int padBottom = Mathf.Max(4, Mathf.RoundToInt(side * 0.08f));
-            style.padding = new RectOffset(2, 2, Mathf.RoundToInt(side * 0.50f), padBottom);
+            // #213 — 그림이 0.40 으로 줄어 이름 자리가 두 줄 든다(🗑️ 위 여백 0.50).
+            style.padding = new RectOffset(2, 2, Mathf.RoundToInt(side * 0.44f), padBottom);
 
             // ✅ **#176 정정(사용자 14:1x) — 값은 팔레트 단추 안 어디에도 안 그린다**(「지금 공간이 너무 협소함」).
             //    🗑️ #175 의 왼쪽 위 자리 · 🗑️ #176 첫 판의 바닥 줄 — 둘 다 이름 · 그림과 겹쳤다.
@@ -4189,8 +4242,8 @@ namespace MBI.Logistics
 
                 bool sel = i == _selectedNode;
                 // ✅ #176 — 고른 표시 = 밝은 테두리(🗑️ 이름 앞 「● 」 — 한 글자 폭을 먹어 「복합 가공 / 소」로 갈렸다 · 8131 육안).
-                var nStyle = OneLineStyle(costStyle, palette[i].displayName, rect.width);
-                if (UiSkin.Button(rect, palette[i].displayName, nStyle))
+                string nLabel = PaletteLabel(costStyle, palette[i].displayName, rect.width, out GUIStyle nStyle);   // #213
+                if (UiSkin.Button(rect, "", nStyle))   // #213 개정 — 글자는 아래 라벨 띠가 쓴다
                 {
                     // ✅ **고른 단추를 다시 누르면 풀린다**(사용자 확정 #175 ⓕ · 모듈 단추와 같은 토글).
                     _selectedNode = sel ? -1 : i;
@@ -4198,6 +4251,7 @@ namespace MBI.Logistics
                     _selectedModule = -1;
                 }
                 DrawPaletteThumb(rect, palette[i]);
+                DrawPaletteNameBand(rect, nLabel, nStyle);   // #213 개정
                 if (sel) DrawSelectedOutline(rect);
                 else if (TutorialGate.Current == TutorialGate.Phase.ExplosiveBoard
                          && TutorialSignals.ExplosiveStep == ExplosiveTutorialRule.Step.Complex
@@ -4243,7 +4297,7 @@ namespace MBI.Logistics
                     GUI.color = new Color(1f, 0.92f, 0.45f,
                         0.75f + 0.25f * Mathf.Abs(Mathf.Sin(Time.unscaledTime * 2.2f)));
 
-                bool pressed = UiSkin.Button(eRect, ElementLabel(e), style);   // #176 — 고른 표시는 테두리
+                bool pressed = UiSkin.Button(eRect, "", style);   // #176 — 고른 표시는 테두리 · #213 개정 — 글자는 라벨 띠
 
                 // ⚠️ **그림을 얹는다**(2026-09-18 사용자 리허설 ⑨) — 노드 버튼은 그림이
                 //    있는데 이 둘만 글자뿐이라, 팔레트에서 **무엇을 놓는지가 안 보였다.**
@@ -4253,12 +4307,11 @@ namespace MBI.Logistics
                     Sprite icon = art.BeltSprite(e);
                     if (icon != null)
                     {
-                        var iconRect = new Rect(eRect.x + eRect.width * 0.22f,
-                                                eRect.y + eRect.height * 0.08f,
-                                                eRect.width * 0.56f, eRect.height * 0.56f);
-                        GUI.DrawTexture(iconRect, icon.texture, ScaleMode.ScaleToFit, true);
+                        // #213 개정 — 그림을 단추 가득(🗑️ 0.22 · 0.08 · 0.56 자리)
+                        GUI.DrawTexture(PaletteThumbRect(eRect), icon.texture, ScaleMode.ScaleToFit, true);
                     }
                 }
+                DrawPaletteNameBand(eRect, ElementLabel(e), style);   // #213 개정
                 GUI.color = prevCol;
 
                 if (on) DrawSelectedOutline(eRect);
@@ -4301,8 +4354,8 @@ namespace MBI.Logistics
                     // ✅ 이름 = 「생산량 모듈」·「생산속도 모듈」(#147). 안 들면 사다리를 내린다(칸은 다른 팔레트 단추와 같다).
                     // #176 — 「●」 접두 폐기 · 고른 표시는 테두리 · 값은 안내 줄(노드 단추와 같은 꼴).
                     string mLabel = ModuleTutorialRule.DisplayName(modulePalette[m].displayName);
-                    var mStyle = OneLineStyle(costStyle, mLabel, mRect.width);
-                    bool mHit = UiSkin.Button(mRect, mLabel, mStyle);
+                    string mText = PaletteLabel(costStyle, mLabel, mRect.width, out GUIStyle mStyle);   // #213
+                    bool mHit = UiSkin.Button(mRect, "", mStyle);   // #213 개정 — 글자는 라벨 띠
                     GUI.color = prevM;
                     if (mHit)
                     {
@@ -4310,6 +4363,7 @@ namespace MBI.Logistics
                         _elementMode = null;
                     }
                     DrawPaletteModuleThumb(mRect, modulePalette[m]);
+                    DrawPaletteNameBand(mRect, mText, mStyle);   // #213 개정
                     if (on) DrawSelectedOutline(mRect);
                     else if (_selectedModule < 0 && TutorialGate.Current == TutorialGate.Phase.PlaceModule)
                         UiSkin.DrawTutorialOutline(mRect);   // #210 — T4 고를 단추
@@ -4352,6 +4406,14 @@ namespace MBI.Logistics
             //    아무것도 안 골랐으면 종전 문구. 도전 층(못 고침)에서는 종전 문구가 먼저다.
             bool editable = BoardEditRule.CanEdit(StageLayerSignals.IsFarming, StageLayerSignals.IsTutorialStage);
             string pickName = null; double pickCost = 0d;
+            // ✅ #214 — 튜토리얼 국면 중에는 비용 안내 줄을 안 띄운다(⚠️ 플랜 가정 · 막 안내와 겹치지 않게).
+            //    노드 단추가 잠긴 국면이면 고르기 자체를 푼다(잠그기 전 고른 것이 남아 줄이 떴다 · 10-20 육안 34·35).
+            if (TutorialGate.LocksPaletteNodes(StageLayerSignals.IsTutorialStage)
+                && !(TutorialGate.Current == TutorialGate.Phase.ExplosiveBoard
+                     && _selectedNode >= 0 && palette != null && _selectedNode < palette.Count && palette[_selectedNode] != null
+                     && ExplosiveTutorialRule.AllowsNode(TutorialSignals.ExplosiveStep, palette[_selectedNode].type)))
+                _selectedNode = -1;
+            if (TutorialGate.Locked) editable = false;
             if (editable && _selectedModule >= 0 && modulePalette != null && _selectedModule < modulePalette.Count && modulePalette[_selectedModule] != null)
             { pickName = ModuleTutorialRule.DisplayName(modulePalette[_selectedModule].displayName); pickCost = BuildCost.ModuleScrap; }
             else if (editable && _selectedNode >= 0 && palette != null && _selectedNode < palette.Count && palette[_selectedNode] != null)
@@ -5444,10 +5506,47 @@ namespace MBI.Logistics
             // 종전처럼 왼쪽을 통째로 채우면 그림이 버튼을 다 덮어 **글자가 그림 뒤로 간다** —
             // 세로 줄 시절에는 버튼이 납작해서(130×36) 왼쪽 정사각이 자연히 아이콘 칸이었다.
             // #176 — 바닥에 값 줄이 생겨 이름이 올라왔다 · 그림을 0.52 → `PaletteThumbScale` 로 줄인다.
-            float side = button.height * PaletteThumbScale;
-            var box = new Rect(button.x + (button.width - side) * 0.5f,
-                button.y + PaletteThumbPad, side, side);
-            GUI.DrawTextureWithTexCoords(box, icon.texture, SpriteUv(icon), true);
+            // #213 개정 — 단추 가득(🗑️ `PaletteThumbScale` 위쪽 정사각).
+            GUI.DrawTextureWithTexCoords(PaletteThumbRect(button), icon.texture, SpriteUv(icon), true);
+        }
+
+        /// <summary>#213 개정 — 팔레트 그림 자리 = 단추 가득(가장자리 6% 여백 · ⚠️ 가정) · 정사각.</summary>
+        private static Rect PaletteThumbRect(Rect button)
+        {
+            float side = Mathf.Min(button.width, button.height) * PaletteThumbFill;
+            return new Rect(button.x + (button.width - side) * 0.5f, button.y + (button.height - side) * 0.5f, side, side);
+        }
+
+        private const float PaletteThumbFill = 0.88f;
+
+        /// <summary>#213 개정 — 이름 라벨 띠 알파(⚠️ 플랜 가정 0.6).</summary>
+        private const float PaletteNameBandAlpha = 0.6f;
+
+        /// <summary>
+        /// ✅ **#213 개정(2026-10-20 사용자 안) — 단추 하단 반투명 라벨 띠(두 줄 높이) 위에 이름**(낱말 단위 두 줄 · 한 줄에 들면 한 줄).
+        /// 그림은 단추 가득 · 선택 테두리는 단추 바깥 그대로.
+        /// </summary>
+        private static void DrawPaletteNameBand(Rect button, string text, GUIStyle baseStyle)
+        {
+            if (string.IsNullOrEmpty(text)) return;
+            var st = new GUIStyle(GUI.skin.label)
+            {
+                fontSize = baseStyle.fontSize,
+                alignment = TextAnchor.MiddleCenter,
+                wordWrap = false,
+                clipping = TextClipping.Overflow,
+                padding = new RectOffset(1, 1, 0, 0),
+            };
+            st.normal.textColor = Color.white;
+            float lineH = st.lineHeight > 0f ? st.lineHeight : st.fontSize * 1.2f;
+            float inset = Mathf.Max(2f, button.height * 0.03f);
+            float bandH = Mathf.Min(button.height * 0.5f, lineH * 2f + 4f);
+            var band = new Rect(button.x + inset, button.yMax - inset - bandH, button.width - inset * 2f, bandH);
+            Color prev = GUI.color;
+            GUI.color = new Color(0f, 0f, 0f, PaletteNameBandAlpha * prev.a);
+            GUI.DrawTexture(band, Texture2D.whiteTexture);
+            GUI.color = prev;
+            GUI.Label(band, text, st);
         }
 
         /// <summary>
@@ -5463,17 +5562,15 @@ namespace MBI.Logistics
             Sprite icon = art.ModuleSprite(def.kind);
             if (icon == null) return;
 
-            float side = button.height * PaletteThumbScale;   // #176 — 노드 단추와 같은 크기
-            var box = new Rect(button.x + (button.width - side) * 0.5f,
-                button.y + PaletteThumbPad, side, side);
-            GUI.DrawTextureWithTexCoords(box, icon.texture, SpriteUv(icon), true);
+            // #213 개정 — 노드 단추와 같은 자리(단추 가득).
+            GUI.DrawTextureWithTexCoords(PaletteThumbRect(button), icon.texture, SpriteUv(icon), true);
         }
 
         /// <summary>고른 단추 테두리 색 — 밝은 노랑(강제 버튼 빛과 같은 계열). ⚠️ 가정.</summary>
         private static readonly Color SelectedOutlineColor = new Color(1f, 0.9f, 0.4f, 1f);
 
         /// <summary>팔레트 그림 크기(단추 높이 비) — 0.52(종전). 🗑️ #176 첫 판의 0.40(바닥 값 줄 자리)은 정정으로 되돌림.</summary>
-        private const float PaletteThumbScale = 0.52f;
+        private const float PaletteThumbScale = 0.40f;   // 🗑️ #213 개정으로 안 씀(그림 = 단추 가득 · `PaletteThumbFill`) · 🗑️ 0.52
 
         /// <summary>스프라이트가 아틀라스 안 어디에 있는지 — 그 조각만 그린다.</summary>
         private static Rect SpriteUv(Sprite s)
