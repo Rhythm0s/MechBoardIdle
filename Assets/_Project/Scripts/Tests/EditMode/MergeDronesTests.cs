@@ -75,6 +75,31 @@ namespace MBI.Tests
             Assert.Less(mountB.AmountOf(MountItem.Drone), before, "B 마운트에서 안 뺐다");
         }
 
+        /// <summary>
+        /// **#226(2026-10-20 사용자 확정 ⓑ) — 합체가 걸리는 순간 떠 있는 드론은 거둬 재고로 돌리고 칸을 비운다.**
+        /// B 가 먼저 나서 드론을 내보낸 뒤 합체해도 ×1.8 드론이 새로 나갈 칸이 남는다.
+        /// </summary>
+        [Test]
+        public void 합체_순간_떠_있던_드론은_재고로_거둬진다()
+        {
+            CombatSimulation sim = Pair(out MountLoad mountB);
+            sim.Tick(0.05f);
+            Assert.IsTrue(sim.TryManualTag(), "B 로 교대");
+            Assert.AreEqual(1, sim.ActiveRobotIndex);
+            for (int i = 0; i < 6 && sim.DronesInFieldTotal == 0; i++) sim.Tick(0.05f);
+            int inField = sim.DronesInFieldTotal;
+            Assert.Greater(inField, 0, "B 드론이 나가 있어야 한다");
+            float stockBefore = mountB.AmountOf(MountItem.Drone) + mountB.AmountOf(MountItem.DroneAoe);
+
+            sim.Merge.SetCharge(MergeSystem.GaugeFullSeconds);
+            Assert.IsTrue(sim.TryMerge());
+
+            Assert.AreEqual(0, sim.DronesInFieldTotal, "합체 순간 필드 드론 0");
+            Assert.AreEqual(inField, sim.LastMergeRecalledDrones);
+            float stockAfter = mountB.AmountOf(MountItem.Drone) + mountB.AmountOf(MountItem.DroneAoe);
+            Assert.AreEqual(stockBefore + inField, stockAfter, 1e-3f, "거둔 수만큼 재고로 돌아온다");
+        }
+
         [Test]
         public void 합체_중_드론_목록은_양쪽을_다_보여준다()
         {

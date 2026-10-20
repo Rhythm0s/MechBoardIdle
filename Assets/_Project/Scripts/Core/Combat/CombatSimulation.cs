@@ -924,9 +924,43 @@ namespace MBI.Core
             if (Merge == null || !Merge.TryActivate()) return false;
             if (Tag != null) { Tag.Locked = true; Tag.SkillWhileLocked = true; }   // #163 — 교대만 잠근다 · 스킬은 나간다
 
+            // ✅ **#226(2026-10-20 사용자 확정 ⓑ) — 합체가 걸리는 순간 떠 있는 드론을 거두고 칸을 비운다**(재고로 되돌림).
+            //    B 가 먼저 나서 있으면 드론이 합체 전에 나가(잠든 보스 · 사거리 밖) 칸만 채워, 합체 ×1.8 몰아치기(#157)가
+            //    안 났다(하네스 Docs/261020_merge_diag.md · B 가득 · 즉시 합체 = S6 시간 초과). 거둔 뒤 #157 대로 새로 나간다.
+            //    ⚠️ 소멸 연출 없음 · 마운트가 차 있으면 넘치는 몫은 버려진다(Load 상한) · 버스트 스냅샷은 그대로.
+            LastMergeRecalledDrones = RecallDronesToMounts();
+
             // 발동 순간에 일어나는 것은 **버스트 하나**다 — 태그 스킬은 부르지 않는다(2026-08-29 확정).
             FireBurst();
             return true;
+        }
+
+        /// <summary>#226 — 직전 합체 순간 거둔 드론 수(시험 · 진단용).</summary>
+        public int LastMergeRecalledDrones { get; private set; }
+
+        /// <summary>#226 — 두 로봇의 필드 드론을 마운트 재고로 되돌리고 칸을 비운다. 거둔 수를 낸다.</summary>
+        private int RecallDronesToMounts()
+        {
+            int n = 0;
+            foreach (RobotSide s in _sides)
+            {
+                if (s == null) continue;
+                for (int i = s.drones.Count - 1; i >= 0; i--)
+                {
+                    DroneUnit d = s.drones[i];
+                    if (s.mount != null) s.mount.Load(d.Kind == DroneKind.Aoe ? MountItem.DroneAoe : MountItem.Drone, 1f);
+                    s.drones.RemoveAt(i);
+                    if (s.bay != null) s.bay.Retire();
+                    n++;
+                }
+            }
+            return n;
+        }
+
+        /// <summary>#226 — 지금 필드에 떠 있는 드론 수(두 로봇 합 · 시험용).</summary>
+        public int DronesInFieldTotal
+        {
+            get { int n = 0; foreach (RobotSide s in _sides) if (s != null) n += s.drones.Count; return n; }
         }
 
         /// <summary>
