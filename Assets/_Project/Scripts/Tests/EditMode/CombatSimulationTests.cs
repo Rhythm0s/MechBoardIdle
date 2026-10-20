@@ -261,11 +261,11 @@ namespace MBI.Tests
         }
 
         /// <summary>
-        /// **#217 — 쪼갠 발은 한 표적에게 전부**(2026-10-20 사용자 확정 · #60 개정). 앞 발에 표적이 죽으면 남은 발은
-        /// 다른 적에게 안 간다(🗑️ 「탄 하나에 두 줄기」). 표준탄 한 줄 · 1발/초 · 셋으로 쪼갬.
+        /// **#217 — 쪼갠 발은 살아 있는 동안 한 표적에게**(2026-10-20 사용자 확정 · #60 개정 · ⓐ 판정).
+        /// 앞 발에 표적이 죽으면 남은 발은 다음 표적으로 간다(🗑️ 첫 판 「버린다」). 표준탄 한 줄 · 1발/초 · 셋으로 쪼갬.
         /// </summary>
         [Test]
-        public void SplitShots_StayOnOneTarget_RestWastedWhenItDies()
+        public void SplitShots_StayOnOneTarget_RestGoToNextWhenItDies()
         {
             RobotSetup setup = Robot(1000f);
             setup.lines = new List<AmmoLine> { new AmmoLine(AmmoKind.Standard, 10f, 1f) };
@@ -281,7 +281,7 @@ namespace MBI.Tests
             foreach (CombatEntity e in sim.Enemies) { if (e.label == "약한 적") weak = e; else if (e.label == "샌드백") bag = e; }
             Assert.IsTrue(weak == null || weak.hp <= 0f, "첫 발에 약한 적이 쓰러진다(목록에서 빠질 수도 있다)");
             Assert.IsNotNull(bag);
-            Assert.AreEqual(100000f, bag.hp, 0.001f, "남은 두 발이 다른 적에게 갈라지지 않는다");
+            Assert.AreEqual(100000f - 10f, bag.hp, 0.001f, "#217 ⓐ — 앞 발에 죽으면 남은 두 발(5 × 2)은 다음 표적으로");
         }
 
         /// <summary>

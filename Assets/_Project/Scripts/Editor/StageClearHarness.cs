@@ -3037,6 +3037,45 @@ namespace MBI.EditorTools
             if (Application.isBatchMode) EditorApplication.Exit(0);
         }
 
+        /// <summary>
+        /// **#223 — 도전 진입 만재(A · B 40) 대조**(2026-10-20 · 하네스 전용 · 값 0).
+        /// S4 · S5 · S6 × 시작 보드 / 폭발탄 프리셋 × 강화 뒤 × 즉시 합체 / 45초 합체 · B 0 시작(종전 표) ↔ B 가득(#223).
+        /// 배치: <c>-executeMethod MBI.EditorTools.StageClearHarness.RunFill223Batch</c>
+        /// </summary>
+        public static void RunFill223Batch()
+        {
+            var sb = new StringBuilder();
+            sb.AppendLine("############ #223 도전 진입 만재 대조 (2026-10-20 · 하네스 전용 · 자산 0) ############");
+            sb.AppendLine("A 40 시작 · 강화 뒤 · 합체 게이지 0(#160 3초 만충 그대로) · B 0(종전) ↔ B 가득(#223)");
+            sb.AppendLine();
+            sb.AppendLine("| 판 | 보드 | 즉시 합체 · B 0 | 즉시 합체 · B 가득 | 45초 합체 · B 0 | 45초 합체 · B 가득 |");
+            sb.AppendLine("|---|---|---|---|---|---|");
+            System.Action<BoardGrid> hook = g => PresetBoards.ApplyExplosive(g, NodeResolver(BasePropellantNeed));
+            try
+            {
+                foreach (string sid in new[] { "S4", "S5", "S6" })
+                    foreach (bool on in new[] { false, true })
+                    {
+                        var c = new string[4];
+                        (float at, float b)[] runs = { (0f, 0f), (0f, 1f), (45f, 0f), (45f, 1f) };
+                        for (int k = 0; k < 4; k++)
+                        {
+                            BoardHook = on ? hook : null;
+                            Enhanced = true; HarnessMergeOutput = true; AutoMerge = true; RushMerge = true;
+                            MergeNotBefore = runs[k].at; MergeStartRatio = 0f; AStartRatio = 1f; BStartRatio = runs[k].b;
+                            StageVerdict v = RunOne(sid, 0f);
+                            c[k] = v.result == CombatResult.Win ? $"**Win {v.seconds:F1}초**" : $"{v.result} · 남은 적 HP {LastEnemyHpLeft:F0}";
+                            BoardHook = null; KnobReset();
+                        }
+                        sb.AppendLine($"| {sid} | {(on ? "폭발탄 프리셋" : "시작 보드")} | {c[0]} | {c[1]} | {c[2]} | {c[3]} |");
+                    }
+            }
+            finally { BoardHook = null; KnobReset(); }
+            System.IO.File.WriteAllText("Docs/261020_fill223.md", sb.ToString());
+            Debug.Log(sb.ToString());
+            if (Application.isBatchMode) EditorApplication.Exit(0);
+        }
+
         /// <summary>판을 세운 직후 손대는 갈고리 — 하네스 전용(2026-10-16 · 사용자 막힘 「S2 도전을 못 넘는다」 실측).</summary>
         internal static System.Action<BoardGrid> BoardHook;
 

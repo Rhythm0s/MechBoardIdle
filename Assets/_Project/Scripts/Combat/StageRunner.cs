@@ -2719,6 +2719,10 @@ namespace MBI.Combat
             Debug.Log($"[MBI] 도전 시작 — {(stage != null ? stage.stageId : "?")} · 들어가기 전 {CarryLine()}.");
             _challengeNext = true;
             Restart();
+            // ✅ **#223(2026-10-20 사용자 확정) — S4 · S5 · S6 도전은 마운트 A·B 만재로 든다**(「다시 도전」도 이 길).
+            //    채우는 길 = 바로가기 #156(`FillMountsForJump`) 재사용 · 판을 세운 뒤에 부른다 · 합체 게이지는 그대로.
+            if (stage != null && ChallengeFillRule.FillsOnEntry(StageMapName.NumberOf(stage.stageId)))
+                FillMountsForJump();
         }
 
         /// <summary>도전 안내 창이 떠 있는가(2026-10-16 지시 ③).</summary>

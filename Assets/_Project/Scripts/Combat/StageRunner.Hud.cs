@@ -592,7 +592,8 @@ namespace MBI.Combat
                 StageMapName.NumberOf(stage.stageId), StageLayerSignals.IsFarming);
             bool farming = status == StageBadgeRule.StatusKind.Farm;
             string goal = farming
-                ? "파밍: " + stage.topic + "  ·  모아서 보드를 키운다"
+                // ✅ #224 수정(10-20 사용자) — 파밍 줄 = 「파밍: {주제}」 한 줄 · 🗑️ 꼬리 「  ·  모아서 보드를 키운다」.
+                ? "파밍: " + stage.topic
                 // ✅ **#218(2026-10-20 사용자 확정) — 모든 판 「목표: {주제}」만.** 요구치 수는 화면에서 뺀다(판정 · 표 값 불변 · P-9 는 표 값으로만).
                 //    🗑️ #180 「목표: {주제} · 전투력 {req} 넘기기」 · 🗑️ #201 요구치 0 판만 뺀 갈래(`HasRequirement && stage.req > 0f`).
                 : "목표: " + stage.topic;

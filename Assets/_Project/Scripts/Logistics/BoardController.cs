@@ -872,7 +872,19 @@ namespace MBI.Logistics
                 ResolveFlow(g, _flows[Index(owner)]);
             }
 
+            // ✅ #225 방어(10-20 사용자 「초기화해도 (8,7) 복합 가공소가 안 없어짐」) — 프리셋 흔적을 함께 지운다:
+            //    바로가기 프리셋 요청 · #216 자동 완성(돌던 코루틴 · 직전 걸음) · 그리고 시작 판을 **바로** 저장 신호에 올린다
+            //    (종전엔 다음 편집 때까지 신호가 비어 있었다 — 자동 저장이 「불러온 판 그대로」를 싣는 자리).
+            PresetBoards.ExplosiveRequested = false;
+            if (_autoCompleteRoutine != null) { StopCoroutine(_autoCompleteRoutine); _autoCompleteRoutine = null; }
+            _lastExplosiveStep = ExplosiveTutorialRule.Step.None;
+            _explosiveWasActive = false;
+
             RespawnMarkersFromGrid();
+            RefreshConnections();
+            foreach (MountOwner owner in new[] { MountOwner.RobotA, MountOwner.RobotB })
+                if (_boards[Index(owner)] != null)
+                    IdleSignals.SetBoardState(owner, BoardStateCodec.Capture(_boards[Index(owner)]));
             Debug.Log("[MBI] 처음부터 — 판 둘을 시작 배치로 다시 세웠다.");
         }
 
