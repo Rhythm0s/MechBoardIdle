@@ -1582,6 +1582,8 @@ namespace MBI.Combat
                     _sim.OverloadFireRate = bal.overloadFireRate;
                     if (_sim.Merge != null) _sim.Merge.OverloadSeconds = bal.overloadSec;
                 }
+                // ✅ #239 — 과부하 동안 벨트 ×overloadBeltMult(2 · 연출) · 아니면 1.
+                BeltItemFlow.SpeedMultiplier = _sim.IsOverloaded && bal != null ? Mathf.Max(1f, bal.overloadBeltMult) : 1f;
                 MergeSignals.OutputMultiplier = _sim.IsOverloaded && bal != null
                     ? Mathf.Max(1f, bal.overloadProduce)
                     : MergeSignals.None;

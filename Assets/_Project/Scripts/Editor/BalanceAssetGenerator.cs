@@ -188,6 +188,7 @@ namespace MBI.Editor
             c.overloadFireRate = json.Param("overloadFireRate");
             c.overloadProduce = json.Param("overloadProduce");
             c.overloadSec = json.Param("overloadSec");
+            c.overloadBeltMult = json.Param("overloadBeltMult");   // #239
 
             // 부스터 1대당 회피 스택 칸 — 2026-09-17 사용자 확정으로 2 → 4.
             // ⚠️ 구 값 2 는 `DodgeSystem` 에 `const` 로 **박혀 있었다.** 자산으로 옮겼다.

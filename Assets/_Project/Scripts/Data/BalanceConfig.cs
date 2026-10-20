@@ -134,8 +134,11 @@ namespace MBI.Data
         [Tooltip("과부하 발사 배율(사용자 확정 #229 · 2026-10-20). params.overloadFireRate = 2 — 과부하 동안 마운트 소비(= 발사 · 드론 발진) ×2. 피해 ×1.8(mergeMult)은 그대로 곱한다.")]
         public float overloadFireRate = 2f;
 
-        [Tooltip("과부하 산출 배율(사용자 확정 #229). params.overloadProduce = 2.5 — 과부하 동안 A·B 보드 노드(코어·가공소) 산출 ×2.5. 벨트는 제외. 합체 뒤 만재 복귀용.")]
-        public float overloadProduce = 2.5f;
+        [Tooltip("과부하 산출 배율(사용자 확정 #229 · #238 2.5 → 3). params.overloadProduce = 3 — 과부하 동안 A·B 보드 노드(코어·가공소) 산출 ×3. 합체 뒤 만재 복귀용.")]
+        public float overloadProduce = 3f;
+
+        [Tooltip("과부하 벨트 속도 배율(사용자 확정 #239). params.overloadBeltMult = 2 — 과부하 동안 벨트 아이템 이동 ×2. ⚠️ 연출 축(승패 지렛대 아님 · #236 하네스).")]
+        public float overloadBeltMult = 2f;
 
         [Tooltip("과부하 지속(초). params.overloadSec = 20 ⚠️ 미확정(사용자 「10~20초」) — 기본 = 합체 20초 전체.")]
         public float overloadSec = 20f;

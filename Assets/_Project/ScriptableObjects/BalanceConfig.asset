@@ -37,7 +37,8 @@ MonoBehaviour:
   dodgeStacksPerBooster: 4
   mergeOutputMult: 2
   overloadFireRate: 2
-  overloadProduce: 2.5
+  overloadProduce: 3
+  overloadBeltMult: 2
   overloadSec: 20
   muniPerNode: 1
   lineSpecShots: {x: 5, y: 6, z: 2}

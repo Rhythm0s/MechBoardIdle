@@ -2471,8 +2471,8 @@ namespace MBI.EditorTools
         internal static float OverloadFireRateOverride, OverloadConsumePerShot = 1f;
         /// <summary>#235 산출 배율 훑기(0 = 자산 overloadProduce) · 과부하 중 A 마운트 도착 수 · 최대 필드 드론 수.</summary>
         internal static float OverloadProduceOverride;
-        /// <summary>#236 과부하 중 벨트 속도 ×N(하네스 · `BeltItemFlow.SpeedMultiplierProbe`) · 상한 분리 진단값.</summary>
-        internal static float OverloadBeltMult = 1f;
+        /// <summary>#236 과부하 중 벨트 속도 ×N(하네스 · `BeltItemFlow.SpeedMultiplier`) · 상한 분리 진단값.</summary>
+        internal static float OverloadBeltMult;   // 0 = 자산 overloadBeltMult(#239 게임과 같게)
         /// <summary>
         /// #233 퇴행 원인 분리 · 드론 쌓임 변형(2026-10-20 플랜 요청 · **하네스 덮개만 · 런타임 코드 0**).
         /// ㄱ <c>DroneFractionOverride</c> 타격 몫(0 = 자산) · ㄴ <c>DroneAllowanceUncap</c> 이월 1기 캡을 그림자 허용량으로 무력화(리플렉션)
@@ -2842,7 +2842,7 @@ namespace MBI.EditorTools
             Enhanced = false; AutoMerge = false; RushMerge = false; MergeNotBefore = 0f; MergeStartRatio = -1f; AStartRatio = -1f; BStartRatio = -1f;
             EnhancedBOverride = -1; OverloadSecOverride = 0f; OverloadSlotMult = 1f; OverloadFireOff = false; OverloadSubstitute = false;
             OverloadFireRateOverride = 0f; OverloadConsumePerShot = 1f; OverloadProduceOverride = 0f;
-            OverloadBeltMult = 1f; BeltItemFlow.SpeedMultiplierProbe = 1f;
+            OverloadBeltMult = 0f; BeltItemFlow.SpeedMultiplier = 1f;
             DroneFractionOverride = 0f; DroneAllowanceUncap = DroneBCoefRestore = DroneSlotCapRestore = DroneLaunchOnlyWithTarget = false;
         }
         internal static float MergeNotBefore;
@@ -2992,6 +2992,7 @@ namespace MBI.EditorTools
             var sb = new StringBuilder();
             sb.AppendLine("############ #166 모듈 → 실제 흐름 · S1~S6 · 60초 (2026-10-18 · 하네스 · T4 대상 칸 (7,8)) ############");
             sb.AppendLine("모듈 1 = 생산량(M · 산출 ×1.5 · 재료 ×1) · 모듈 2 = M + 생산속도(R · 산출·재료 ×1.5) · 두 로봇 판 = A 가득 · B 0 · 합체 안 누름 · 합체 ×2 태움");
+            sb.AppendLine("✅ #237(2026-10-20 사용자 확정) — #234 뒤(B 강화 = 출격 +2 · 🗑️ 드론 피해 ×1.45) S6 「강화 뒤 · 합체 안 누름」 Timeout = **수용**. 원인 = B ×1.45 빠짐(하네스 ㄷ 복귀만으로 Win 57.2 · Docs/261020_overload.md).");
             sb.AppendLine();
             sb.AppendLine("| 판 | 강화 | 모듈 0 | 모듈 1 (M) | 모듈 2 (M+R) |");
             sb.AppendLine("|---|---|---|---|---|");
@@ -3588,6 +3589,43 @@ namespace MBI.EditorTools
             if (Application.isBatchMode) EditorApplication.Exit(0);
         }
 
+        /// <summary>**#238 · #239 최종 24칸**(자산 그대로 · 산출 3 · 벨트 ×2 · 소비 ×2 · 과부하 20초 · 강화 둘 · A 40 · 즉시 합체). 배치: RunOverloadFinalBatch</summary>
+        public static void RunOverloadFinalBatch()
+        {
+            var sb = new StringBuilder();
+            sb.AppendLine();
+            sb.AppendLine("############ #238 · #239 최종 (2026-10-20 · 자산 그대로: 산출 ×3 · 벨트 ×2 · 소비 ×2 · 과부하 20초 · 드론 상한 없음 · B 강화 = 출격 +2) ############");
+            sb.AppendLine("| 판 | 보드 | B | 결과 |");
+            sb.AppendLine("|---|---|---|---|");
+            System.Action<BoardGrid> hook = g => PresetBoards.ApplyExplosive(g, NodeResolver(BasePropellantNeed));
+            string T(float x) => x < 0f ? "—" : $"{x:F1}";
+            int wins = 0, maxF = 0;
+            try
+            {
+                foreach (string sid in new[] { "S5", "S6" })
+                    foreach (bool on in new[] { false, true })
+                        foreach (float b in new[] { 0f, 0.95f, 1f })
+                        {
+                            BoardHook = on ? hook : null;
+                            Enhanced = true; HarnessMergeOutput = true; AutoMerge = true; RushMerge = true;
+                            MergeNotBefore = 0f; MergeStartRatio = 0f; AStartRatio = 1f; BStartRatio = b;
+                            StageVerdict v = RunOne(sid, 0f);
+                            if (v.result == CombatResult.Win) wins++;
+                            if (LastMaxDronesOnField > maxF) maxF = LastMaxDronesOnField;
+                            sb.AppendLine($"| {sid} | {(on ? "프리셋" : "시작")} | {b * 100f:F0}% | "
+                                + (v.result == CombatResult.Win ? $"**Win {v.seconds:F1}**" : $"Timeout · {LastEnemyHpLeft:F0}")
+                                + $" · A 바닥 {T(LastMountADryAt)} · 필드 최대 {LastMaxDronesOnField} |");
+                            BoardHook = null; KnobReset();
+                        }
+            }
+            finally { BoardHook = null; KnobReset(); }
+            sb.AppendLine();
+            sb.AppendLine($"승 수 {wins}/12 · 화면 드론 최대 {maxF}");
+            System.IO.File.AppendAllText("Docs/261020_overload.md", sb.ToString());
+            Debug.Log(sb.ToString());
+            if (Application.isBatchMode) EditorApplication.Exit(0);
+        }
+
         /// <summary>#223 결함 후보 가름 — S6 시작 보드 · 즉시 합체 · B 95% ↔ B 가득 합체 20초 자취. 배치: RunMergeDiagBatch</summary>
         public static void RunMergeDiagBatch()
         {
@@ -4074,7 +4112,9 @@ namespace MBI.EditorTools
                 // 2026-10-17 — 게임처럼 합체 중 노드 산출 ×mergeOutputMult 를 태울 수 있다(러너 `MergeSignals.OutputMultiplier` → `BoardItemTick.Step`).
                 // ✅ #229 — 과부하 동안만 ×overloadProduce(2.5) · 🗑️ 합체 전체 ×mergeOutputMult(2).
                 bool mmOn = sim.IsOverloaded;
-                BeltItemFlow.SpeedMultiplierProbe = mmOn ? OverloadBeltMult : 1f;   // #236 하네스만
+                BeltItemFlow.SpeedMultiplier = mmOn
+                    ? (OverloadBeltMult > 0f ? OverloadBeltMult : robotA.balanceRef != null ? Mathf.Max(1f, robotA.balanceRef.overloadBeltMult) : 1f)
+                    : 1f;   // #239 — 게임과 같게(손잡이가 있으면 덮개)
                 if (mmOn && mountA.IsFull) LastOverloadMountFullSec += Dt;
                 float mm = HarnessMergeOutput && mmOn && robotA.balanceRef != null
                     ? Mathf.Max(1f, OverloadProduceOverride > 0f ? OverloadProduceOverride : robotA.balanceRef.overloadProduce) : 1f;
