@@ -107,6 +107,13 @@ namespace MBI.Core
         public static string LevelLine(bool enhanced, float enhancedCoef) =>
             enhanced ? $"Lv 2 · 피해량 ×{enhancedCoef:0.00}" : "Lv 1 · 피해량 ×1.00";   // #202 — 🗑️ 「강화 Lv 2 · ×1.45」
 
+        /// <summary>
+        /// **로봇 B 레벨 줄**(#234 · 2026-10-20) — 「Lv 2 · 출격 +2」 / 「Lv 1 · 출격 +0」 ⚠️ 꼴 = 플랜 가정.
+        /// 🗑️ B 에도 쓰던 「피해량 ×1.45」(B 강화 축이 피해 → 출격으로 바뀜).
+        /// </summary>
+        public static string LevelLineB(bool enhanced, float releaseBonus) =>
+            enhanced ? $"Lv 2 · 출격 +{releaseBonus:0.#}" : "Lv 1 · 출격 +0";
+
         /// <summary>단추 글자 — 「강화 (재료 50 · 고철 300)」 / 강화 뒤 「강화 완료」(흐림) ⚠️ 가정(#199 · 🗑️ 「강화 (재료 전부 투입)」).</summary>
         public static string ButtonLabelWithCost(bool enhanced, double cost, double scrapCost) =>
             enhanced ? "강화 완료"

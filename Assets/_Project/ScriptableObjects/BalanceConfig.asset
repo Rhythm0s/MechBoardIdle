@@ -43,6 +43,8 @@ MonoBehaviour:
   lineSpecShots: {x: 5, y: 6, z: 2}
   nodeProductionPower: 10
   droneSlots: 3
+  droneRelease: 3
+  enhanceDroneRelease: 2
   droneReleaseRate: 1
   droneCharge: 100
   droneInflow: 1

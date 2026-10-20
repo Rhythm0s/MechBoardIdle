@@ -230,6 +230,8 @@ namespace MBI.Editor
             // 드론(로봇 B) 확정치. 등가선이 여기서 닫힌다 — pB × dB = 1.0 × 100 = 100.
             c.droneSlots = Mathf.RoundToInt(json.Param("slot"));
             c.droneReleaseRate = json.Param("r");
+            c.droneRelease = json.Param("droneRelease");                 // #233
+            c.enhanceDroneRelease = json.Param("enhanceDroneRelease");   // #234
             c.droneCharge = json.Param("dB");
             c.droneInflow = json.Param("pB");
 

@@ -6392,7 +6392,9 @@ namespace MBI.Logistics
             string mat = MountPopover.MaterialLine(material, cost, IdleSignals.WalletScrap, BuildCost.EnhanceScrap);   // #172 재료 · 고철 한 줄
             // ✅ #199 — 단추 글자 = 비용 · 강화 뒤 「강화 완료」(🗑️ 「강화 (재료 전부 투입)」 · 「강화 ×1.45 적용」은 레벨 줄로 옮김).
             string label = MountEnhanceRule.ButtonLabelWithCost(enhanced, cost, BuildCost.EnhanceScrap);
-            string lv = MountEnhanceRule.LevelLine(enhanced, MountPopover.EnhancedCoef);
+            string lv = owner == MountOwner.RobotB
+                ? MountEnhanceRule.LevelLineB(enhanced, MountPopover.DroneReleaseBonus)   // #234 출격 +2
+                : MountEnhanceRule.LevelLine(enhanced, MountPopover.EnhancedCoef);
 
             float Need(GUIStyle st, string t) => st.CalcSize(new GUIContent(t)).x;
             float needW = Need(head, title);

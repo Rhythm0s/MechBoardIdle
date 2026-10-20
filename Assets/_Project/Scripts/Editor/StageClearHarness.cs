@@ -2469,6 +2469,10 @@ namespace MBI.EditorTools
         internal static bool OverloadFireOff, OverloadSubstitute;
         /// <summary>(ㅂ) 과부하 발사 배율 덮개(0 = 자산값) · (ㅁ) 과부하 중 발당 소비 비(1 = 그대로 · 0.5 = 두 발에 한 번 꼴 · 하네스 환급 덮개).</summary>
         internal static float OverloadFireRateOverride, OverloadConsumePerShot = 1f;
+        /// <summary>#235 산출 배율 훑기(0 = 자산 overloadProduce) · 과부하 중 A 마운트 도착 수 · 최대 필드 드론 수.</summary>
+        internal static float OverloadProduceOverride;
+        internal static float LastOverloadArrivalsA, LastOverloadSecondsA;
+        internal static int LastMaxDronesOnField;
         internal static int LastMergeLaunches;
         private static readonly System.Reflection.BindingFlags NonPub = System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance;
 
@@ -2826,7 +2830,7 @@ namespace MBI.EditorTools
             KnobRefillMult = 1f; KnobMergeSeconds = 0f; KnobFreeDrones = false; KnobHalfSkill = false; KnobBossHp = 0f; SpawnHook = null;
             Enhanced = false; AutoMerge = false; RushMerge = false; MergeNotBefore = 0f; MergeStartRatio = -1f; AStartRatio = -1f; BStartRatio = -1f;
             EnhancedBOverride = -1; OverloadSecOverride = 0f; OverloadSlotMult = 1f; OverloadFireOff = false; OverloadSubstitute = false;
-            OverloadFireRateOverride = 0f; OverloadConsumePerShot = 1f;
+            OverloadFireRateOverride = 0f; OverloadConsumePerShot = 1f; OverloadProduceOverride = 0f;
         }
         internal static float MergeNotBefore;
 
@@ -3315,6 +3319,83 @@ namespace MBI.EditorTools
             if (Application.isBatchMode) EditorApplication.Exit(0);
         }
 
+        /// <summary>
+        /// **#235 산출 배율 훑기**(2026-10-20 · #233 · #234 위 · 소비 ×2 · 과부하 20초 · 강화 둘 · A 40 · 즉시 합체).
+        /// 배율 2.5 / 3 / 4 / 5 × 12칸 + 연출 부담(S4~S6 파밍 · 도전 최대 필드 드론). 배치: RunOverloadProduceBatch
+        /// </summary>
+        public static void RunOverloadProduceBatch()
+        {
+            var sb = new StringBuilder();
+            sb.AppendLine();
+            sb.AppendLine("############ #235 산출 배율 훑기 (2026-10-20 · #233 상한 폐지 · 타격 5×20 · #234 B 강화 = 출격 +2 · 소비 ×2 · 과부하 20초) ############");
+            sb.AppendLine("칸 = 결과(승 시각 / 남은 적 HP) · 합체 중 A 바닥(합체 뒤 초) · 과부하 중 A 마운트 도착률(발/초 · 판이 먼저 끝나면 그때까지) · 합체 중 발진 · 최대 필드 드론");
+            sb.AppendLine();
+            sb.AppendLine("| 판 | 보드 | B 시작 | 산출 ×2.5 | ×3 | ×4 | ×5 |");
+            sb.AppendLine("|---|---|---|---|---|---|---|");
+            System.Action<BoardGrid> hook = g => PresetBoards.ApplyExplosive(g, NodeResolver(BasePropellantNeed));
+            string T(float v) => v < 0f ? "—" : $"{v:F1}";
+            float[] mults = { 2.5f, 3f, 4f, 5f };
+            var wins = new int[mults.Length];
+            var rateSum = new float[mults.Length]; var rateN = new int[mults.Length];
+            try
+            {
+                foreach (string sid in new[] { "S5", "S6" })
+                    foreach (bool on in new[] { false, true })
+                        foreach (float b in new[] { 0f, 0.95f, 1f })
+                        {
+                            var c = new string[mults.Length];
+                            for (int k = 0; k < mults.Length; k++)
+                            {
+                                BoardHook = on ? hook : null;
+                                Enhanced = true; HarnessMergeOutput = true; AutoMerge = true; RushMerge = true;
+                                MergeNotBefore = 0f; MergeStartRatio = 0f; AStartRatio = 1f; BStartRatio = b;
+                                OverloadSecOverride = 20f; OverloadProduceOverride = mults[k];
+                                StageVerdict v = RunOne(sid, 0f);
+                                if (v.result == CombatResult.Win) wins[k]++;
+                                float rate = LastOverloadSecondsA > 0f ? LastOverloadArrivalsA / LastOverloadSecondsA : -1f;
+                                if (rate >= 0f) { rateSum[k] += rate; rateN[k]++; }
+                                c[k] = (v.result == CombatResult.Win ? $"**Win {v.seconds:F1}**" : $"Timeout · {LastEnemyHpLeft:F0}")
+                                       + $" · A 바닥 {T(LastMountADryAt)} · 도착 {(rate < 0f ? "—" : rate.ToString("F1"))}/초"
+                                       + $" · 발진 {(LastMergeLaunches >= 0 ? LastMergeLaunches.ToString() : "판 끝")} · 필드 최대 {LastMaxDronesOnField}";
+                                BoardHook = null; KnobReset();
+                            }
+                            sb.AppendLine($"| {sid} | {(on ? "프리셋" : "시작")} | {b * 100f:F0}% | {c[0]} | {c[1]} | {c[2]} | {c[3]} |");
+                        }
+                sb.AppendLine();
+                sb.Append("승 수(12칸 중): ");
+                for (int k = 0; k < mults.Length; k++) sb.Append($"×{mults[k]:0.#} {wins[k]}{(k < mults.Length - 1 ? " · " : "")}");
+                sb.AppendLine();
+                sb.Append("과부하 중 A 도착률 평균(발/초): ");
+                for (int k = 0; k < mults.Length; k++) sb.Append($"×{mults[k]:0.#} {(rateN[k] > 0 ? rateSum[k] / rateN[k] : 0f):F2}{(k < mults.Length - 1 ? " · " : "")}");
+                sb.AppendLine();
+
+                // 연출 부담 — S4~S6 × 파밍 / 도전 × B 강화 전 / 뒤 · 최대 필드 드론(합체 있음 · 과부하 소비 ×2 · 산출 자산값)
+                sb.AppendLine();
+                sb.AppendLine("연출 부담(#233 상한 폐지) — 최대 필드 드론 수(양쪽 합) · 강화 A 뒤 · B 가득 시작 · 도전 = 즉시 합체 / 파밍 = 하네스 파밍 훑기 꼴");
+                sb.AppendLine("| 판 | 층 | B 강화 전 | B 강화 뒤 |");
+                sb.AppendLine("|---|---|---|---|");
+                foreach (string sid in new[] { "S4", "S5", "S6" })
+                    foreach (bool farm in new[] { true, false })
+                    {
+                        var d = new string[2];
+                        for (int k = 0; k < 2; k++)
+                        {
+                            Enhanced = true; EnhancedBOverride = k; HarnessMergeOutput = true;
+                            AutoMerge = !farm; RushMerge = !farm; MergeNotBefore = 0f; MergeStartRatio = 0f; AStartRatio = 1f; BStartRatio = 1f;
+                            FarmMode = farm;
+                            StageVerdict v = RunOne(sid, 0f);
+                            d[k] = $"{LastMaxDronesOnField} ({v.result} {v.seconds:F0}초)";
+                            FarmMode = false; KnobReset();
+                        }
+                        sb.AppendLine($"| {sid} | {(farm ? "파밍" : "도전")} | {d[0]} | {d[1]} |");
+                    }
+            }
+            finally { BoardHook = null; FarmMode = false; KnobReset(); }
+            System.IO.File.AppendAllText("Docs/261020_overload.md", sb.ToString());
+            Debug.Log(sb.ToString());
+            if (Application.isBatchMode) EditorApplication.Exit(0);
+        }
+
         /// <summary>#223 결함 후보 가름 — S6 시작 보드 · 즉시 합체 · B 95% ↔ B 가득 합체 20초 자취. 배치: RunMergeDiagBatch</summary>
         public static void RunMergeDiagBatch()
         {
@@ -3668,7 +3749,7 @@ namespace MBI.EditorTools
             var setupB = new RobotSetup
             {
                 hp = HpAll > 0f ? HpAll : tuning.robotHp,
-                mountCoef = MountEnhanceRule.MountCoef(EnhancedBOverride < 0 ? Enhanced : EnhancedBOverride == 1, robotB.mountCoef, robotB.enhancedMountCoef),
+                mountCoef = robotB.mountCoef,   // ✅ #234 — B 강화는 출격 +2(아래) · 🗑️ MountCoef(표식, 기본, 1.45)
                 moduleMult = robotB.moduleMult,
                 attackRange = tuning.robotAttackRangeTbd, radius = 0.5f,
                 multiShotCount = 1, aoeRadius = 0f, aoeSplashFactor = 1f,
@@ -3676,6 +3757,8 @@ namespace MBI.EditorTools
                 ammoCapacity = ammoCapacity, ammoStore = new AmmoInventory(ammoCapacity),
                 droneSlots = bal != null ? bal.droneSlots : 3,
                 droneReleaseRate = bal != null ? bal.droneReleaseRate : 1f,
+                droneThroughput = bal != null ? DroneReleaseRule.Throughput(bal.droneRelease, bal.enhanceDroneRelease,
+                    EnhancedBOverride < 0 ? Enhanced : EnhancedBOverride == 1) : 0f,   // #233 · #234
                 droneCharge = bal != null ? bal.droneCharge : 100f,
                 droneDamagePerHit = (bal != null ? bal.droneCharge : 100f)
                                     * tuning.droneDamageFractionTbd,
@@ -3758,6 +3841,7 @@ namespace MBI.EditorTools
             LastMergeAt = -1f; LastMergeReadyAt = -1f; LastBurstDamage = 0f;   // 2026-10-16 S6 합체 확인
             LastActiveAtMerge = -1; LastTagSwaps = 0; _mergeDiagNext = 0f; LastDocBurst = 0f;
             LastMountADryAt = LastMountBDryAt = LastMergeEndAt = LastRefullA = LastRefullB = -1f; LastMountAAtMergeEnd = LastMountBAtMergeEnd = -1f;
+            LastOverloadArrivalsA = LastOverloadSecondsA = 0f; LastMaxDronesOnField = 0;
             LastHpBeforeMerge = -1f; LastMergeEndHp = -1f;
             int peakAggro = 0;          // #152 — 한 번에 깨어 있던 최대 수
             float bFullAt = -1f;
@@ -3794,8 +3878,10 @@ namespace MBI.EditorTools
                 // 2026-10-17 — 게임처럼 합체 중 노드 산출 ×mergeOutputMult 를 태울 수 있다(러너 `MergeSignals.OutputMultiplier` → `BoardItemTick.Step`).
                 // ✅ #229 — 과부하 동안만 ×overloadProduce(2.5) · 🗑️ 합체 전체 ×mergeOutputMult(2).
                 bool mmOn = sim.IsOverloaded;
-                float mm = HarnessMergeOutput && mmOn && robotA.balanceRef != null ? Mathf.Max(1f, robotA.balanceRef.overloadProduce) : 1f;
+                float mm = HarnessMergeOutput && mmOn && robotA.balanceRef != null
+                    ? Mathf.Max(1f, OverloadProduceOverride > 0f ? OverloadProduceOverride : robotA.balanceRef.overloadProduce) : 1f;
                 BoardItemTick.Step(gridA, flowA, Dt, throttleA.Scale, mm);
+                if (mmOn) { LastOverloadArrivalsA += flowA.PendingMountArrivals.Count; LastOverloadSecondsA += Dt; }   // #235 과부하 중 A 도착
                 deliveryA.Observe(flowA.PendingMountArrivals, DamageOf, Dt, MountOwner.RobotA);
                 flowA.ClearPendingMountArrivals();
                 deliveryA.TryDrain(DeliverySampleSeconds, out _);
@@ -3963,6 +4049,7 @@ namespace MBI.EditorTools
                 bool refundTick = OverloadConsumePerShot < 1f && sim.IsOverloaded;
                 int fP0 = sim.FiredOf(AmmoKind.Pierce), fS0 = sim.FiredOf(AmmoKind.Standard), fE0 = sim.FiredOf(AmmoKind.Explosive);
                 sim.Tick(Dt);
+                if (sim.DronesOnField > LastMaxDronesOnField) LastMaxDronesOnField = sim.DronesOnField;   // #233 연출 부담
                 // (ㅁ) 발당 소비 0.5 — 이번 틱에 나간 **탄 수**(FiredOf 는 쪼갠 발을 세므로 ShotsPerRound 로 나눔)의 (1 − 비)만큼 A 마운트에 되돌린다.
                 if (refundTick)
                 {

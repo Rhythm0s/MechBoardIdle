@@ -69,17 +69,30 @@ namespace MBI.Tests
             Assert.AreEqual(3, bay.Active);
         }
 
-        /// <summary>슬롯이 다 차면 더 못 나간다 — 적재분은 마운트에 그대로 남는다.</summary>
+        /// <summary>
+        /// ✅ #233(2026-10-20) — **동시 유지 상한 없음.** 필드에 몇 기가 있든 처리량 · 적재만큼 나간다.
+        /// 🗑️ 구 Launch_BlockedByOccupiedSlots(「슬롯 2가 상한 · 빈 슬롯이 없으면 0기」).
+        /// </summary>
         [Test]
-        public void Launch_BlockedByOccupiedSlots()
+        public void Launch_NotBlockedByDronesOnField()
         {
-            DroneBay bay = Bay(slots: 2);
+            DroneBay bay = Bay(slots: 2);   // 처리량 2/초
 
-            bay.Launch(10f, loadedInMount: 10f);
-            Assert.AreEqual(2, bay.Active, "슬롯 2가 상한");
+            Assert.AreEqual(10, bay.Launch(10f, loadedInMount: 10f), "2/초 × 10초 = 20 허용 · 적재 10");
+            Assert.AreEqual(10, bay.Active, "슬롯 2를 넘어 필드에 남는다");
+            Assert.AreEqual(3, bay.Launch(1f, loadedInMount: 8f), "필드 10기여도 다음 1초에 이월 1 + 처리량 2 = 3기");
+        }
 
-            Assert.AreEqual(0, bay.Launch(10f, loadedInMount: 8f), "빈 슬롯이 없으면 0기");
-            Assert.AreEqual(2, bay.Active, "그대로");
+        /// <summary>#234 — 처리량은 따로 줄 수 있고 판 도중에 바꿀 수 있다(B 강화 = 출격 +2).</summary>
+        [Test]
+        public void Throughput_GivenAndChangedMidStage()
+        {
+            var bay = new DroneBay(3, 1f, 100f, throughput: 3f);
+            Assert.AreEqual(3, bay.Launch(1f, 100f));
+            bay.SetThroughput(5f);
+            Assert.AreEqual(5, bay.Launch(1f, 100f), "3 + 2");
+            Assert.AreEqual(5f, DroneReleaseRule.Throughput(3f, 2f, true), 1e-4f);
+            Assert.AreEqual(3f, DroneReleaseRule.Throughput(3f, 2f, false), 1e-4f);
         }
 
         /// <summary>방출률이 시간당 상한이므로 짧은 틱에는 그만큼만 나간다.</summary>
@@ -132,8 +145,8 @@ namespace MBI.Tests
 
             for (int i = 0; i < 100; i++) bay.Launch(0.1f, 0f); // 적재 없이 10초 — 허용량만 흐른다
 
-            Assert.LessOrEqual(bay.Launch(0.1f, loadedInMount: 10f), 3,
-                "슬롯 3을 넘어 한꺼번에 나가지 않는다");
+            Assert.LessOrEqual(bay.Launch(0.1f, loadedInMount: 10f), 1,
+                "재고 0 동안 쌓인 허용량은 1기까지만 이월(#233 · 🗑️ 「슬롯 3을 넘어」)");
         }
 
         // ---- 수명: 충전량 = 피해 총량 (§5-3 회신분) ----
@@ -178,13 +191,14 @@ namespace MBI.Tests
         public void Retire_FreesSlotImmediately()
         {
             DroneBay bay = Bay(slots: 2);
-            bay.Launch(10f, loadedInMount: 10f);
+            bay.Launch(1f, loadedInMount: 2f);   // #233 — 상한이 없으니 2기만 실어 2기를 낸다
             Assert.AreEqual(2, bay.Active);
 
             bay.Retire();
 
             Assert.AreEqual(1, bay.Active);
-            Assert.AreEqual(1, bay.Launch(10f, loadedInMount: 8f), "빈 슬롯이 바로 채워진다");
+            // #233 — 슬롯이 상한이 아니므로 다음 출격은 처리량(2/초 × 10초)과 적재(8)로만 정해진다.
+            Assert.AreEqual(8, bay.Launch(10f, loadedInMount: 8f), "🗑️ 「빈 슬롯이 바로 채워진다」(1기)");
         }
 
         [Test]

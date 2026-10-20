@@ -164,8 +164,14 @@ namespace MBI.Data
         }
 
         [Header("드론(로봇 B) — 확정치")]
-        [Tooltip("드론 슬롯 수. params.slot = 3 확정치(강화 비대상 상수).")]
+        [Tooltip("드론 슬롯 수. params.slot = 3. 🗑️ #233(2026-10-20) 동시 유지 상한 폐지 — 이 값은 이제 「B 에 드론이 있다」 표식 · 광역형 궤도 각 나눔에만 쓴다.")]
         public int droneSlots = 3;
+
+        [Tooltip("드론 방출 처리량(기/초). params.droneRelease = 3 (#233 — 슬롯 3 × r 1.0 과 같은 값 · 유지 상한 없음).")]
+        public float droneRelease = 3f;
+
+        [Tooltip("B 마운트 강화 출격 보너스(기/초). params.enhanceDroneRelease = 2 (사용자 확정 #234 · 🗑️ B 강화 = 드론 피해 ×1.45).")]
+        public float enhanceDroneRelease = 2f;
 
         [Tooltip("슬롯당 방출률(기/초). params.r = 1.0 확정치. 실효 방출량 = min(유입, 슬롯 x 방출률).")]
         public float droneReleaseRate = 1f;

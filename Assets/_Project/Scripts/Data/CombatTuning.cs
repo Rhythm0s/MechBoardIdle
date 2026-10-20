@@ -171,7 +171,7 @@ namespace MBI.Data
         // 종마다 다르게 두면 값이 둘이 되고, 두 종을 가르는 것은 **이동과 표적**이지
         // 나눠 쓰는 횟수가 아니다.
         [Tooltip("TBD — 드론 기당 피해 = 충전량 × 이 값. 가정 0.1(열 번에 나눠 쓴다). 0이면 전량(구 거동).")]
-        public float droneDamageFractionTbd = 0.1f;
+        public float droneDamageFractionTbd = 0.2f;   // #233 — 타격 10 → 5 (🗑️ 0.1)
 
         // ⚠️⚠️ **나눈 것을 시간에도 편다** (2026-09-16 사용자 육안 3차 · 플랜 §74-21).
         //

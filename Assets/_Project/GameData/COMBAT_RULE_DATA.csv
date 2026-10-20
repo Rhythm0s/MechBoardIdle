@@ -17,7 +17,7 @@ ID,FieldName,Value,Confirmed
 16,droneFlySpeedTbd,6,0
 17,droneAttachDistanceTbd,0.35,0
 18,droneLeashRadiusTbd,0,0
-19,droneDamageFractionTbd,0.1,0
+19,droneDamageFractionTbd,0.2,0
 20,droneHitIntervalTbd,0.5,0
 21,droneLaunchScaleTbd,0.5,0
 22,manualOverrideGraceTbd,2,0

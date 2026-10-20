@@ -25,6 +25,8 @@ namespace MBI.Tests
         {
             Assert.AreEqual("Lv 1 · 피해량 ×1.00", MountEnhanceRule.LevelLine(false, 1.45f));   // #202
             Assert.AreEqual("Lv 2 · 피해량 ×1.45", MountEnhanceRule.LevelLine(true, 1.45f));
+            Assert.AreEqual("Lv 1 · 출격 +0", MountEnhanceRule.LevelLineB(false, 2f));   // #234
+            Assert.AreEqual("Lv 2 · 출격 +2", MountEnhanceRule.LevelLineB(true, 2f));
             Assert.AreEqual("강화 (재료 50 · 고철 300)", MountEnhanceRule.ButtonLabelWithCost(false, 50d, 300d));
             Assert.AreEqual("강화 완료", MountEnhanceRule.ButtonLabelWithCost(true, 50d, 300d));
         }

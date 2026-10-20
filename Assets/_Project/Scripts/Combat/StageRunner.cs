@@ -126,9 +126,12 @@ namespace MBI.Combat
             _mountCoef = MountEnhanceRule.MountCoef(_mountEnhancedApplied, robot.mountCoef, robot.enhancedMountCoef);
             _sim.SetMountCoef(0, _mountCoef);
             // ✅ #195 — B 는 **제 표식**(mountEnhancedB)을 본다. 🗑️ 구 「A 표식 하나가 A · B 둘 다」(#150).
+            // ✅ #234(2026-10-20) — B 강화 = 드론 **출격 +2**(처리량) · 🗑️ 드론 피해 ×1.45(마운트계수).
             if (robotB != null)
-                _sim.SetMountCoef(1, MountEnhanceRule.MountCoef(_mountEnhancedBApplied,
-                    robotB.mountCoef, robotB.enhancedMountCoef));
+            {
+                _sim.SetMountCoef(1, robotB.mountCoef);
+                _sim.SetDroneThroughput(1, DroneThroughputB(_mountEnhancedBApplied));
+            }
         }
         private bool _ready;
         private float _lastRobotHp; // 피격 점멸 트리거 — HP가 줄어든 프레임을 잡는다
@@ -734,6 +737,13 @@ namespace MBI.Combat
         /// (RobotDefinition의 weapons가 비어 있는 것이 그 표현이다).
         /// 드론 확정치(슬롯 3 · 방출률 1.0 · 충전량 100)는 BalanceConfig 미러에서 온다.
         /// </summary>
+        /// <summary>B 드론 방출 처리량 — `droneRelease` + 강화면 `enhanceDroneRelease`(#234 · 자산이 원천).</summary>
+        private float DroneThroughputB(bool enhancedB)
+        {
+            BalanceConfig bal = robotB != null && robotB.balanceRef != null ? robotB.balanceRef : robot.balanceRef;
+            return bal == null ? 0f : DroneReleaseRule.Throughput(bal.droneRelease, bal.enhanceDroneRelease, enhancedB);
+        }
+
         private RobotSetup BuildRobotBSetup()
         {
             BalanceConfig bal = robotB.balanceRef != null ? robotB.balanceRef : robot.balanceRef;
@@ -742,8 +752,8 @@ namespace MBI.Combat
             {
                 hp = tuning.robotHp,
                 // 🗑️ 구 powerModel 조건 폐기(#150) · 🗑️ 「A 와 같은 표식」(#195) — B 는 제 표식
-                mountCoef = MountEnhanceRule.MountCoef(IdleSignals.MountEnhancedB,
-                    robotB.mountCoef, robotB.enhancedMountCoef),
+                // ✅ #234 — B 강화는 계수가 아니라 출격 +2(아래 droneThroughput) · 🗑️ MountCoef(표식, 기본, 강화 1.45).
+                mountCoef = robotB.mountCoef,
                 moduleMult = robotB.moduleMult,
                 attackRange = tuning.robotAttackRangeTbd,
                 radius = RobotSize * 0.5f,
@@ -758,6 +768,7 @@ namespace MBI.Combat
                 ammoStore = StoreB(bal != null ? bal.storeCapacity : 40f),
                 droneSlots = bal != null ? bal.droneSlots : 3,
                 droneReleaseRate = bal != null ? bal.droneReleaseRate : 1f,
+                droneThroughput = DroneThroughputB(IdleSignals.MountEnhancedB),   // #233 · #234
                 droneCharge = bal != null ? bal.droneCharge : 100f,
                 // ⚠️ **기당 피해는 충전량의 몫이다**(2026-09-16 사용자 확정 · 가정 1/10).
                 //    총 피해와 수명은 안 바뀐다 — 나눠 쓰는 횟수만 바뀐다.
@@ -2769,6 +2780,10 @@ namespace MBI.Combat
         {
             MountPopover.EnhanceCost = EnhanceCost;
             MountPopover.EnhancedCoef = EnhancedMountCoefValue;
+            {
+                BalanceConfig balB = robotB != null && robotB.balanceRef != null ? robotB.balanceRef : robot != null ? robot.balanceRef : null;
+                MountPopover.DroneReleaseBonus = balB != null ? balB.enhanceDroneRelease : 0f;   // #234
+            }
 
             string kindsA = "";
             if (_mountA != null)

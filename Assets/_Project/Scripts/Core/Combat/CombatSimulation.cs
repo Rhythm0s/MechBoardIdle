@@ -100,6 +100,11 @@ namespace MBI.Core
         /// </summary>
         public float droneDamagePerHit;
         public float droneReleaseRate;  // params r = 1.0 (기/초/슬롯)
+        /// <summary>
+        /// 초당 방출 처리량(기/초) — #233 · #234: `droneRelease`(3) + B 강화 `enhanceDroneRelease`(+2).
+        /// 0 이면 종전 식(슬롯 × 방출률).
+        /// </summary>
+        public float droneThroughput;
         public float droneCharge;       // params dB = 100. **1기 = 1회 타격 = 충전량 전량**
 
         /// <summary>
@@ -1391,7 +1396,7 @@ namespace MBI.Core
                         radius = r.radius,
                     },
                     ammo = r.ammoStore ?? new AmmoInventory(r.ammoCapacity),
-                    bay = new DroneBay(r.droneSlots, r.droneReleaseRate, r.droneCharge),
+                    bay = new DroneBay(r.droneSlots, r.droneReleaseRate, r.droneCharge, r.droneThroughput),
                     // 마운트를 안 줘도 **자기 마운트는 갖는다.** 마운트는 로봇의 장비이지
                     // 태그의 부속이 아니다 — 슬롯 0을 주던 동안 단일 로봇 시뮬은 드론을
                     // 실을 데가 없어 사출이 통째로 막혔다(드론 재고가 마운트로 옮겨진 뒤 드러남).
@@ -1543,6 +1548,25 @@ namespace MBI.Core
         {
             if (sideIndex < 0 || sideIndex >= _sides.Length) return;
             _sides[sideIndex].setup.mountCoef = coef;
+        }
+
+        /// <summary>드론 방출 처리량을 판 도중에 바꾼다(#234 — B 마운트 강화 = 출격 +2 · 누른 그 판에 바로).</summary>
+        public void SetDroneThroughput(int sideIndex, float perSecond)
+        {
+            if (sideIndex < 0 || sideIndex >= _sides.Length || _sides[sideIndex].bay == null) return;
+            _sides[sideIndex].setup.droneThroughput = perSecond;
+            _sides[sideIndex].bay.SetThroughput(perSecond);
+        }
+
+        /// <summary>지금 필드에 나가 있는 드론 수(양쪽 합 · 진단 · 연출 부담 측정).</summary>
+        public int DronesOnField
+        {
+            get
+            {
+                int n = 0;
+                for (int i = 0; i < _sides.Length; i++) n += _sides[i].drones.Count;
+                return n;
+            }
         }
 
         public void SetFireLines(IReadOnlyList<AmmoLine> lines)

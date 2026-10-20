@@ -31,7 +31,7 @@ MonoBehaviour:
   droneFlySpeedTbd: 6
   droneAttachDistanceTbd: 0.35
   droneLeashRadiusTbd: 0
-  droneDamageFractionTbd: 0.1
+  droneDamageFractionTbd: 0.2
   droneHitIntervalTbd: 0.5
   droneLaunchScaleTbd: 0.5
   manualOverrideGraceTbd: 2

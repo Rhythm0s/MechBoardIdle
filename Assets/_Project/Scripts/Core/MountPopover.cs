@@ -95,6 +95,9 @@ namespace MBI.Core
         /// <summary>강화 배율(enhancedMountCoef) — 「적용」 글자에 쓴다.</summary>
         public static float EnhancedCoef = 1f;
 
+        /// <summary>B 강화 출격 보너스(기/초) — 러너가 자산(`enhanceDroneRelease`)에서 넣는다(#234).</summary>
+        public static float DroneReleaseBonus;
+
         /// <summary>러너가 매 프레임 그 로봇의 적재를 싣는다.</summary>
         public static void Publish(MountOwner owner, float now, float capacity, string kinds)
         {

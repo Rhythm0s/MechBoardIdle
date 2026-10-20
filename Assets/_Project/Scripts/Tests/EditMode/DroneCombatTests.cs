@@ -69,7 +69,7 @@ namespace MBI.Tests
             Assert.AreEqual(0f, sim.DroneDamageDealt, D);
         }
 
-        /// <summary>슬롯이 병목이면 유입이 넘쳐도 방출이 상한에 걸린다.</summary>
+        /// <summary>처리량이 병목이면 유입이 넘쳐도 방출이 상한에 걸린다(#233 — 상한은 처리량 · 필드 수가 아님).</summary>
         [Test]
         public void SlotThroughput_CapsRelease()
         {

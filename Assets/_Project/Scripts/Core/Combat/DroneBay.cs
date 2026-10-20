@@ -31,12 +31,24 @@ namespace MBI.Core
         // 발사 누산기(CombatSimulation.FireEpsilon)와 같은 뿌리이고 같은 방식으로 푼다.
         private const float LaunchEpsilon = 1e-4f;
 
-        public DroneBay(int slots, float releaseRatePerSlot, float chargePerDrone)
+        public DroneBay(int slots, float releaseRatePerSlot, float chargePerDrone, float throughput = 0f)
         {
             Slots = Mathf.Max(0, slots);
             ReleaseRatePerSlot = Mathf.Max(0f, releaseRatePerSlot);
             ChargePerDrone = Mathf.Max(0f, chargePerDrone);
+            _throughput = throughput > 0f ? throughput : Slots * ReleaseRatePerSlot;
         }
+
+        private float _throughput;
+
+        /// <summary>
+        /// **초당 방출 처리량(기/초)** — 사용자 확정 #233 · #234(2026-10-20).
+        /// 값은 `droneRelease`(3) + B 강화 `enhanceDroneRelease`(+2). 안 주면 종전 식(슬롯 × 방출률).
+        /// </summary>
+        public float Throughput => _throughput;
+
+        /// <summary>판 도중 처리량을 바꾼다(B 마운트 강화 단추 · #234).</summary>
+        public void SetThroughput(float perSecond) => _throughput = Mathf.Max(0f, perSecond);
 
         /// <summary>동시 출격 슬롯 수(params slot = 3, 강화 비대상 상수).</summary>
         public int Slots { get; }
@@ -50,8 +62,8 @@ namespace MBI.Core
         /// <summary>현재 필드에 나가 있는 드론 수. 슬롯을 점유한다.</summary>
         public int Active { get; private set; }
 
-        /// <summary>슬롯 상한에 걸린 초당 방출 능력(기/초).</summary>
-        public float SlotThroughput => Slots * ReleaseRatePerSlot;
+        /// <summary>초당 방출 능력(기/초) — 🗑️ 이름의 「슬롯」(#233 유지 상한 폐지). 값은 <see cref="Throughput"/>.</summary>
+        public float SlotThroughput => _throughput;
 
         /// <summary>실효 방출량(기/초) = min(유입, 슬롯 × 방출률). 낮은 쪽이 병목이다.</summary>
         public float EffectiveRelease(float inflowPerSec) =>
@@ -61,7 +73,9 @@ namespace MBI.Core
         public bool InflowLimited(float inflowPerSec) => inflowPerSec < SlotThroughput;
 
         /// <summary>
-        /// 이번 틱 출격 수. 슬롯 여유 · 방출 허용량 · **마운트에 실린 드론** 중 가장 적은 쪽이 나간다.
+        /// 이번 틱 출격 수. 방출 허용량 · **마운트에 실린 드론** 중 적은 쪽이 나간다.
+        /// ✅ **#233(2026-10-20 사용자 확정) — 동시 유지 상한(Active &lt; Slots) 폐지.** 드론은 충전량을 다 쓰면 소멸할 뿐
+        /// 필드 수에 막히지 않는다. 🗑️ 구 「슬롯 여유 · 방출 허용량 · 적재 중 가장 적은 쪽」.
         /// 방출률은 시간당 상한이므로 dt를 곱해 이번 틱 몫을 낸다.
         ///
         /// 마운트에서 빼는 것은 호출자가 한다 — 사출대가 재고를 건드리면
@@ -74,17 +88,18 @@ namespace MBI.Core
             // 방출 허용량은 **누적한다.** 틱마다 버리면 dt가 작을 때 영영 못 나간다 —
             // 처리량 3기/초에 dt 0.02면 틱당 0.06기이고, 정수로 내리면 언제나 0이다.
             // 탄약 재고의 소수 이월과 같은 문제이고 같은 방식으로 푼다.
-            _allowance += SlotThroughput * dt;
-
-            int freeSlots = Slots - Active;
-            if (freeSlots <= 0) return 0;
+            _allowance += _throughput * dt;
 
             float available = Mathf.Max(0f, loadedInMount);
-            int count = Mathf.FloorToInt(Mathf.Min(available, Mathf.Min(freeSlots, _allowance)) + LaunchEpsilon);
-            if (count <= 0) return 0;
-
-            _allowance -= count;
-            Active += count;
+            int count = Mathf.FloorToInt(Mathf.Min(available, _allowance) + LaunchEpsilon);
+            if (count > 0)
+            {
+                _allowance -= count;
+                Active += count;
+            }
+            // ⚠️ 구현 판단(#233) — 허용량 이월은 **1기까지만**. 종전엔 빈 슬롯이 한꺼번에 터지는 것을 막았는데
+            //    상한이 없어진 뒤 재고 0 동안 허용량이 쌓이면 재고가 들어오는 순간 몰아서 나간다.
+            if (_allowance > 1f) _allowance = 1f;
             return count;
         }
 
