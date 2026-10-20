@@ -3786,7 +3786,6 @@ namespace MBI.EditorTools
                     MergeDiag.AppendLine($"    {elapsed,5:F1}초 · 나선 {(sim.ActiveRobotIndex == 0 ? "A" : "B")} · 합체 {(sim.Merge != null && sim.Merge.IsActive ? "중" : "-")}"
                         + $" · A 줄 {aLines}개 Σ{aRate:F2}발/초 · A 마운트 {(mountA != null ? mountA.Total : 0f):F0}"
                         + $" · 합체 뒤 실제 발사 {fired} · B 드론 재고 {(mountB != null ? mountB.AmountOf(MountItem.Drone) + mountB.AmountOf(MountItem.DroneAoe) : 0f):F0}"
-                        + $" · 필드 드론 {sim.DronesInFieldTotal} · 드론 누적 피해 {sim.DroneDamageDealt:F0} · 합체 때 거둔 드론 {sim.LastMergeRecalledDrones}"
                         + $" · 보스 HP {enemyHp:F0}");
                 }
                 if (allSpawnedAt < 0f && sim.Unspawned == 0) allSpawnedAt = elapsed;   // #151 열
