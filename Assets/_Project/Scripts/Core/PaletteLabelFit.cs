@@ -17,6 +17,8 @@ namespace MBI.Core
     {
         public const int FontCap = 24;
         public const int FontFloor = 6;
+        /// <summary>사다리 바닥(#125 하한) — 이 아래는 띠를 늘려도 안 들 때만.</summary>
+        public const int LadderFloor = 16;
         public const float BandStartRatio = 0.5f;
         public const float BandMaxRatio = 2f / 3f;
 
@@ -42,10 +44,13 @@ namespace MBI.Core
         {
             float w = BandWidth(side);
             float inset = Inset(side);
-            foreach (float ratio in new[] { BandStartRatio, BandMaxRatio })
+            // 차례(⚠️ 구현 판단 · 10-20 576×1024 실측: 반 띠에서 6 까지 다 내린 뒤에야 띠를 늘려 글자가 필요 이상 작았다):
+            //   ① 반 띠 · 상한 → 사다리 바닥 16 ② 2/3 띠 · 상한 → 16 ③ 2/3 띠 · 15 → 바닥 6.
+            foreach ((float ratio, int top, int bottom) in new[]
+                     { (BandStartRatio, FontCap, LadderFloor), (BandMaxRatio, FontCap, LadderFloor), (BandMaxRatio, LadderFloor - 1, FontFloor) })
             {
                 float hMax = side * ratio - inset;
-                for (int size = FontCap; size >= FontFloor; size--)
+                for (int size = top; size >= bottom; size--)
                 {
                     float needH = 0f;
                     bool ok = true;
