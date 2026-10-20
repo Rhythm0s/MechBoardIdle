@@ -2450,6 +2450,8 @@ namespace MBI.EditorTools
         /// <summary>합체 게이지를 1초 앞까지 채운 채 시작 — 하네스 가정 판(2026-10-16 · 「합체를 쓸 수 있었다면」).</summary>
         internal static bool MergePrefill;
         internal static float LastMergeAt = -1f, LastMergeReadyAt = -1f, LastBurstDamage, LastEnemyHpLeft;
+        /// <summary>#223 가름 — 합체 순간 나선 로봇(0 = A · 1 = B · -1 = 합체 없음) · 판 전체 교대 수.</summary>
+        internal static int LastActiveAtMerge = -1, LastTagSwaps;
 
         /// <summary>
         /// **S6 태그·합체 확인**(2026-10-16 사용자 직접 지시 「스테이지 6 태그 및 합체도 사용해도 시간 초과 발생하는지」 · 값 0).
@@ -3048,26 +3050,28 @@ namespace MBI.EditorTools
             sb.AppendLine("############ #223 도전 진입 만재 대조 (2026-10-20 · 하네스 전용 · 자산 0) ############");
             sb.AppendLine("A 40 시작 · 강화 뒤 · 합체 게이지 0(#160 3초 만충 그대로) · B 0(종전) ↔ B 가득(#223)");
             sb.AppendLine();
-            sb.AppendLine("| 판 | 보드 | 즉시 합체 · B 0 | 즉시 합체 · B 가득 | 45초 합체 · B 0 | 45초 합체 · B 가득 |");
-            sb.AppendLine("|---|---|---|---|---|---|");
+            sb.AppendLine("칸 = 결과 · 합체 때 나선 로봇 · 교대 수 · 태그 스킬 수 · 합체 시각(#223 원인 가름)");
+            sb.AppendLine("| 판 | 보드 | 즉시 · B 0(ⓐ 빈 B) | 즉시 · B 95%(ⓐ 화면 38/40) | 즉시 · B 가득(🗑️ 첫 #223) | 45초 · B 0 | 45초 · B 가득 |");
+            sb.AppendLine("|---|---|---|---|---|---|---|");
             System.Action<BoardGrid> hook = g => PresetBoards.ApplyExplosive(g, NodeResolver(BasePropellantNeed));
             try
             {
                 foreach (string sid in new[] { "S4", "S5", "S6" })
                     foreach (bool on in new[] { false, true })
                     {
-                        var c = new string[4];
-                        (float at, float b)[] runs = { (0f, 0f), (0f, 1f), (45f, 0f), (45f, 1f) };
-                        for (int k = 0; k < 4; k++)
+                        var c = new string[5];
+                        (float at, float b)[] runs = { (0f, 0f), (0f, 0.95f), (0f, 1f), (45f, 0f), (45f, 1f) };
+                        for (int k = 0; k < 5; k++)
                         {
                             BoardHook = on ? hook : null;
                             Enhanced = true; HarnessMergeOutput = true; AutoMerge = true; RushMerge = true;
                             MergeNotBefore = runs[k].at; MergeStartRatio = 0f; AStartRatio = 1f; BStartRatio = runs[k].b;
                             StageVerdict v = RunOne(sid, 0f);
-                            c[k] = v.result == CombatResult.Win ? $"**Win {v.seconds:F1}초**" : $"{v.result} · 남은 적 HP {LastEnemyHpLeft:F0}";
+                            c[k] = (v.result == CombatResult.Win ? $"**Win {v.seconds:F1}초**" : $"{v.result} · 남은 적 HP {LastEnemyHpLeft:F0}")
+                                   + $" · 합체 때 {(LastActiveAtMerge == 0 ? "A" : LastActiveAtMerge == 1 ? "B" : "-")} · 교대 {LastTagSwaps} · 스킬 {LastTagStrikes} · 합체 {(LastMergeAt >= 0f ? LastMergeAt.ToString("F1") + "초" : "-")}";
                             BoardHook = null; KnobReset();
                         }
-                        sb.AppendLine($"| {sid} | {(on ? "폭발탄 프리셋" : "시작 보드")} | {c[0]} | {c[1]} | {c[2]} | {c[3]} |");
+                        sb.AppendLine($"| {sid} | {(on ? "폭발탄 프리셋" : "시작 보드")} | {c[0]} | {c[1]} | {c[2]} | {c[3]} | {c[4]} |");
                     }
             }
             finally { BoardHook = null; KnobReset(); }
@@ -3444,6 +3448,7 @@ namespace MBI.EditorTools
             var tagLines = new List<AmmoLine>();   // 매 틱 A 줄 재배분용(아래 · 2026-10-16 정정)
             float allSpawnedAt = -1f;   // #151 — 다 나온 시각
             LastMergeAt = -1f; LastMergeReadyAt = -1f; LastBurstDamage = 0f;   // 2026-10-16 S6 합체 확인
+            LastActiveAtMerge = -1; LastTagSwaps = 0;
             LastHpBeforeMerge = -1f; LastMergeEndHp = -1f;
             int peakAggro = 0;          // #152 — 한 번에 깨어 있던 최대 수
             float bFullAt = -1f;
@@ -3583,6 +3588,7 @@ namespace MBI.EditorTools
                 {
                     LastMergeAt = elapsed;
                     LastHpBeforeMerge = enemyHp;
+                    LastActiveAtMerge = sim.ActiveRobotIndex;   // #223 가름
                 }
                 if (TraceS6 != null && elapsed >= TraceNext)
                 {
@@ -3695,6 +3701,7 @@ namespace MBI.EditorTools
             }
 
             // ── 보고 ───────────────────────────────────────────────────────
+            LastTagSwaps = tagSwaps;   // #223 가름
             LastBurstDamage = sim.LastBurstDamage;
             LastTagStrikes = sim.TagSkillStrikes;
             LastDroneDamage = sim.DroneDamageDealt;

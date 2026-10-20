@@ -581,6 +581,14 @@ namespace MBI.Combat
             Debug.Log($"[MBI] 바로가기 만충(#156) — {(stage != null ? stage.stageId : "?")} · {CarryLine()}.");
         }
 
+        /// <summary>#223 ⓐ — 도전 진입 때 A 마운트만 표준탄 가득(#156 의 A 몫과 같은 길).</summary>
+        private void FillMountAForChallenge()
+        {
+            float stack = robot != null && robot.balanceRef != null ? robot.balanceRef.mountStackLimit : 10f;
+            MountA(stack).Load(MountItem.Standard, MountLoad.SlotsRobotA * stack);
+            Debug.Log($"[MBI] 도전 진입 A 만재(#223 ⓐ) — {(stage != null ? stage.stageId : "?")} · {CarryLine()}.");
+        }
+
         /// <summary>드론 스택 비 — **자산이 원천**이다(`params.mountDroneStackFactor`).</summary>
         private float DroneStackFactor
         {
@@ -2719,10 +2727,10 @@ namespace MBI.Combat
             Debug.Log($"[MBI] 도전 시작 — {(stage != null ? stage.stageId : "?")} · 들어가기 전 {CarryLine()}.");
             _challengeNext = true;
             Restart();
-            // ✅ **#223(2026-10-20 사용자 확정) — S4 · S5 · S6 도전은 마운트 A·B 만재로 든다**(「다시 도전」도 이 길).
-            //    채우는 길 = 바로가기 #156(`FillMountsForJump`) 재사용 · 판을 세운 뒤에 부른다 · 합체 게이지는 그대로.
+            // ✅ **#223 ⓐ(2026-10-20 플랜 판단 ⚠️) — S4 · S5 · S6 도전은 마운트 A 만 가득으로 든다 · B 는 그대로**(「다시 도전」도 이 길).
+            //    🗑️ 첫 판 「A·B 둘 다(`FillMountsForJump`)」 — B 가득 + 즉시 합체에서 S5 · S6 이 시간 초과(하네스 · 화면 7efab39).
             if (stage != null && ChallengeFillRule.FillsOnEntry(StageMapName.NumberOf(stage.stageId)))
-                FillMountsForJump();
+                FillMountAForChallenge();
         }
 
         /// <summary>도전 안내 창이 떠 있는가(2026-10-16 지시 ③).</summary>
