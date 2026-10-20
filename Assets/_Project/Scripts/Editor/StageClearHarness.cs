@@ -2487,6 +2487,9 @@ namespace MBI.EditorTools
         /// 방법: 틱 전에 종류별 「남은 자리」를 넘는 재고를 B 마운트에서 잠시 빼 두고 틱 뒤 되돌린다(DroneBay 밖).
         /// </summary>
         internal static int DroneKindCap, DroneKindCapEnh = 5;
+        /// <summary>태그 링 물음(2026-10-20 · 사용자 육안) — 대기 마운트 Total · Capacity 시계열(1초 · 하네스 전용).</summary>
+        internal static StringBuilder StandbyTrace;
+        private static float _standbyTraceNext;
         internal static bool DroneCapOverloadDouble;
         /// <summary>(c) 과부하 동안 드론 타격 간격 ×0.5(0.5 → 0.25 · 수명 절반 · 하네스 덮개 · sim.DroneHitInterval 프로퍼티).</summary>
         internal static bool DroneOverloadHitHalf;
@@ -3772,6 +3775,27 @@ namespace MBI.EditorTools
             if (Application.isBatchMode) EditorApplication.Exit(0);
         }
 
+        /// <summary>태그 링 물음 — S5 시작 보드 · 강화 둘 · A 40 · B 0 · 합체 30초에 · 대기 마운트 시계열. 배치: RunStandbyRingBatch</summary>
+        public static void RunStandbyRingBatch()
+        {
+            var sb = new StringBuilder();
+            sb.AppendLine("############ 태그 링 = 대기 마운트 Total ÷ Capacity 시계열 (2026-10-20 · 하네스 · S5 시작 보드 · 강화 둘 · A 40 · B 0 · 합체 30초) ############");
+            sb.AppendLine("| 초 | 나선 | 합체 | 대기 Total | 대기 Capacity | 링(비) |");
+            sb.AppendLine("|---|---|---|---|---|---|");
+            try
+            {
+                StandbyTrace = sb;
+                Enhanced = true; HarnessMergeOutput = true; AutoMerge = true; RushMerge = true;
+                MergeNotBefore = 30f; MergeStartRatio = 0f; AStartRatio = 1f; BStartRatio = 0f;
+                StageVerdict v = RunOne("S5", 0f);
+                sb.AppendLine($"결과 {v.result} {v.seconds:F1}초 · 합체 {LastMergeAt:F1}초");
+            }
+            finally { StandbyTrace = null; KnobReset(); }
+            System.IO.File.WriteAllText("Docs/261020_standby_ring.md", sb.ToString());
+            Debug.Log(sb.ToString());
+            if (Application.isBatchMode) EditorApplication.Exit(0);
+        }
+
         /// <summary>#223 결함 후보 가름 — S6 시작 보드 · 즉시 합체 · B 95% ↔ B 가득 합체 20초 자취. 배치: RunMergeDiagBatch</summary>
         public static void RunMergeDiagBatch()
         {
@@ -4227,7 +4251,7 @@ namespace MBI.EditorTools
             LastMountADryAt = LastMountBDryAt = LastMergeEndAt = LastRefullA = LastRefullB = -1f; LastMountAAtMergeEnd = LastMountBAtMergeEnd = -1f;
             LastOverloadArrivalsA = LastOverloadSecondsA = 0f; LastMaxDronesOnField = 0;
             LastOverloadMountFullSec = 0f; LastFireDemandA = -1f;
-            LastMaxStack = LastMaxAoe = 0; LastDronesAtLastEnemy = -1;
+            LastMaxStack = LastMaxAoe = 0; LastDronesAtLastEnemy = -1; _standbyTraceNext = 0f;
             LastHpBeforeMerge = -1f; LastMergeEndHp = -1f;
             int peakAggro = 0;          // #152 — 한 번에 깨어 있던 최대 수
             float bFullAt = -1f;
@@ -4498,6 +4522,13 @@ namespace MBI.EditorTools
                 if (shadowOn && bayTicked)
                     droneShadowAllowance += bayBaseT * bayDtEff - (DroneSpawnedOf(sim) - spawnedPre);
                 if (sim.DronesOnField > LastMaxDronesOnField) LastMaxDronesOnField = sim.DronesOnField;   // #233 연출 부담
+                if (StandbyTrace != null && sim.Tag != null && elapsed >= _standbyTraceNext)
+                {
+                    _standbyTraceNext = elapsed + 1f;
+                    MountLoad sb0 = sim.Tag.StandbyMount;
+                    if (sb0 != null)
+                        StandbyTrace.AppendLine($"| {elapsed:F0} | {(sim.ActiveRobotIndex == 0 ? "A" : "B")} | {(sim.Merge != null && sim.Merge.IsActive ? "합체" : "-")} | {sb0.Total:F1} | {sb0.Capacity:F0} | {(sb0.Capacity > 0f ? sb0.Total / sb0.Capacity : 0f):F2} |");
+                }
                 // (ㅁ) 발당 소비 0.5 — 이번 틱에 나간 **탄 수**(FiredOf 는 쪼갠 발을 세므로 ShotsPerRound 로 나눔)의 (1 − 비)만큼 A 마운트에 되돌린다.
                 if (refundTick)
                 {
