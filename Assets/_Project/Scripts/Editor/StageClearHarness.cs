@@ -2452,6 +2452,14 @@ namespace MBI.EditorTools
         internal static float LastMergeAt = -1f, LastMergeReadyAt = -1f, LastBurstDamage, LastEnemyHpLeft;
         /// <summary>#223 가름 — 합체 순간 나선 로봇(0 = A · 1 = B · -1 = 합체 없음) · 판 전체 교대 수.</summary>
         internal static int LastActiveAtMerge = -1, LastTagSwaps;
+        /// <summary>
+        /// **버스트 문서식 가정 손잡이**(2026-10-20 사용자 물음 · 하네스 전용 · 값 0 · 런타임 불변).
+        /// <c>MergeSkillOff</c> = 합체 중 태그 스킬 금지(#163 되돌림 가정) · <c>DocBurstPercent</c> &gt; 0 이면 합체 순간
+        /// 「롤링 전투력 합(A 명목 · B 드론 도착률 × 충전량) × 계수」를 사거리 안 적 **전부**에(방어 무시 · 가정) 더 준다.
+        /// </summary>
+        internal static bool MergeSkillOff;
+        internal static float DocBurstPercent;
+        internal static float LastDocBurst;
         /// <summary>#223 결함 후보 가름 — 합체 20초 동안 2초마다 A 줄 · A 마운트 · 실제 발사 · B 드론(하네스 전용 · 비우면 안 씀).</summary>
         internal static StringBuilder MergeDiag;
         private static float _mergeDiagNext;
@@ -3048,6 +3056,49 @@ namespace MBI.EditorTools
         /// S4 · S5 · S6 × 시작 보드 / 폭발탄 프리셋 × 강화 뒤 × 즉시 합체 / 45초 합체 · B 0 시작(종전 표) ↔ B 가득(#223).
         /// 배치: <c>-executeMethod MBI.EditorTools.StageClearHarness.RunFill223Batch</c>
         /// </summary>
+        /// <summary>
+        /// **버스트 문서식 가정 표**(2026-10-20 사용자 물음 「합체 때는 태그 스킬이 아니라 버스트가 나가야」 · 하네스 전용 · 값 0).
+        /// S5 · S6 × 시작 보드 / 프리셋 × B 0 / 95% / 가득 × (가) 지금 (나) 합체 중 태그 스킬 금지 (다) (나)+문서식 버스트 300%
+        /// (라) (나)+문서식 버스트 500% · 1000%. 강화 둘 · A 40 · 즉시 합체(3초). 배치: RunBurstDocBatch
+        /// </summary>
+        public static void RunBurstDocBatch()
+        {
+            var sb = new StringBuilder();
+            sb.AppendLine("############ 버스트 문서식 가정 표 (2026-10-20 · 하네스 전용 · 런타임 불변) ############");
+            sb.AppendLine("강화 A·B · A 40 · 게이지 0 → #160 3초 만충 · 즉시 합체 · 칸 = 결과(승 · 시각 / 남은 보스 HP) · 합체 때 나선 로봇 · 문서식 버스트 값");
+            sb.AppendLine();
+            sb.AppendLine("| 판 | 보드 | B 시작 | (가) 지금 | (나) 합체 중 스킬 금지 | (다) (나)+버스트 300% | (라) (나)+버스트 500% | (라) (나)+버스트 1000% |");
+            sb.AppendLine("|---|---|---|---|---|---|---|---|");
+            System.Action<BoardGrid> hook = g => PresetBoards.ApplyExplosive(g, NodeResolver(BasePropellantNeed));
+            try
+            {
+                foreach (string sid in new[] { "S5", "S6" })
+                    foreach (bool on in new[] { false, true })
+                        foreach (float b in new[] { 0f, 0.95f, 1f })
+                        {
+                            (bool off, float pct)[] vs = { (false, 0f), (true, 0f), (true, 300f), (true, 500f), (true, 1000f) };
+                            var c = new string[vs.Length];
+                            for (int k = 0; k < vs.Length; k++)
+                            {
+                                BoardHook = on ? hook : null;
+                                Enhanced = true; HarnessMergeOutput = true; AutoMerge = true; RushMerge = true;
+                                MergeNotBefore = 0f; MergeStartRatio = 0f; AStartRatio = 1f; BStartRatio = b;
+                                MergeSkillOff = vs[k].off; DocBurstPercent = vs[k].pct;
+                                StageVerdict v = RunOne(sid, 0f);
+                                c[k] = (v.result == CombatResult.Win ? $"**Win {v.seconds:F1}**" : $"Timeout · {LastEnemyHpLeft:F0}")
+                                       + $" · {(LastActiveAtMerge == 0 ? "A" : LastActiveAtMerge == 1 ? "B" : "-")}"
+                                       + (vs[k].pct > 0f ? $" · 버스트 {LastDocBurst:F0}" : "");
+                                BoardHook = null; MergeSkillOff = false; DocBurstPercent = 0f; KnobReset();
+                            }
+                            sb.AppendLine($"| {sid} | {(on ? "프리셋" : "시작")} | {b * 100f:F0}% | {c[0]} | {c[1]} | {c[2]} | {c[3]} | {c[4]} |");
+                        }
+            }
+            finally { BoardHook = null; MergeSkillOff = false; DocBurstPercent = 0f; KnobReset(); }
+            System.IO.File.WriteAllText("Docs/261020_burst_doc.md", sb.ToString());
+            Debug.Log(sb.ToString());
+            if (Application.isBatchMode) EditorApplication.Exit(0);
+        }
+
         /// <summary>#223 결함 후보 가름 — S6 시작 보드 · 즉시 합체 · B 95% ↔ B 가득 합체 20초 자취. 배치: RunMergeDiagBatch</summary>
         public static void RunMergeDiagBatch()
         {
@@ -3476,7 +3527,7 @@ namespace MBI.EditorTools
             var tagLines = new List<AmmoLine>();   // 매 틱 A 줄 재배분용(아래 · 2026-10-16 정정)
             float allSpawnedAt = -1f;   // #151 — 다 나온 시각
             LastMergeAt = -1f; LastMergeReadyAt = -1f; LastBurstDamage = 0f;   // 2026-10-16 S6 합체 확인
-            LastActiveAtMerge = -1; LastTagSwaps = 0; _mergeDiagNext = 0f;
+            LastActiveAtMerge = -1; LastTagSwaps = 0; _mergeDiagNext = 0f; LastDocBurst = 0f;
             LastHpBeforeMerge = -1f; LastMergeEndHp = -1f;
             int peakAggro = 0;          // #152 — 한 번에 깨어 있던 최대 수
             float bFullAt = -1f;
@@ -3617,6 +3668,18 @@ namespace MBI.EditorTools
                     LastMergeAt = elapsed;
                     LastHpBeforeMerge = enemyHp;
                     LastActiveAtMerge = sim.ActiveRobotIndex;   // #223 가름
+                    // 가정 손잡이(하네스 전용) — 합체 중 태그 스킬 금지 · 문서식 버스트
+                    if (MergeSkillOff && sim.Tag != null) { sim.Tag.SkillWhileLocked = false; sim.Tag.CancelPendingSkill(); }
+                    if (DocBurstPercent > 0f)
+                    {
+                        float aPower = RobotOutput.Nominal(robotA.weapons, setupA.mountCoef, robotA.moduleMult);
+                        float bPower = (deliveryB.StackDroneRate + deliveryB.AoeDroneRate) * setupB.droneCharge * setupB.mountCoef;
+                        float burst = (aPower + bPower) * DocBurstPercent / 100f;
+                        LastDocBurst = burst;
+                        foreach (CombatEntity en in sim.Enemies)
+                            if (en.IsAlive && (en.position - sim.Robot.position).magnitude <= tuning.robotAttackRangeTbd + en.radius)
+                            { en.hp -= burst; en.aggro = true; }
+                    }
                     _mergeDiagFired0 = sim.FiredOf(AmmoKind.Standard) + sim.FiredOf(AmmoKind.Explosive) + sim.FiredOf(AmmoKind.Pierce);
                     _mergeDiagNext = elapsed;
                 }
