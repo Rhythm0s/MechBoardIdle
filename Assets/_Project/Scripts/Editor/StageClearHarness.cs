@@ -3901,6 +3901,69 @@ namespace MBI.EditorTools
             if (Application.isBatchMode) EditorApplication.Exit(0);
         }
 
+        /// <summary>
+        /// **#257 S5 도전 구성 훑기**(2026-10-21 사용자 「장갑만 7 · 폭발탄 든 A 로도 클리어」 · 하네스 · 값 0).
+        /// 구성 변형 다섯 × (A 단독 · 강화 1 · 폭발탄 판 · A 40 · 60초) · (B 있음 · 즉시 합체) + S4 A 단독 참고. 배치: RunS5CompBatch
+        /// ⚠️ 보병 · 포격 값은 S5 파밍 표 값(보병 30/2.5 · 포격 90/2.5 · 「⚠️가정 S4 값」) — S5 도전 표에는 장갑 줄 하나뿐이다.
+        /// </summary>
+        public static void RunS5CompBatch()
+        {
+            var tuning = AssetDatabase.LoadAssetAtPath<CombatTuning>($"{SoRoot}/CombatTuning.asset");
+            var s5 = AssetDatabase.LoadAssetAtPath<StageDefinition>($"{SoRoot}/Stages/Stage_S5.asset");
+            StageComposition Inf(int c) => new StageComposition { enemyKey = "infantry", count = c, hp = 30f, def = 2.5f };
+            StageComposition Art(int c) => new StageComposition { enemyKey = "artillery", count = c, hp = 90f, def = 2.5f };
+            StageComposition Arm(int c) => new StageComposition { enemyKey = "armor", count = c, hp = 850f, def = 15f };
+            (string n, StageComposition[] comp)[] vs =
+            {
+                ("(ㄱ) 지금 장갑 7", new[] { Arm(7) }),
+                ("(ㄴ) 장갑 4 + 보병 3", new[] { Arm(4), Inf(3) }),
+                ("(ㄷ) 장갑 2 + 보병 3 + 포격 2", new[] { Arm(2), Inf(3), Art(2) }),
+                ("(ㄹ) 보병 5 + 포격 2", new[] { Inf(5), Art(2) }),
+                ("(ㅁ) 장갑 3 + 포격 4", new[] { Arm(3), Art(4) }),
+            };
+            System.Action<BoardGrid> preset = g => PresetBoards.ApplyExplosive(g, NodeResolver(BasePropellantNeed));
+            string C(StageVerdict v) => (v.result == CombatResult.Win ? $"**Win {v.seconds:F1}초(남은 {60f - v.seconds:F1})**" : $"{v.result} · 남은 적 HP {LastEnemyHpLeft:F0}")
+                                        + $" · 처치 {v.total - v.remaining}/{v.total} · 끝 HP {v.hp:F0}";
+            var sb = new StringBuilder();
+            sb.AppendLine("############ #257 S5 도전 구성 훑기 (2026-10-21 · 하네스 · 값 0) ############");
+            sb.AppendLine("A 단독 = B 없음 · 합체 없음 · A 강화(×1.45) · 폭발탄 판(튜토리얼 완성 = 프리셋 같은 칸) · A 표준탄 40 만재 · 60초");
+            sb.AppendLine("B 있음 = 두 로봇 · A 강화 · B 미강화 · A 40 · B 드론 가득 · 즉시 합체(과부하 20초) · 같은 판");
+            sb.AppendLine();
+            sb.AppendLine("| 구성 | A 단독 | B 있음 · 즉시 합체 |");
+            sb.AppendLine("|---|---|---|");
+            try
+            {
+                foreach (var v in vs)
+                {
+                    var clone = ScriptableObject.Instantiate(s5);
+                    clone.composition = new List<StageComposition>(v.comp);
+                    SpawnHook = _ => StageSpawnFactory.Build(clone, EnemyCatalog(), tuning);
+
+                    BoardHook = preset; Enhanced = true;
+                    Run("S5", preloadMount: true, propellantNeed: BasePropellantNeed, hpOverride: 0f);
+                    string a = C(LastVerdict);
+                    BoardHook = null; Enhanced = false;
+
+                    BoardHook = preset; Enhanced = true; EnhancedBOverride = 0; HarnessMergeOutput = true; AutoMerge = true; RushMerge = true;
+                    MergeNotBefore = 0f; MergeStartRatio = 0f; AStartRatio = 1f; BStartRatio = 1f;
+                    RunTag("S5");
+                    string b = C(LastVerdict);
+                    BoardHook = null; KnobReset();
+                    SpawnHook = null;
+                    sb.AppendLine($"| {v.n} | {a} | {b} |");
+                }
+                sb.AppendLine();
+                Enhanced = true;
+                Run("S4", preloadMount: true, propellantNeed: BasePropellantNeed, hpOverride: 0f);
+                sb.AppendLine($"S4 도전 참고(A 단독 · 강화 1 · 시작 보드 · 지금 구성 보병 19 · 포격 3 · 장갑 2): {C(LastVerdict)}");
+                Enhanced = false;
+            }
+            finally { BoardHook = null; SpawnHook = null; KnobReset(); }
+            System.IO.File.WriteAllText("Docs/261021_s5_comp.md", sb.ToString());
+            Debug.Log(sb.ToString());
+            if (Application.isBatchMode) EditorApplication.Exit(0);
+        }
+
         /// <summary>#223 결함 후보 가름 — S6 시작 보드 · 즉시 합체 · B 95% ↔ B 가득 합체 20초 자취. 배치: RunMergeDiagBatch</summary>
         public static void RunMergeDiagBatch()
         {
