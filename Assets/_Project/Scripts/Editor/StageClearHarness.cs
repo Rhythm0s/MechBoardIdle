@@ -3837,6 +3837,60 @@ namespace MBI.EditorTools
             if (Application.isBatchMode) EditorApplication.Exit(0);
         }
 
+        /// <summary>
+        /// **S2 도전 여유**(2026-10-21 · 8134 화면 「처처음부터 → S2 점프」 남은 4초 · 하네스 · 값 0).
+        /// 강화 없음 · 시작 보드 · S2 도전 60초 × 모듈(없음 · 생산량 · 생산속도 · 둘 다 · 대상 (7,8)) + 지렛대(적 −1 · 적 HP ×0.9) + S1 참고.
+        /// 배치: RunS2MarginBatch
+        /// </summary>
+        public static void RunS2MarginBatch()
+        {
+            var m = AssetDatabase.LoadAssetAtPath<ModuleDefinition>($"{SoRoot}/Modules/Module_M.asset");
+            var r = AssetDatabase.LoadAssetAtPath<ModuleDefinition>($"{SoRoot}/Modules/Module_R.asset");
+            (string n, System.Action<BoardGrid> h)[] mods =
+            {
+                ("모듈 0", null),
+                ("생산량 1", g => g.GetAt(new Vector2Int(7, 8))?.TryAttachModule(m)),
+                ("생산속도 1", g => g.GetAt(new Vector2Int(7, 8))?.TryAttachModule(r)),
+                ("둘 다", g => { var nd = g.GetAt(new Vector2Int(7, 8)); nd?.TryAttachModule(m); nd?.TryAttachModule(r); }),
+            };
+            (string n, System.Func<List<EnemySpawn>, List<EnemySpawn>> f)[] levers =
+            {
+                ("그대로", null),
+                ("적 −1", l => { var c = new List<EnemySpawn>(l); if (c.Count > 0) c.RemoveAt(c.Count - 1); return c; }),
+                ("적 HP ×0.9", l => { var c = new List<EnemySpawn>(); foreach (EnemySpawn e in l) { EnemySpawn x = e; x.hp *= 0.9f; c.Add(x); } return c; }),
+            };
+            var sb = new StringBuilder();
+            sb.AppendLine("############ S2 도전 여유 (2026-10-21 · 하네스 · 강화 없음 · 시작 보드 · 60초) ############");
+            sb.AppendLine("칸 = 결과 · 끝 시각(남은 초) · 처치 · HP");
+            sb.AppendLine();
+            sb.AppendLine("| 모듈 | 그대로 | 적 −1 | 적 HP ×0.9 |");
+            sb.AppendLine("|---|---|---|---|");
+            string C(StageVerdict v) => (v.result == CombatResult.Win ? $"**Win {v.seconds:F1}초(남은 {60f - v.seconds:F1})**" : $"{v.result} · 남은 적 HP {LastEnemyHpLeft:F0}")
+                                        + $" · 처치 {v.total - v.remaining}/{v.total} · HP {v.hp:F0}";
+            try
+            {
+                foreach (var md in mods)
+                {
+                    var cells = new string[levers.Length];
+                    for (int k = 0; k < levers.Length; k++)
+                    {
+                        BoardHook = md.h; SpawnHook = levers[k].f; Enhanced = false;
+                        cells[k] = C(RunOne("S2", 0f));
+                        BoardHook = null; KnobReset();
+                    }
+                    sb.AppendLine($"| {md.n} | {cells[0]} | {cells[1]} | {cells[2]} |");
+                }
+                sb.AppendLine();
+                Enhanced = false;
+                sb.AppendLine($"S1 참고(강화 없음 · 모듈 0): {C(RunOne("S1", 0f))}");
+                KnobReset();
+            }
+            finally { BoardHook = null; KnobReset(); }
+            System.IO.File.WriteAllText("Docs/261021_s2_margin.md", sb.ToString());
+            Debug.Log(sb.ToString());
+            if (Application.isBatchMode) EditorApplication.Exit(0);
+        }
+
         /// <summary>#223 결함 후보 가름 — S6 시작 보드 · 즉시 합체 · B 95% ↔ B 가득 합체 20초 자취. 배치: RunMergeDiagBatch</summary>
         public static void RunMergeDiagBatch()
         {
