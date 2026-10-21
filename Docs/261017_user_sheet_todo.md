@@ -112,3 +112,26 @@
 python Tables/xlsx_to_csv.py
 ```
 그다음 `git diff Assets/_Project/GameData`가 **비어 있어야** 한다(시트 = 지금 CSV). 남는 줄이 있으면 그 칸이 아직 다르다.
+
+## 8. 10-20~21 덧 — 시트에 옮길 칸(지금은 CSV · json 임시)
+
+`BALANCE_PARAM_DATA`(= json `params`):
+
+| ID | ParamKey | 값 | 확정 | 근거 |
+|---|---|---|---|---|
+| 49 | `overloadFireRate` | 2 | 1 | #229 과부하 발사 ×2 |
+| 50 | `overloadProduce` | 3 | 1 | #229 → #238(2.5 → 3) |
+| 51 | `overloadSec` | 20 | 0 | #229 지속 · 값 미정(10~20) |
+| 52 | `droneRelease` | 3 | 1 | #233 방출 처리량 |
+| 53 | `enhanceDroneRelease` | 2 | 1 | 🗑️ #242(안 씀) |
+| 54 | `overloadBeltMult` | 2 | 1 | #239 연출 |
+| 55 | `droneKindCap` | 3 | 1 | #242 |
+| 56 | `enhanceDroneCap` | 2 | 1 | #242 |
+| 57 | `overloadDroneHitMult` | 0.5 | 1 | #243 ⚠️ 이름 가정 |
+| 58 | `droneMaxLife` | 5 | 1 | #244 |
+- 🗑️ 표시만 바꾼 칸: `bc`(28 · #229 버스트 폐기) · `mergeOutputMult`(#229) · `slot`(#233) — 값은 그대로.
+
+그 밖:
+- `WEAPON_DATA` 4 · 5행 `DamageFraction` 0.1 → **0.2**(#233 타격 5×20) · `COMBAT_RULE_DATA` 19행 `droneDamageFractionTbd` 0.1 → 0.2.
+- `STAGE_COMP_DATA` · `FARM_COMP_DATA` S2 두 행 HP ×0.9(보병 22.5 → 20.25 · 포격 60 → 54 · #255).
+- ⚠️ #222(방어 ×0.5) 이후 모든 판 def 값 · #208 S3 장갑 0 은 10-20 전에 이미 CSV 로 들어갔다 — 이 문서 1~7장에 없으면 같이 옮긴다(남김 · 대조 안 함).
