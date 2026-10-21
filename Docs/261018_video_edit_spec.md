@@ -1,6 +1,7 @@
 # 영상 편집 세션 작업 명세서 — MechBoardIdle 포트폴리오 영상 (2026-10-18)
 
 > ⚠️ **2026-10-21 — #253 구성(스테이지별 튜토리얼 + S6 합체 FINALE · 컷 0~7)으로 갱신 필요.** 아래 구간표(A~E)는 🗑️ — 촬영본 `video-261021`(c34b78d · 8134)과 컷 구성은 `Docs/261017_shooting_guide.md` 가 정본.
+> 📌 **정본 = 영상 세션 초안 · 보고**(`C:\Users\Kang\.claude\plans\toVideo\261021_영상시나리오_초안.md` · `261021_영상세션_1차마무리_보고.md`) · 산출 `C:\강현구\포트폴리오\MBI\영상_편집\261021_E\MBI_full_E_261021.mp4`(1:19 · 대표) · `MBI_promo_E_261021.mp4`(0:36 · 보조) · 규격 1920×1080 하이브리드 E · BGM = 게임 곡(bgm_battle → bgm_boss) · 글꼴 Karmatic Arcade(FFC) · Noto Sans KR(OFL). 본문 개편은 안 함.
 
 > 이 문서는 새로 여는 Claude Code 세션(「MechBoardIdle 영상 편집 세션」 · Opus)의 유일한 사양이다. 첫 메시지 = 「`Docs/261018_video_edit_spec.md`를 읽고 실행」. 결정은 전부 사용자가 한다. 판단 자리가 생기면 멈추고 플랜 세션(「MechBoardIdle 플랜 세션」)에 SendMessage로 묻는다.
 
