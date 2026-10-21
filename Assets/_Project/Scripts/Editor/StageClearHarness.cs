@@ -3921,6 +3921,8 @@ namespace MBI.EditorTools
                 ("(ㄹ) 보병 5 + 포격 2", new[] { Inf(5), Art(2) }),
                 ("(ㅁ) 장갑 3 + 포격 4", new[] { Arm(3), Art(4) }),
                 ("(ㅂ) 장갑 2 + 보병 4 + 포격 2(사용자 10-21)", new[] { Arm(2), Inf(4), Art(2) }),
+                ("(ㅂ+1a) 장갑 3 + 보병 4 + 포격 2", new[] { Arm(3), Inf(4), Art(2) }),
+                ("(ㅂ+1b) 장갑 3 + 보병 3 + 포격 2", new[] { Arm(3), Inf(3), Art(2) }),
             };
             System.Action<BoardGrid> preset = g => PresetBoards.ApplyExplosive(g, NodeResolver(BasePropellantNeed));
             string C(StageVerdict v) => (v.result == CombatResult.Win ? $"**Win {v.seconds:F1}초(남은 {60f - v.seconds:F1})**" : $"{v.result} · 남은 적 HP {LastEnemyHpLeft:F0}")
