@@ -884,15 +884,30 @@
       "spawnInterval": 0,
       "spawnConfirmed": false,
       "compConfirmed": true,
-      "monsterDir": "강력한 소수·고방어(def 45 = 분열 36.25 < 45 < 폭발 72.5 경계 — A 단독 289.5초 실패 / A+B 109.3초)",
+      "monsterDir": "장갑 4 + 보병 3 — #257(2026-10-21 사용자 확정 · 하네스 A 단독 강화 1 · 폭발탄 판 남은 14.6초 · B 즉시 합체 남은 37.8초 · 보병 30/2.5 = S5 파밍 표 값 ⚠️가정) · 🗑️ 구 장갑 7 폐기(A 단독 시간 초과) · 🗑️ 구 「강력한 소수·고방어(def 45 = 분열 36.25 < 45 < 폭발 72.5 경계 — A 단독 289.5초 실패 / A+B 109.3초)」 폐기(def 45 → 15 · #222)",
       "composition": [
+        {
+          "enemy": "armor",
+          "count": 4,
+          "hp": 850,
+          "def": 15
+        },
+        {
+          "enemy": "infantry",
+          "count": 3,
+          "hp": 30,
+          "def": 2.5
+        }
+      ],
+      "compositionPrev": [
         {
           "enemy": "armor",
           "count": 7,
           "hp": 850,
           "def": 15
         }
-      ]
+      ],
+      "compositionPrevNote": "#257 앞 판(장갑 7 · A 단독 시간 초과) · 기록으로만 남긴다"
     },
     {
       "id": "S6",

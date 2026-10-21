@@ -3967,6 +3967,32 @@ namespace MBI.EditorTools
             if (Application.isBatchMode) EditorApplication.Exit(0);
         }
 
+        /// <summary>#257 확정 뒤 재확인 — 실제 Stage_S5 자산(장갑 4 + 보병 3)으로 A 단독 · B 즉시 합체 한 줄. 배치: RunS5ConfirmBatch</summary>
+        public static void RunS5ConfirmBatch()
+        {
+            System.Action<BoardGrid> preset = g => PresetBoards.ApplyExplosive(g, NodeResolver(BasePropellantNeed));
+            string C(StageVerdict v) => (v.result == CombatResult.Win ? $"**Win {v.seconds:F1}초(남은 {60f - v.seconds:F1})**" : $"{v.result} · 남은 적 HP {LastEnemyHpLeft:F0}")
+                                        + $" · 처치 {v.total - v.remaining}/{v.total} · 끝 HP {v.hp:F0}";
+            string a, b;
+            try
+            {
+                BoardHook = preset; Enhanced = true;
+                Run("S5", preloadMount: true, propellantNeed: BasePropellantNeed, hpOverride: 0f);
+                a = C(LastVerdict);
+                BoardHook = null; Enhanced = false;
+
+                BoardHook = preset; Enhanced = true; EnhancedBOverride = 0; HarnessMergeOutput = true; AutoMerge = true; RushMerge = true;
+                MergeNotBefore = 0f; MergeStartRatio = 0f; AStartRatio = 1f; BStartRatio = 1f;
+                RunTag("S5");
+                b = C(LastVerdict);
+            }
+            finally { BoardHook = null; SpawnHook = null; KnobReset(); }
+            string line = $"\n#257 확정 재확인(실제 Stage_S5 자산 · 장갑 4 + 보병 3 · 같은 꼴): A 단독 {a} · B 즉시 합체 {b}\n";
+            System.IO.File.AppendAllText("Docs/261021_s5_comp.md", line);
+            Debug.Log(line);
+            if (Application.isBatchMode) EditorApplication.Exit(0);
+        }
+
         /// <summary>#223 결함 후보 가름 — S6 시작 보드 · 즉시 합체 · B 95% ↔ B 가득 합체 20초 자취. 배치: RunMergeDiagBatch</summary>
         public static void RunMergeDiagBatch()
         {
