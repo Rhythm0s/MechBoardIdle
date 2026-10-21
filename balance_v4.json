@@ -675,13 +675,13 @@
         {
           "enemy": "infantry",
           "count": 50,
-          "hp": 22.5,
+          "hp": 20.25,
           "def": 0.5
         },
         {
           "enemy": "artillery",
           "count": 5,
-          "hp": 60,
+          "hp": 54,
           "def": 0.5
         }
       ],
@@ -700,7 +700,7 @@
         }
       ],
       "compositionPrevNote": "구판(0914 이전) · §72-14 로 대체 · 기록으로만 남긴다",
-      "compBasis": "가정 · §72-14 · 촬영 뒤 설계 역기입 || HP 증가분 절반 · 사용자 확정 09-18 · 촬영 뒤 설계 역기입 — S1 기준 스테이지 간 증가분을 절반으로(감소분도 절반). 수·def·atk 불변 · S5·S6 불변. 이번 값 앞 판은 compositionPrev2 에 둔다(구판 compositionPrev 는 그대로).",
+      "compBasis": "#255(2026-10-21 사용자 확정) S2 파밍 · 도전 HP ×0.9(보병 22.5→20.25 · 포격 60→54 · 하네스 S2 도전 남은 5.2 → 22.8) || 가정 · §72-14 · 촬영 뒤 설계 역기입 || HP 증가분 절반 · 사용자 확정 09-18 · 촬영 뒤 설계 역기입 — S1 기준 스테이지 간 증가분을 절반으로(감소분도 절반). 수·def·atk 불변 · S5·S6 불변. 이번 값 앞 판은 compositionPrev2 에 둔다(구판 compositionPrev 는 그대로).",
       "compositionPrev2": [
         {
           "enemy": "infantry",

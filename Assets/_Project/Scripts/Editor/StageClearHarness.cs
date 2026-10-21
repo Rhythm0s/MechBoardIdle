@@ -3881,12 +3881,22 @@ namespace MBI.EditorTools
                     sb.AppendLine($"| {md.n} | {cells[0]} | {cells[1]} | {cells[2]} |");
                 }
                 sb.AppendLine();
+                // S2 파밍 생존(강화 없음 · 마운트 가득 · 로봇 A 단독 · 60초 · RunFarmSurvivalBatch 와 같은 꼴)
+                foreach (var md in new[] { mods[0], mods[1] })
+                {
+                    BoardHook = md.h; Enhanced = false; FarmMode = true;
+                    Run("S2", preloadMount: true, propellantNeed: BasePropellantNeed, hpOverride: 0f);
+                    StageVerdict fv = LastVerdict;
+                    BoardHook = null; FarmMode = false; KnobReset();
+                    sb.AppendLine($"S2 파밍 60초 · {md.n}: " + (fv.result == CombatResult.LoseDead ? $"파괴 {fv.seconds:F1}초 · 처치 {LastFarmKills}" : $"**생존** · 처치 {LastFarmKills} · HP 바닥 {LastFarmMinHp:F0}"));
+                }
+                sb.AppendLine();
                 Enhanced = false;
                 sb.AppendLine($"S1 참고(강화 없음 · 모듈 0): {C(RunOne("S1", 0f))}");
                 KnobReset();
             }
             finally { BoardHook = null; KnobReset(); }
-            System.IO.File.WriteAllText("Docs/261021_s2_margin.md", sb.ToString());
+            System.IO.File.AppendAllText("Docs/261021_s2_margin.md", "\n" + sb.ToString().Replace("############ S2 도전 여유 (2026-10-21", "############ #255 뒤 S2 도전 여유 (2026-10-21 · S2 HP ×0.9"));
             Debug.Log(sb.ToString());
             if (Application.isBatchMode) EditorApplication.Exit(0);
         }
