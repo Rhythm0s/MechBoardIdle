@@ -22,7 +22,7 @@ namespace MBI.Tests
             Assert.IsFalse(Active(unlocked: false));
             Assert.IsFalse(Active(ready: false), "만충 전 · 합체 중 · 사용 뒤 = 꺼짐");
             Assert.IsFalse(Active(stage: 5));
-            Assert.IsFalse(Active(cleared: false));
+            Assert.IsTrue(Active(cleared: false), "#254 — 튜토리얼 통과 기록 없는 점프 저장에도 섬(🗑️ IsFalse)");
             Assert.AreEqual("합체 버튼을 눌러 합체해보세요", MergeTutorialRule.Prompt);
         }
 

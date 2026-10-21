@@ -21,10 +21,10 @@ namespace MBI.Tests
         }
 
         [Test]
-        public void 튜토리얼_전이면_안_돈다()
+        public void 바로가기_점프_저장에서도_선다_254()
         {
-            // 앞 수업이 안 끝났는데 다음 수업이 뜨면 둘이 겹친다.
-            Assert.IsFalse(ChallengeTutorialRule.IsActive(
+            // ✅ #254 — 튜토리얼 통과 조건 걷음(🗑️ 「튜토리얼 전이면 안 돈다」). 자연 진행은 T1 을 마쳐야 S1 에 닿는다.
+            Assert.IsTrue(ChallengeTutorialRule.IsActive(
                 tutorialCleared: false, stage1Cleared: false, stageNumber: 1, isFarming: true));
         }
 

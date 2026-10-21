@@ -32,9 +32,10 @@ namespace MBI.Tests
         }
 
         [Test]
-        public void S1_을_못_깼으면_안_선다_T3_가_먼저다()
+        public void 바로가기_S2_점프_저장에서도_선다_254()
         {
-            Assert.IsFalse(ModuleTutorialRule.IsActive(true, stage1Cleared: false, false, 2, true, false));
+            // ✅ #254 — 튜토리얼 · S1 통과 조건 걷음(🗑️ 「S1 을 못 깼으면 안 선다 · T3 가 먼저다」).
+            Assert.IsTrue(ModuleTutorialRule.IsActive(false, stage1Cleared: false, false, 2, true, false));
         }
 
         [Test]

@@ -21,7 +21,8 @@ namespace MBI.Core
         /// </summary>
         public static bool IsActive(bool tutorialCleared, int stageNumber, bool isFarming,
                                     bool stageCleared, bool robotBUnlocked, bool mergeReady) =>
-            tutorialCleared && !isFarming && !stageCleared && robotBUnlocked && mergeReady
+            // ✅ #254(2026-10-21 · #245 꼴) — 🗑️ `tutorialCleared &&` 걷음(인자는 남김 · 안 씀).
+            !isFarming && !stageCleared && robotBUnlocked && mergeReady
             && stageNumber == StageMapName.NumberOf(StageId);
     }
 }

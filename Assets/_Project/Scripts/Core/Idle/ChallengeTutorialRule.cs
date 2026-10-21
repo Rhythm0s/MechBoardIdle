@@ -35,7 +35,9 @@ namespace MBI.Core
         public static bool IsActive(bool tutorialCleared, bool stage1Cleared,
                                     int stageNumber, bool isFarming)
         {
-            if (!tutorialCleared) return false;
+            // ✅ #254(2026-10-21 사용자 확정 · #245 꼴) — 튜토리얼 통과 조건 걷음(인자는 남김 · 안 씀).
+            //    🗑️ `if (!tutorialCleared) return false;` — 바로가기 점프 저장은 튜토리얼 통과를 안 적어 S1 막이 안 섰다.
+            //    자연 진행은 T1 을 마쳐야 S1 파밍에 닿으므로 거동 그대로.
             if (stage1Cleared) return false;
             if (stageNumber != StageNumber) return false;
             return isFarming;

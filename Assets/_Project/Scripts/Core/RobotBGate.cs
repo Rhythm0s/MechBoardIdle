@@ -70,7 +70,8 @@ namespace MBI.Core
         /// </summary>
         public static bool TutorialActive(bool tutorialCleared, int stageNumber, bool isFarming,
                                           bool unlocked, double gold, double cost) =>
-            tutorialCleared && isFarming && !unlocked
+            // ✅ #254(2026-10-21 · #245 꼴) — 🗑️ `tutorialCleared &&` 걷음(인자는 남김 · 안 씀).
+            isFarming && !unlocked
             && stageNumber == StageMapName.NumberOf(UnlockStageId)
             && CanUnlock(gold, cost);
 

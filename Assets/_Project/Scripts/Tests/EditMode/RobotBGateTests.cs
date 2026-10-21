@@ -67,7 +67,7 @@ namespace MBI.Tests
         public void S4_튜토리얼_막은_튜토리얼_마침_S4_파밍_미해금_골드_충분일_때만()
         {
             Assert.IsTrue(RobotBGate.TutorialActive(true, 4, true, false, 50d, 50d));
-            Assert.IsFalse(RobotBGate.TutorialActive(false, 4, true, false, 50d, 50d), "튜토리얼 전");
+            Assert.IsTrue(RobotBGate.TutorialActive(false, 4, true, false, 50d, 50d), "#254 — 바로가기 점프 저장(튜토리얼 전)에도 섬 · 🗑️ 「튜토리얼 전 = 안 섬」");
             Assert.IsFalse(RobotBGate.TutorialActive(true, 5, true, false, 50d, 50d), "S5 에서는 막 없음(S4 첫 진입)");
             Assert.IsFalse(RobotBGate.TutorialActive(true, 4, false, false, 50d, 50d), "도전 층");
             Assert.IsFalse(RobotBGate.TutorialActive(true, 4, true, true, 50d, 50d), "해금 뒤");

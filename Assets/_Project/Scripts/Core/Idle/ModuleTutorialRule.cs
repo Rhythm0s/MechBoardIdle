@@ -75,7 +75,9 @@ namespace MBI.Core
         public static bool IsActive(bool tutorialCleared, bool stage1Cleared, bool stage2Cleared,
                                     int stageNumber, bool isFarming, bool targetHasModule)
         {
-            if (!tutorialCleared || !stage1Cleared) return false;
+            // ✅ #254(2026-10-21 · #245 꼴) — 튜토리얼 통과 · S1 통과 조건 걷음(인자는 남김 · 안 씀).
+            //    🗑️ `if (!tutorialCleared || !stage1Cleared) return false;` — 바로가기 S2 점프는 둘 다 안 적어 T4 가 안 섰다.
+            //    자연 진행은 S1 을 깨야 S2 파밍에 닿으므로 거동 그대로.
             if (stage2Cleared) return false;
             if (stageNumber != StageNumber || !isFarming) return false;
             return !targetHasModule;
